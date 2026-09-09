@@ -269,11 +269,13 @@ export function BrainMap() {
                   );
                 })}
 
-                {/* Connections, with a travelling signal when movement is on */}
+                {/* Connections. A signal travels only along a link that carries
+                    real, running, fresh work. */}
                 {visibleEdges.map((item) => {
                   const a = CELL_BY_ID.get(item.source)!;
                   const b = CELL_BY_ID.get(item.target)!;
                   const active = edgeId === item.id || cellId === item.source || cellId === item.target;
+                  const live = liveCellIds.has(item.source) && liveCellIds.has(item.target);
                   return (
                     <g key={item.id}>
                       <line
@@ -286,13 +288,9 @@ export function BrainMap() {
                         className="cursor-pointer"
                         onClick={() => { setEdgeId(item.id); setCellId(null); }}
                       />
-                      {!reducedMotion && (
-                        <circle r="3" fill="oklch(0.92 0.1 250)">
-                          <animateMotion
-                            dur={`${3 + (item.id.length % 4)}s`}
-                            repeatCount="indefinite"
-                            path={`M${a.x} ${a.y} L${b.x} ${b.y}`}
-                          />
+                      {live && (
+                        <circle r="3" fill="oklch(0.92 0.1 250)" data-live-signal={item.id}>
+                          <animateMotion dur="2.4s" repeatCount="indefinite" path={`M${a.x} ${a.y} L${b.x} ${b.y}`} />
                         </circle>
                       )}
                     </g>
