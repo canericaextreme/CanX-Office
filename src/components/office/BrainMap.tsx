@@ -322,10 +322,21 @@ export function BrainMap() {
                       onFocus={() => setHoverId(item.id)}
                       onBlur={() => setHoverId(null)}
                     >
-                      {!reducedMotion && (
-                        <circle cx={item.x} cy={item.y} r={active ? 20 : 15} fill={color} opacity="0.25">
-                          <animate attributeName="r" values={`${active ? 18 : 13};${active ? 25 : 19};${active ? 18 : 13}`} dur="3.4s" repeatCount="indefinite" />
-                          <animate attributeName="opacity" values="0.3;0.06;0.3" dur="3.4s" repeatCount="indefinite" />
+                      {/* Static glow. It never animates. */}
+                      <circle cx={item.x} cy={item.y} r={active ? 20 : 15} fill={color} opacity="0.22" />
+                      {/* Movement only for real, running, fresh work. */}
+                      {live && (
+                        <circle
+                          cx={item.x}
+                          cy={item.y}
+                          r={active ? 20 : 15}
+                          fill="none"
+                          stroke={color}
+                          strokeWidth="2"
+                          data-live-node={item.id}
+                        >
+                          <animate attributeName="r" values={`${active ? 18 : 13};${active ? 26 : 21}`} dur="2.4s" repeatCount="indefinite" />
+                          <animate attributeName="opacity" values="0.85;0" dur="2.4s" repeatCount="indefinite" />
                         </circle>
                       )}
                       <circle
