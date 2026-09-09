@@ -25,6 +25,7 @@ import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-te
 import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
 import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
 import { Route as OfficeRecordsRouteImport } from './routes/_office/records'
+import { Route as OfficeRoundTableRouteImport } from './routes/_office/round-table'
 import { Route as OfficeSafeHighwaysRouteImport } from './routes/_office/safe-highways'
 import { Route as OfficeSkillsRouteImport } from './routes/_office/skills'
 import { Route as OfficeSubscriptionsRouteImport } from './routes/_office/subscriptions'
@@ -110,6 +111,11 @@ const OfficeRecordsRoute = OfficeRecordsRouteImport.update({
   path: '/records',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeRoundTableRoute = OfficeRoundTableRouteImport.update({
+  id: '/round-table',
+  path: '/round-table',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeSafeHighwaysRoute = OfficeSafeHighwaysRouteImport.update({
   id: '/safe-highways',
   path: '/safe-highways',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
   '/records': typeof OfficeRecordsRoute
+  '/round-table': typeof OfficeRoundTableRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
   '/skills': typeof OfficeSkillsRoute
   '/subscriptions': typeof OfficeSubscriptionsRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
   '/records': typeof OfficeRecordsRoute
+  '/round-table': typeof OfficeRoundTableRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
   '/skills': typeof OfficeSkillsRoute
   '/subscriptions': typeof OfficeSubscriptionsRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/_office/owner-desk': typeof OfficeOwnerDeskRoute
   '/_office/projects': typeof OfficeProjectsRoute
   '/_office/records': typeof OfficeRecordsRoute
+  '/_office/round-table': typeof OfficeRoundTableRoute
   '/_office/safe-highways': typeof OfficeSafeHighwaysRoute
   '/_office/skills': typeof OfficeSkillsRoute
   '/_office/subscriptions': typeof OfficeSubscriptionsRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/owner-desk'
     | '/projects'
     | '/records'
+    | '/round-table'
     | '/safe-highways'
     | '/skills'
     | '/subscriptions'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/owner-desk'
     | '/projects'
     | '/records'
+    | '/round-table'
     | '/safe-highways'
     | '/skills'
     | '/subscriptions'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/_office/owner-desk'
     | '/_office/projects'
     | '/_office/records'
+    | '/_office/round-table'
     | '/_office/safe-highways'
     | '/_office/skills'
     | '/_office/subscriptions'
@@ -392,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeRecordsRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/round-table': {
+      id: '/_office/round-table'
+      path: '/round-table'
+      fullPath: '/round-table'
+      preLoaderRoute: typeof OfficeRoundTableRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/safe-highways': {
       id: '/_office/safe-highways'
       path: '/safe-highways'
@@ -445,6 +464,7 @@ interface OfficeRouteChildren {
   OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
   OfficeProjectsRoute: typeof OfficeProjectsRoute
   OfficeRecordsRoute: typeof OfficeRecordsRoute
+  OfficeRoundTableRoute: typeof OfficeRoundTableRoute
   OfficeSafeHighwaysRoute: typeof OfficeSafeHighwaysRoute
   OfficeSkillsRoute: typeof OfficeSkillsRoute
   OfficeSubscriptionsRoute: typeof OfficeSubscriptionsRoute
@@ -468,6 +488,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
   OfficeProjectsRoute: OfficeProjectsRoute,
   OfficeRecordsRoute: OfficeRecordsRoute,
+  OfficeRoundTableRoute: OfficeRoundTableRoute,
   OfficeSafeHighwaysRoute: OfficeSafeHighwaysRoute,
   OfficeSkillsRoute: OfficeSkillsRoute,
   OfficeSubscriptionsRoute: OfficeSubscriptionsRoute,
