@@ -51,6 +51,12 @@
   --color-office-glass: var(--office-glass);
   --color-office-wood: var(--office-wood);
   --color-office-floor: var(--office-floor);
+  --color-reception-red: var(--reception-red);
+  --color-reception-charcoal: var(--reception-charcoal);
+  --color-reception-white: var(--reception-white);
+  --color-reception-wood: var(--reception-wood);
+  --font-reception-heading: "Outfit", sans-serif;
+  --font-reception-body: "Figtree", sans-serif;
 }
 
 :root {
@@ -70,6 +76,10 @@
   --office-glass: oklch(0.94 0.018 225 / 0.72);
   --office-wood: oklch(0.68 0.075 67);
   --office-floor: oklch(0.91 0.012 80);
+  --reception-red: oklch(0.52 0.19 20);
+  --reception-charcoal: oklch(0.33 0.01 255);
+  --reception-white: oklch(0.975 0.004 95);
+  --reception-wood: oklch(0.69 0.08 66);
 
   --background: oklch(0.975 0.006 85);
   --foreground: oklch(0.22 0.018 255);

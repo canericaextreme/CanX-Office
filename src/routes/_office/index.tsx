@@ -29,13 +29,13 @@ function Reception() {
   const { mode } = useOfficeViewMode();
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background font-reception-body">
       <div className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-5 flex flex-col gap-4 border-b-4 border-reception-charcoal pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <h1 className="text-3xl font-black tracking-tight text-foreground">
-                 <span className="text-canx-red">CANX</span> <span className="text-canx-black">Office</span>
+              <h1 className="font-reception-heading text-3xl font-extrabold text-foreground">
+                 <span className="text-reception-red">CANX</span> <span className="text-reception-charcoal">Office</span>
               </h1>
               <SampleBadge />
             </div>
