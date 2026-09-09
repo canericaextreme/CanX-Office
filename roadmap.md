@@ -39,3 +39,14 @@
 - Reference migrations at docs/migrations/0001_canx_office_core.sql and 0002_ai_limits.sql. NOT APPLIED. Setup steps in docs/office-manager-setup.md.
 - Monday 14 Sep 2026 round table: readiness checklist added; time still unset; no calendar entry; Claude shown disconnected.
 - Open: John must create the CanX-owned Supabase project at https://lovable.dev/dashboard?connectors. Backups untested (no account yet).
+
+## External CanX Supabase connection (2026-09-09, later)
+- [x] Confirmed no agent tool can link an external Supabase project; only Lovable Cloud provisioning exists, which is forbidden here.
+- [x] Agent integrations (MCP) left OFF: only anonymous public access is offered, John requires owner-authenticated only.
+- [x] CANX_SUPABASE_URL set to the canericaextreme project gmsjjiprtulxojhkmbqb.
+- [x] Browser Supabase config now served by this app's server (VITE_ secret names are reserved by Lovable and cannot be set).
+- [x] Migration 0001 given explicit schema-usage grants; no anon grant anywhere (automatic exposure is off).
+- [x] Setup guide corrected: real Supabase MFA recovery process, AI limit numbers marked illustrative not an approved allocation.
+- [ ] BLOCKED on John: add CANX_SUPABASE_PUBLISHABLE_KEY in Project Settings -> Secrets.
+- [ ] Then: run the three migrations in the project SQL editor, create the owner account, grant owner role, enrol authenticator.
+- [ ] Finance: 12 prepared receipts not imported; import happens from a private JSON file John selects, never from source or seed SQL.

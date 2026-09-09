@@ -1,11 +1,13 @@
 # CanX Office — setup guide (database, sign-in, AI)
 
-Written for John. Nothing in this file has been done for you. The office is
-built so that it refuses to do anything paid or private until every step below
-is genuinely complete and checked.
+Written for John. The office refuses to do anything paid or private until every
+step below is genuinely complete and checked.
 
-**Current state: no database, no sign-in, no AI. All of it is blocked, on
-purpose.**
+**Database project:** CanX Office, ref `gmsjjiprtulxojhkmbqb`, created by John in
+the **canericaextreme** Supabase organization, Canada Central, Data API on,
+automatic exposure of new tables OFF, automatic RLS ON.
+
+**Current state: migrations not applied, no sign-in, no AI.**
 
 ---
 
@@ -27,31 +29,43 @@ back door that skips them.
 
 ---
 
-## Step 1 — create the CanX-owned database
+## Step 1 — run the three database files
 
-Open the connectors page and choose Supabase:
-
-https://lovable.dev/dashboard?connectors
-
-Create the project inside **your own** account. This matters: CanX owns the
-account, the data, the backups, and the exports, and can rebuild elsewhere.
-
-## Step 2 — run the two database files
-
-In the Supabase SQL editor, run these in order, from this repository:
+Open the SQL editor of the CanX Office project and run these in order, from
+this repository:
 
 1. `docs/migrations/0001_canx_office_core.sql`
 2. `docs/migrations/0002_ai_limits.sql`
 3. `docs/migrations/0003_finance_receipts.sql` (private receipts storage)
 
-They are **not applied**. They create the tables, the access rules, the
-append-only history, and the spending limits. Running them does **not** create
-sign-in and does **not** enable AI.
+They create the tables, the access rules, the append-only history, and the
+spending-limit machinery. Because automatic exposure of new tables is off,
+every grant these files need is written into them by name; nothing is granted
+to anonymous visitors anywhere. Running them does **not** create sign-in and
+does **not** enable AI.
 
-## Step 3 — make your account the owner
+## Step 2 — give the office the publishable key
 
-Create your account (email and password) in the Supabase dashboard, then run
-this once in the SQL editor, replacing the email:
+The office already holds the project URL. It still needs the **publishable**
+key (the public one, safe in a browser — never the service-role key, which the
+office neither wants nor uses).
+
+Copy it from the project's API settings, then add it in **Project Settings →
+Secrets** under this exact name:
+
+| Name | Value |
+| --- | --- |
+| `CANX_SUPABASE_PUBLISHABLE_KEY` | the project's publishable key |
+
+Nothing else is needed for sign-in to become available.
+
+## Step 3 — create the owner account and make it the owner
+
+Create the account (email and password) in the Supabase dashboard. Proposed
+email: `canericaextreme@gmail.com` — confirm or change it at that point. Choose
+and store the password yourself; the office never creates, holds, or shows it.
+
+Then run this once in the SQL editor, with the email you used:
 
 ```sql
 insert into public.user_roles (user_id, role)
@@ -64,34 +78,42 @@ itself, and no browser action can.
 ## Step 4 — turn on two-step verification
 
 Sign in from the Systems room, then choose **Set up an authenticator app**,
-scan the code, and enter a six-digit code to finish. Store your recovery codes
-offline, in a safe place. If you lose both your phone and your recovery codes,
-you lose the account — nobody can restore it for you.
+scan the code, and enter a six-digit code to finish. Do this yourself; the
+office never enrols an authenticator on your behalf.
+
+**About recovery, stated accurately:** Supabase does not issue printed recovery
+codes for an authenticator factor. If you lose the authenticator, the supported
+recovery route is the project dashboard: an administrator of the Supabase
+project deletes the MFA factor for that user (Authentication → Users), after
+which you sign in with email and password and enrol a fresh authenticator. That
+means whoever controls the Supabase project can restore access — so protect the
+Supabase account itself, and consider enrolling a second authenticator device.
 
 Sign-in without two-step verification is treated as not signed in.
 
-## Step 5 — set your spending and rate limits
+## Step 5 — spending limits, only when a real budget is allocated
 
-Before any AI is allowed, insert your limits (service role, SQL editor):
+The numbers in `0002_ai_limits.sql` are illustrative defaults in reference SQL.
+They are **not** an approved allocation, and they are not John's $500 monthly
+total running-cost ceiling — that ceiling is CAD (working assumption), covers
+all office running costs together, is not per provider, and is separate from
+build credits.
+
+No AI budget has been allocated yet, so no limits row should be inserted yet.
+When a real allocation is decided, insert it deliberately:
 
 ```sql
 insert into public.ai_limits (owner_id, max_calls_per_minute, max_calls_per_day, max_cents_per_day, max_cents_per_month)
-select id, 6, 200, 500, 5000 from auth.users where email = 'you@example.com';
+select id, <calls_per_minute>, <calls_per_day>, <cents_per_day>, <cents_per_month>
+from auth.users where email = 'you@example.com';
 ```
 
 No limits row means no agreed budget, which means every paid call is refused.
 
-## Step 6 — only now, add the AI key
-
-Set these on the server (Project Settings → Secrets). Never in the browser,
-never in the code:
+## Step 6 — only after all of the above, the AI key
 
 | Name | What it is |
 | --- | --- |
-| `CANX_SUPABASE_URL` | Your Supabase project URL |
-| `CANX_SUPABASE_PUBLISHABLE_KEY` | Your Supabase publishable key |
-| `VITE_CANX_SUPABASE_URL` | Same URL again, for the sign-in screen |
-| `VITE_CANX_SUPABASE_PUBLISHABLE_KEY` | Same publishable key again |
 | `OPENAI_API_KEY` | Your own OpenAI key. Server only. |
 | `OPENAI_MODEL` | The exact model you choose. No default is guessed. |
 
@@ -110,16 +132,15 @@ gives the reason. "Verified" appears only after a real successful call.
   actually includes before relying on it.
 - Take your own export as well: `pg_dump` from the project's connection string,
   kept somewhere you control.
-- Restore by creating a fresh project, running the two migration files, then
+- Restore by creating a fresh project, running the three migration files, then
   restoring your dump.
-- **None of this is tested.** There is no CanX-owned account yet to test it on.
-  Test a real restore before treating any of it as a backup.
+- **None of this is tested yet.** Test a real restore before treating any of it
+  as a backup.
 
 ## What stays out
 
 - No Lovable Cloud provisioning, and no managed backend substituted quietly.
 - No mailbox, messaging, payments, or scheduled jobs.
-- No connection to Safe Highways or Trail Tales. Those remain untouched, and
-  are planned as read-only later, if ever.
-- The accounts verified in ChatGPT on 9 September 2026 are a record only. The
-  Office Manager here cannot see or use any of them.
+- No connection to Safe Highways or Trail Tales.
+- Outside AI assistants (agent integrations) stay switched off: the only
+  offered mode is anonymous public access, which John declined.
