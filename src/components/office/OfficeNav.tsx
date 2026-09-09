@@ -77,10 +77,10 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           size="sm"
           onClick={onToggleView}
           aria-label={viewMode === "3d" ? "Switch to simple view" : "Switch to 3D office"}
-          className="hidden gap-2 sm:inline-flex"
+          className="inline-flex gap-2"
         >
           {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          {viewMode === "3d" ? "Simple" : "Office"}
+          <span className="hidden sm:inline">{viewMode === "3d" ? "Simple" : "Office"}</span>
         </Button>
 
         <DropdownMenu>
