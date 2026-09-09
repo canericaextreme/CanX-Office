@@ -14,7 +14,7 @@ interface RoomShellProps {
 
 export function RoomShell({ children, title, purpose, showSample = true }: RoomShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const room: RoomDef = roomByRoute(pathname);
+  const room: RoomDef = roomByRoute(pathname) ?? ROOMS[0];
 
   return (
     <main className="min-h-screen bg-background">
