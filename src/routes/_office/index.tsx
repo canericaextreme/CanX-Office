@@ -1,0 +1,127 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { BrainMap } from "@/components/office/BrainMap";
+import { Office3D } from "@/components/office/Office3D";
+import { SimpleOffice } from "@/components/office/SimpleOffice";
+import { StatusPanel } from "@/components/office/StatusPanel";
+import { TourGuide } from "@/components/office/TourGuide";
+import { SAMPLE_STATUS } from "@/lib/office-data";
+import { useOfficeViewMode } from "@/hooks/use-office-view";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { SampleBadge } from "@/components/office/SampleBadge";
+
+export const Route = createFileRoute("/_office/")({
+  head: () => ({
+    meta: [
+      { title: "CanX Office — Reception" },
+      { name: "description", content: "CanX Office command centre for John Cantlon." },
+      { property: "og:title", content: "CanX Office — Reception" },
+      { property: "og:description", content: "CanX Office command centre for John Cantlon." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: Reception,
+});
+
+function Reception() {
+  const { mode } = useOfficeViewMode();
+
+  return (
+    <main className="min-h-screen bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <h1 className="text-3xl font-black tracking-tight text-foreground">
+                <span className="text-canx-red">CANX</span> Office
+              </h1>
+              <SampleBadge />
+            </div>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              John's visual command centre. What is happening? What needs me? What is blocked?
+              What has been verified? What will it cost?
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <TourGuide />
+          </div>
+        </div>
+
+        <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_380px]">
+          <div className="space-y-6">
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <label htmlFor="front-desk-request" className="mb-2 block text-sm font-medium">
+                  What would you like the office to do?
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="front-desk-request"
+                    placeholder="Describe the outcome in plain English…"
+                    className="flex-1"
+                    disabled
+                    aria-describedby="front-desk-note"
+                  />
+                  <Button disabled>Plan it</Button>
+                </div>
+                <p id="front-desk-note" className="mt-2 text-xs text-muted-foreground">
+                  The manager will receive requests, identify the right project, check authority, and
+                  propose a scoped plan. Disabled in Phase 1 — this is a labelled demonstration.
+                </p>
+              </CardContent>
+            </Card>
+
+            {mode === "3d" ? <Office3D /> : <SimpleOffice />}
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Quick answers
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Metric label="Open work" value="4" tone="blue" />
+                <Metric label="Need me" value="2" tone="yellow" />
+                <Metric label="Red stops" value="1" tone="red" />
+                <Metric label="Cost guardrail" value="CAD $300/mo" tone="grey" />
+              </div>
+              <p className="mt-3 text-[10px] text-muted-foreground">
+                These numbers are synthetic examples for demonstration only.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <StatusPanel items={SAMPLE_STATUS} />
+            <BrainMap />
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "green" | "blue" | "yellow" | "red" | "grey";
+}) {
+  const colors = {
+    green: "border-l-canx-green bg-canx-green/5",
+    blue: "border-l-canx-blue bg-canx-blue/5",
+    yellow: "border-l-canx-yellow bg-canx-yellow/5",
+    red: "border-l-canx-red bg-canx-red/5",
+    grey: "border-l-canx-grey bg-canx-grey/5",
+  };
+
+  return (
+    <div className={`rounded-lg border-l-4 p-3 ${colors[tone]}`}>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold text-foreground">{value}</div>
+    </div>
+  );
+}
