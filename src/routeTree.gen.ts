@@ -13,12 +13,15 @@ import { Route as OfficeRouteImport } from './routes/_office'
 import { Route as OfficeIndexRouteImport } from './routes/_office/index'
 import { Route as OfficeBrainRouteImport } from './routes/_office/brain'
 import { Route as OfficeBuildTestingRouteImport } from './routes/_office/build-testing'
+import { Route as OfficeCommunicationsRouteImport } from './routes/_office/communications'
 import { Route as OfficeFinanceRouteImport } from './routes/_office/finance'
 import { Route as OfficeIdeaGarageRouteImport } from './routes/_office/idea-garage'
+import { Route as OfficeLegalRouteImport } from './routes/_office/legal'
 import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-team'
 import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
 import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
 import { Route as OfficeSafeHighwaysRouteImport } from './routes/_office/safe-highways'
+import { Route as OfficeSubscriptionsRouteImport } from './routes/_office/subscriptions'
 import { Route as OfficeWorkBoardRouteImport } from './routes/_office/work-board'
 
 const OfficeRoute = OfficeRouteImport.update({
@@ -40,6 +43,11 @@ const OfficeBuildTestingRoute = OfficeBuildTestingRouteImport.update({
   path: '/build-testing',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeCommunicationsRoute = OfficeCommunicationsRouteImport.update({
+  id: '/communications',
+  path: '/communications',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeFinanceRoute = OfficeFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -48,6 +56,11 @@ const OfficeFinanceRoute = OfficeFinanceRouteImport.update({
 const OfficeIdeaGarageRoute = OfficeIdeaGarageRouteImport.update({
   id: '/idea-garage',
   path: '/idea-garage',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeLegalRoute = OfficeLegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeOfficeTeamRoute = OfficeOfficeTeamRouteImport.update({
@@ -70,6 +83,11 @@ const OfficeSafeHighwaysRoute = OfficeSafeHighwaysRouteImport.update({
   path: '/safe-highways',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeSubscriptionsRoute = OfficeSubscriptionsRouteImport.update({
+  id: '/subscriptions',
+  path: '/subscriptions',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeWorkBoardRoute = OfficeWorkBoardRouteImport.update({
   id: '/work-board',
   path: '/work-board',
@@ -80,23 +98,29 @@ export interface FileRoutesByFullPath {
   '/': typeof OfficeIndexRoute
   '/brain': typeof OfficeBrainRoute
   '/build-testing': typeof OfficeBuildTestingRoute
+  '/communications': typeof OfficeCommunicationsRoute
   '/finance': typeof OfficeFinanceRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
+  '/legal': typeof OfficeLegalRoute
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/subscriptions': typeof OfficeSubscriptionsRoute
   '/work-board': typeof OfficeWorkBoardRoute
 }
 export interface FileRoutesByTo {
   '/brain': typeof OfficeBrainRoute
   '/build-testing': typeof OfficeBuildTestingRoute
+  '/communications': typeof OfficeCommunicationsRoute
   '/finance': typeof OfficeFinanceRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
+  '/legal': typeof OfficeLegalRoute
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/subscriptions': typeof OfficeSubscriptionsRoute
   '/work-board': typeof OfficeWorkBoardRoute
   '/': typeof OfficeIndexRoute
 }
@@ -105,12 +129,15 @@ export interface FileRoutesById {
   '/_office': typeof OfficeRouteWithChildren
   '/_office/brain': typeof OfficeBrainRoute
   '/_office/build-testing': typeof OfficeBuildTestingRoute
+  '/_office/communications': typeof OfficeCommunicationsRoute
   '/_office/finance': typeof OfficeFinanceRoute
   '/_office/idea-garage': typeof OfficeIdeaGarageRoute
+  '/_office/legal': typeof OfficeLegalRoute
   '/_office/office-team': typeof OfficeOfficeTeamRoute
   '/_office/owner-desk': typeof OfficeOwnerDeskRoute
   '/_office/projects': typeof OfficeProjectsRoute
   '/_office/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/_office/subscriptions': typeof OfficeSubscriptionsRoute
   '/_office/work-board': typeof OfficeWorkBoardRoute
   '/_office/': typeof OfficeIndexRoute
 }
@@ -120,23 +147,29 @@ export interface FileRouteTypes {
     | '/'
     | '/brain'
     | '/build-testing'
+    | '/communications'
     | '/finance'
     | '/idea-garage'
+    | '/legal'
     | '/office-team'
     | '/owner-desk'
     | '/projects'
     | '/safe-highways'
+    | '/subscriptions'
     | '/work-board'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/brain'
     | '/build-testing'
+    | '/communications'
     | '/finance'
     | '/idea-garage'
+    | '/legal'
     | '/office-team'
     | '/owner-desk'
     | '/projects'
     | '/safe-highways'
+    | '/subscriptions'
     | '/work-board'
     | '/'
   id:
@@ -144,12 +177,15 @@ export interface FileRouteTypes {
     | '/_office'
     | '/_office/brain'
     | '/_office/build-testing'
+    | '/_office/communications'
     | '/_office/finance'
     | '/_office/idea-garage'
+    | '/_office/legal'
     | '/_office/office-team'
     | '/_office/owner-desk'
     | '/_office/projects'
     | '/_office/safe-highways'
+    | '/_office/subscriptions'
     | '/_office/work-board'
     | '/_office/'
   fileRoutesById: FileRoutesById
@@ -188,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeBuildTestingRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/communications': {
+      id: '/_office/communications'
+      path: '/communications'
+      fullPath: '/communications'
+      preLoaderRoute: typeof OfficeCommunicationsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/finance': {
       id: '/_office/finance'
       path: '/finance'
@@ -200,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/idea-garage'
       fullPath: '/idea-garage'
       preLoaderRoute: typeof OfficeIdeaGarageRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/legal': {
+      id: '/_office/legal'
+      path: '/legal'
+      fullPath: '/legal'
+      preLoaderRoute: typeof OfficeLegalRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/_office/office-team': {
@@ -230,6 +280,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeSafeHighwaysRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/subscriptions': {
+      id: '/_office/subscriptions'
+      path: '/subscriptions'
+      fullPath: '/subscriptions'
+      preLoaderRoute: typeof OfficeSubscriptionsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/work-board': {
       id: '/_office/work-board'
       path: '/work-board'
@@ -243,12 +300,15 @@ declare module '@tanstack/react-router' {
 interface OfficeRouteChildren {
   OfficeBrainRoute: typeof OfficeBrainRoute
   OfficeBuildTestingRoute: typeof OfficeBuildTestingRoute
+  OfficeCommunicationsRoute: typeof OfficeCommunicationsRoute
   OfficeFinanceRoute: typeof OfficeFinanceRoute
   OfficeIdeaGarageRoute: typeof OfficeIdeaGarageRoute
+  OfficeLegalRoute: typeof OfficeLegalRoute
   OfficeOfficeTeamRoute: typeof OfficeOfficeTeamRoute
   OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
   OfficeProjectsRoute: typeof OfficeProjectsRoute
   OfficeSafeHighwaysRoute: typeof OfficeSafeHighwaysRoute
+  OfficeSubscriptionsRoute: typeof OfficeSubscriptionsRoute
   OfficeWorkBoardRoute: typeof OfficeWorkBoardRoute
   OfficeIndexRoute: typeof OfficeIndexRoute
 }
@@ -256,12 +316,15 @@ interface OfficeRouteChildren {
 const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeBrainRoute: OfficeBrainRoute,
   OfficeBuildTestingRoute: OfficeBuildTestingRoute,
+  OfficeCommunicationsRoute: OfficeCommunicationsRoute,
   OfficeFinanceRoute: OfficeFinanceRoute,
   OfficeIdeaGarageRoute: OfficeIdeaGarageRoute,
+  OfficeLegalRoute: OfficeLegalRoute,
   OfficeOfficeTeamRoute: OfficeOfficeTeamRoute,
   OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
   OfficeProjectsRoute: OfficeProjectsRoute,
   OfficeSafeHighwaysRoute: OfficeSafeHighwaysRoute,
+  OfficeSubscriptionsRoute: OfficeSubscriptionsRoute,
   OfficeWorkBoardRoute: OfficeWorkBoardRoute,
   OfficeIndexRoute: OfficeIndexRoute,
 }
