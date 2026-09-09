@@ -9,50 +9,478 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as OfficeRouteImport } from './routes/_office'
+import { Route as OfficeIndexRouteImport } from './routes/_office/index'
+import { Route as OfficeApprovalsRouteImport } from './routes/_office/approvals'
+import { Route as OfficeBlueprintRouteImport } from './routes/_office/blueprint'
+import { Route as OfficeBrainRouteImport } from './routes/_office/brain'
+import { Route as OfficeBuildTestingRouteImport } from './routes/_office/build-testing'
+import { Route as OfficeCommunicationsRouteImport } from './routes/_office/communications'
+import { Route as OfficeFinanceRouteImport } from './routes/_office/finance'
+import { Route as OfficeFutureRouteImport } from './routes/_office/future'
+import { Route as OfficeHealthRouteImport } from './routes/_office/health'
+import { Route as OfficeIdeaGarageRouteImport } from './routes/_office/idea-garage'
+import { Route as OfficeLegalRouteImport } from './routes/_office/legal'
+import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-team'
+import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
+import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
+import { Route as OfficeRecordsRouteImport } from './routes/_office/records'
+import { Route as OfficeSafeHighwaysRouteImport } from './routes/_office/safe-highways'
+import { Route as OfficeSkillsRouteImport } from './routes/_office/skills'
+import { Route as OfficeSubscriptionsRouteImport } from './routes/_office/subscriptions'
+import { Route as OfficeSystemsRouteImport } from './routes/_office/systems'
+import { Route as OfficeWorkBoardRouteImport } from './routes/_office/work-board'
 
-const IndexRoute = IndexRouteImport.update({
+const OfficeRoute = OfficeRouteImport.update({
+  id: '/_office',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfficeIndexRoute = OfficeIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeApprovalsRoute = OfficeApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeBlueprintRoute = OfficeBlueprintRouteImport.update({
+  id: '/blueprint',
+  path: '/blueprint',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeBrainRoute = OfficeBrainRouteImport.update({
+  id: '/brain',
+  path: '/brain',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeBuildTestingRoute = OfficeBuildTestingRouteImport.update({
+  id: '/build-testing',
+  path: '/build-testing',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeCommunicationsRoute = OfficeCommunicationsRouteImport.update({
+  id: '/communications',
+  path: '/communications',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeFinanceRoute = OfficeFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeFutureRoute = OfficeFutureRouteImport.update({
+  id: '/future',
+  path: '/future',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeHealthRoute = OfficeHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeIdeaGarageRoute = OfficeIdeaGarageRouteImport.update({
+  id: '/idea-garage',
+  path: '/idea-garage',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeLegalRoute = OfficeLegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeOfficeTeamRoute = OfficeOfficeTeamRouteImport.update({
+  id: '/office-team',
+  path: '/office-team',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeOwnerDeskRoute = OfficeOwnerDeskRouteImport.update({
+  id: '/owner-desk',
+  path: '/owner-desk',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeProjectsRoute = OfficeProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeRecordsRoute = OfficeRecordsRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeSafeHighwaysRoute = OfficeSafeHighwaysRouteImport.update({
+  id: '/safe-highways',
+  path: '/safe-highways',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeSkillsRoute = OfficeSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeSubscriptionsRoute = OfficeSubscriptionsRouteImport.update({
+  id: '/subscriptions',
+  path: '/subscriptions',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeSystemsRoute = OfficeSystemsRouteImport.update({
+  id: '/systems',
+  path: '/systems',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeWorkBoardRoute = OfficeWorkBoardRouteImport.update({
+  id: '/work-board',
+  path: '/work-board',
+  getParentRoute: () => OfficeRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof OfficeIndexRoute
+  '/approvals': typeof OfficeApprovalsRoute
+  '/blueprint': typeof OfficeBlueprintRoute
+  '/brain': typeof OfficeBrainRoute
+  '/build-testing': typeof OfficeBuildTestingRoute
+  '/communications': typeof OfficeCommunicationsRoute
+  '/finance': typeof OfficeFinanceRoute
+  '/future': typeof OfficeFutureRoute
+  '/health': typeof OfficeHealthRoute
+  '/idea-garage': typeof OfficeIdeaGarageRoute
+  '/legal': typeof OfficeLegalRoute
+  '/office-team': typeof OfficeOfficeTeamRoute
+  '/owner-desk': typeof OfficeOwnerDeskRoute
+  '/projects': typeof OfficeProjectsRoute
+  '/records': typeof OfficeRecordsRoute
+  '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/skills': typeof OfficeSkillsRoute
+  '/subscriptions': typeof OfficeSubscriptionsRoute
+  '/systems': typeof OfficeSystemsRoute
+  '/work-board': typeof OfficeWorkBoardRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/approvals': typeof OfficeApprovalsRoute
+  '/blueprint': typeof OfficeBlueprintRoute
+  '/brain': typeof OfficeBrainRoute
+  '/build-testing': typeof OfficeBuildTestingRoute
+  '/communications': typeof OfficeCommunicationsRoute
+  '/finance': typeof OfficeFinanceRoute
+  '/future': typeof OfficeFutureRoute
+  '/health': typeof OfficeHealthRoute
+  '/idea-garage': typeof OfficeIdeaGarageRoute
+  '/legal': typeof OfficeLegalRoute
+  '/office-team': typeof OfficeOfficeTeamRoute
+  '/owner-desk': typeof OfficeOwnerDeskRoute
+  '/projects': typeof OfficeProjectsRoute
+  '/records': typeof OfficeRecordsRoute
+  '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/skills': typeof OfficeSkillsRoute
+  '/subscriptions': typeof OfficeSubscriptionsRoute
+  '/systems': typeof OfficeSystemsRoute
+  '/work-board': typeof OfficeWorkBoardRoute
+  '/': typeof OfficeIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_office': typeof OfficeRouteWithChildren
+  '/_office/approvals': typeof OfficeApprovalsRoute
+  '/_office/blueprint': typeof OfficeBlueprintRoute
+  '/_office/brain': typeof OfficeBrainRoute
+  '/_office/build-testing': typeof OfficeBuildTestingRoute
+  '/_office/communications': typeof OfficeCommunicationsRoute
+  '/_office/finance': typeof OfficeFinanceRoute
+  '/_office/future': typeof OfficeFutureRoute
+  '/_office/health': typeof OfficeHealthRoute
+  '/_office/idea-garage': typeof OfficeIdeaGarageRoute
+  '/_office/legal': typeof OfficeLegalRoute
+  '/_office/office-team': typeof OfficeOfficeTeamRoute
+  '/_office/owner-desk': typeof OfficeOwnerDeskRoute
+  '/_office/projects': typeof OfficeProjectsRoute
+  '/_office/records': typeof OfficeRecordsRoute
+  '/_office/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/_office/skills': typeof OfficeSkillsRoute
+  '/_office/subscriptions': typeof OfficeSubscriptionsRoute
+  '/_office/systems': typeof OfficeSystemsRoute
+  '/_office/work-board': typeof OfficeWorkBoardRoute
+  '/_office/': typeof OfficeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/approvals'
+    | '/blueprint'
+    | '/brain'
+    | '/build-testing'
+    | '/communications'
+    | '/finance'
+    | '/future'
+    | '/health'
+    | '/idea-garage'
+    | '/legal'
+    | '/office-team'
+    | '/owner-desk'
+    | '/projects'
+    | '/records'
+    | '/safe-highways'
+    | '/skills'
+    | '/subscriptions'
+    | '/systems'
+    | '/work-board'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/approvals'
+    | '/blueprint'
+    | '/brain'
+    | '/build-testing'
+    | '/communications'
+    | '/finance'
+    | '/future'
+    | '/health'
+    | '/idea-garage'
+    | '/legal'
+    | '/office-team'
+    | '/owner-desk'
+    | '/projects'
+    | '/records'
+    | '/safe-highways'
+    | '/skills'
+    | '/subscriptions'
+    | '/systems'
+    | '/work-board'
+    | '/'
+  id:
+    | '__root__'
+    | '/_office'
+    | '/_office/approvals'
+    | '/_office/blueprint'
+    | '/_office/brain'
+    | '/_office/build-testing'
+    | '/_office/communications'
+    | '/_office/finance'
+    | '/_office/future'
+    | '/_office/health'
+    | '/_office/idea-garage'
+    | '/_office/legal'
+    | '/_office/office-team'
+    | '/_office/owner-desk'
+    | '/_office/projects'
+    | '/_office/records'
+    | '/_office/safe-highways'
+    | '/_office/skills'
+    | '/_office/subscriptions'
+    | '/_office/systems'
+    | '/_office/work-board'
+    | '/_office/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  OfficeRoute: typeof OfficeRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_office': {
+      id: '/_office'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof OfficeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_office/': {
+      id: '/_office/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof OfficeIndexRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/approvals': {
+      id: '/_office/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof OfficeApprovalsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/blueprint': {
+      id: '/_office/blueprint'
+      path: '/blueprint'
+      fullPath: '/blueprint'
+      preLoaderRoute: typeof OfficeBlueprintRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/brain': {
+      id: '/_office/brain'
+      path: '/brain'
+      fullPath: '/brain'
+      preLoaderRoute: typeof OfficeBrainRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/build-testing': {
+      id: '/_office/build-testing'
+      path: '/build-testing'
+      fullPath: '/build-testing'
+      preLoaderRoute: typeof OfficeBuildTestingRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/communications': {
+      id: '/_office/communications'
+      path: '/communications'
+      fullPath: '/communications'
+      preLoaderRoute: typeof OfficeCommunicationsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/finance': {
+      id: '/_office/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof OfficeFinanceRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/future': {
+      id: '/_office/future'
+      path: '/future'
+      fullPath: '/future'
+      preLoaderRoute: typeof OfficeFutureRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/health': {
+      id: '/_office/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof OfficeHealthRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/idea-garage': {
+      id: '/_office/idea-garage'
+      path: '/idea-garage'
+      fullPath: '/idea-garage'
+      preLoaderRoute: typeof OfficeIdeaGarageRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/legal': {
+      id: '/_office/legal'
+      path: '/legal'
+      fullPath: '/legal'
+      preLoaderRoute: typeof OfficeLegalRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/office-team': {
+      id: '/_office/office-team'
+      path: '/office-team'
+      fullPath: '/office-team'
+      preLoaderRoute: typeof OfficeOfficeTeamRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/owner-desk': {
+      id: '/_office/owner-desk'
+      path: '/owner-desk'
+      fullPath: '/owner-desk'
+      preLoaderRoute: typeof OfficeOwnerDeskRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/projects': {
+      id: '/_office/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof OfficeProjectsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/records': {
+      id: '/_office/records'
+      path: '/records'
+      fullPath: '/records'
+      preLoaderRoute: typeof OfficeRecordsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/safe-highways': {
+      id: '/_office/safe-highways'
+      path: '/safe-highways'
+      fullPath: '/safe-highways'
+      preLoaderRoute: typeof OfficeSafeHighwaysRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/skills': {
+      id: '/_office/skills'
+      path: '/skills'
+      fullPath: '/skills'
+      preLoaderRoute: typeof OfficeSkillsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/subscriptions': {
+      id: '/_office/subscriptions'
+      path: '/subscriptions'
+      fullPath: '/subscriptions'
+      preLoaderRoute: typeof OfficeSubscriptionsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/systems': {
+      id: '/_office/systems'
+      path: '/systems'
+      fullPath: '/systems'
+      preLoaderRoute: typeof OfficeSystemsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/work-board': {
+      id: '/_office/work-board'
+      path: '/work-board'
+      fullPath: '/work-board'
+      preLoaderRoute: typeof OfficeWorkBoardRouteImport
+      parentRoute: typeof OfficeRoute
     }
   }
 }
 
+interface OfficeRouteChildren {
+  OfficeApprovalsRoute: typeof OfficeApprovalsRoute
+  OfficeBlueprintRoute: typeof OfficeBlueprintRoute
+  OfficeBrainRoute: typeof OfficeBrainRoute
+  OfficeBuildTestingRoute: typeof OfficeBuildTestingRoute
+  OfficeCommunicationsRoute: typeof OfficeCommunicationsRoute
+  OfficeFinanceRoute: typeof OfficeFinanceRoute
+  OfficeFutureRoute: typeof OfficeFutureRoute
+  OfficeHealthRoute: typeof OfficeHealthRoute
+  OfficeIdeaGarageRoute: typeof OfficeIdeaGarageRoute
+  OfficeLegalRoute: typeof OfficeLegalRoute
+  OfficeOfficeTeamRoute: typeof OfficeOfficeTeamRoute
+  OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
+  OfficeProjectsRoute: typeof OfficeProjectsRoute
+  OfficeRecordsRoute: typeof OfficeRecordsRoute
+  OfficeSafeHighwaysRoute: typeof OfficeSafeHighwaysRoute
+  OfficeSkillsRoute: typeof OfficeSkillsRoute
+  OfficeSubscriptionsRoute: typeof OfficeSubscriptionsRoute
+  OfficeSystemsRoute: typeof OfficeSystemsRoute
+  OfficeWorkBoardRoute: typeof OfficeWorkBoardRoute
+  OfficeIndexRoute: typeof OfficeIndexRoute
+}
+
+const OfficeRouteChildren: OfficeRouteChildren = {
+  OfficeApprovalsRoute: OfficeApprovalsRoute,
+  OfficeBlueprintRoute: OfficeBlueprintRoute,
+  OfficeBrainRoute: OfficeBrainRoute,
+  OfficeBuildTestingRoute: OfficeBuildTestingRoute,
+  OfficeCommunicationsRoute: OfficeCommunicationsRoute,
+  OfficeFinanceRoute: OfficeFinanceRoute,
+  OfficeFutureRoute: OfficeFutureRoute,
+  OfficeHealthRoute: OfficeHealthRoute,
+  OfficeIdeaGarageRoute: OfficeIdeaGarageRoute,
+  OfficeLegalRoute: OfficeLegalRoute,
+  OfficeOfficeTeamRoute: OfficeOfficeTeamRoute,
+  OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
+  OfficeProjectsRoute: OfficeProjectsRoute,
+  OfficeRecordsRoute: OfficeRecordsRoute,
+  OfficeSafeHighwaysRoute: OfficeSafeHighwaysRoute,
+  OfficeSkillsRoute: OfficeSkillsRoute,
+  OfficeSubscriptionsRoute: OfficeSubscriptionsRoute,
+  OfficeSystemsRoute: OfficeSystemsRoute,
+  OfficeWorkBoardRoute: OfficeWorkBoardRoute,
+  OfficeIndexRoute: OfficeIndexRoute,
+}
+
+const OfficeRouteWithChildren =
+  OfficeRoute._addFileChildren(OfficeRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  OfficeRoute: OfficeRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
