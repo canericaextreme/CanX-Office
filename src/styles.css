@@ -140,6 +140,8 @@
     color: var(--color-foreground);
     font-feature-settings: "rlig" 1, "calt" 1;
     font-family: "Manrope", sans-serif;
+    /* Text density actually drives rendered body text size. */
+    font-size: var(--canx-density-text, 0.875rem);
   }
 
   h1,
@@ -150,10 +152,25 @@
     letter-spacing: 0;
   }
 
+  /* Text density actually drives rendered page rhythm. */
+  main > * {
+    padding-block: var(--canx-density-gap, 1.25rem);
+  }
+
   /* Accessible focus ring */
   :focus-visible {
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
+  }
+
+  /* Movement setting: "No movement" really stops animation and transitions. */
+  [data-canx-motion="reduced"],
+  [data-canx-motion="reduced"] *,
+  [data-canx-motion="reduced"] *::before,
+  [data-canx-motion="reduced"] *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
   /* Reduced motion preference */
@@ -179,4 +196,20 @@
 @utility canx-panel {
   background: var(--color-card);
   border: 1px solid var(--color-border);
+}
+
+/*
+ * Panel transparency actually reaches rendered panels. Declared outside a
+ * cascade layer so it wins over the Tailwind utility that sets the card colour.
+ */
+.bg-card,
+.bg-popover,
+[data-slot="card"],
+#office-manager-panel {
+  background-color: color-mix(
+    in oklab,
+    var(--color-card) calc(100% - var(--canx-panel-alpha, 0.35) * 65%),
+    transparent
+  );
+  backdrop-filter: blur(calc(var(--canx-panel-alpha, 0.35) * 10px));
 }

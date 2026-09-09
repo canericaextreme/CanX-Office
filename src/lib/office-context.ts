@@ -28,7 +28,7 @@ export interface OfficeContext {
 }
 
 const BOUNDARIES = [
-  "All office records shown are labelled demonstration data.",
+  "Sample office records are labelled demonstration data; records John saved himself are his own real notes.",
   "No backend database is connected; anything saved stays on this device.",
   "No external connections, payments, mailboxes, or deployments are enabled.",
   "Safe Highways and Trail Tales are outside this project and are never modified.",
@@ -52,9 +52,26 @@ export function buildOfficeContext(): OfficeContext {
   };
 }
 
-export function contextToText(context: OfficeContext): string {
+/** A record John created himself — never demonstration data. */
+export interface OwnerRecord {
+  kind: string;
+  title: string;
+  detail?: string;
+  provenance: string;
+}
+
+export function contextToText(context: OfficeContext, ownerRecords: OwnerRecord[] = []): string {
+  // Provenance is carried per record. Sample rows are marked sample; John's own
+  // records are marked as his and must not be called demonstration data.
   const list = (title: string, items: string[]) =>
-    items.length ? `${title}:\n${items.map((i) => `- ${i}`).join("\n")}` : `${title}: none recorded`;
+    items.length
+      ? `${title} [provenance: sample]:\n${items.map((i) => `- ${i}`).join("\n")}`
+      : `${title} [provenance: sample]: none recorded`;
+  const owner = ownerRecords.length
+    ? `Records created by John [provenance: owner — NOT demonstration data]:\n${ownerRecords
+        .map((r) => `- (${r.kind}, ${r.provenance}) ${r.title}${r.detail ? ` — ${r.detail}` : ""}`)
+        .join("\n")}`
+    : "Records created by John [provenance: owner]: none saved yet";
   return [
     `CanX Office context (${context.destinations} destinations).`,
     list("Priorities", context.priorities),
@@ -64,7 +81,8 @@ export function contextToText(context: OfficeContext): string {
     list("Projects", context.projects),
     list("Worker roles", context.workers),
     list("Approval records", context.approvals),
-    list("Boundaries", context.boundaries),
+    owner,
+    `Boundaries [provenance: system fact]:\n${context.boundaries.map((b) => `- ${b}`).join("\n")}`,
     `Status colour meanings: ${Object.entries(STATUS_HELP)
       .map(([k, v]) => `${k} = ${v}`)
       .join("; ")}`,

@@ -304,7 +304,7 @@ function RoundTablePage() {
             ))}
             <Button
               variant="outline"
-              onClick={() => update({ decisions: [...doc.decisions, { id: newId("d"), text: "", owner: "", due: "" }] })}
+              onClick={() => update({ decisions: [...doc.decisions, { id: newId("d"), text: "", owner: "", due: "", provenance: "john" as const }] })}
             >
               <Plus className="mr-1.5 h-4 w-4" /> Add decision
             </Button>
@@ -365,7 +365,7 @@ function RoundTablePage() {
             <Button
               variant="outline"
               onClick={() =>
-                update({ actions: [...doc.actions, { id: newId("a"), text: "", owner: "", due: "", done: false }] })
+                update({ actions: [...doc.actions, { id: newId("a"), text: "", owner: "", due: "", done: false, provenance: "john" as const }] })
               }
             >
               <Plus className="mr-1.5 h-4 w-4" /> Add action

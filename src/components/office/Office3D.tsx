@@ -1,9 +1,25 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ROOMS, type RoomDef } from "@/lib/office-data";
 import { SampleBadge } from "./SampleBadge";
+import { SimpleOffice } from "./SimpleOffice";
+
+/** Below this width the scaled floor would shrink labels past readability. */
+const MIN_FLOOR_WIDTH = 768;
+
+function useFloorFits() {
+  const [fits, setFits] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia(`(min-width: ${MIN_FLOOR_WIDTH}px)`);
+    const update = () => setFits(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return fits;
+}
 
 /**
  * CanX Office floor — the original isometric spatial layout with two corrections
@@ -87,8 +103,23 @@ function RoomMarker({
 
 export function Office3D() {
   const [hovered, setHovered] = useState<string | null>(null);
+  const floorFits = useFloorFits();
   const reception = ROOMS.find((room) => room.id === "reception");
   const rooms = ROOMS.filter((room) => room.id !== "reception");
+
+  // On phones the scaled floor would render labels far below readable size,
+  // so the full-sized room cards are shown instead — same 20 destinations.
+  if (!floorFits) {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Room cards shown at full size for this screen. The office floor view appears on wider screens.
+        </p>
+        <SimpleOffice />
+      </div>
+    );
+  }
+
 
   const floorCorners = [
     point(X_MIN, Z_MIN),
@@ -115,9 +146,9 @@ export function Office3D() {
         <span className="text-xs text-muted-foreground">Click any room to enter</span>
       </div>
 
-      <div className="relative h-[400px] overflow-hidden sm:h-[540px] md:h-[660px] lg:h-[780px] xl:h-[900px]">
+      <div className="relative h-[660px] overflow-hidden lg:h-[780px] xl:h-[900px]">
         <div
-          className="absolute left-1/2 top-1/2 [--scene-scale:0.3] sm:[--scene-scale:0.5] md:[--scene-scale:0.72] lg:[--scene-scale:0.86] xl:[--scene-scale:1]"
+          className="absolute left-1/2 top-1/2 [--scene-scale:0.72] lg:[--scene-scale:0.86] xl:[--scene-scale:1]"
           style={{
             width: `${STAGE_W}px`,
             height: `${STAGE_H}px`,

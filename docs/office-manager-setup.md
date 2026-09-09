@@ -10,40 +10,41 @@ Last updated with the CanX Office build that added the Office Manager, the brain
 | Appearance preview / Apply / Undo | Live, **saved on this device only** |
 | Saved tasks and decisions | Live, **saved on this device only** |
 | Monday round table draft (edit, save, reload, export, import) | Live, **saved on this device only** |
-| Office Manager chat with a real AI | **Blocked** — no CanX-owned AI key is configured on the server |
+| Office Manager chat with a real AI | **Blocked — fail closed.** No owner sign-in with MFA exists, so no paid call is made even if a key is present |
 | Database, logins, owner MFA, shared records | **Blocked** — no CanX-owned backend is connected |
+| Lovable AI Gateway path | **Removed.** The gateway execution fallback no longer exists in the code |
 | Safe Highways / Trail Tales live data | **Not connected, and deliberately untouched** |
 | Email, messaging, payments, deployment, scheduled jobs | **Not built** |
 
-Every record shown in the office is labelled demonstration data. The office never claims live status, live performance, or completed external work.
+Sample office records are labelled demonstration data. Records John saves himself carry their own provenance and are not called demonstration data. The office never claims live status, live performance, or completed external work.
 
-## Turning the Office Manager's AI on (OpenAI, CanX-owned)
+## Adding a key does NOT turn the AI on
 
-The preferred route keeps the account and the bill in CanX's own name. The key is read on the server only and is never sent to the browser.
+This is the important correction. Earlier notes said that setting two secrets switched the manager on. That was wrong and is no longer true of the code.
 
-Add these as project secrets (Project Settings → Secrets), then reload the app:
+The adapter fails closed. Before any request leaves the server it checks for a verified owner session. There is no such session today, so it returns `auth_not_ready` and makes **no** upstream call. There is deliberately no environment flag that bypasses this.
 
-**Server secrets — COPY AND PASTE (names only; paste your own values)**
+Status wording you will see:
 
-```text
-OPENAI_API_KEY
-OPENAI_MODEL
-```
+- **AI not connected** — no owner sign-in with MFA exists.
+- **AI blocked — key present but unverified** — a secret exists but cannot be used.
+- **AI configured but unverified** — a key exists and auth is ready, but no live health check has passed.
+- **AI connected** — only after verified owner authentication *and* a passing live health check.
 
-- `OPENAI_API_KEY` — a key from a CanX-owned OpenAI account.
-- `OPENAI_MODEL` — optional. Defaults to `gpt-4.1-mini` if unset.
+## What must be true before live activation
 
-Once set, the manager panel shows "AI connected — OpenAI". Until then it says plainly that it is not connected, and it never invents a reply.
+All of these, in order — secrets are the last step, not the first:
 
-### The alternative, and its trade-off
+1. A CanX-owned backend with authentication (recommendation: a CanX-owned Supabase project; not created).
+2. An owner account with MFA (TOTP) enrolled, and server-side enforcement that the session is `aal2` with the `owner` role. See `docs/backend-schema.sql` — that file is **reference only and unapplied**; it does not implement authentication.
+3. Request-rate limits per session and per day, enforced on the server.
+4. A spending limit with a hard stop, plus recorded usage, so cost cannot run away unattended.
+5. A real provider health check whose result marks the connection verified. Secret presence must never be treated as a connection.
+6. Only then: `OPENAI_API_KEY` (CanX-owned account) and optionally `OPENAI_MODEL`, held as server secrets, never in the browser.
 
-The app can also run through the Lovable AI Gateway. That path is **off** unless `CANX_AI_GATEWAY_ENABLED=true` is set deliberately.
+### Ownership note on the alternative
 
-- Ownership: the gateway account and key belong to the Lovable workspace, not to CanX.
-- Cost: usage is billed as Lovable credits rather than to a CanX account.
-- Portability: rebuilding outside Lovable would mean re-pointing this adapter at a CanX-owned provider.
-
-It is offered as a fallback, not as the recommendation.
+Running through the Lovable AI Gateway would put the account, key and bill in the Lovable workspace rather than in CanX's name, and rebuilding outside Lovable would mean re-pointing the adapter anyway. The execution path for it has been removed from the code; if it is ever wanted, it is a decision to make deliberately, with the same authentication and spend controls above.
 
 ## Bounds on the manager
 

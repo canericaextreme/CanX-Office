@@ -20,11 +20,22 @@ export interface RoleSeat {
   note: string;
 }
 
+/** Where a meeting record came from. John's own entries are never "sample". */
+export type RecordProvenance = "john" | "seed" | "imported" | "ai-proposal";
+
+export const RECORD_PROVENANCE_LABELS: Record<RecordProvenance, string> = {
+  john: "Entered by John",
+  seed: "Draft starting point",
+  imported: "Imported from a file",
+  "ai-proposal": "Proposed by the Office Manager",
+};
+
 export interface DecisionRow {
   id: string;
   text: string;
   owner: string;
   due: string;
+  provenance: RecordProvenance;
 }
 
 export interface ActionRow {
@@ -33,6 +44,7 @@ export interface ActionRow {
   owner: string;
   due: string;
   done: boolean;
+  provenance: RecordProvenance;
 }
 
 export interface RoundTableDoc {
@@ -157,6 +169,7 @@ export function validateRoundTable(input: unknown): { doc: RoundTableDoc | null;
         text: str(row["text"], 1000),
         owner: str(row["owner"], 160),
         due: str(row["due"], 20),
+        provenance: "imported" as RecordProvenance,
       };
     }),
     actions: arr(raw["actions"]).map((item, index) => {
@@ -167,6 +180,7 @@ export function validateRoundTable(input: unknown): { doc: RoundTableDoc | null;
         owner: str(row["owner"], 160),
         due: str(row["due"], 20),
         done: bool(row["done"]),
+        provenance: "imported" as RecordProvenance,
       };
     }),
     updatedAt: new Date().toISOString(),

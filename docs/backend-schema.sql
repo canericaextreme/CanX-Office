@@ -2,9 +2,34 @@
 -- DO NOT APPLY. No backend has been chosen, created, or connected.
 -- Intended target: a CanX-owned Supabase project, once John approves one.
 --
--- Owner MFA is mandatory before this schema is used in anger: enable TOTP in
--- Supabase Auth, enrol the owner account, and require aal2 for owner-only
--- policies. Deny by default; grant the narrowest thing that works.
+-- STATUS: UNAPPLIED. This file does NOT implement authentication. Writing SQL
+-- here proves nothing about the running app: no auth, no MFA, no roles and no
+-- RLS exist anywhere in this project today.
+--
+-- Owner MFA is mandatory before this schema is used: enable TOTP in Supabase
+-- Auth, enrol the owner account, and require BOTH the owner role and an aal2
+-- session for every owner-only policy, in addition to owner_id ownership.
+-- Deny by default; grant the narrowest thing that works.
+
+-- Helper: the current session's assurance level (aal1 = password only,
+-- aal2 = a second factor was used in THIS session).
+create or replace function public.session_aal()
+returns text
+language sql
+stable
+as $$
+  select coalesce(auth.jwt() ->> 'aal', 'aal1')
+$$;
+
+create or replace function public.is_verified_owner()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.has_role(auth.uid(), 'owner') and public.session_aal() = 'aal2'
+$$;
 
 -- 1. Roles live in their own table. Never on a profile row.
 create type public.app_role as enum ('owner', 'staff', 'viewer');
@@ -45,6 +70,7 @@ create table public.office_notes (
   title text not null,
   detail text not null default '',
   assigned_to text not null default '',
+  provenance text not null default 'john' check (provenance in ('john','ai-proposal','sample')),
   source text not null default 'John',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -55,10 +81,11 @@ grant all on public.office_notes to service_role;
 
 alter table public.office_notes enable row level security;
 
-create policy "Owners manage their notes"
+-- Owner role AND aal2 AND row ownership. All three, every time.
+create policy "Verified owner manages own notes"
 on public.office_notes for all to authenticated
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
+using (auth.uid() = owner_id and public.is_verified_owner())
+with check (auth.uid() = owner_id and public.is_verified_owner());
 
 -- 3. Round table records (currently device-only localStorage).
 create table public.round_tables (
@@ -79,10 +106,10 @@ grant all on public.round_tables to service_role;
 
 alter table public.round_tables enable row level security;
 
-create policy "Owners manage their round tables"
+create policy "Verified owner manages own round tables"
 on public.round_tables for all to authenticated
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
+using (auth.uid() = owner_id and public.is_verified_owner())
+with check (auth.uid() = owner_id and public.is_verified_owner());
 
 -- 4. Append-only audit trail. History is never overwritten.
 create table public.office_audit (
@@ -99,9 +126,9 @@ grant all on public.office_audit to service_role;
 
 alter table public.office_audit enable row level security;
 
-create policy "Owner reads the audit trail"
+create policy "Verified owner reads the audit trail"
 on public.office_audit for select to authenticated
-using (public.has_role(auth.uid(), 'owner'));
+using (public.is_verified_owner());
 
 create policy "Signed-in users append their own audit rows"
 on public.office_audit for insert to authenticated
@@ -113,4 +140,10 @@ with check (auth.uid() = actor_id);
 --    * owner MFA enrolled and enforced,
 --    * automatic backups enabled, with a restore actually tested,
 --    * export of every table verified,
---    * a written rebuild path outside Lovable.
+--    * a written rebuild path outside Lovable,
+--    * request-rate and spending limits for any AI provider call,
+--    * a live health check that proves the provider connection, since secret
+--      presence alone must never be reported as "connected".
+--
+-- Until all of the above are applied and evidenced, the Office Manager stays
+-- fail-closed: no paid provider call is made, regardless of secrets present.
