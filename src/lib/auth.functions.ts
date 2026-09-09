@@ -36,6 +36,20 @@ export const getBackendStatus = createServerFn({ method: "GET" }).handler(async 
   };
 });
 
+/**
+ * The two values the sign-in screen needs. Both are publishable by design:
+ * the project URL and the publishable key. No secret is ever returned here,
+ * and holding these grants nothing — row access is decided by the database.
+ */
+export const getBrowserBackendConfig = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ url: string; publishableKey: string } | null> => {
+    const { readBackendConfig } = await import("@/lib/canx-backend.server");
+    const config = readBackendConfig();
+    if (!config) return null;
+    return { url: config.url, publishableKey: config.publishableKey };
+  },
+);
+
 function tokenOf(input: unknown): string {
   const raw = input as { accessToken?: unknown } | undefined;
   return typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "";
