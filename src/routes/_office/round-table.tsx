@@ -215,10 +215,10 @@ function RoundTablePage() {
             <Field label="Date">
               <Input type="date" value={doc.date} onChange={(e) => update({ date: e.target.value })} />
             </Field>
-            <Field label="Start time (unset until you choose)">
+            <Field label="Start time (5:00 pm, chosen by John — editable)">
               <Input type="time" value={doc.time} onChange={(e) => update({ time: e.target.value })} />
             </Field>
-            <Field label="Timezone (proposed, editable)">
+            <Field label="Timezone (editable)">
               <select
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={doc.timezone}

@@ -62,6 +62,9 @@ export interface RoundTableDoc {
   updatedAt: string;
 }
 
+export const MEETING_TIME = "17:00";
+export const MEETING_TIMEZONE = "America/Dawson_Creek";
+
 export const ROUND_TABLE_KEY = "canx-round-table-2026-09-14";
 
 export const TIMEZONE_OPTIONS = [
@@ -81,8 +84,8 @@ export function seedRoundTable(): RoundTableDoc {
   return {
     version: 1,
     date: "2026-09-14",
-    time: "",
-    timezone: "America/Dawson_Creek",
+    time: MEETING_TIME,
+    timezone: MEETING_TIMEZONE,
     chair: "John Cantlon",
     coordinator: "Office Manager",
     agenda: [
@@ -112,7 +115,7 @@ export function seedRoundTable(): RoundTableDoc {
     ],
     notes: [
       "Draft only. This meeting is not scheduled and no invitations exist.",
-      "Start time is deliberately unset. Timezone is a proposal and can be changed.",
+      "Start time is 5:00 pm, chosen by John. Timezone America/Dawson_Creek. Both stay editable.",
       "Seed content is limited to known planning facts. No live Safe Highways status is included.",
     ].join("\n"),
     decisions: [],
@@ -138,7 +141,8 @@ export function validateRoundTable(input: unknown): { doc: RoundTableDoc | null;
   const doc: RoundTableDoc = {
     version: 1,
     date: /^\d{4}-\d{2}-\d{2}$/.test(str(raw["date"], 10)) ? str(raw["date"], 10) : seed.date,
-    time: /^\d{2}:\d{2}$/.test(str(raw["time"], 5)) ? str(raw["time"], 5) : "",
+    // An older saved draft with no time adopts John's chosen 5:00 pm; every other field is kept.
+    time: /^\d{2}:\d{2}$/.test(str(raw["time"], 5)) ? str(raw["time"], 5) : MEETING_TIME,
     timezone: TIMEZONE_OPTIONS.includes(str(raw["timezone"], 40)) ? str(raw["timezone"], 40) : seed.timezone,
     chair: str(raw["chair"], 120) || seed.chair,
     coordinator: str(raw["coordinator"], 120) || seed.coordinator,
