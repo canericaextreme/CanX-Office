@@ -7,14 +7,17 @@ import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetPanel } from "@/components/office/BudgetPanel";
 import { OwnerSignIn } from "@/components/office/OwnerSignIn";
+import { ClaudeReviewPanel } from "@/components/office/ClaudeReviewPanel";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getManagerStatus, type ManagerStatus } from "@/lib/manager.functions";
+import { getClaudeStatus, type ClaudeStatus } from "@/lib/claude-review.functions";
 import {
   CHATGPT_SNAPSHOT,
   CHATGPT_SNAPSHOT_LABEL,
   OFFICE_CONNECTIONS,
   SUPABASE_SETUP_URL,
 } from "@/lib/connections-inventory";
+
 
 export const Route = createFileRoute("/_office/systems")({
   head: () => ({
