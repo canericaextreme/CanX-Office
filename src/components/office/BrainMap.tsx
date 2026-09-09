@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Minus, Plus, RotateCcw, Search, X } from "lucide-react";
 import {
@@ -29,6 +29,7 @@ import {
   loadWorkFeed,
   WORK_STATE_LABELS,
 } from "@/lib/work-activity";
+import { subscribeActivity } from "@/lib/office-activity-log";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
