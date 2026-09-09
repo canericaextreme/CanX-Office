@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SampleBadge } from "./SampleBadge";
-import { roomByRoute, type RoomDef } from "@/lib/office-data";
+import { ROOMS, roomByRoute, type RoomDef } from "@/lib/office-data";
 import { useRouterState } from "@tanstack/react-router";
 
 interface RoomShellProps {
