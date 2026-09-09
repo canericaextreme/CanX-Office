@@ -17,6 +17,7 @@ import { Route as OfficeBrainRouteImport } from './routes/_office/brain'
 import { Route as OfficeBuildTestingRouteImport } from './routes/_office/build-testing'
 import { Route as OfficeCommunicationsRouteImport } from './routes/_office/communications'
 import { Route as OfficeFinanceRouteImport } from './routes/_office/finance'
+import { Route as OfficeFutureRouteImport } from './routes/_office/future'
 import { Route as OfficeHealthRouteImport } from './routes/_office/health'
 import { Route as OfficeIdeaGarageRouteImport } from './routes/_office/idea-garage'
 import { Route as OfficeLegalRouteImport } from './routes/_office/legal'
@@ -67,6 +68,11 @@ const OfficeCommunicationsRoute = OfficeCommunicationsRouteImport.update({
 const OfficeFinanceRoute = OfficeFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeFutureRoute = OfficeFutureRouteImport.update({
+  id: '/future',
+  path: '/future',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeHealthRoute = OfficeHealthRouteImport.update({
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/build-testing': typeof OfficeBuildTestingRoute
   '/communications': typeof OfficeCommunicationsRoute
   '/finance': typeof OfficeFinanceRoute
+  '/future': typeof OfficeFutureRoute
   '/health': typeof OfficeHealthRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
   '/legal': typeof OfficeLegalRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/build-testing': typeof OfficeBuildTestingRoute
   '/communications': typeof OfficeCommunicationsRoute
   '/finance': typeof OfficeFinanceRoute
+  '/future': typeof OfficeFutureRoute
   '/health': typeof OfficeHealthRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
   '/legal': typeof OfficeLegalRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/_office/build-testing': typeof OfficeBuildTestingRoute
   '/_office/communications': typeof OfficeCommunicationsRoute
   '/_office/finance': typeof OfficeFinanceRoute
+  '/_office/future': typeof OfficeFutureRoute
   '/_office/health': typeof OfficeHealthRoute
   '/_office/idea-garage': typeof OfficeIdeaGarageRoute
   '/_office/legal': typeof OfficeLegalRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/build-testing'
     | '/communications'
     | '/finance'
+    | '/future'
     | '/health'
     | '/idea-garage'
     | '/legal'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/build-testing'
     | '/communications'
     | '/finance'
+    | '/future'
     | '/health'
     | '/idea-garage'
     | '/legal'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/_office/build-testing'
     | '/_office/communications'
     | '/_office/finance'
+    | '/_office/future'
     | '/_office/health'
     | '/_office/idea-garage'
     | '/_office/legal'
@@ -322,6 +334,13 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof OfficeFinanceRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/future': {
+      id: '/_office/future'
+      path: '/future'
+      fullPath: '/future'
+      preLoaderRoute: typeof OfficeFutureRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/_office/health': {
@@ -418,6 +437,7 @@ interface OfficeRouteChildren {
   OfficeBuildTestingRoute: typeof OfficeBuildTestingRoute
   OfficeCommunicationsRoute: typeof OfficeCommunicationsRoute
   OfficeFinanceRoute: typeof OfficeFinanceRoute
+  OfficeFutureRoute: typeof OfficeFutureRoute
   OfficeHealthRoute: typeof OfficeHealthRoute
   OfficeIdeaGarageRoute: typeof OfficeIdeaGarageRoute
   OfficeLegalRoute: typeof OfficeLegalRoute
@@ -440,6 +460,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeBuildTestingRoute: OfficeBuildTestingRoute,
   OfficeCommunicationsRoute: OfficeCommunicationsRoute,
   OfficeFinanceRoute: OfficeFinanceRoute,
+  OfficeFutureRoute: OfficeFutureRoute,
   OfficeHealthRoute: OfficeHealthRoute,
   OfficeIdeaGarageRoute: OfficeIdeaGarageRoute,
   OfficeLegalRoute: OfficeLegalRoute,
