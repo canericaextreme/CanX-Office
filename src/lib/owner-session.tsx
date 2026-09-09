@@ -9,7 +9,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { canxBackendConfigured, getCanxSupabase } from "@/lib/canx-supabase";
+import { currentCanxSupabase, loadCanxSupabase } from "@/lib/canx-supabase";
 import { verifyOwnerSession, type SessionResult } from "@/lib/auth.functions";
 
 export type OwnerState =
@@ -49,14 +49,13 @@ const STATE_FROM_REASON: Record<string, OwnerState> = {
   backend_error: "error",
 };
 
+const DEVICE_ONLY = "No CanX-owned database is connected, so the office is saving on this device only.";
+
 export function OwnerSessionProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<OwnerState>(canxBackendConfigured ? "checking" : "backend_missing");
+  const [state, setState] = useState<OwnerState>("checking");
+  const [configured, setConfigured] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
-  const [message, setMessage] = useState(
-    canxBackendConfigured
-      ? "Checking your sign-in…"
-      : "No CanX-owned database is connected, so the office is saving on this device only.",
-  );
+  const [message, setMessage] = useState("Checking your sign-in…");
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const applyResult = useCallback((token: string | null, result: SessionResult) => {
@@ -72,13 +71,15 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const supabase = getCanxSupabase();
+    const supabase = await loadCanxSupabase();
     if (!supabase) {
+      setConfigured(false);
       setState("backend_missing");
       setAccessToken(null);
-      setMessage("No CanX-owned database is connected, so the office is saving on this device only.");
+      setMessage(DEVICE_ONLY);
       return;
     }
+    setConfigured(true);
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token ?? null;
     try {
@@ -91,20 +92,24 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   }, [applyResult]);
 
   useEffect(() => {
-    void refresh();
-    const supabase = getCanxSupabase();
-    if (!supabase) return;
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "MFA_CHALLENGE_VERIFIED" || event === "USER_UPDATED") {
-        void refresh();
-      }
-    });
-    return () => data.subscription.unsubscribe();
+    let unsubscribe: (() => void) | undefined;
+    void (async () => {
+      await refresh();
+      const supabase = currentCanxSupabase();
+      if (!supabase) return;
+      const { data } = supabase.auth.onAuthStateChange((event: string) => {
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "MFA_CHALLENGE_VERIFIED" || event === "USER_UPDATED") {
+          void refresh();
+        }
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+    })();
+    return () => unsubscribe?.();
   }, [refresh]);
 
   const signIn = useCallback(
     async (userEmail: string, password: string) => {
-      const supabase = getCanxSupabase();
+      const supabase = await loadCanxSupabase();
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { error } = await supabase.auth.signInWithPassword({ email: userEmail, password });
       if (error) return "That email and password were not accepted.";
@@ -116,7 +121,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
 
   const submitMfaCode = useCallback(
     async (code: string) => {
-      const supabase = getCanxSupabase();
+      const supabase = await loadCanxSupabase();
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { data: factors, error: listError } = await supabase.auth.mfa.listFactors();
       if (listError) return "The second step could not be started.";
@@ -131,7 +136,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const enrolTotp = useCallback(async () => {
-    const supabase = getCanxSupabase();
+    const supabase = await loadCanxSupabase();
     if (!supabase) return "No CanX-owned database is connected yet.";
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
     if (error || !data) return "The authenticator app could not be set up.";
@@ -140,7 +145,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
 
   const confirmEnrolment = useCallback(
     async (factorId: string, code: string) => {
-      const supabase = getCanxSupabase();
+      const supabase = await loadCanxSupabase();
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
       if (error) return "That code was not accepted.";
@@ -151,18 +156,18 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    const supabase = getCanxSupabase();
+    const supabase = await loadCanxSupabase();
     if (supabase) await supabase.auth.signOut();
     setAccessToken(null);
     setEmail(null);
-    setState(canxBackendConfigured ? "signed_out" : "backend_missing");
+    setState(configured ? "signed_out" : "backend_missing");
     setMessage("Signed out. The office is back to saving on this device only.");
-  }, []);
+  }, [configured]);
 
   const value = useMemo<OwnerSession>(
     () => ({
       state,
-      configured: canxBackendConfigured,
+      configured,
       email,
       message,
       accessToken,
@@ -174,7 +179,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       signOut,
       refresh,
     }),
-    [state, email, message, accessToken, signIn, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
+    [state, configured, email, message, accessToken, signIn, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

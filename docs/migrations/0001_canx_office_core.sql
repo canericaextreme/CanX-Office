@@ -10,6 +10,19 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
+-- 0. Deliberate minimum grants. This project has automatic exposure of
+--    new tables switched OFF, so nothing below is reachable unless it is
+--    granted here by name. Schema usage is granted; blanket default
+--    privileges are NOT, on purpose.
+-- ---------------------------------------------------------------------
+
+grant usage on schema public to authenticated;
+grant usage on schema public to service_role;
+-- No grant to anon anywhere in this file. Nothing here is public.
+
+
+
+-- ---------------------------------------------------------------------
 -- 1. Roles. Roles are NEVER stored on a profile row and are never granted
 --    from the browser. The owner role is inserted once, by hand, in the
 --    SQL editor during setup (see docs/office-manager-setup.md).
