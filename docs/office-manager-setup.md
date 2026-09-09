@@ -42,6 +42,7 @@ In the Supabase SQL editor, run these in order, from this repository:
 
 1. `docs/migrations/0001_canx_office_core.sql`
 2. `docs/migrations/0002_ai_limits.sql`
+3. `docs/migrations/0003_finance_receipts.sql` (private receipts storage)
 
 They are **not applied**. They create the tables, the access rules, the
 append-only history, and the spending limits. Running them does **not** create
