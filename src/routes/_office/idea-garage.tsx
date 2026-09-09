@@ -68,19 +68,27 @@ function IdeaGarage() {
   return (
     <RoomShell>
       <div className="grid gap-6 lg:grid-cols-3">
-        {STAGES.map((stage) => (
-          <Card key={stage.name} className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-base">{stage.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{stage.desc}</p>
-              <div className="mt-4 rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-                No ideas here yet — demonstration stage
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {STAGES.map((stage) => {
+          const ideas = ideasForStage(stage.name);
+          return (
+            <Card key={stage.name} className="border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-base">{stage.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{stage.desc}</p>
+                {ideas.map((idea) => (
+                  <IdeaCardView key={idea.id} idea={idea} />
+                ))}
+                {ideas.length === 0 && (
+                  <div className="mt-4 rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                    No ideas here yet — demonstration stage
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
         <Card className="border-border bg-card lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-base">Income goal context</CardTitle>
