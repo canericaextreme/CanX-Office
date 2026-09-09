@@ -56,9 +56,17 @@ export function BrainMap() {
   const [edgeId, setEdgeId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
 
-  // Movement comes only from real, validated work events. With no connected
-  // feed this is empty, and the brain stays completely still.
-  const workFeed = useMemo(() => loadWorkFeed(), []);
+  // Movement comes only from real, validated work events recorded by the
+  // office itself. With nothing recorded, the brain stays completely still.
+  const [feedTick, setFeedTick] = useState(0);
+  useEffect(() => subscribeActivity(() => setFeedTick((n) => n + 1)), []);
+  useEffect(() => {
+    // Re-read so running work goes still as soon as its heartbeat goes quiet.
+    const timer = window.setInterval(() => setFeedTick((n) => n + 1), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const workFeed = useMemo(() => loadWorkFeed(), [feedTick]);
   const liveEvents = useMemo(
     () => animatingEvents(workFeed, { reducedMotion }),
     [workFeed, reducedMotion],
