@@ -127,9 +127,8 @@ Each phase ends with a plain-English walkthrough, evidence, limitations, updated
 
 ## 9. Unresolved decisions that genuinely block Phase 1
 
-Only two:
+Only one:
 
-1. **Logo.** Without the owner-approved logo asset, Phase 1 ships a clearly identified text placeholder. Confirm that is acceptable, or supply the file.
-2. **Phase 1 authorization itself.** Everything else — backend provider, mailboxes, AI providers, Stripe, income baseline, spending caps, recovery objectives, performance targets — is needed for Phase 2 or later, not for Phase 1.
+1. **Phase 1 authorization itself.** The text-logo placeholder is already allowed by the master prompt, so no separate logo decision blocks Phase 1. Everything else — backend provider, mailboxes, AI providers, Stripe, income baseline, spending caps, recovery objectives — is needed for Phase 2 or later.
 
 Approving this blueprint authorizes Phase 1 only: the branded office shell with all 20 destinations and labelled sample data. It authorizes no connection, purchase, or production change.
