@@ -144,7 +144,7 @@ function RoundTablePage() {
             </span>
           </div>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            A working paper for Monday 14 September 2026. No invitations are sent, no calendar entry exists, and nothing
+            A working paper for Monday 14 September 2026, starting 5:00 pm (America/Dawson_Creek), the time John chose. No invitations are sent, no calendar entry exists, and nothing
             runs on its own. Everything on this page can be edited, saved, exported, and brought back later. Reach it any
             time from <Link to="/owner-desk" className="text-primary underline">Owner's Desk</Link> or{" "}
             <Link to="/office-team" className="text-primary underline">Office Team</Link>.
@@ -215,10 +215,10 @@ function RoundTablePage() {
             <Field label="Date">
               <Input type="date" value={doc.date} onChange={(e) => update({ date: e.target.value })} />
             </Field>
-            <Field label="Start time (unset until you choose)">
+            <Field label="Start time (5:00 pm, chosen by John — editable)">
               <Input type="time" value={doc.time} onChange={(e) => update({ time: e.target.value })} />
             </Field>
-            <Field label="Timezone (proposed, editable)">
+            <Field label="Timezone (editable)">
               <select
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={doc.timezone}

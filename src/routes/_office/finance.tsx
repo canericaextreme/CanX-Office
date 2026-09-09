@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { BudgetPanel } from "@/components/office/BudgetPanel";
 import { useOwnerSession } from "@/lib/owner-session";
 import { listPrivateReceipts, savePrivateReceipts } from "@/lib/finance.functions";
 import {
@@ -160,6 +161,8 @@ function Finance() {
             </Card>
           ))}
         </div>
+
+        <BudgetPanel />
 
         <Card className="border-border bg-card">
           <CardHeader>
