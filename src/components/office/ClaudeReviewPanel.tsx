@@ -23,6 +23,16 @@ export function ClaudeReviewPanel() {
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [reply, setReply] = useState<ClaudeReviewReply | null>(null);
+  const [loaded, setLoaded] = useState<ClaudeAssignment | null>(null);
+
+  function loadAssignment(assignment: ClaudeAssignment) {
+    setSubject(assignment.subject);
+    setPrimary(assignment.primaryRecommendation);
+    setEvidence(assignment.evidence);
+    setQuestion(assignment.question);
+    setReply(null);
+    setLoaded(assignment);
+  }
 
   async function submit() {
     setBusy(true);
@@ -48,6 +58,33 @@ export function ClaudeReviewPanel() {
           An independent review of a recommendation you have already made. Claude does not run the office, cannot
           authorise a build or any spending, and may disagree with the Office Manager.
         </p>
+        {CLAUDE_ASSIGNMENTS.length > 0 && (
+          <div className="space-y-2 rounded-lg border border-border/50 p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Prepared reviews — written by John, not yet sent
+            </div>
+            {CLAUDE_ASSIGNMENTS.map((assignment) => (
+              <div key={assignment.id} className="space-y-1.5">
+                <div className="text-sm font-medium">{assignment.label}</div>
+                <div className="text-xs text-muted-foreground">{assignment.context}</div>
+                <ul className="ml-4 list-disc text-xs text-muted-foreground">
+                  {assignment.boundaries.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                <Button variant="outline" size="sm" onClick={() => loadAssignment(assignment)}>
+                  Load this review
+                </Button>
+              </div>
+            ))}
+            {loaded && (
+              <p className="text-xs text-muted-foreground">
+                Loaded “{loaded.label}”. Nothing has been sent to Claude yet — press the button below to ask for the
+                review.
+              </p>
+            )}
+          </div>
+        )}
         <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
         <Textarea
           placeholder="The recommendation being reviewed"
