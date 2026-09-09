@@ -19,6 +19,7 @@ export type CriterionId =
   | "operating-cost"
   | "technical-feasibility"
   | "competition-gap"
+  | "distribution"
   | "market-momentum"
   | "automation-potential"
   | "legal-risk"
@@ -43,6 +44,7 @@ export const CRITERIA: CriterionDef[] = [
   { id: "operating-cost", label: "Operating cost", weight: 5, highMeans: "Low monthly running cost" },
   { id: "technical-feasibility", label: "Technical feasibility", weight: 7, highMeans: "Clearly buildable with known tools" },
   { id: "competition-gap", label: "Competition / market gap", weight: 7, highMeans: "Real gap, weak incumbents" },
+  { id: "distribution", label: "Distribution / reaching customers", weight: 5, highMeans: "Easy, cheap route to customers" },
   { id: "market-momentum", label: "Market momentum", weight: 5, highMeans: "Demand is growing now" },
   { id: "automation-potential", label: "Automation potential", weight: 5, highMeans: "Runs with little manual labour" },
   { id: "legal-risk", label: "Legal / regulatory risk", weight: 6, highMeans: "Low regulatory risk" },
