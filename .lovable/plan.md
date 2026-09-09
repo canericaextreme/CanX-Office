@@ -92,8 +92,9 @@ Planning guardrail CAD $300/month, editable, unverified. Phase 1 requires no new
 8. Income goal definition (revenue, profit, or personal income), currency, and baseline — until confirmed, show "Baseline needed", no percentage.
 9. Verified subscription costs and hard spending caps.
 10. Recovery objectives: acceptable data loss and downtime.
-11. Performance targets for a named device and network.
-12. Trusted alert channel for security incidents, separate from the connections it protects.
+11. Trusted alert channel for security incidents, separate from the connections it protects.
+
+Performance targets for a named device and network are moved into Phase 1 acceptance so the 3D office and simple view can be checked on your desktop and phone before Phase 2.
 
 ## 8. Acceptance matrix — safeguards precede the capability they protect
 
