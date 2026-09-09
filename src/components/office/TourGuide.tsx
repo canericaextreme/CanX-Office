@@ -81,7 +81,7 @@ export function TourGuide() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md border-border bg-card text-foreground">
+        <DialogContent className="max-w-md border-border bg-card text-foreground shadow-xl">
           <DialogHeader>
             <div className="mb-2 flex items-center gap-2">
               <DialogTitle className="text-lg">{STEPS[step]?.title ?? ""}</DialogTitle>
@@ -97,7 +97,7 @@ export function TourGuide() {
                 key={i}
                 className="h-1.5 w-1.5 rounded-full"
                 style={{
-                  backgroundColor: i === step ? "#ef4444" : "#3f3f46",
+                  backgroundColor: i === step ? "var(--color-canx-red)" : "var(--color-border)",
                 }}
                 aria-hidden="true"
               />

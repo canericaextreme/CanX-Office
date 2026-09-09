@@ -6,11 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function SimpleOffice() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
+    <section aria-labelledby="simple-office-title">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          CanX Office — Simple View
-        </h1>
+        <h2 id="simple-office-title" className="text-2xl font-bold text-foreground">Simple view</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Every room and function is accessible here. This view works on phones, with keyboard
           navigation, reduced motion, and when the 3D office is unavailable.
@@ -22,7 +20,7 @@ export function SimpleOffice() {
           <Link
             key={room.id}
             to={room.route}
-            className="group block rounded-xl border border-border bg-card transition-colors hover:border-primary hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="group block rounded-lg border border-border bg-card transition-colors hover:border-primary hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Card className="border-0 bg-transparent shadow-none">
               <CardHeader className="pb-2">
@@ -43,6 +41,6 @@ export function SimpleOffice() {
           </Link>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
