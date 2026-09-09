@@ -20,8 +20,11 @@ import { Route as OfficeLegalRouteImport } from './routes/_office/legal'
 import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-team'
 import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
 import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
+import { Route as OfficeRecordsRouteImport } from './routes/_office/records'
 import { Route as OfficeSafeHighwaysRouteImport } from './routes/_office/safe-highways'
+import { Route as OfficeSkillsRouteImport } from './routes/_office/skills'
 import { Route as OfficeSubscriptionsRouteImport } from './routes/_office/subscriptions'
+import { Route as OfficeSystemsRouteImport } from './routes/_office/systems'
 import { Route as OfficeWorkBoardRouteImport } from './routes/_office/work-board'
 
 const OfficeRoute = OfficeRouteImport.update({
@@ -78,14 +81,29 @@ const OfficeProjectsRoute = OfficeProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeRecordsRoute = OfficeRecordsRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeSafeHighwaysRoute = OfficeSafeHighwaysRouteImport.update({
   id: '/safe-highways',
   path: '/safe-highways',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeSkillsRoute = OfficeSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeSubscriptionsRoute = OfficeSubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeSystemsRoute = OfficeSystemsRouteImport.update({
+  id: '/systems',
+  path: '/systems',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeWorkBoardRoute = OfficeWorkBoardRouteImport.update({
@@ -105,8 +123,11 @@ export interface FileRoutesByFullPath {
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
+  '/records': typeof OfficeRecordsRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/skills': typeof OfficeSkillsRoute
   '/subscriptions': typeof OfficeSubscriptionsRoute
+  '/systems': typeof OfficeSystemsRoute
   '/work-board': typeof OfficeWorkBoardRoute
 }
 export interface FileRoutesByTo {
@@ -119,8 +140,11 @@ export interface FileRoutesByTo {
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
+  '/records': typeof OfficeRecordsRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/skills': typeof OfficeSkillsRoute
   '/subscriptions': typeof OfficeSubscriptionsRoute
+  '/systems': typeof OfficeSystemsRoute
   '/work-board': typeof OfficeWorkBoardRoute
   '/': typeof OfficeIndexRoute
 }
@@ -136,8 +160,11 @@ export interface FileRoutesById {
   '/_office/office-team': typeof OfficeOfficeTeamRoute
   '/_office/owner-desk': typeof OfficeOwnerDeskRoute
   '/_office/projects': typeof OfficeProjectsRoute
+  '/_office/records': typeof OfficeRecordsRoute
   '/_office/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/_office/skills': typeof OfficeSkillsRoute
   '/_office/subscriptions': typeof OfficeSubscriptionsRoute
+  '/_office/systems': typeof OfficeSystemsRoute
   '/_office/work-board': typeof OfficeWorkBoardRoute
   '/_office/': typeof OfficeIndexRoute
 }
@@ -154,8 +181,11 @@ export interface FileRouteTypes {
     | '/office-team'
     | '/owner-desk'
     | '/projects'
+    | '/records'
     | '/safe-highways'
+    | '/skills'
     | '/subscriptions'
+    | '/systems'
     | '/work-board'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -168,8 +198,11 @@ export interface FileRouteTypes {
     | '/office-team'
     | '/owner-desk'
     | '/projects'
+    | '/records'
     | '/safe-highways'
+    | '/skills'
     | '/subscriptions'
+    | '/systems'
     | '/work-board'
     | '/'
   id:
@@ -184,8 +217,11 @@ export interface FileRouteTypes {
     | '/_office/office-team'
     | '/_office/owner-desk'
     | '/_office/projects'
+    | '/_office/records'
     | '/_office/safe-highways'
+    | '/_office/skills'
     | '/_office/subscriptions'
+    | '/_office/systems'
     | '/_office/work-board'
     | '/_office/'
   fileRoutesById: FileRoutesById
@@ -273,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeProjectsRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/records': {
+      id: '/_office/records'
+      path: '/records'
+      fullPath: '/records'
+      preLoaderRoute: typeof OfficeRecordsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/safe-highways': {
       id: '/_office/safe-highways'
       path: '/safe-highways'
@@ -280,11 +323,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeSafeHighwaysRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/skills': {
+      id: '/_office/skills'
+      path: '/skills'
+      fullPath: '/skills'
+      preLoaderRoute: typeof OfficeSkillsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/subscriptions': {
       id: '/_office/subscriptions'
       path: '/subscriptions'
       fullPath: '/subscriptions'
       preLoaderRoute: typeof OfficeSubscriptionsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/systems': {
+      id: '/_office/systems'
+      path: '/systems'
+      fullPath: '/systems'
+      preLoaderRoute: typeof OfficeSystemsRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/_office/work-board': {
@@ -307,8 +364,11 @@ interface OfficeRouteChildren {
   OfficeOfficeTeamRoute: typeof OfficeOfficeTeamRoute
   OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
   OfficeProjectsRoute: typeof OfficeProjectsRoute
+  OfficeRecordsRoute: typeof OfficeRecordsRoute
   OfficeSafeHighwaysRoute: typeof OfficeSafeHighwaysRoute
+  OfficeSkillsRoute: typeof OfficeSkillsRoute
   OfficeSubscriptionsRoute: typeof OfficeSubscriptionsRoute
+  OfficeSystemsRoute: typeof OfficeSystemsRoute
   OfficeWorkBoardRoute: typeof OfficeWorkBoardRoute
   OfficeIndexRoute: typeof OfficeIndexRoute
 }
@@ -323,8 +383,11 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeOfficeTeamRoute: OfficeOfficeTeamRoute,
   OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
   OfficeProjectsRoute: OfficeProjectsRoute,
+  OfficeRecordsRoute: OfficeRecordsRoute,
   OfficeSafeHighwaysRoute: OfficeSafeHighwaysRoute,
+  OfficeSkillsRoute: OfficeSkillsRoute,
   OfficeSubscriptionsRoute: OfficeSubscriptionsRoute,
+  OfficeSystemsRoute: OfficeSystemsRoute,
   OfficeWorkBoardRoute: OfficeWorkBoardRoute,
   OfficeIndexRoute: OfficeIndexRoute,
 }
