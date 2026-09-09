@@ -146,8 +146,17 @@ function Systems() {
                   : connection.id === "openai"
                     ? ai?.connected
                       ? "green"
-                      : "grey"
-                    : "grey";
+                      : ai?.state === "configured_unverified"
+                        ? "yellow"
+                        : "grey"
+                    : connection.id === "claude"
+                      ? claude?.connected
+                        ? "green"
+                        : claude?.state === "configured_unverified"
+                          ? "yellow"
+                          : "grey"
+                      : "grey";
+
               return (
                 <div key={connection.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3">
                   <div>
