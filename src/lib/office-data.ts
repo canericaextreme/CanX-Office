@@ -527,7 +527,9 @@ export const BRAIN_NODES: BrainNode[] = [
   { id: "manager", label: "Office Manager", category: "worker", status: "blue", x: -80, y: 60 },
   { id: "reviewer", label: "Quality & Security", category: "worker", status: "yellow", x: 80, y: 60 },
   { id: "finance", label: "Finance", category: "room", status: "grey", x: -80, y: -60 },
+  { id: "subscriptions", label: "Subscriptions", category: "room", status: "grey", x: -100, y: -80 },
   { id: "systems", label: "Systems", category: "connection", status: "grey", x: 80, y: -60 },
+  { id: "approvals", label: "Approvals", category: "room", status: "yellow", x: -40, y: -80 },
 ];
 
 export const BRAIN_LINKS: BrainLink[] = [
