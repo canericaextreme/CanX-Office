@@ -18,7 +18,7 @@ import {
   type MotionName,
   type SurfaceLevel,
 } from "@/lib/office-theme";
-import { loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
+import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 
 interface ChatMessage {
   id: string;
@@ -57,10 +57,12 @@ export function OfficeManager() {
         setStatus({
           provider: "none",
           connected: false,
+          state: "auth_unavailable",
+          authReady: false,
+          keyPresent: false,
+          verified: false,
           model: null,
           detail: "The office could not reach its own server to check the manager's connection.",
-          gatewayAvailable: false,
-          gatewayEnabled: false,
         }),
       );
   }, [open, status, fetchStatus]);
@@ -104,14 +106,24 @@ export function OfficeManager() {
           messages: history
             .filter((m) => m.role !== "office")
             .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-          context: contextToText(context),
+          context: contextToText(
+            context,
+            notes.map((note) => ({
+              kind: note.kind,
+              title: note.title,
+              detail: note.detail,
+              provenance: PROVENANCE_LABELS[note.provenance],
+            })),
+          ),
         },
       });
       if (!reply.ok) {
         setError(
-          reply.code === "not_configured"
-            ? "The manager has no AI connection yet, so there is no answer to give. See the setup note below."
-            : (reply.detail ?? "The AI provider returned an error."),
+          reply.code === "auth_not_ready"
+            ? "The manager cannot answer: there is no owner sign-in with MFA yet, so paid AI calls are blocked. No request was sent to any provider."
+            : reply.code === "not_configured"
+              ? "The manager has no AI connection yet, so there is no answer to give. See the setup note below."
+              : (reply.detail ?? "The AI request could not be completed."),
         );
       } else {
         setMessages((current) => [
@@ -185,13 +197,19 @@ export function OfficeManager() {
                   <span className={status.connected ? "text-foreground" : "text-muted-foreground"}>
                     <span
                       className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${
-                        status.connected ? "bg-emerald-500" : "bg-amber-500"
+                        status.connected ? "bg-emerald-500" : status.state === "auth_unavailable" ? "bg-red-500" : "bg-amber-500"
                       }`}
                       aria-hidden="true"
                     />
                     {status.connected
-                      ? `AI connected — ${status.provider === "openai" ? "OpenAI" : "Lovable gateway"} (${status.model}).`
-                      : "AI not connected. Nothing here is an AI answer."}
+                      ? `AI connected — OpenAI (${status.model}).`
+                      : status.state === "auth_unavailable"
+                        ? status.keyPresent
+                          ? "AI blocked — a key is present but unverified, and there is no owner sign-in with MFA. Nothing here is an AI answer."
+                          : "AI not connected — no owner sign-in with MFA exists yet. Nothing here is an AI answer."
+                        : status.state === "configured_unverified"
+                          ? "AI configured but unverified — no live check has passed. Nothing here is an AI answer."
+                          : "AI not connected. Nothing here is an AI answer."}
                   </span>
                 )}
               </div>
@@ -210,7 +228,7 @@ export function OfficeManager() {
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {message.role === "office"
                           ? "Office briefing — written by this app, not by AI"
-                          : `Office Manager — ${status?.provider === "openai" ? "OpenAI" : "Lovable gateway"}`}
+                          : "Office Manager — OpenAI"}
                       </p>
                     )}
                     <div
@@ -242,8 +260,9 @@ export function OfficeManager() {
                     <p className="text-foreground">{error}</p>
                     {status && !status.connected && (
                       <p className="mt-1.5 text-xs text-muted-foreground">
-                        To switch the AI on, add a CanX-owned <code>OPENAI_API_KEY</code> on the server. The setup steps
-                        are written up in <code>docs/office-manager-setup.md</code> in this project.
+                        A provider key on its own will not switch this on. Live AI needs verified owner sign-in with
+                        MFA, plus request-rate and spending limits, and a live connection check that actually passes.
+                        The steps are in <code>docs/office-manager-setup.md</code>.
                       </p>
                     )}
                   </div>
@@ -296,7 +315,7 @@ export function OfficeManager() {
                       <p className="text-sm font-semibold text-foreground">{note.title}</p>
                       {note.detail && <p className="mt-1 text-sm text-muted-foreground">{note.detail}</p>}
                       <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {note.kind} · {note.owner || "no owner"} · proposed by {note.source}
+                        {note.kind} · {note.owner || "no owner"} · {PROVENANCE_LABELS[note.provenance]}
                       </p>
                     </div>
                     <Button variant="ghost" size="icon" aria-label={`Remove ${note.title}`} onClick={() => removeNote(note.id)}>
@@ -366,6 +385,7 @@ function ProposalCard({
               title,
               detail: typeof call.arguments["detail"] === "string" ? call.arguments["detail"] : "",
               owner: typeof call.arguments["owner"] === "string" ? call.arguments["owner"] : "",
+              provenance: "ai-proposal",
               source: "Office Manager (AI proposal)",
               createdAt: new Date().toISOString(),
             });
