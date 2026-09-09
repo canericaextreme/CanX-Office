@@ -30,7 +30,8 @@ create policy "Verified owner reads own limits"
 create table public.ai_usage (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
-  estimated_cents integer not null default 0,
+  estimated_cents integer not null default 0
+    check (estimated_cents >= 0 and estimated_cents <= 100000),
   outcome text not null default 'reserved' check (outcome in ('reserved', 'ok', 'failed')),
   at timestamptz not null default now(),
   settled_at timestamptz
@@ -49,8 +50,12 @@ create policy "Verified owner reads own usage"
 create index ai_usage_owner_at_idx on public.ai_usage (owner_id, at desc);
 
 -- ---------------------------------------------------------------------
--- Reservation. Runs as definer so usage cannot be forged or skipped, but
--- it still refuses unless the CALLER is a verified owner with AAL2.
+-- Reservation. Signature unchanged.
+--   * The owner's limits row is locked FOR UPDATE first, so two calls
+--     arriving at once queue instead of both passing the same check.
+--   * The estimate is validated before any arithmetic.
+--   * Counting and comparison happen in bigint, so a long history cannot
+--     overflow an integer sum.
 -- ---------------------------------------------------------------------
 
 create or replace function public.reserve_ai_call(_estimated_cents integer)
@@ -62,10 +67,12 @@ as $$
 declare
   uid uuid := auth.uid();
   lim public.ai_limits%rowtype;
-  calls_minute integer;
-  calls_day integer;
-  cents_day integer;
-  cents_month integer;
+  est bigint;
+  calls_minute bigint;
+  calls_day bigint;
+  cents_day bigint;
+  cents_month bigint;
+  remaining bigint;
   new_id uuid;
 begin
   if uid is null or not public.is_verified_owner() then
@@ -73,37 +80,49 @@ begin
     return;
   end if;
 
-  select * into lim from public.ai_limits where owner_id = uid;
+  if _estimated_cents is null then
+    return query select false, 'invalid_estimate'::text, null::uuid, 0;
+    return;
+  end if;
+  est := _estimated_cents::bigint;
+  if est <= 0 or est > 100000 then
+    return query select false, 'invalid_estimate'::text, null::uuid, 0;
+    return;
+  end if;
+
+  select * into lim from public.ai_limits where owner_id = uid for update;
   if not found then
     -- No limits row means no agreed budget. Refuse.
     return query select false, 'unavailable'::text, null::uuid, 0;
     return;
   end if;
 
-  select count(*) into calls_minute from public.ai_usage
+  select count(*)::bigint into calls_minute from public.ai_usage
     where owner_id = uid and at > now() - interval '1 minute';
-  select count(*), coalesce(sum(estimated_cents), 0) into calls_day, cents_day
+  select count(*)::bigint, coalesce(sum(estimated_cents::bigint), 0) into calls_day, cents_day
     from public.ai_usage where owner_id = uid and at > date_trunc('day', now());
-  select coalesce(sum(estimated_cents), 0) into cents_month
+  select coalesce(sum(estimated_cents::bigint), 0) into cents_month
     from public.ai_usage where owner_id = uid and at > date_trunc('month', now());
 
-  if calls_minute >= lim.max_calls_per_minute then
-    return query select false, 'rate_limit'::text, null::uuid, greatest(lim.max_calls_per_day - calls_day, 0);
+  remaining := greatest(lim.max_calls_per_day::bigint - calls_day, 0);
+
+  if calls_minute >= lim.max_calls_per_minute::bigint then
+    return query select false, 'rate_limit'::text, null::uuid, remaining::integer;
     return;
   end if;
 
-  if calls_day >= lim.max_calls_per_day
-     or cents_day + coalesce(_estimated_cents, 0) > lim.max_cents_per_day
-     or cents_month + coalesce(_estimated_cents, 0) > lim.max_cents_per_month then
-    return query select false, 'budget_limit'::text, null::uuid, greatest(lim.max_calls_per_day - calls_day, 0);
+  if calls_day >= lim.max_calls_per_day::bigint
+     or cents_day + est > lim.max_cents_per_day::bigint
+     or cents_month + est > lim.max_cents_per_month::bigint then
+    return query select false, 'budget_limit'::text, null::uuid, remaining::integer;
     return;
   end if;
 
   insert into public.ai_usage (owner_id, estimated_cents)
-  values (uid, greatest(coalesce(_estimated_cents, 0), 0))
+  values (uid, est::integer)
   returning id into new_id;
 
-  return query select true, 'ok'::text, new_id, greatest(lim.max_calls_per_day - calls_day - 1, 0);
+  return query select true, 'ok'::text, new_id, greatest(remaining - 1, 0)::integer;
 end;
 $$;
 
