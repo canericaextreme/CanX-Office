@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { BrainMap } from "@/components/office/BrainMap";
 import { Office3D } from "@/components/office/Office3D";
 import { SimpleOffice } from "@/components/office/SimpleOffice";
