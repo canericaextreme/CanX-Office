@@ -42,13 +42,19 @@ export const Route = createFileRoute("/_office/systems")({
 function Systems() {
   const session = useOwnerSession();
   const fetchStatus = useServerFn(getManagerStatus);
+  const fetchClaude = useServerFn(getClaudeStatus);
   const [ai, setAi] = useState<ManagerStatus | null>(null);
+  const [claude, setClaude] = useState<ClaudeStatus | null>(null);
 
   useEffect(() => {
     void fetchStatus({ data: { accessToken: session.accessToken ?? "" } })
       .then(setAi)
       .catch(() => setAi(null));
-  }, [fetchStatus, session.accessToken, session.state]);
+    void fetchClaude({ data: { accessToken: session.accessToken ?? "" } })
+      .then(setClaude)
+      .catch(() => setClaude(null));
+  }, [fetchStatus, fetchClaude, session.accessToken, session.state]);
+
 
   const dbConnected = session.configured;
   const signedIn = session.state === "owner";
