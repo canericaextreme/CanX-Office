@@ -144,7 +144,7 @@ function RoundTablePage() {
             </span>
           </div>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            A working paper for Monday 14 September 2026. No invitations are sent, no calendar entry exists, and nothing
+            A working paper for Monday 14 September 2026, starting 5:00 pm (America/Dawson_Creek), the time John chose. No invitations are sent, no calendar entry exists, and nothing
             runs on its own. Everything on this page can be edited, saved, exported, and brought back later. Reach it any
             time from <Link to="/owner-desk" className="text-primary underline">Owner's Desk</Link> or{" "}
             <Link to="/office-team" className="text-primary underline">Office Team</Link>.

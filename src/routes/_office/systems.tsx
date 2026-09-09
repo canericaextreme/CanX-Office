@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BudgetPanel } from "@/components/office/BudgetPanel";
 import { OwnerSignIn } from "@/components/office/OwnerSignIn";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getManagerStatus, type ManagerStatus } from "@/lib/manager.functions";
@@ -147,6 +148,8 @@ function Systems() {
         </Card>
 
         <OwnerSignIn />
+
+        <BudgetPanel />
 
         <Card className="border-border bg-card">
           <CardHeader>
