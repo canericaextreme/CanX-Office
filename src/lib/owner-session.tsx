@@ -9,7 +9,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { canxBackendConfigured, getCanxSupabase } from "@/lib/canx-supabase";
+import { currentCanxSupabase, loadCanxSupabase } from "@/lib/canx-supabase";
 import { verifyOwnerSession, type SessionResult } from "@/lib/auth.functions";
 
 export type OwnerState =
@@ -49,14 +49,13 @@ const STATE_FROM_REASON: Record<string, OwnerState> = {
   backend_error: "error",
 };
 
+const DEVICE_ONLY = "No CanX-owned database is connected, so the office is saving on this device only.";
+
 export function OwnerSessionProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<OwnerState>(canxBackendConfigured ? "checking" : "backend_missing");
+  const [state, setState] = useState<OwnerState>("checking");
+  const [configured, setConfigured] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
-  const [message, setMessage] = useState(
-    canxBackendConfigured
-      ? "Checking your sign-in…"
-      : "No CanX-owned database is connected, so the office is saving on this device only.",
-  );
+  const [message, setMessage] = useState("Checking your sign-in…");
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const applyResult = useCallback((token: string | null, result: SessionResult) => {
@@ -72,13 +71,15 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const supabase = getCanxSupabase();
+    const supabase = await loadCanxSupabase();
     if (!supabase) {
+      setConfigured(false);
       setState("backend_missing");
       setAccessToken(null);
-      setMessage("No CanX-owned database is connected, so the office is saving on this device only.");
+      setMessage(DEVICE_ONLY);
       return;
     }
+    setConfigured(true);
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token ?? null;
     try {
@@ -91,15 +92,19 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   }, [applyResult]);
 
   useEffect(() => {
-    void refresh();
-    const supabase = getCanxSupabase();
-    if (!supabase) return;
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "MFA_CHALLENGE_VERIFIED" || event === "USER_UPDATED") {
-        void refresh();
-      }
-    });
-    return () => data.subscription.unsubscribe();
+    let unsubscribe: (() => void) | undefined;
+    void (async () => {
+      await refresh();
+      const supabase = currentCanxSupabase();
+      if (!supabase) return;
+      const { data } = supabase.auth.onAuthStateChange((event: string) => {
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "MFA_CHALLENGE_VERIFIED" || event === "USER_UPDATED") {
+          void refresh();
+        }
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+    })();
+    return () => unsubscribe?.();
   }, [refresh]);
 
   const signIn = useCallback(
