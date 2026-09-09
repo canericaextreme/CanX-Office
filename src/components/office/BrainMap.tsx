@@ -56,6 +56,18 @@ export function BrainMap() {
   const [edgeId, setEdgeId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
 
+  // Movement comes only from real, validated work events. With no connected
+  // feed this is empty, and the brain stays completely still.
+  const workFeed = useMemo(() => loadWorkFeed(), []);
+  const liveEvents = useMemo(
+    () => animatingEvents(workFeed, { reducedMotion }),
+    [workFeed, reducedMotion],
+  );
+  const liveCellIds = useMemo(
+    () => animatingCellIds(workFeed, { reducedMotion }),
+    [workFeed, reducedMotion],
+  );
+
   const term = query.trim().toLowerCase();
 
   const visibleCells = useMemo(
