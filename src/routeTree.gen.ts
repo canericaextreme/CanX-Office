@@ -11,10 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OfficeRouteImport } from './routes/_office'
 import { Route as OfficeIndexRouteImport } from './routes/_office/index'
+import { Route as OfficeApprovalsRouteImport } from './routes/_office/approvals'
+import { Route as OfficeBlueprintRouteImport } from './routes/_office/blueprint'
 import { Route as OfficeBrainRouteImport } from './routes/_office/brain'
 import { Route as OfficeBuildTestingRouteImport } from './routes/_office/build-testing'
 import { Route as OfficeCommunicationsRouteImport } from './routes/_office/communications'
 import { Route as OfficeFinanceRouteImport } from './routes/_office/finance'
+import { Route as OfficeHealthRouteImport } from './routes/_office/health'
 import { Route as OfficeIdeaGarageRouteImport } from './routes/_office/idea-garage'
 import { Route as OfficeLegalRouteImport } from './routes/_office/legal'
 import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-team'
@@ -36,6 +39,16 @@ const OfficeIndexRoute = OfficeIndexRouteImport.update({
   path: '/',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeApprovalsRoute = OfficeApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeBlueprintRoute = OfficeBlueprintRouteImport.update({
+  id: '/blueprint',
+  path: '/blueprint',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeBrainRoute = OfficeBrainRouteImport.update({
   id: '/brain',
   path: '/brain',
@@ -54,6 +67,11 @@ const OfficeCommunicationsRoute = OfficeCommunicationsRouteImport.update({
 const OfficeFinanceRoute = OfficeFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeHealthRoute = OfficeHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeIdeaGarageRoute = OfficeIdeaGarageRouteImport.update({
@@ -114,10 +132,13 @@ const OfficeWorkBoardRoute = OfficeWorkBoardRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof OfficeIndexRoute
+  '/approvals': typeof OfficeApprovalsRoute
+  '/blueprint': typeof OfficeBlueprintRoute
   '/brain': typeof OfficeBrainRoute
   '/build-testing': typeof OfficeBuildTestingRoute
   '/communications': typeof OfficeCommunicationsRoute
   '/finance': typeof OfficeFinanceRoute
+  '/health': typeof OfficeHealthRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
   '/legal': typeof OfficeLegalRoute
   '/office-team': typeof OfficeOfficeTeamRoute
@@ -131,10 +152,13 @@ export interface FileRoutesByFullPath {
   '/work-board': typeof OfficeWorkBoardRoute
 }
 export interface FileRoutesByTo {
+  '/approvals': typeof OfficeApprovalsRoute
+  '/blueprint': typeof OfficeBlueprintRoute
   '/brain': typeof OfficeBrainRoute
   '/build-testing': typeof OfficeBuildTestingRoute
   '/communications': typeof OfficeCommunicationsRoute
   '/finance': typeof OfficeFinanceRoute
+  '/health': typeof OfficeHealthRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
   '/legal': typeof OfficeLegalRoute
   '/office-team': typeof OfficeOfficeTeamRoute
@@ -151,10 +175,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_office': typeof OfficeRouteWithChildren
+  '/_office/approvals': typeof OfficeApprovalsRoute
+  '/_office/blueprint': typeof OfficeBlueprintRoute
   '/_office/brain': typeof OfficeBrainRoute
   '/_office/build-testing': typeof OfficeBuildTestingRoute
   '/_office/communications': typeof OfficeCommunicationsRoute
   '/_office/finance': typeof OfficeFinanceRoute
+  '/_office/health': typeof OfficeHealthRoute
   '/_office/idea-garage': typeof OfficeIdeaGarageRoute
   '/_office/legal': typeof OfficeLegalRoute
   '/_office/office-team': typeof OfficeOfficeTeamRoute
@@ -172,10 +199,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/approvals'
+    | '/blueprint'
     | '/brain'
     | '/build-testing'
     | '/communications'
     | '/finance'
+    | '/health'
     | '/idea-garage'
     | '/legal'
     | '/office-team'
@@ -189,10 +219,13 @@ export interface FileRouteTypes {
     | '/work-board'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/approvals'
+    | '/blueprint'
     | '/brain'
     | '/build-testing'
     | '/communications'
     | '/finance'
+    | '/health'
     | '/idea-garage'
     | '/legal'
     | '/office-team'
@@ -208,10 +241,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_office'
+    | '/_office/approvals'
+    | '/_office/blueprint'
     | '/_office/brain'
     | '/_office/build-testing'
     | '/_office/communications'
     | '/_office/finance'
+    | '/_office/health'
     | '/_office/idea-garage'
     | '/_office/legal'
     | '/_office/office-team'
@@ -246,6 +282,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeIndexRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/approvals': {
+      id: '/_office/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof OfficeApprovalsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/blueprint': {
+      id: '/_office/blueprint'
+      path: '/blueprint'
+      fullPath: '/blueprint'
+      preLoaderRoute: typeof OfficeBlueprintRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/brain': {
       id: '/_office/brain'
       path: '/brain'
@@ -272,6 +322,13 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof OfficeFinanceRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/health': {
+      id: '/_office/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof OfficeHealthRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/_office/idea-garage': {
@@ -355,10 +412,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface OfficeRouteChildren {
+  OfficeApprovalsRoute: typeof OfficeApprovalsRoute
+  OfficeBlueprintRoute: typeof OfficeBlueprintRoute
   OfficeBrainRoute: typeof OfficeBrainRoute
   OfficeBuildTestingRoute: typeof OfficeBuildTestingRoute
   OfficeCommunicationsRoute: typeof OfficeCommunicationsRoute
   OfficeFinanceRoute: typeof OfficeFinanceRoute
+  OfficeHealthRoute: typeof OfficeHealthRoute
   OfficeIdeaGarageRoute: typeof OfficeIdeaGarageRoute
   OfficeLegalRoute: typeof OfficeLegalRoute
   OfficeOfficeTeamRoute: typeof OfficeOfficeTeamRoute
@@ -374,10 +434,13 @@ interface OfficeRouteChildren {
 }
 
 const OfficeRouteChildren: OfficeRouteChildren = {
+  OfficeApprovalsRoute: OfficeApprovalsRoute,
+  OfficeBlueprintRoute: OfficeBlueprintRoute,
   OfficeBrainRoute: OfficeBrainRoute,
   OfficeBuildTestingRoute: OfficeBuildTestingRoute,
   OfficeCommunicationsRoute: OfficeCommunicationsRoute,
   OfficeFinanceRoute: OfficeFinanceRoute,
+  OfficeHealthRoute: OfficeHealthRoute,
   OfficeIdeaGarageRoute: OfficeIdeaGarageRoute,
   OfficeLegalRoute: OfficeLegalRoute,
   OfficeOfficeTeamRoute: OfficeOfficeTeamRoute,
