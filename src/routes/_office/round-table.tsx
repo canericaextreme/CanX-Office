@@ -20,6 +20,8 @@ import {
   type RoundTableDoc,
 } from "@/lib/round-table";
 import { FEASIBILITY_ITEMS } from "@/lib/feasibility-queue";
+import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
+import { OFFICE_KNOWLEDGE } from "@/lib/office-knowledge";
 
 export const Route = createFileRoute("/_office/round-table")({
   head: () => ({
@@ -214,6 +216,11 @@ function RoundTablePage() {
           const alreadyOnAgenda = doc.agenda.some((row) => row.title === item.agendaTitle);
           return (
             <Card key={item.id} className="mb-5">
+                            <KnowledgeRecordPanel
+  record={OFFICE_KNOWLEDGE[0]}
+  title="Recorded governance for this round table"
+  onlySections={["round-table", "opportunity-scout"]}
+/>
               <CardHeader>
                 <CardTitle className="text-base">Queued for this round table — {item.title}</CardTitle>
               </CardHeader>

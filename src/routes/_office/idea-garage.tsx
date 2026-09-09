@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { IDEA_PROVENANCE_LABELS, ideasForStage, type IdeaCard } from "@/lib/idea-garage";
 import { IdeaLab } from "@/components/office/IdeaLab";
+import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
+import { OFFICE_KNOWLEDGE, IDEA_CATEGORIES } from "@/lib/office-knowledge";
 
 function IdeaCardView({ idea }: { idea: IdeaCard }) {
   return (
@@ -69,6 +71,23 @@ function IdeaGarage() {
   return (
     <RoomShell>
       <div className="mb-8">
+        <KnowledgeRecordPanel
+          record={OFFICE_KNOWLEDGE[0]}
+          title="How this room works — recorded rules"
+          onlySections={["idea-lab-purpose", "three-tracks", "scoring", "continuous-research", "hygiene", "cost-control"]}
+        />
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Revenue avenues open to brainstorming</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {IDEA_CATEGORIES.map((c) => (
+              <Badge key={c} variant="outline" className="text-[11px] font-normal">
+                {c}
+              </Badge>
+            ))}
+          </CardContent>
+        </Card>
         <IdeaLab />
       </div>
       <h2 className="mb-3 text-lg font-semibold text-foreground">Decision stages</h2>

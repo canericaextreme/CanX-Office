@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
+import { OFFICE_KNOWLEDGE } from "@/lib/office-knowledge";
 
 export const Route = createFileRoute("/_office/records")({
   head: () => ({
@@ -21,6 +23,9 @@ function Records() {
   return (
     <RoomShell>
       <div className="space-y-6">
+        {OFFICE_KNOWLEDGE.map((record) => (
+          <KnowledgeRecordPanel key={record.id} record={record} defaultOpen />
+        ))}
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Record classes</CardTitle>
