@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { IDEA_PROVENANCE_LABELS, ideasForStage, type IdeaCard } from "@/lib/idea-garage";
+import { IdeaLab } from "@/components/office/IdeaLab";
 
 function IdeaCardView({ idea }: { idea: IdeaCard }) {
   return (
@@ -67,6 +68,10 @@ const STAGES = [
 function IdeaGarage() {
   return (
     <RoomShell>
+      <div className="mb-8">
+        <IdeaLab />
+      </div>
+      <h2 className="mb-3 text-lg font-semibold text-foreground">Decision stages</h2>
       <div className="grid gap-6 lg:grid-cols-3">
         {STAGES.map((stage) => {
           const ideas = ideasForStage(stage.name);
