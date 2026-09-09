@@ -83,6 +83,7 @@ function Finance() {
   };
 
   const chooseFile = async (file: File | undefined) => {
+    console.log("[fin] chooseFile", file?.name, file?.size);
     setNotice("");
     if (!file) return;
     if (file.size > MAX_IMPORT_BYTES) {
