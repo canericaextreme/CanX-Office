@@ -50,3 +50,16 @@
 - [ ] BLOCKED on John: add CANX_SUPABASE_PUBLISHABLE_KEY in Project Settings -> Secrets.
 - [ ] Then: run the three migrations in the project SQL editor, create the owner account, grant owner role, enrol authenticator.
 - [ ] Finance: 12 prepared receipts not imported; import happens from a private JSON file John selects, never from source or seed SQL.
+
+## External Supabase status — 9 Sep 2026
+- Setup script `docs/migrations/ALL_canx_office_setup.sql` reported as applied by John
+  in project gmsjjiprtulxojhkmbqb ("Success. No rows returned", user screenshot).
+  Recorded on the owner's word — not independently verified by this office.
+  Do not re-run the script.
+- Read-only checks from here: Auth service healthy (200); anonymous read of
+  public.user_roles refused (permission denied). Refusal confirms anonymous access
+  is closed; it is not proof that every table/policy in the script exists.
+- Onboarding order confirmed non-circular: server checks two-step (aal2) before
+  owner role, the sign-in screen offers authenticator set-up in the
+  "two-step required" state, and own-role reads need no aal2.
+- Still off: owner auth user, owner role row, TOTP, paid AI (no budget rows).
