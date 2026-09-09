@@ -37,27 +37,39 @@ export const CLAUDE_ASSIGNMENTS: ClaudeAssignment[] = [
     preparedOn: "2026-09-09",
     subject: "CanX Opportunity Scout",
     primaryRecommendation:
-      "Continue feasibility/validation before any build. The concept appears commercially promising, but customer willingness to pay, differentiation, data-source access, and success-fee legal structure require evidence before GO.",
+      "Continue feasibility/validation before any build. The concept appears commercially promising, but a real paid problem, differentiation against free government alerting, data-source access, and success-fee legal structure all require evidence before GO.",
     evidence: [
-      "Concept: Canadian public-contract/RFP intelligence service that matches public opportunities to a contractor profile, summarizes mandatory requirements/deadlines, flags gaps, and recommends BID / REVIEW / PASS; later bid-assistance is possible.",
-      "Initial segment: small/mid-sized Canadian contractors, initially highway/civil-related, Alberta and BC.",
+      "Concept: Canadian public contract/RFP intelligence service that matches opportunities to contractor profiles, ranks fit, summarizes deadlines and mandatory requirements, identifies gaps, and recommends BID / REVIEW / PASS; later bid assistance is possible.",
+      "Initial target to test: small/mid-sized Canadian contractors, especially road maintenance, civil, equipment, traffic control, snow and ice, drainage and related services; Alberta and BC first.",
+      "Revenue hypotheses: subscriptions, paid bid assistance, possibly a legally compliant success fee/royalty. No pricing is approved.",
+      "Key concern: public procurement, lobbying and contingency-fee restrictions, and whether public tender portals already make basic alerts too commoditized.",
       "CanadaBuys is already the official federal tender source and emphasizes mandatory criteria, capacity, evaluation criteria and bid/no-bid decisions.",
-      "Current competitors validate demand but also increase differentiation risk. CanProcX currently markets Canadian tender discovery, eligibility screening, AI tender matching and AI-assisted bid preparation. TenderPartner markets municipal RFP monitoring/matching plus proposal/compliance support. BidPros markets matched opportunities and a 5% verified-win success-fee model.",
-      "Revenue concepts being considered but NOT approved: subscription, paid bid assistance, and potentially a legally compliant success fee/royalty. No percentage is approved.",
-      "Build authorized: NO. Investment authorized: $0 beyond explicitly approved research/testing.",
+      "Competitors validate demand but raise differentiation risk. CanProcX markets Canadian tender discovery, eligibility screening, AI tender matching and AI-assisted bid preparation. TenderPartner markets municipal RFP monitoring/matching plus proposal and compliance support. BidPros markets matched opportunities and a 5% verified-win success-fee model.",
+      "Current status: FEASIBILITY. Build authorized: NO. Investment authorized: $0 unless John approves.",
+      "The Monday round table should ultimately receive a GO / VALIDATE / HOLD / NO-GO evidence package.",
     ]
       .map((line) => `- ${line}`)
       .join("\n"),
-    question:
-      "Independently challenge this opportunity. Is CONTINUE FEASIBILITY / VALIDATE BEFORE BUILD the right recommendation? Identify the strongest reasons for and against it, major overlooked risks, missing evidence, competitive differentiation needed, concerns with a success-fee model, and the cheapest next test that would materially increase confidence. You are explicitly allowed to disagree. John retains final authority.",
+    question: [
+      "Independently challenge the primary thesis. Answer each point:",
+      "1. Is there enough evidence of a real paid problem?",
+      "2. What assumptions are weakest?",
+      "3. How serious is existing competition and free government alerting?",
+      "4. What is the strongest defensible differentiation?",
+      "5. What success-fee, procurement and lobbying legal risks require counsel?",
+      "6. What is the cheapest evidence to gather before any MVP?",
+      "7. Recommend GO, VALIDATE, HOLD or NO-GO, and state the evidence threshold that would change that recommendation.",
+      "Begin nextStep with 'RECOMMENDATION: GO' or VALIDATE, HOLD or NO-GO. You are explicitly allowed to disagree. John retains final authority.",
+    ].join("\n"),
     boundaries: [
-      "Feasibility and research only. No build is authorised.",
+      "Feasibility and decision work only. No build is authorised.",
       "$0 investment authorised beyond research John has explicitly approved.",
       "Claude reviews only. It cannot approve a build, a price, or any spending.",
       "John retains final authority on every decision.",
     ],
   },
 ];
+
 
 export function findClaudeAssignment(id: string): ClaudeAssignment | undefined {
   return CLAUDE_ASSIGNMENTS.find((item) => item.id === id);

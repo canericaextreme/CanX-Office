@@ -16,6 +16,8 @@
  * stays still.
  */
 
+import { ACTIVITY_SOURCE, listActivity, toWorkEvents } from "./office-activity-log";
+
 /** How recent a heartbeat must be before the work counts as live. */
 export const FRESHNESS_MS = 90_000;
 
@@ -132,11 +134,22 @@ export function lastUpdatedLabel(event: WorkEvent, now: number = Date.now()): st
 /**
  * Reads the live work feed.
  *
- * There is no connected work feed yet: the CanX-owned database and owner
- * sign-in are still being set up. This deliberately returns the disconnected
- * feed rather than inventing anything. The builds running in ChatGPT or
- * Lovable are NOT office jobs and must never appear here.
+ * The only genuine source today is the office's own activity log: work this
+ * office really started and persisted (for example a Claude second-eyes review
+ * that was actually submitted). There is no other connected feed, and nothing
+ * is invented. The builds running in ChatGPT or Lovable are NOT office jobs and
+ * must never appear here.
  */
 export function loadWorkFeed(): WorkFeed {
-  return DISCONNECTED_FEED;
+  if (typeof window === "undefined") return DISCONNECTED_FEED;
+  const records = listActivity();
+  if (records.length === 0) return DISCONNECTED_FEED;
+  return {
+    connected: true,
+    status: "Office activity recorded on this device",
+    source: ACTIVITY_SOURCE,
+    checkedAt: new Date().toISOString(),
+    events: toWorkEvents(records),
+  };
 }
+

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useOwnerSession } from "@/lib/owner-session";
 import { requestClaudeReview, type ClaudeReviewReply } from "@/lib/claude-review.functions";
 import { CLAUDE_ASSIGNMENTS, type ClaudeAssignment } from "@/lib/claude-assignments";
+import { finishActivity, startActivity } from "@/lib/office-activity-log";
 
 /**
  * Claude second eyes. Independent review only — it never speaks as the Office
@@ -34,18 +35,60 @@ export function ClaudeReviewPanel() {
     setLoaded(assignment);
   }
 
-  async function submit() {
+  async function run(input: {
+    subject: string;
+    primaryRecommendation: string;
+    evidence: string;
+    question: string;
+    activityTitle: string;
+  }) {
     setBusy(true);
+    // Recorded only because a real review is being submitted right now.
+    const taskId = `claude-review-${Date.now()}`;
+    startActivity({ taskId, title: input.activityTitle, cellId: "systems" });
     try {
       const result = await ask({
-        data: { accessToken: session.accessToken ?? "", subject, primaryRecommendation, evidence, question },
+        data: {
+          accessToken: session.accessToken ?? "",
+          subject: input.subject,
+          primaryRecommendation: input.primaryRecommendation,
+          evidence: input.evidence,
+          question: input.question,
+        },
       });
       setReply(result);
+      finishActivity(
+        taskId,
+        result.ok ? "completed" : "failed",
+        result.ok ? "Claude returned an independent review." : (result.detail ?? "The review did not complete."),
+      );
     } catch {
       setReply(null);
+      finishActivity(taskId, "failed", "The review request did not complete.");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function runAssignment(assignment: ClaudeAssignment) {
+    loadAssignment(assignment);
+    await run({
+      subject: assignment.subject,
+      primaryRecommendation: assignment.primaryRecommendation,
+      evidence: assignment.evidence,
+      question: assignment.question,
+      activityTitle: `Claude second eyes — ${assignment.subject}`,
+    });
+  }
+
+  async function submit() {
+    await run({
+      subject,
+      primaryRecommendation,
+      evidence,
+      question,
+      activityTitle: `Claude second eyes — ${subject || "untitled review"}`,
+    });
   }
 
   return (
@@ -72,19 +115,25 @@ export function ClaudeReviewPanel() {
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
-                <Button variant="outline" size="sm" onClick={() => loadAssignment(assignment)}>
-                  Load this review
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" disabled={busy} onClick={() => runAssignment(assignment)}>
+                    {busy ? "Asking Claude…" : "Run this review now"}
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={busy} onClick={() => loadAssignment(assignment)}>
+                    Load without sending
+                  </Button>
+                </div>
               </div>
             ))}
             {loaded && (
               <p className="text-xs text-muted-foreground">
-                Loaded “{loaded.label}”. Nothing has been sent to Claude yet — press the button below to ask for the
-                review.
+                Loaded “{loaded.label}”. “Load without sending” changes nothing outside this page; “Run this review now”
+                sends it to Claude using your signed-in, two-step-verified session.
               </p>
             )}
           </div>
         )}
+
         <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
         <Textarea
           placeholder="The recommendation being reviewed"
