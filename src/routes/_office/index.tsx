@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { BrainMap } from "@/components/office/BrainMap";
 import { Office3D } from "@/components/office/Office3D";
 import { SimpleOffice } from "@/components/office/SimpleOffice";
@@ -6,9 +6,7 @@ import { StatusPanel } from "@/components/office/StatusPanel";
 import { TourGuide } from "@/components/office/TourGuide";
 import { SAMPLE_STATUS } from "@/lib/office-data";
 import { useOfficeViewMode } from "@/hooks/use-office-view";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { SampleBadge } from "@/components/office/SampleBadge";
 
 export const Route = createFileRoute("/_office/")({
@@ -50,24 +48,22 @@ function Reception() {
         </div>
 
         <Card className="mb-6 border-border bg-card">
-          <CardContent className="p-4">
-            <label htmlFor="front-desk-request" className="mb-2 block text-sm font-medium">
-              What would you like the office to do?
-            </label>
-            <div className="flex gap-2">
-              <Input
-                id="front-desk-request"
-                placeholder="Describe the outcome in plain English…"
-                className="flex-1"
-                disabled
-                aria-describedby="front-desk-note"
-              />
-              <Button disabled>Plan it</Button>
+          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+            <div className="min-w-[240px] flex-1">
+              <p className="text-sm font-medium text-foreground">
+                Ask the Office Manager — bottom right of every room.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                It reads the office, sums up what needs you, suggests tasks for you to save, and can preview the
+                look of the office. It has no AI connection yet, and it says so instead of guessing.
+              </p>
             </div>
-            <p id="front-desk-note" className="mt-2 text-xs text-muted-foreground">
-              The manager will receive requests, identify the right project, check authority, and
-              propose a scoped plan. Disabled in Phase 1 — this is a labelled demonstration.
-            </p>
+            <Link
+              to="/round-table"
+              className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground hover:bg-background"
+            >
+              Monday round table draft
+            </Link>
           </CardContent>
         </Card>
 
