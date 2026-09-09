@@ -1,109 +1,207 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import { Armchair, DoorOpen, LampDesk, Monitor, Trees } from "lucide-react";
+import { useState } from "react";
 import { ROOMS, type RoomDef } from "@/lib/office-data";
 import { SampleBadge } from "./SampleBadge";
 
-const departments = [
-  { label: "Leadership & planning", rooms: ROOMS.slice(1, 6) },
-  { label: "Operations", rooms: ROOMS.slice(6, 11) },
-  { label: "Records & support", rooms: ROOMS.slice(11, 16) },
-  { label: "Systems & assurance", rooms: ROOMS.slice(16, 20) },
-];
+/**
+ * CanX Office floor — original isometric spatial layout with two corrections:
+ *  1. Smoky charcoal-to-grey surfaces instead of near-black expanses.
+ *  2. Room buttons and labels are counter-rotated so they stay horizontal,
+ *     front-facing and readable, while the floor keeps its perspective.
+ */
 
-function OfficeRoom({ room }: { room: RoomDef }) {
+const FLOOR_TILT = "rotateX(55deg) rotateZ(-25deg)";
+// Exact inverse of FLOOR_TILT, applied to each screen-facing overlay.
+const FACE_VIEWER = "rotateZ(25deg) rotateX(-55deg)";
+
+const X_STEP = 96;
+const Z_STEP = 104;
+
+function floorPoint(room: RoomDef) {
+  return { x: room.position.x * X_STEP, y: room.position.z * Z_STEP };
+}
+
+function RoomMarker({
+  room,
+  hovered,
+  setHovered,
+}: {
+  room: RoomDef;
+  hovered: string | null;
+  setHovered: (id: string | null) => void;
+}) {
+  const { x, y } = floorPoint(room);
+  const isHovered = hovered === room.id;
+
   return (
-    <Link
-      to={room.route}
-      aria-label={`Enter ${room.label}`}
-      className="group relative flex min-h-24 flex-col justify-between overflow-hidden border-2 border-reception-charcoal bg-reception-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-reception-red hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-28"
+    <div
+      className="absolute h-0 w-0"
+      style={{
+        left: `calc(50% + ${x}px)`,
+        top: `calc(50% + ${y}px)`,
+        transformStyle: "preserve-3d",
+        transform: `translateZ(${isHovered ? 26 : 14}px) ${FACE_VIEWER}`,
+        zIndex: 100 + room.position.z,
+      }}
     >
-      <div className="absolute inset-x-0 top-0 h-1 bg-reception-red opacity-0 transition-opacity group-hover:opacity-100" />
-      <div className="flex items-start justify-between gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-reception-charcoal">
-          <room.icon className="h-4 w-4" aria-hidden="true" />
+      <Link
+        to={room.route}
+        aria-label={`${room.label} — ${room.purpose}`}
+        onMouseEnter={() => setHovered(room.id)}
+        onMouseLeave={() => setHovered(null)}
+        onFocus={() => setHovered(room.id)}
+        onBlur={() => setHovered(null)}
+        className="absolute flex w-[132px] -translate-x-1/2 -translate-y-1/2 flex-col gap-1 rounded-lg border px-2.5 py-2 text-left backdrop-blur-sm transition-[transform,box-shadow] hover:-translate-y-[calc(50%+3px)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{
+          backgroundColor: isHovered ? `${room.color}3d` : `${room.color}26`,
+          borderColor: isHovered ? room.color : `${room.color}80`,
+          boxShadow: isHovered
+            ? `0 10px 22px oklch(0 0 0 / 0.35), 0 0 0 1px ${room.color}66`
+            : "0 6px 14px oklch(0 0 0 / 0.25)",
+        }}
+      >
+        <span className="flex items-center gap-1.5">
+          <span
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+            style={{ backgroundColor: `${room.color}33`, color: room.color }}
+          >
+            <room.icon className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span className="text-[13px] font-semibold leading-tight text-foreground">
+            {room.shortLabel}
+          </span>
         </span>
-        <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-          <DoorOpen className="h-3.5 w-3.5" aria-hidden="true" /> Door
-        </span>
-      </div>
-      <div>
-        <span className="block text-sm font-bold leading-tight text-foreground">{room.shortLabel}</span>
-        <span className="mt-2 flex items-center gap-2 text-muted-foreground" aria-hidden="true">
-          <Monitor className="h-3.5 w-3.5" />
-          <span className="h-px flex-1 bg-border" />
-          <Armchair className="h-3.5 w-3.5" />
-        </span>
-      </div>
-    </Link>
+        {isHovered && (
+          <span className="text-[11px] leading-snug text-muted-foreground">{room.purpose}</span>
+        )}
+      </Link>
+    </div>
   );
 }
 
 export function Office3D() {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const rooms = ROOMS.filter((room) => room.id !== "reception");
+  const reception = ROOMS[0];
+
   return (
-    <section className="overflow-hidden rounded-lg border border-reception-charcoal/30 bg-reception-white font-reception-body shadow-md" aria-labelledby="office-scene-title">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b-4 border-reception-charcoal bg-reception-white px-4 py-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 id="office-scene-title" className="font-reception-heading text-lg font-bold text-reception-charcoal">CanX Office floor</h2>
-            <SampleBadge />
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">Choose any signed room to open its work screen.</p>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Trees className="h-4 w-4 text-canx-green" aria-hidden="true" /> Daylight workspace
-        </div>
+    <section
+      aria-labelledby="office-scene-title"
+      className="relative min-h-[74vh] w-full overflow-hidden rounded-2xl border border-border bg-gradient-to-b from-canx-panel via-canx-charcoal to-canx-black p-4"
+    >
+      <div className="absolute left-4 top-4 z-20 flex flex-wrap items-center gap-2">
+        <h2 id="office-scene-title" className="text-sm font-semibold text-foreground">
+          CanX Office floor
+        </h2>
+        <SampleBadge />
+        <span className="text-xs text-muted-foreground">Click any room to enter</span>
       </div>
 
-      <div className="relative bg-office-floor p-3 sm:p-5 lg:p-7">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-office-glass opacity-70" />
-        <div className="relative mx-auto max-w-6xl">
-          <div className="grid gap-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              {departments.slice(0, 2).map((department) => (
-                <div key={department.label} className="border-4 border-reception-charcoal bg-office-glass p-2 shadow-md">
-                  <div className="mb-2 flex items-center justify-between border-b-2 border-reception-charcoal bg-reception-white px-3 py-2">
-                    <span className="font-reception-heading text-xs font-bold uppercase text-reception-charcoal">{department.label}</span>
-                    <span className="text-xs text-muted-foreground">Glass wing</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {department.rooms.map((room) => <OfficeRoom key={room.id} room={room} />)}
-                  </div>
-                </div>
-              ))}
-            </div>
+      <div className="absolute inset-0 flex items-center justify-center" style={{ perspective: "1400px" }}>
+        <div
+          className="relative [--scene-scale:0.42] sm:[--scene-scale:0.58] lg:[--scene-scale:0.74] xl:[--scene-scale:0.86]"
+          style={{
+            transformStyle: "preserve-3d",
+            transform: `${FLOOR_TILT} scale(var(--scene-scale))`,
+          }}
+        >
+          {/* Floor slab — smoky charcoal to medium grey */}
+          <div
+            className="absolute rounded-2xl"
+            style={{
+              width: "1320px",
+              height: "1240px",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%) translateZ(-40px)",
+              background:
+                "linear-gradient(150deg, oklch(0.46 0.012 260) 0%, oklch(0.36 0.014 260) 45%, oklch(0.3 0.014 260) 100%)",
+              boxShadow: "inset 0 0 120px oklch(0 0 0 / 0.28), 0 30px 60px oklch(0 0 0 / 0.35)",
+            }}
+          />
 
-            <div className="grid min-h-64 items-stretch overflow-hidden border-4 border-reception-charcoal bg-reception-red shadow-lg lg:grid-cols-[1fr_1.5fr_1fr]">
-              <div className="hidden items-end justify-center bg-reception-charcoal/10 p-6 text-center lg:flex">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary-foreground"><LampDesk className="h-4 w-4" /> Shared workstations</div>
-              </div>
-              <Link to="/" className="relative flex flex-col items-center justify-center px-5 py-8 text-center text-primary-foreground transition hover:bg-reception-charcoal/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground" aria-label="Reception / Office Manager">
-                <span className="font-reception-heading text-4xl font-extrabold sm:text-5xl">CANX</span>
-                <span className="font-reception-heading text-lg font-semibold">OFFICE</span>
-                <span className="mt-2 text-sm font-medium text-primary-foreground/85">John’s visual command centre</span>
-                <span className="mt-7 flex min-h-16 w-full max-w-sm items-center justify-center border-b-8 border-reception-charcoal bg-reception-wood px-8 py-4 font-reception-heading text-base font-bold text-reception-charcoal shadow-lg">WELCOME DESK</span>
-                <span className="mt-3 text-xs text-primary-foreground/85">Text placeholder logo · Sample reception</span>
+          {/* Translucent glass panel over the floor */}
+          <div
+            className="pointer-events-none absolute rounded-2xl"
+            style={{
+              width: "1320px",
+              height: "1240px",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%) translateZ(-36px)",
+              background:
+                "linear-gradient(120deg, oklch(0.85 0.02 240 / 0.12), oklch(0.7 0.02 240 / 0.03) 60%, transparent)",
+              border: "1px solid oklch(0.8 0.01 260 / 0.18)",
+            }}
+          />
+
+          {/* Grid lines */}
+          <svg
+            className="pointer-events-none absolute opacity-25"
+            style={{
+              width: "1320px",
+              height: "1240px",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%) translateZ(-34px)",
+            }}
+            aria-hidden="true"
+          >
+            {Array.from({ length: 14 }).map((_, i) => (
+              <line key={`v${i}`} x1={i * 100} y1="0" x2={i * 100} y2="1240" stroke="oklch(0.9 0 0 / 0.25)" strokeWidth="1" />
+            ))}
+            {Array.from({ length: 13 }).map((_, i) => (
+              <line key={`h${i}`} x1="0" y1={i * 100} x2="1320" y2={i * 100} stroke="oklch(0.9 0 0 / 0.25)" strokeWidth="1" />
+            ))}
+          </svg>
+
+          {/* Central reception desk */}
+          <div
+            className="absolute rounded-xl"
+            style={{
+              width: "300px",
+              height: "170px",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%) translateZ(6px)",
+              background:
+                "linear-gradient(140deg, oklch(0.52 0.02 260 / 0.85), oklch(0.38 0.02 260 / 0.85))",
+              border: "2px solid var(--canx-red)",
+              boxShadow: "0 14px 30px oklch(0 0 0 / 0.35)",
+            }}
+          />
+
+          {reception && (
+            <div
+              className="absolute h-0 w-0"
+              style={{
+                left: "50%",
+                top: "50%",
+                transformStyle: "preserve-3d",
+                transform: `translateZ(34px) ${FACE_VIEWER}`,
+                zIndex: 200,
+              }}
+            >
+              <Link
+                to={reception.route}
+                aria-label={`${reception.label} — ${reception.purpose}`}
+                className="absolute flex w-[190px] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-xl border-2 border-canx-red/70 bg-canx-charcoal/85 px-4 py-3 text-center backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                style={{ boxShadow: "0 12px 28px oklch(0 0 0 / 0.4)" }}
+              >
+                <span className="text-2xl font-black tracking-widest text-canx-red">CANX</span>
+                <span className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                  Reception
+                </span>
+                <span className="mt-1 text-[11px] text-muted-foreground">Text placeholder logo</span>
               </Link>
-              <div className="hidden items-end justify-center bg-reception-charcoal/10 p-6 text-center lg:flex">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary-foreground"><Armchair className="h-4 w-4" /> Visitor seating</div>
-              </div>
             </div>
+          )}
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              {departments.slice(2).map((department) => (
-                <div key={department.label} className="border-4 border-reception-charcoal bg-office-glass p-2 shadow-md">
-                  <div className="mb-2 flex items-center justify-between border-b-2 border-reception-charcoal bg-reception-white px-3 py-2">
-                    <span className="font-reception-heading text-xs font-bold uppercase text-reception-charcoal">{department.label}</span>
-                    <span className="text-xs text-muted-foreground">Glass wing</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {department.rooms.map((room) => <OfficeRoom key={room.id} room={room} />)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {rooms.map((room) => (
+            <RoomMarker key={room.id} room={room} hovered={hovered} setHovered={setHovered} />
+          ))}
         </div>
       </div>
     </section>
