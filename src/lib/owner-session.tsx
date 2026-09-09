@@ -162,7 +162,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
     setEmail(null);
     setState(configured ? "signed_out" : "backend_missing");
     setMessage("Signed out. The office is back to saving on this device only.");
-  }, []);
+  }, [configured]);
 
   const value = useMemo<OwnerSession>(
     () => ({
@@ -179,7 +179,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       signOut,
       refresh,
     }),
-    [state, email, message, accessToken, signIn, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
+    [state, configured, email, message, accessToken, signIn, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
