@@ -49,31 +49,33 @@ function Reception() {
           </div>
         </div>
 
+        <Card className="mb-6 border-border bg-card">
+          <CardContent className="p-4">
+            <label htmlFor="front-desk-request" className="mb-2 block text-sm font-medium">
+              What would you like the office to do?
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="front-desk-request"
+                placeholder="Describe the outcome in plain English…"
+                className="flex-1"
+                disabled
+                aria-describedby="front-desk-note"
+              />
+              <Button disabled>Plan it</Button>
+            </div>
+            <p id="front-desk-note" className="mt-2 text-xs text-muted-foreground">
+              The manager will receive requests, identify the right project, check authority, and
+              propose a scoped plan. Disabled in Phase 1 — this is a labelled demonstration.
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="mb-6">{mode === "3d" ? <Office3D /> : <SimpleOffice />}</div>
+
         <div className="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
-            <Card className="border-border bg-card">
-              <CardContent className="p-4">
-                <label htmlFor="front-desk-request" className="mb-2 block text-sm font-medium">
-                  What would you like the office to do?
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    id="front-desk-request"
-                    placeholder="Describe the outcome in plain English…"
-                    className="flex-1"
-                    disabled
-                    aria-describedby="front-desk-note"
-                  />
-                  <Button disabled>Plan it</Button>
-                </div>
-                <p id="front-desk-note" className="mt-2 text-xs text-muted-foreground">
-                  The manager will receive requests, identify the right project, check authority, and
-                  propose a scoped plan. Disabled in Phase 1 — this is a labelled demonstration.
-                </p>
-              </CardContent>
-            </Card>
 
-            {mode === "3d" ? <Office3D /> : <SimpleOffice />}
 
             <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
