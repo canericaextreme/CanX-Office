@@ -301,6 +301,7 @@ export function BrainMap() {
                 {visibleCells.map((item) => {
                   const color = colorOf(item);
                   const active = cellId === item.id;
+                  const live = liveCellIds.has(item.id);
                   const showLabel = active || hoverId === item.id || Boolean(regionId) || Boolean(term);
                   return (
                     <g
