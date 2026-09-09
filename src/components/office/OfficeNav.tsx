@@ -10,7 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ROOMS, type OfficeViewMode } from "@/lib/office-data";
+import { ROOMS } from "@/lib/office-data";
+import type { OfficeViewMode } from "@/hooks/use-office-view";
 import { useState } from "react";
 
 interface OfficeNavProps {
