@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useOwnerSession } from "@/lib/owner-session";
 import { requestClaudeReview, type ClaudeReviewReply } from "@/lib/claude-review.functions";
+import { CLAUDE_ASSIGNMENTS, type ClaudeAssignment } from "@/lib/claude-assignments";
 
 /**
  * Claude second eyes. Independent review only — it never speaks as the Office
