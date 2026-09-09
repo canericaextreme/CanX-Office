@@ -19,6 +19,7 @@ import {
   validateRoundTable,
   type RoundTableDoc,
 } from "@/lib/round-table";
+import { FEASIBILITY_ITEMS } from "@/lib/feasibility-queue";
 
 export const Route = createFileRoute("/_office/round-table")({
   head: () => ({
@@ -208,6 +209,74 @@ function RoundTablePage() {
             />
           </CardContent>
         </Card>
+
+        {FEASIBILITY_ITEMS.map((item) => {
+          const alreadyOnAgenda = doc.agenda.some((row) => row.title === item.agendaTitle);
+          return (
+            <Card key={item.id} className="mb-5">
+              <CardHeader>
+                <CardTitle className="text-base">Queued for this round table — {item.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Tag>Stage: {item.stage}</Tag>
+                  <Tag>{item.status}</Tag>
+                  <Tag>Decision: {item.decisionAuthority}</Tag>
+                  <Tag>Build authorised: {item.buildAuthorised}</Tag>
+                  <Tag>Investment: {item.investmentAuthorised}</Tag>
+                </div>
+                <p className="text-sm text-foreground">{item.workingConcept}</p>
+                <p className="text-xs text-muted-foreground">{item.pricingNote}</p>
+
+                <div>
+                  <h3 className="mb-1.5 text-sm font-semibold text-foreground">What has to be researched</h3>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    {item.workstreams.map((ws) => (
+                      <li key={ws.id} className="rounded-md border border-border px-2.5 py-1.5">
+                        <span className="font-medium text-foreground">{ws.name}</span> — {ws.question}
+                        <span className="ml-1 text-xs text-canx-yellow">Not started</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="mb-1.5 text-sm font-semibold text-foreground">
+                    What Monday needs: one GO / HOLD / NO-GO package covering
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{item.decisionPackage.join(" · ")}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={alreadyOnAgenda}
+                    onClick={() =>
+                      update({
+                        agenda: [
+                          ...doc.agenda,
+                          {
+                            id: newId("ag"),
+                            title: item.agendaTitle,
+                            minutes: item.agendaMinutes,
+                            notes: item.agendaNotes,
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    {alreadyOnAgenda ? "Already on the agenda" : "Add to Monday's agenda"}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Remember to press Save — the agenda is stored {shared ? "in your CanX account" : "on this device only"}.
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+
 
         <Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Meeting</CardTitle></CardHeader>
