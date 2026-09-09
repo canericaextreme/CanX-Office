@@ -369,7 +369,45 @@ create policy "Owner deletes own receipts"
   on public.finance_receipts for delete to authenticated
   using (auth.uid() = owner_id and public.is_verified_owner());
 
+-- ---------------------------------------------------------------------
+-- 7. Belt and braces: take away anything PUBLIC or anon may have picked
+--    up from pre-existing default privileges, then re-state the minimum
+--    the signed-in owner actually needs. Nothing here is public.
+-- ---------------------------------------------------------------------
+revoke all on public.user_roles, public.office_notes, public.round_tables,
+              public.office_audit, public.ai_limits, public.ai_usage,
+              public.finance_receipts
+  from public;
+revoke all on public.user_roles, public.office_notes, public.round_tables,
+              public.office_audit, public.ai_limits, public.ai_usage,
+              public.finance_receipts
+  from anon;
+
+revoke all on sequence public.office_audit_id_seq from public;
+revoke all on sequence public.office_audit_id_seq from anon;
+
+revoke all on function public.has_role(uuid, public.app_role) from anon;
+revoke all on function public.session_aal() from anon;
+revoke all on function public.is_verified_owner() from anon;
+revoke all on function public.reserve_ai_call(integer) from anon;
+revoke all on function public.settle_ai_call(uuid, text) from anon;
+
+revoke usage on schema public from anon;
+
+-- Minimum access for the signed-in owner. Every row is still decided by
+-- the row-level policies above; these grants only make the tables visible
+-- to the Data API at all.
+grant select on public.user_roles to authenticated;
+grant select, insert, update, delete on public.office_notes to authenticated;
+grant select, insert, update, delete on public.round_tables to authenticated;
+grant select, insert on public.office_audit to authenticated;
+grant usage, select on sequence public.office_audit_id_seq to authenticated;
+grant select on public.ai_limits to authenticated;
+grant select on public.ai_usage to authenticated;
+grant select, insert, update, delete on public.finance_receipts to authenticated;
+
 commit;
+
 
 -- =====================================================================
 -- NOT part of this script, on purpose:
