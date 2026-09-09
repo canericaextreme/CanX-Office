@@ -286,9 +286,9 @@ export const ROOMS: RoomDef[] = [
   },
 ];
 
-export const roomById = (id: RoomId): RoomDef => ROOMS.find((r) => r.id === id) ?? ROOMS[0];
+export const roomById = (id: RoomId): RoomDef => ROOMS.find((r) => r.id === id) ?? ROOMS[0]!;
 export const roomByRoute = (route: string): RoomDef =>
-  ROOMS.find((r) => r.route === route) ?? ROOMS[0];
+  ROOMS.find((r) => r.route === route) ?? ROOMS[0]!;
 
 export type StatusTone = "green" | "blue" | "yellow" | "red" | "grey";
 
