@@ -3,6 +3,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Download, Plus, RotateCcw, Save, Trash2, Upload } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useOwnerSession } from "@/lib/owner-session";
+import { loadSharedRoundTable, saveSharedRoundTable } from "@/lib/records.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +46,11 @@ function RoundTablePage() {
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const session = useOwnerSession();
+  const shared = session.shared;
+  const token = session.accessToken ?? "";
+  const loadShared = useServerFn(loadSharedRoundTable);
+  const pushShared = useServerFn(saveSharedRoundTable);
 
   useEffect(() => {
     setDoc(loadRoundTable());
@@ -52,13 +60,46 @@ function RoundTablePage() {
   const update = (patch: Partial<RoundTableDoc>) => setDoc((current) => ({ ...current, ...patch }));
 
   const save = () => {
-    setDoc(saveRoundTable(doc));
-    setMessage("Saved on this device.");
+    const saved = saveRoundTable(doc);
+    setDoc(saved);
+    if (!shared) {
+      setMessage("Saved on this device.");
+      return;
+    }
+    void pushShared({ data: { accessToken: token, doc: JSON.stringify(saved) } })
+      .then((result) =>
+        setMessage(
+          result.ok
+            ? "Saved to your CanX account, so it is available on any device you sign in on."
+            : "Saved on this device. The CanX account save did not go through.",
+        ),
+      )
+      .catch(() => setMessage("Saved on this device. The CanX account save did not go through."));
   };
 
   const reload = () => {
-    setDoc(loadRoundTable());
-    setMessage("Reloaded the last saved version from this device.");
+    if (!shared) {
+      setDoc(loadRoundTable());
+      setMessage("Reloaded the last saved version from this device.");
+      return;
+    }
+    void loadShared({ data: { accessToken: token } })
+      .then((result) => {
+        if (result.ok && result.data) {
+          const { doc: parsed } = validateRoundTable(JSON.parse(result.data) as unknown);
+          if (parsed) {
+            setDoc(parsed);
+            setMessage("Reloaded the version saved in your CanX account.");
+            return;
+          }
+        }
+        setDoc(loadRoundTable());
+        setMessage("Reloaded the last saved version from this device.");
+      })
+      .catch(() => {
+        setDoc(loadRoundTable());
+        setMessage("Reloaded the last saved version from this device.");
+      });
   };
 
   const exportFile = () => {
@@ -99,7 +140,7 @@ function RoundTablePage() {
               Not scheduled
             </span>
             <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-              Saved on this device only
+              {shared ? "Saved to your CanX account" : "Saved on this device only"}
             </span>
           </div>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
@@ -137,6 +178,36 @@ function RoundTablePage() {
         {loaded && (
           <p className="mb-5 text-xs text-muted-foreground">Last saved: {new Date(doc.updatedAt).toLocaleString()}</p>
         )}
+
+        <Card className="mb-5">
+          <CardHeader><CardTitle className="text-base">Before Monday — readiness</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              These are checked live. Anything not ready simply means the meeting runs manually for that part.
+            </p>
+            <ReadyRow
+              label="Sign in works (owner account with two-step verification)"
+              ready={session.state === "owner"}
+              note={session.state === "owner" ? `Signed in as ${session.email}.` : session.message}
+            />
+            <ReadyRow
+              label="Notes and this agenda save to the CanX account, not just this device"
+              ready={shared}
+              note={shared ? "Shared saving is on." : "Device-only until sign-in works."}
+            />
+            <ReadyRow
+              label="Office Manager can answer"
+              ready={false}
+              note="Not connected. Check the Systems room for the exact blocker."
+            />
+            <ReadyRow label="Independent review (Claude)" ready={false} note="Planned only. Not connected, and never spoken for." />
+            <ReadyRow
+              label="Meeting notes, decisions and actions are ready to fill in"
+              ready
+              note="Editable below, with export and import as a backup."
+            />
+          </CardContent>
+        </Card>
 
         <Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Meeting</CardTitle></CardHeader>
@@ -383,5 +454,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function ReadyRow({ label, ready, note }: { label: string; ready: boolean; note: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3">
+      <div>
+        <div className="text-sm font-medium text-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">{note}</div>
+      </div>
+      <span
+        className={
+          ready
+            ? "shrink-0 rounded-full border border-canx-green/50 bg-canx-green/15 px-2 py-0.5 text-xs font-semibold text-canx-green"
+            : "shrink-0 rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-semibold text-muted-foreground"
+        }
+      >
+        {ready ? "Ready" : "Not ready"}
+      </span>
+    </div>
   );
 }
