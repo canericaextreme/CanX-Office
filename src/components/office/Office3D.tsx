@@ -14,9 +14,9 @@ import { SampleBadge } from "./SampleBadge";
  *     never skewed by the floor perspective — at readable text sizes.
  */
 
-const KX = 52; // isometric horizontal step
-const KY = 34; // isometric vertical step
-const STAGE_W = 1420;
+const KX = 44; // isometric horizontal step
+const KY = 36; // isometric vertical step
+const STAGE_W = 1160;
 const STAGE_H = 900;
 const CX = STAGE_W / 2;
 const CY = STAGE_H / 2;
@@ -55,7 +55,7 @@ function RoomMarker({
       onMouseLeave={() => setHovered(null)}
       onFocus={() => setHovered(room.id)}
       onBlur={() => setHovered(null)}
-      className="absolute flex w-[136px] -translate-x-1/2 -translate-y-1/2 flex-col gap-1 rounded-lg border px-2.5 py-2 text-left backdrop-blur-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="absolute flex w-[124px] -translate-x-1/2 -translate-y-1/2 flex-col gap-1 rounded-lg border px-2.5 py-2 text-left backdrop-blur-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       style={{
         left: `${left}px`,
         top: `${top}px`,
@@ -115,9 +115,9 @@ export function Office3D() {
         <span className="text-xs text-muted-foreground">Click any room to enter</span>
       </div>
 
-      <div className="relative h-[420px] overflow-hidden sm:h-[540px] lg:h-[660px] xl:h-[760px]">
+      <div className="relative h-[400px] overflow-hidden sm:h-[540px] md:h-[660px] lg:h-[780px] xl:h-[900px]">
         <div
-          className="absolute left-1/2 top-1/2 [--scene-scale:0.3] sm:[--scene-scale:0.42] lg:[--scene-scale:0.56] xl:[--scene-scale:0.58]"
+          className="absolute left-1/2 top-1/2 [--scene-scale:0.4] sm:[--scene-scale:0.58] md:[--scene-scale:0.72] lg:[--scene-scale:0.86] xl:[--scene-scale:1]"
           style={{
             width: `${STAGE_W}px`,
             height: `${STAGE_H}px`,
