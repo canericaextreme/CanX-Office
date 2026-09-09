@@ -1,7 +1,7 @@
 "use client";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Download, Plus, RotateCcw, Save, Trash2, Upload } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
