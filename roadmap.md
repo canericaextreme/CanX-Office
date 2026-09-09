@@ -19,3 +19,15 @@
 - [x] Setup notes (docs/office-manager-setup.md) and proposed backend schema (docs/backend-schema.sql, not applied)
 - [ ] Backend provider decision — CanX-owned Supabase recommended, nothing provisioned
 - [ ] OPENAI_API_KEY not configured, so the manager's AI is not connected
+
+## Review fixes (pre-activation defects)
+- Office Manager fails closed: no owner sign-in with MFA, so no provider call is ever made, even with a key present. No bypass flag.
+- Lovable gateway execution path removed.
+- Status distinguishes auth unavailable / configured-but-unverified / not configured / verified. Verified requires a live health check, never secret presence.
+- Client office context sent as fenced untrusted data; system instructions immutable.
+- Provider errors sanitized (no upstream body/keys) and bounded by a 45s timeout.
+- Per-record provenance on saved notes and meeting decisions/actions; John's records are not called demonstration data.
+- Transparency, text density and movement settings now actually change rendered panels and text.
+- Phones show full-size room cards instead of a shrunken floor.
+- Reference SQL: owner-only policies require owner role AND aal2 AND owner_id; file remains unapplied and implements no auth.
+- Tests: src/lib/manager.functions.test.ts (3 passing).
