@@ -31,11 +31,11 @@ function Reception() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-1 flex items-center gap-2">
               <h1 className="text-3xl font-black tracking-tight text-foreground">
-                <span className="text-canx-red">CANX</span> Office
+                 <span className="text-canx-red">CANX</span> <span className="text-canx-black">Office</span>
               </h1>
               <SampleBadge />
             </div>
@@ -49,7 +49,7 @@ function Reception() {
           </div>
         </div>
 
-        <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div className="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
             <Card className="border-border bg-card">
               <CardContent className="p-4">
@@ -75,7 +75,7 @@ function Reception() {
 
             {mode === "3d" ? <Office3D /> : <SimpleOffice />}
 
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Quick answers
               </h2>
@@ -85,7 +85,7 @@ function Reception() {
                 <Metric label="Red stops" value="1" tone="red" />
                 <Metric label="Cost guardrail" value="CAD $300/mo" tone="grey" />
               </div>
-              <p className="mt-3 text-[10px] text-muted-foreground">
+              <p className="mt-3 text-xs text-muted-foreground">
                 These numbers are synthetic examples for demonstration only.
               </p>
             </div>
