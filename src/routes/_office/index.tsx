@@ -6,9 +6,7 @@ import { StatusPanel } from "@/components/office/StatusPanel";
 import { TourGuide } from "@/components/office/TourGuide";
 import { SAMPLE_STATUS } from "@/lib/office-data";
 import { useOfficeViewMode } from "@/hooks/use-office-view";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { SampleBadge } from "@/components/office/SampleBadge";
 
 export const Route = createFileRoute("/_office/")({
