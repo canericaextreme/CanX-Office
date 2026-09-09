@@ -385,10 +385,57 @@ export function BrainMap() {
                       ))}
                 </div>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Movement is decorative. It does not represent live jobs or measured activity.
+                  Nothing moves unless real work is running. The map is still when no work feed is connected.
                 </p>
               </div>
+
+              <div
+                className="absolute left-3 top-3 z-10 rounded-md border border-border bg-card/95 px-3 py-2 text-xs shadow-sm"
+                role="status"
+              >
+                <span className="font-bold text-foreground">
+                  {workFeed.connected ? `Live work: ${liveEvents.length} running now` : "No live work connected"}
+                </span>
+                <span className="ml-2 text-muted-foreground">
+                  {workFeed.connected
+                    ? `Source: ${workFeed.source ?? "unknown"}`
+                    : "The brain is static until real work reports in."}
+                </span>
+              </div>
             </div>
+
+            <section className="border-t border-border p-4" aria-label="Live work activity">
+              <h3 className="mb-1 text-sm font-bold text-foreground">Live work activity</h3>
+              {workFeed.events.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {workFeed.status}. No task, job, or worker activity is being reported, so nothing on the map moves.
+                  Office records above are saved records, not running work.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {workFeed.events.map((event) => (
+                    <li key={event.taskId} className="rounded-md border border-border p-3 text-xs">
+                      <div className="font-bold text-foreground">{event.title}</div>
+                      <div className="mt-1 text-muted-foreground">
+                        Task {event.taskId}
+                        {event.jobId ? ` · Job ${event.jobId}` : ""}
+                        {event.workerId ? ` · Worker ${event.workerId}` : ""}
+                        {event.projectId ? ` · Project ${event.projectId}` : ""}
+                      </div>
+                      <div className="mt-1 text-muted-foreground">
+                        {describeState(event)} · Last updated {lastUpdatedLabel(event)} · Source {event.source}
+                        {event.sample ? " · Sample record, never animated" : ""}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Only {WORK_STATE_LABELS.running.toLowerCase()} work with a fresh heartbeat animates. Waiting, idle,
+                finished, failed, cancelled and quiet work stays still.
+              </p>
+            </section>
+
 
             <div className="border-t border-border p-4">
               <h3 className="mb-1 text-sm font-bold text-foreground">Keyboard-accessible list</h3>
