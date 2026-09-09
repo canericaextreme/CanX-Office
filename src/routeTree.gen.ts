@@ -14,6 +14,9 @@ import { Route as OfficeIndexRouteImport } from './routes/_office/index'
 import { Route as OfficeBrainRouteImport } from './routes/_office/brain'
 import { Route as OfficeIdeaGarageRouteImport } from './routes/_office/idea-garage'
 import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
+import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
+import { Route as OfficeSafeHighwaysRouteImport } from './routes/_office/safe-highways'
+import { Route as OfficeWorkBoardRouteImport } from './routes/_office/work-board'
 
 const OfficeRoute = OfficeRouteImport.update({
   id: '/_office',
@@ -39,17 +42,38 @@ const OfficeOwnerDeskRoute = OfficeOwnerDeskRouteImport.update({
   path: '/owner-desk',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeProjectsRoute = OfficeProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeSafeHighwaysRoute = OfficeSafeHighwaysRouteImport.update({
+  id: '/safe-highways',
+  path: '/safe-highways',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeWorkBoardRoute = OfficeWorkBoardRouteImport.update({
+  id: '/work-board',
+  path: '/work-board',
+  getParentRoute: () => OfficeRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof OfficeIndexRoute
   '/brain': typeof OfficeBrainRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
+  '/projects': typeof OfficeProjectsRoute
+  '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/work-board': typeof OfficeWorkBoardRoute
 }
 export interface FileRoutesByTo {
   '/brain': typeof OfficeBrainRoute
   '/idea-garage': typeof OfficeIdeaGarageRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
+  '/projects': typeof OfficeProjectsRoute
+  '/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/work-board': typeof OfficeWorkBoardRoute
   '/': typeof OfficeIndexRoute
 }
 export interface FileRoutesById {
@@ -58,19 +82,39 @@ export interface FileRoutesById {
   '/_office/brain': typeof OfficeBrainRoute
   '/_office/idea-garage': typeof OfficeIdeaGarageRoute
   '/_office/owner-desk': typeof OfficeOwnerDeskRoute
+  '/_office/projects': typeof OfficeProjectsRoute
+  '/_office/safe-highways': typeof OfficeSafeHighwaysRoute
+  '/_office/work-board': typeof OfficeWorkBoardRoute
   '/_office/': typeof OfficeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/brain' | '/idea-garage' | '/owner-desk'
+  fullPaths:
+    | '/'
+    | '/brain'
+    | '/idea-garage'
+    | '/owner-desk'
+    | '/projects'
+    | '/safe-highways'
+    | '/work-board'
   fileRoutesByTo: FileRoutesByTo
-  to: '/brain' | '/idea-garage' | '/owner-desk' | '/'
+  to:
+    | '/brain'
+    | '/idea-garage'
+    | '/owner-desk'
+    | '/projects'
+    | '/safe-highways'
+    | '/work-board'
+    | '/'
   id:
     | '__root__'
     | '/_office'
     | '/_office/brain'
     | '/_office/idea-garage'
     | '/_office/owner-desk'
+    | '/_office/projects'
+    | '/_office/safe-highways'
+    | '/_office/work-board'
     | '/_office/'
   fileRoutesById: FileRoutesById
 }
@@ -115,6 +159,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeOwnerDeskRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/projects': {
+      id: '/_office/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof OfficeProjectsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/safe-highways': {
+      id: '/_office/safe-highways'
+      path: '/safe-highways'
+      fullPath: '/safe-highways'
+      preLoaderRoute: typeof OfficeSafeHighwaysRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/work-board': {
+      id: '/_office/work-board'
+      path: '/work-board'
+      fullPath: '/work-board'
+      preLoaderRoute: typeof OfficeWorkBoardRouteImport
+      parentRoute: typeof OfficeRoute
+    }
   }
 }
 
@@ -122,6 +187,9 @@ interface OfficeRouteChildren {
   OfficeBrainRoute: typeof OfficeBrainRoute
   OfficeIdeaGarageRoute: typeof OfficeIdeaGarageRoute
   OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
+  OfficeProjectsRoute: typeof OfficeProjectsRoute
+  OfficeSafeHighwaysRoute: typeof OfficeSafeHighwaysRoute
+  OfficeWorkBoardRoute: typeof OfficeWorkBoardRoute
   OfficeIndexRoute: typeof OfficeIndexRoute
 }
 
@@ -129,6 +197,9 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeBrainRoute: OfficeBrainRoute,
   OfficeIdeaGarageRoute: OfficeIdeaGarageRoute,
   OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
+  OfficeProjectsRoute: OfficeProjectsRoute,
+  OfficeSafeHighwaysRoute: OfficeSafeHighwaysRoute,
+  OfficeWorkBoardRoute: OfficeWorkBoardRoute,
   OfficeIndexRoute: OfficeIndexRoute,
 }
 
@@ -141,3 +212,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
