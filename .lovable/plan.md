@@ -92,8 +92,9 @@ Planning guardrail CAD $300/month, editable, unverified. Phase 1 requires no new
 8. Income goal definition (revenue, profit, or personal income), currency, and baseline — until confirmed, show "Baseline needed", no percentage.
 9. Verified subscription costs and hard spending caps.
 10. Recovery objectives: acceptable data loss and downtime.
-11. Performance targets for a named device and network.
-12. Trusted alert channel for security incidents, separate from the connections it protects.
+11. Trusted alert channel for security incidents, separate from the connections it protects.
+
+Performance targets for a named device and network are moved into Phase 1 acceptance so the 3D office and simple view can be checked on your desktop and phone before Phase 2.
 
 ## 8. Acceptance matrix — safeguards precede the capability they protect
 
@@ -103,6 +104,7 @@ Planning guardrail CAD $300/month, editable, unverified. Phase 1 requires no new
 | All 20 destinations navigable | 1 | Every destination opens; Home/Back/search work; no dead ends | Screens |
 | Realistic office, brain, guided tour | 1 | Office view, both brain legends, and a labelled tour all work; rooms open fast work screens | Screens |
 | Simple view, phone, keyboard, reduced motion, 3D failure | 1 | Every function completable without 3D | Screens |
+| Performance targets | 1 | Named device/network targets are set, then measured for both 3D office and simple view | Test log |
 | Demo integrity | 1 | Every sample figure and animation labelled; no external side effects | Review |
 | Persistence | 2 | Reload and a new authorized session retain records and history | Test log |
 | Owner MFA and recovery | 2 | Owner access and sensitive actions enforce MFA; recovery and factor changes audited, no bypass, stale sensitive approvals invalidated | Test log |
@@ -126,9 +128,8 @@ Each phase ends with a plain-English walkthrough, evidence, limitations, updated
 
 ## 9. Unresolved decisions that genuinely block Phase 1
 
-Only two:
+Only one:
 
-1. **Logo.** Without the owner-approved logo asset, Phase 1 ships a clearly identified text placeholder. Confirm that is acceptable, or supply the file.
-2. **Phase 1 authorization itself.** Everything else — backend provider, mailboxes, AI providers, Stripe, income baseline, spending caps, recovery objectives, performance targets — is needed for Phase 2 or later, not for Phase 1.
+1. **Phase 1 authorization itself.** The text-logo placeholder is already allowed by the master prompt, so no separate logo decision blocks Phase 1. Everything else — backend provider, mailboxes, AI providers, Stripe, income baseline, spending caps, recovery objectives — is needed for Phase 2 or later.
 
 Approving this blueprint authorizes Phase 1 only: the branded office shell with all 20 destinations and labelled sample data. It authorizes no connection, purchase, or production change.
