@@ -109,7 +109,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (userEmail: string, password: string) => {
-      const supabase = getCanxSupabase();
+      const supabase = await loadCanxSupabase();
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { error } = await supabase.auth.signInWithPassword({ email: userEmail, password });
       if (error) return "That email and password were not accepted.";
@@ -121,7 +121,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
 
   const submitMfaCode = useCallback(
     async (code: string) => {
-      const supabase = getCanxSupabase();
+      const supabase = await loadCanxSupabase();
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { data: factors, error: listError } = await supabase.auth.mfa.listFactors();
       if (listError) return "The second step could not be started.";
@@ -136,7 +136,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const enrolTotp = useCallback(async () => {
-    const supabase = getCanxSupabase();
+    const supabase = await loadCanxSupabase();
     if (!supabase) return "No CanX-owned database is connected yet.";
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
     if (error || !data) return "The authenticator app could not be set up.";
@@ -145,7 +145,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
 
   const confirmEnrolment = useCallback(
     async (factorId: string, code: string) => {
-      const supabase = getCanxSupabase();
+      const supabase = await loadCanxSupabase();
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
       if (error) return "That code was not accepted.";
@@ -156,18 +156,18 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    const supabase = getCanxSupabase();
+    const supabase = await loadCanxSupabase();
     if (supabase) await supabase.auth.signOut();
     setAccessToken(null);
     setEmail(null);
-    setState(canxBackendConfigured ? "signed_out" : "backend_missing");
+    setState(configured ? "signed_out" : "backend_missing");
     setMessage("Signed out. The office is back to saving on this device only.");
   }, []);
 
   const value = useMemo<OwnerSession>(
     () => ({
       state,
-      configured: canxBackendConfigured,
+      configured,
       email,
       message,
       accessToken,
