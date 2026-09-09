@@ -393,7 +393,7 @@ function AppearancePanel() {
 
       <Group label="Surface">
         <div className="flex flex-wrap gap-2">
-          {THEME_FIELDS.surface.map((value: SurfaceLevel) => (
+          {THEME_FIELDS.surface.options.map((value: SurfaceLevel) => (
             <Choice key={value} active={theme.surface === value} onClick={() => preview({ surface: value })}>
               {value}
             </Choice>
@@ -408,13 +408,13 @@ function AppearancePanel() {
           max={80}
           step={5}
           aria-label="Panel transparency"
-          onValueChange={([value]) => preview({ transparency: value })}
+          onValueChange={(values) => preview({ transparency: values[0] ?? theme.transparency })}
         />
       </Group>
 
       <Group label="Accent">
         <div className="flex flex-wrap gap-2">
-          {THEME_FIELDS.accent.map((value: AccentName) => (
+          {THEME_FIELDS.accent.options.map((value: AccentName) => (
             <Choice key={value} active={theme.accent === value} onClick={() => preview({ accent: value })}>
               {ACCENT_LABELS[value]}
             </Choice>
@@ -424,7 +424,7 @@ function AppearancePanel() {
 
       <Group label="Text density">
         <div className="flex flex-wrap gap-2">
-          {THEME_FIELDS.density.map((value: DensityName) => (
+          {THEME_FIELDS.density.options.map((value: DensityName) => (
             <Choice key={value} active={theme.density === value} onClick={() => preview({ density: value })}>
               {value}
             </Choice>
@@ -434,7 +434,7 @@ function AppearancePanel() {
 
       <Group label="Movement">
         <div className="flex flex-wrap gap-2">
-          {THEME_FIELDS.motion.map((value: MotionName) => (
+          {THEME_FIELDS.motion.options.map((value: MotionName) => (
             <Choice key={value} active={theme.motion === value} onClick={() => preview({ motion: value })}>
               {value === "full" ? "Gentle movement" : "No movement"}
             </Choice>
