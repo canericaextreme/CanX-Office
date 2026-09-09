@@ -1,62 +1,124 @@
-# Office Manager — connection status and setup notes
+# CanX Office — setup guide (database, sign-in, AI)
 
-Last updated with the CanX Office build that added the Office Manager, the brain map, and the Monday round table draft.
+Written for John. Nothing in this file has been done for you. The office is
+built so that it refuses to do anything paid or private until every step below
+is genuinely complete and checked.
 
-## What is actually live right now
+**Current state: no database, no sign-in, no AI. All of it is blocked, on
+purpose.**
 
-| Feature | State |
+---
+
+## Why the office refuses
+
+Adding an AI key on its own does **not** switch anything on. Before the office
+makes a single paid AI call it checks, on its own server, all of the following:
+
+1. A CanX-owned database is configured.
+2. The request carries a real, unexpired session for that database.
+3. That account holds the **owner** role, read from the database — never from
+   the browser.
+4. The session passed two-step verification (an authenticator app).
+5. A spending and request-rate reservation was granted by the database.
+6. A live, authenticated check of the AI connection passed just now.
+
+If any one of those fails, the answer is no. There is no setting, flag, or
+back door that skips them.
+
+---
+
+## Step 1 — create the CanX-owned database
+
+Open the connectors page and choose Supabase:
+
+https://lovable.dev/dashboard?connectors
+
+Create the project inside **your own** account. This matters: CanX owns the
+account, the data, the backups, and the exports, and can rebuild elsewhere.
+
+## Step 2 — run the two database files
+
+In the Supabase SQL editor, run these in order, from this repository:
+
+1. `docs/migrations/0001_canx_office_core.sql`
+2. `docs/migrations/0002_ai_limits.sql`
+
+They are **not applied**. They create the tables, the access rules, the
+append-only history, and the spending limits. Running them does **not** create
+sign-in and does **not** enable AI.
+
+## Step 3 — make your account the owner
+
+Create your account (email and password) in the Supabase dashboard, then run
+this once in the SQL editor, replacing the email:
+
+```sql
+insert into public.user_roles (user_id, role)
+select id, 'owner' from auth.users where email = 'you@example.com';
+```
+
+The owner role can only be granted this way. The office cannot grant it to
+itself, and no browser action can.
+
+## Step 4 — turn on two-step verification
+
+Sign in from the Systems room, then choose **Set up an authenticator app**,
+scan the code, and enter a six-digit code to finish. Store your recovery codes
+offline, in a safe place. If you lose both your phone and your recovery codes,
+you lose the account — nobody can restore it for you.
+
+Sign-in without two-step verification is treated as not signed in.
+
+## Step 5 — set your spending and rate limits
+
+Before any AI is allowed, insert your limits (service role, SQL editor):
+
+```sql
+insert into public.ai_limits (owner_id, max_calls_per_minute, max_calls_per_day, max_cents_per_day, max_cents_per_month)
+select id, 6, 200, 500, 5000 from auth.users where email = 'you@example.com';
+```
+
+No limits row means no agreed budget, which means every paid call is refused.
+
+## Step 6 — only now, add the AI key
+
+Set these on the server (Project Settings → Secrets). Never in the browser,
+never in the code:
+
+| Name | What it is |
 | --- | --- |
-| Office rooms, brain map, search, simple view, guided tour | Live in this app |
-| Appearance preview / Apply / Undo | Live, **saved on this device only** |
-| Saved tasks and decisions | Live, **saved on this device only** |
-| Monday round table draft (edit, save, reload, export, import) | Live, **saved on this device only** |
-| Office Manager chat with a real AI | **Blocked — fail closed.** No owner sign-in with MFA exists, so no paid call is made even if a key is present |
-| Database, logins, owner MFA, shared records | **Blocked** — no CanX-owned backend is connected |
-| Lovable AI Gateway path | **Removed.** The gateway execution fallback no longer exists in the code |
-| Safe Highways / Trail Tales live data | **Not connected, and deliberately untouched** |
-| Email, messaging, payments, deployment, scheduled jobs | **Not built** |
+| `CANX_SUPABASE_URL` | Your Supabase project URL |
+| `CANX_SUPABASE_PUBLISHABLE_KEY` | Your Supabase publishable key |
+| `VITE_CANX_SUPABASE_URL` | Same URL again, for the sign-in screen |
+| `VITE_CANX_SUPABASE_PUBLISHABLE_KEY` | Same publishable key again |
+| `OPENAI_API_KEY` | Your own OpenAI key. Server only. |
+| `OPENAI_MODEL` | The exact model you choose. No default is guessed. |
 
-Sample office records are labelled demonstration data. Records John saves himself carry their own provenance and are not called demonstration data. The office never claims live status, live performance, or completed external work.
+The office picks no model for you and never claims a model is "the latest".
 
-## Adding a key does NOT turn the AI on
+## Step 7 — check it in the office
 
-This is the important correction. Earlier notes said that setting two secrets switched the manager on. That was wrong and is no longer true of the code.
+Open the **Systems** room. Each line says configured, verified, or blocked, and
+gives the reason. "Verified" appears only after a real successful call.
 
-The adapter fails closed. Before any request leaves the server it checks for a verified owner session. There is no such session today, so it returns `auth_not_ready` and makes **no** upstream call. There is deliberately no environment flag that bypasses this.
+---
 
-Status wording you will see:
+## Backups, export, restore
 
-- **AI not connected** — no owner sign-in with MFA exists.
-- **AI blocked — key present but unverified** — a secret exists but cannot be used.
-- **AI configured but unverified** — a key exists and auth is ready, but no live health check has passed.
-- **AI connected** — only after verified owner authentication *and* a passing live health check.
+- Supabase takes automatic backups on its paid plans; confirm what your plan
+  actually includes before relying on it.
+- Take your own export as well: `pg_dump` from the project's connection string,
+  kept somewhere you control.
+- Restore by creating a fresh project, running the two migration files, then
+  restoring your dump.
+- **None of this is tested.** There is no CanX-owned account yet to test it on.
+  Test a real restore before treating any of it as a backup.
 
-## What must be true before live activation
+## What stays out
 
-All of these, in order — secrets are the last step, not the first:
-
-1. A CanX-owned backend with authentication (recommendation: a CanX-owned Supabase project; not created).
-2. An owner account with MFA (TOTP) enrolled, and server-side enforcement that the session is `aal2` with the `owner` role. See `docs/backend-schema.sql` — that file is **reference only and unapplied**; it does not implement authentication.
-3. Request-rate limits per session and per day, enforced on the server.
-4. A spending limit with a hard stop, plus recorded usage, so cost cannot run away unattended.
-5. A real provider health check whose result marks the connection verified. Secret presence must never be treated as a connection.
-6. Only then: `OPENAI_API_KEY` (CanX-owned account) and optionally `OPENAI_MODEL`, held as server secrets, never in the browser.
-
-### Ownership note on the alternative
-
-Running through the Lovable AI Gateway would put the account, key and bill in the Lovable workspace rather than in CanX's name, and rebuilding outside Lovable would mean re-pointing the adapter anyway. The execution path for it has been removed from the code; if it is ever wanted, it is a decision to make deliberately, with the same authentication and spend controls above.
-
-## Bounds on the manager
-
-- One request per message. No background loops, no scheduled runs, no self-triggered work.
-- Two tools only: preview an allowlisted appearance setting, and propose a task or decision for John to save.
-- It cannot run code, change files, deploy, send anything, spend anything, or reach another project.
-- It cannot speak as Claude or as any reviewer that has not been verified and connected.
-
-## Backend — still undecided, nothing provisioned
-
-No backend has been enabled. The recommendation on the table remains a **CanX-owned Supabase project**, which has not been created yet. Nothing in this build silently substitutes a managed alternative.
-
-Until that decision is made, the round table draft, saved tasks, and appearance settings live in this browser only. Clearing site data clears them; use Export on the round table page to keep a copy.
-
-The proposed schema, row-level security, and owner-MFA notes are in `docs/backend-schema.sql`. That file is reference only and has not been applied anywhere.
+- No Lovable Cloud provisioning, and no managed backend substituted quietly.
+- No mailbox, messaging, payments, or scheduled jobs.
+- No connection to Safe Highways or Trail Tales. Those remain untouched, and
+  are planned as read-only later, if ever.
+- The accounts verified in ChatGPT on 9 September 2026 are a record only. The
+  Office Manager here cannot see or use any of them.

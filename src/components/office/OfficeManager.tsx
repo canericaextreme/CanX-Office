@@ -19,6 +19,8 @@ import {
   type SurfaceLevel,
 } from "@/lib/office-theme";
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
+import { useOwnerSession } from "@/lib/owner-session";
+import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 
 interface ChatMessage {
   id: string;
@@ -43,15 +45,36 @@ export function OfficeManager() {
 
   const fetchStatus = useServerFn(getManagerStatus);
   const sendChat = useServerFn(managerChat);
+  const listShared = useServerFn(listSharedNotes);
+  const pushShared = useServerFn(saveSharedNotes);
+  const dropShared = useServerFn(deleteSharedNote);
+  const session = useOwnerSession();
+  const token = session.accessToken ?? "";
+  const shared = session.shared;
   const context = useMemo(() => buildOfficeContext(), []);
 
   useEffect(() => {
     setNotes(loadNotes());
   }, []);
 
+  // When the owner is signed in, the shared account is the source of truth.
+  useEffect(() => {
+    if (!shared) return;
+    void listShared({ data: { accessToken: token } })
+      .then((result) => {
+        if (result.ok && result.data) setNotes(result.data);
+      })
+      .catch(() => undefined);
+  }, [shared, token, listShared]);
+
+  // Re-check the manager whenever the sign-in state changes.
+  useEffect(() => {
+    setStatus(null);
+  }, [session.state]);
+
   useEffect(() => {
     if (!open || status) return;
-    void fetchStatus()
+    void fetchStatus({ data: { accessToken: token } })
       .then(setStatus)
       .catch(() =>
         setStatus({
@@ -60,12 +83,13 @@ export function OfficeManager() {
           state: "auth_unavailable",
           authReady: false,
           keyPresent: false,
+          modelConfigured: false,
           verified: false,
           model: null,
           detail: "The office could not reach its own server to check the manager's connection.",
         }),
       );
-  }, [open, status, fetchStatus]);
+  }, [open, status, fetchStatus, token]);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -75,21 +99,41 @@ export function OfficeManager() {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, busy]);
 
-  const addNote = useCallback((note: OfficeNote) => {
-    setNotes((current) => {
-      const next = [note, ...current];
-      saveNotes(next);
-      return next;
-    });
-  }, []);
+  const addNote = useCallback(
+    (note: OfficeNote) => {
+      setNotes((current) => {
+        const next = [note, ...current];
+        saveNotes(next);
+        return next;
+      });
+      if (shared) void pushShared({ data: { accessToken: token, notes: [note] } }).catch(() => undefined);
+    },
+    [shared, token, pushShared],
+  );
 
-  const removeNote = useCallback((id: string) => {
-    setNotes((current) => {
-      const next = current.filter((note) => note.id !== id);
-      saveNotes(next);
-      return next;
-    });
-  }, []);
+  const removeNote = useCallback(
+    (id: string) => {
+      setNotes((current) => {
+        const next = current.filter((note) => note.id !== id);
+        saveNotes(next);
+        return next;
+      });
+      if (shared) void dropShared({ data: { accessToken: token, id } }).catch(() => undefined);
+    },
+    [shared, token, dropShared],
+  );
+
+  /** Explicit, additive merge. Nothing on either side is overwritten silently. */
+  const mergeDeviceRecords = useCallback(async () => {
+    if (!shared) return;
+    const deviceNotes = loadNotes();
+    if (!deviceNotes.length) return;
+    const result = await pushShared({ data: { accessToken: token, notes: deviceNotes } }).catch(() => null);
+    if (result?.ok) {
+      const refreshed = await listShared({ data: { accessToken: token } }).catch(() => null);
+      if (refreshed?.ok && refreshed.data) setNotes(refreshed.data);
+    }
+  }, [shared, token, pushShared, listShared]);
 
   const send = async () => {
     const text = draft.trim();
@@ -103,6 +147,7 @@ export function OfficeManager() {
     try {
       const reply = await sendChat({
         data: {
+          accessToken: token,
           messages: history
             .filter((m) => m.role !== "office")
             .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
@@ -123,7 +168,11 @@ export function OfficeManager() {
             ? "The manager cannot answer: there is no owner sign-in with MFA yet, so paid AI calls are blocked. No request was sent to any provider."
             : reply.code === "not_configured"
               ? "The manager has no AI connection yet, so there is no answer to give. See the setup note below."
-              : (reply.detail ?? "The AI request could not be completed."),
+              : reply.code === "limit_blocked"
+                ? (reply.detail ?? "The request was refused by the office's own spending and rate limits.")
+                : reply.code === "health_check_failed"
+                  ? (reply.detail ?? "The live check of the AI connection did not pass, so nothing was asked.")
+                  : (reply.detail ?? "The AI request could not be completed."),
         );
       } else {
         setMessages((current) => [
@@ -205,8 +254,8 @@ export function OfficeManager() {
                       ? `AI connected — OpenAI (${status.model}).`
                       : status.state === "auth_unavailable"
                         ? status.keyPresent
-                          ? "AI blocked — a key is present but unverified, and there is no owner sign-in with MFA. Nothing here is an AI answer."
-                          : "AI not connected — no owner sign-in with MFA exists yet. Nothing here is an AI answer."
+                          ? "AI blocked — a key is present but unusable without verified owner sign-in with two-step verification. Nothing here is an AI answer."
+                          : "AI not connected — verified owner sign-in with two-step verification is required first. Nothing here is an AI answer."
                         : status.state === "configured_unverified"
                           ? "AI configured but unverified — no live check has passed. Nothing here is an AI answer."
                           : "AI not connected. Nothing here is an AI answer."}
@@ -304,9 +353,18 @@ export function OfficeManager() {
 
           {tab === "notes" && (
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-              <p className="text-xs text-muted-foreground">
-                Saved on this device only, until a CanX-owned backend is configured.
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  {shared
+                    ? "Saved to your CanX account, so these appear on any device you sign in on."
+                    : "Saved on this device only, until you sign in to a CanX-owned account."}
+                </p>
+                {shared && (
+                  <Button size="sm" variant="outline" onClick={() => void mergeDeviceRecords()}>
+                    Copy this device's records into the CanX account
+                  </Button>
+                )}
+              </div>
               {notes.length === 0 && <p className="text-sm text-muted-foreground">Nothing saved yet.</p>}
               {notes.map((note) => (
                 <div key={note.id} className="rounded-lg border border-border p-2.5">

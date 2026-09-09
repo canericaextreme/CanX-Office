@@ -31,3 +31,11 @@
 - Phones show full-size room cards instead of a shrunken floor.
 - Reference SQL: owner-only policies require owner role AND aal2 AND owner_id; file remains unapplied and implements no auth.
 - Tests: src/lib/manager.functions.test.ts (3 passing).
+
+## Connections & readiness work (2026-09-09)
+- Systems room rebuilt as an honest two-group connection inventory (ChatGPT-verified accounts snapshot vs connections this office needs). Nothing shows connected unless checked live.
+- CanX-owned Supabase integration written end to end, configuration-ready and fail-closed: server adapter, browser client, owner sign-in + TOTP UI, owner-gated notes/round-table CRUD, append-only audit.
+- Manager AI now requires: configured DB -> valid session -> owner role from DB -> AAL2 -> durable spend/rate reservation -> live provider health check. No env bypass, no gateway fallback.
+- Reference migrations at docs/migrations/0001_canx_office_core.sql and 0002_ai_limits.sql. NOT APPLIED. Setup steps in docs/office-manager-setup.md.
+- Monday 14 Sep 2026 round table: readiness checklist added; time still unset; no calendar entry; Claude shown disconnected.
+- Open: John must create the CanX-owned Supabase project at https://lovable.dev/dashboard?connectors. Backups untested (no account yet).
