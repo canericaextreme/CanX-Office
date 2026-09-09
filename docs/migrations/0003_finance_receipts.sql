@@ -49,7 +49,11 @@ create policy "Owner updates own receipts"
     and public.has_role(auth.uid(), 'owner')
     and (auth.jwt() ->> 'aal') = 'aal2'
   )
-  with check (auth.uid() = owner_id);
+  with check (
+    auth.uid() = owner_id
+    and public.has_role(auth.uid(), 'owner')
+    and (auth.jwt() ->> 'aal') = 'aal2'
+  );
 
 create policy "Owner deletes own receipts"
   on public.finance_receipts for delete
