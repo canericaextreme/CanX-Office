@@ -2,10 +2,28 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { finishActivity, listActivity, startActivity, toWorkEvents } from "./office-activity-log";
 import { animatingEvents, loadWorkFeed } from "./work-activity";
 
+// Minimal browser stand-in: these records live in this device's storage.
+const store = new Map<string, string>();
+(globalThis as unknown as { window: unknown }).window = {
+  localStorage: {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, value),
+    clear: () => store.clear(),
+  },
+  dispatchEvent: () => true,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  CustomEvent: class {},
+};
+(globalThis as unknown as { CustomEvent: unknown }).CustomEvent = class {
+  constructor(public type: string) {}
+};
+
 describe("office activity log", () => {
   beforeEach(() => {
-    window.localStorage.clear();
+    store.clear();
   });
+
 
   it("records nothing until real work starts", () => {
     expect(listActivity()).toEqual([]);
