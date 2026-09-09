@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OfficeRouteImport } from './routes/_office'
 import { Route as OfficeIndexRouteImport } from './routes/_office/index'
+import { Route as OfficeBrainRouteImport } from './routes/_office/brain'
+import { Route as OfficeIdeaGarageRouteImport } from './routes/_office/idea-garage'
+import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
 
 const OfficeRoute = OfficeRouteImport.update({
   id: '/_office',
@@ -21,24 +24,54 @@ const OfficeIndexRoute = OfficeIndexRouteImport.update({
   path: '/',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeBrainRoute = OfficeBrainRouteImport.update({
+  id: '/brain',
+  path: '/brain',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeIdeaGarageRoute = OfficeIdeaGarageRouteImport.update({
+  id: '/idea-garage',
+  path: '/idea-garage',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeOwnerDeskRoute = OfficeOwnerDeskRouteImport.update({
+  id: '/owner-desk',
+  path: '/owner-desk',
+  getParentRoute: () => OfficeRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof OfficeIndexRoute
+  '/brain': typeof OfficeBrainRoute
+  '/idea-garage': typeof OfficeIdeaGarageRoute
+  '/owner-desk': typeof OfficeOwnerDeskRoute
 }
 export interface FileRoutesByTo {
+  '/brain': typeof OfficeBrainRoute
+  '/idea-garage': typeof OfficeIdeaGarageRoute
+  '/owner-desk': typeof OfficeOwnerDeskRoute
   '/': typeof OfficeIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_office': typeof OfficeRouteWithChildren
+  '/_office/brain': typeof OfficeBrainRoute
+  '/_office/idea-garage': typeof OfficeIdeaGarageRoute
+  '/_office/owner-desk': typeof OfficeOwnerDeskRoute
   '/_office/': typeof OfficeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/brain' | '/idea-garage' | '/owner-desk'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/_office' | '/_office/'
+  to: '/brain' | '/idea-garage' | '/owner-desk' | '/'
+  id:
+    | '__root__'
+    | '/_office'
+    | '/_office/brain'
+    | '/_office/idea-garage'
+    | '/_office/owner-desk'
+    | '/_office/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -61,14 +94,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeIndexRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/brain': {
+      id: '/_office/brain'
+      path: '/brain'
+      fullPath: '/brain'
+      preLoaderRoute: typeof OfficeBrainRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/idea-garage': {
+      id: '/_office/idea-garage'
+      path: '/idea-garage'
+      fullPath: '/idea-garage'
+      preLoaderRoute: typeof OfficeIdeaGarageRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/owner-desk': {
+      id: '/_office/owner-desk'
+      path: '/owner-desk'
+      fullPath: '/owner-desk'
+      preLoaderRoute: typeof OfficeOwnerDeskRouteImport
+      parentRoute: typeof OfficeRoute
+    }
   }
 }
 
 interface OfficeRouteChildren {
+  OfficeBrainRoute: typeof OfficeBrainRoute
+  OfficeIdeaGarageRoute: typeof OfficeIdeaGarageRoute
+  OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
   OfficeIndexRoute: typeof OfficeIndexRoute
 }
 
 const OfficeRouteChildren: OfficeRouteChildren = {
+  OfficeBrainRoute: OfficeBrainRoute,
+  OfficeIdeaGarageRoute: OfficeIdeaGarageRoute,
+  OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
   OfficeIndexRoute: OfficeIndexRoute,
 }
 
