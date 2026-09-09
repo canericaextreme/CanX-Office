@@ -63,3 +63,17 @@
   owner role, the sign-in screen offers authenticator set-up in the
   "two-step required" state, and own-role reads need no aal2.
 - Still off: owner auth user, owner role row, TOTP, paid AI (no budget rows).
+
+## Idea Lab / Bike Rack (added 9 Sep 2026)
+- src/lib/idea-lab.ts — Opportunity Score + Evidence Confidence, 14 weighted criteria,
+  evidence reliability tiers, recency weighting, evidence-based decay, lifecycle bands
+  (70+/55-69/<55/<45), protection, rising ideas, rack focus limit, research planner.
+- src/lib/idea-lab-store.ts — device-only evidence/overrides/proposals/policy storage,
+  strict validation of untrusted evidence input.
+- src/components/office/IdeaLab.tsx — lanes, cards (score, confidence, trend, status,
+  last researched, evidence count, time to first dollar, why the score changed),
+  evidence trail + breakdown dialog, evidence entry, Decision Room tracks.
+- src/lib/idea-lab.test.ts — 16 tests (scoring, reliability, decay, lifecycle,
+  protection, rising, rack limit, research gating, untrusted input).
+- Not live: no research service, no web/API scanning, no Innovation AI generation loop.
+  Research cadence/budget values are recorded only; nothing runs and nothing can spend.
