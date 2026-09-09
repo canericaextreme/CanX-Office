@@ -92,6 +92,18 @@ function Systems() {
               }
               tone={ai?.connected ? "green" : ai?.state === "configured_unverified" ? "yellow" : "grey"}
             />
+            <Row
+              name="Claude — second eyes (independent review)"
+              note={
+                claude === null
+                  ? "Checking…"
+                  : claude.connected
+                    ? `Live and verified (${claude.model}).`
+                    : claude.detail
+              }
+              tone={claude?.connected ? "green" : claude?.state === "configured_unverified" ? "yellow" : "grey"}
+            />
+
             <Row name="Shared records across devices" note={signedIn ? "Saving to your CanX account." : "Device-only. Records stay in this browser."} tone={signedIn ? "green" : "grey"} />
             <Row name="Backups and restore" note="Not tested. There is no CanX-owned account to back up yet." tone="grey" />
             <Row name="Published site" note="Not published." tone="grey" />
