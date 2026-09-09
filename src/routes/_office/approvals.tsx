@@ -42,7 +42,7 @@ function Approvals() {
             <CardContent className="space-y-1 text-sm text-muted-foreground">
               <p>Cost: {item.cost}</p>
               <p>Risk: {item.risk}</p>
-              <p>Scope: {item.scope}</p>
+              <p>Requested: {item.requestedAt}</p>
               <Button className="mt-3" disabled>
                 Review
               </Button>
