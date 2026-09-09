@@ -301,6 +301,8 @@ export interface StatusItem {
   time?: string;
   question?: string;
   reason?: string;
+  cause?: string;
+  effect?: string;
   action?: string;
 }
 
