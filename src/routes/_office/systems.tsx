@@ -179,7 +179,10 @@ function Systems() {
 
         <OwnerSignIn />
 
+        <ClaudeReviewPanel />
+
         <BudgetPanel />
+
 
         <Card className="border-border bg-card">
           <CardHeader>
