@@ -54,8 +54,9 @@ export function BrainMap() {
           <div className="relative min-h-[420px] overflow-hidden bg-[#12121a]">
             <svg className="absolute inset-0 h-full w-full" aria-label="CanX Brain map">
               {BRAIN_LINKS.map((link) => {
-                const s = BRAIN_NODES.find((n) => n.id === link.source)!;
-                const t = BRAIN_NODES.find((n) => n.id === link.target)!;
+                const s = BRAIN_NODES.find((n) => n.id === link.source);
+                const t = BRAIN_NODES.find((n) => n.id === link.target);
+                if (!s || !t) return null;
                 const active =
                   selected && (selected.id === s.id || selected.id === t.id);
                 return (
