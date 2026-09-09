@@ -122,6 +122,9 @@ export const OFFICE_KNOWLEDGE: KnowledgeRecord[] = [
   },
 ];
 
+/** The standing Idea Lab / Decision Room governance record. */
+export const IDEA_LAB_KNOWLEDGE: KnowledgeRecord = OFFICE_KNOWLEDGE[0]!;
+
 /** Revenue avenues the Idea Lab is allowed to explore (section 2). */
 export const IDEA_CATEGORIES: string[] = [
   "Mobile / web apps",

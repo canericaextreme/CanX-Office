@@ -21,7 +21,7 @@ import {
 } from "@/lib/round-table";
 import { FEASIBILITY_ITEMS } from "@/lib/feasibility-queue";
 import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
-import { OFFICE_KNOWLEDGE } from "@/lib/office-knowledge";
+import { IDEA_LAB_KNOWLEDGE } from "@/lib/office-knowledge";
 
 export const Route = createFileRoute("/_office/round-table")({
   head: () => ({
@@ -217,7 +217,7 @@ function RoundTablePage() {
           return (
             <Card key={item.id} className="mb-5">
                             <KnowledgeRecordPanel
-  record={OFFICE_KNOWLEDGE[0]}
+  record={IDEA_LAB_KNOWLEDGE}
   title="Recorded governance for this round table"
   onlySections={["round-table", "opportunity-scout"]}
 />

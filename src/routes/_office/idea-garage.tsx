@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { IDEA_PROVENANCE_LABELS, ideasForStage, type IdeaCard } from "@/lib/idea-garage";
 import { IdeaLab } from "@/components/office/IdeaLab";
 import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
-import { OFFICE_KNOWLEDGE, IDEA_CATEGORIES } from "@/lib/office-knowledge";
+import { IDEA_LAB_KNOWLEDGE, IDEA_CATEGORIES } from "@/lib/office-knowledge";
 
 function IdeaCardView({ idea }: { idea: IdeaCard }) {
   return (
@@ -72,7 +72,7 @@ function IdeaGarage() {
     <RoomShell>
       <div className="mb-8">
         <KnowledgeRecordPanel
-          record={OFFICE_KNOWLEDGE[0]}
+          record={IDEA_LAB_KNOWLEDGE}
           title="How this room works — recorded rules"
           onlySections={["idea-lab-purpose", "three-tracks", "scoring", "continuous-research", "hygiene", "cost-control"]}
         />
