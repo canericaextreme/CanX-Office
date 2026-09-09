@@ -84,11 +84,11 @@ export function TourGuide() {
         <DialogContent className="max-w-md border-border bg-card text-foreground">
           <DialogHeader>
             <div className="mb-2 flex items-center gap-2">
-              <DialogTitle className="text-lg">{STEPS[step].title}</DialogTitle>
+              <DialogTitle className="text-lg">{STEPS[step]?.title ?? ""}</DialogTitle>
               <SampleBadge />
             </div>
             <DialogDescription className="text-muted-foreground">
-              {STEPS[step].body}
+              {STEPS[step]?.body ?? ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center gap-1 py-2">
