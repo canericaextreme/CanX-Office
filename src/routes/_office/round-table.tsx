@@ -545,3 +545,11 @@ function ReadyRow({ label, ready, note }: { label: string; ready: boolean; note:
     </div>
   );
 }
+
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      {children}
+    </span>
+  );
+}
