@@ -21,6 +21,14 @@ import {
 } from "@/lib/brain-data";
 import { STATUS_COLORS, type StatusTone } from "@/lib/office-data";
 import { useReducedMotion } from "@/lib/office-theme";
+import {
+  animatingCellIds,
+  animatingEvents,
+  describeState,
+  lastUpdatedLabel,
+  loadWorkFeed,
+  WORK_STATE_LABELS,
+} from "@/lib/work-activity";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
