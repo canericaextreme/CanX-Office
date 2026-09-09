@@ -104,6 +104,7 @@ Performance targets for a named device and network are moved into Phase 1 accept
 | All 20 destinations navigable | 1 | Every destination opens; Home/Back/search work; no dead ends | Screens |
 | Realistic office, brain, guided tour | 1 | Office view, both brain legends, and a labelled tour all work; rooms open fast work screens | Screens |
 | Simple view, phone, keyboard, reduced motion, 3D failure | 1 | Every function completable without 3D | Screens |
+| Performance targets | 1 | Named device/network targets are set, then measured for both 3D office and simple view | Test log |
 | Demo integrity | 1 | Every sample figure and animation labelled; no external side effects | Review |
 | Persistence | 2 | Reload and a new authorized session retain records and history | Test log |
 | Owner MFA and recovery | 2 | Owner access and sensitive actions enforce MFA; recovery and factor changes audited, no bypass, stale sensitive approvals invalidated | Test log |
