@@ -117,7 +117,7 @@ export function Office3D() {
 
       <div className="relative h-[420px] overflow-hidden sm:h-[540px] lg:h-[660px] xl:h-[760px]">
         <div
-          className="absolute left-1/2 top-1/2 [--scene-scale:0.3] sm:[--scene-scale:0.42] lg:[--scene-scale:0.56] xl:[--scene-scale:0.62]"
+          className="absolute left-1/2 top-1/2 [--scene-scale:0.3] sm:[--scene-scale:0.42] lg:[--scene-scale:0.56] xl:[--scene-scale:0.58]"
           style={{
             width: `${STAGE_W}px`,
             height: `${STAGE_H}px`,
