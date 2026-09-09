@@ -81,7 +81,7 @@ export function BrainMap() {
                   const color = mode === "category" ? CATEGORY_COLORS[node.category] : STATUS_COLORS[node.status]; const active = selectedNode?.id === node.id;
                   return <g key={node.id} transform={`translate(${node.x + 200}, ${node.y + 150})`} className="cursor-pointer" onClick={() => { setSelectedNode(node); setSelectedLink(null); }}>
                     <circle r={active ? 18 : 13} fill="var(--color-card)" stroke={color} strokeWidth={active ? 4 : 3} />
-                    <text y={27} textAnchor="middle" fill="var(--color-foreground)" fontSize="10" fontWeight="700">{node.label}</text>
+                    <text y={29} textAnchor="middle" fill="var(--color-foreground)" fontSize="12" fontWeight="700">{node.label}</text>
                   </g>;
                 })}
               </svg>

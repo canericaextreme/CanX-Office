@@ -85,7 +85,7 @@ function Reception() {
                 <Metric label="Red stops" value="1" tone="red" />
                 <Metric label="Cost guardrail" value="CAD $300/mo" tone="grey" />
               </div>
-              <p className="mt-3 text-[10px] text-muted-foreground">
+              <p className="mt-3 text-xs text-muted-foreground">
                 These numbers are synthetic examples for demonstration only.
               </p>
             </div>

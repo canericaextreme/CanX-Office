@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { SampleBadge } from "./SampleBadge";
 import { ROOMS, roomByRoute, type RoomDef } from "@/lib/office-data";
 import { useRouterState } from "@tanstack/react-router";
