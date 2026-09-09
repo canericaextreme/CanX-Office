@@ -46,7 +46,35 @@ export const IDEA_CARDS: IdeaCard[] = [
     nextStep: "Define the intended customer and test a small sample of public opportunities.",
     stage: "Bike rack",
   },
+  {
+    id: "canx-opportunity-scout",
+    title: "CanX Opportunity Scout",
+    status: "FEASIBILITY — research queued for the Monday round table",
+    captured: "2026-09-09",
+    requestedBy: "John",
+    provenance: "john",
+    workingSummary:
+      "A Canadian public-contract opportunity intelligence service: scan public procurement opportunities and RFPs, match them to contractor profiles, summarise deadlines and mandatory requirements, and give bid / no-bid intelligence. Bid assistance may come later.",
+    summaryNote:
+      "Feasibility and research only. No build authorised, and no spend authorised. John decides at the round table.",
+    toExplore: [
+      { label: "Market / demand", value: "To explore" },
+      { label: "Public data sources & collection rights", value: "To explore" },
+      { label: "Competition", value: "To explore" },
+      { label: "Customer definition", value: "To explore" },
+      { label: "Technical feasibility", value: "To explore" },
+      { label: "Legal / procurement & contingency-fee rules", value: "To explore" },
+      { label: "Pricing / revenue (subscription plus possible success fee)", value: "To explore — unapproved" },
+      { label: "Costs / break-even", value: "To explore" },
+      { label: "Live sample — Alberta / BC opportunities", value: "To explore" },
+    ],
+    notAssessed: ["Demand", "Competition", "Build cost", "Operating cost", "Revenue", "Legal risk"],
+    nextStep:
+      "Bring a GO / HOLD / NO-GO decision package to the Monday round table, with evidence and source links.",
+    stage: "Bulletin board",
+  },
 ];
+
 
 export function ideasForStage(stage: string): IdeaCard[] {
   return IDEA_CARDS.filter((c) => c.stage === stage);
