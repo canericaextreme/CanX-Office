@@ -32,9 +32,11 @@ What is missing:
 
 3. **Green / yellow / red.** Every action the Manager plans is labelled before it runs:
    - Green: routine, reversible, inside budget. The Manager proceeds and logs it. Small calls never stop work.
-   - Yellow: money, outside contact, data changes, or anything not reversible. Goes to your approval box and waits.
-   - Red: blocked by a rule (no verified sign-in, over budget, forbidden project). That one operation stops with a plain reason; everything else keeps going.
-   Safe Highways and Trail Tales stay off limits, and publishing, payments, emails and new subscriptions stay yellow or red regardless of budget.
+   - Yellow: money, outside contact, irreversible changes, or anything that crosses a project boundary. Goes to your approval box and waits.
+   - Red: blocked by a rule (no verified sign-in, over budget, safety-critical, or explicitly forbidden). That one operation stops with a plain reason; everything else keeps going.
+
+   Safe Highways and Trail Tales are handled like any other project: routine data changes are green, major changes are yellow, and anything that would alter their production deployment or safety-critical rules is red.
+   Publishing, payments, subscriptions, and sending emails stay yellow or red regardless of budget. Reading, sorting and drafting emails are green.
 
 4. **Approval box.** One place in the office listing everything waiting on you, with what it will do, why, cost if any, and Approve / Decline. Nothing yellow runs until you press Approve.
 
@@ -60,3 +62,4 @@ What is missing:
 
 - Migrations `0004` and `0005` must be applied to the CanX database before the master list persists.
 - Paid second-eyes calls need the Anthropic settings already configured plus a verified owner session.
+
