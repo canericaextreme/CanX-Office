@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { getManagerStatus, managerChat, type ManagerStatus, type ManagerToolCall } from "@/lib/manager.functions";
-import { buildOfficeContext, contextToText, localBriefing } from "@/lib/office-context";
+import { buildOfficeContext, localBriefing } from "@/lib/office-context";
 import {
   ACCENT_LABELS,
   THEME_FIELDS,
@@ -151,15 +151,6 @@ export function OfficeManager() {
           messages: history
             .filter((m) => m.role !== "office")
             .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-          context: contextToText(
-            context,
-            notes.map((note) => ({
-              kind: note.kind,
-              title: note.title,
-              detail: note.detail,
-              provenance: PROVENANCE_LABELS[note.provenance],
-            })),
-          ),
         },
       });
       if (!reply.ok) {
@@ -172,6 +163,8 @@ export function OfficeManager() {
                 ? (reply.detail ?? "The request was refused by the office's own spending and rate limits.")
                 : reply.code === "health_check_failed"
                   ? (reply.detail ?? "The live check of the AI connection did not pass, so nothing was asked.")
+                  : reply.code === "context_unavailable"
+                    ? (reply.detail ?? "The office records could not be read just now, so nothing was asked.")
                   : (reply.detail ?? "The AI request could not be completed."),
         );
       } else {
@@ -199,7 +192,10 @@ export function OfficeManager() {
       {
         id: `b-${Date.now()}`,
         role: "office",
-        content: localBriefing(context).join("\n"),
+        content: localBriefing(context, {
+          databaseConnected: session.state === "owner",
+          managerVerified: status?.verified === true,
+        }).join("\n"),
       },
     ]);
   };
