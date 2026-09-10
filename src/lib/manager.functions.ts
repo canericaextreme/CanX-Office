@@ -17,6 +17,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
+import type { LiveContextResult } from "@/lib/office-live-context.server";
 
 export type ManagerState =
   /** No CanX-owned database, or the caller is not a verified owner with MFA. */
@@ -56,6 +57,7 @@ export interface ManagerReply {
     | "not_configured"
     | "limit_blocked"
     | "health_check_failed"
+    | "context_unavailable"
     | "provider_error"
     | "invalid_input";
   provider: ManagerStatus["provider"];
@@ -77,6 +79,11 @@ export interface ManagerDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
   reserve: (token: string, cents: number) => Promise<BudgetResult>;
   settle: (token: string, reservationId: string, outcome: "ok" | "failed") => Promise<void>;
+  /**
+   * Server-built office context, read live from the CanX-owned database as the
+   * verified owner. The browser never supplies office facts.
+   */
+  buildContext: (token: string, verification: Extract<OwnerVerification, { ok: true }>) => Promise<LiveContextResult>;
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   model: string | undefined;
@@ -94,10 +101,26 @@ export function readSetting(value: string | undefined): string | undefined {
 async function realDeps(): Promise<ManagerDeps> {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
+  const model = readSetting(process.env["OPENAI_MODEL"]);
   return {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
+    buildContext: async (token, verification) => {
+      if (!config) {
+        return { ok: false as const, message: "No CanX-owned database is configured, so no office facts could be read." };
+      }
+      const live = await import("@/lib/office-live-context.server");
+      return live.buildLiveOfficeContext({
+        config,
+        token,
+        ownerEmail: verification.email,
+        aal: verification.aal,
+        provider: "OpenAI",
+        model: model ?? "",
+        rest: backend.restRequest,
+      });
+    },
     // Bound wrapper, not a detached `fetch` reference — a bare global fetch
     // can fail before any HTTP response in the server runtime.
     fetchImpl: (input, init) => fetch(input, init),
@@ -301,9 +324,12 @@ Hard rules:
 export interface ChatInput {
   accessToken: string;
   messages: { role: "user" | "assistant"; content: string }[];
-  context: string;
 }
 
+/**
+ * Any `context` field sent by the browser is deliberately dropped here. Office
+ * facts are read on the server after the owner is verified.
+ */
 function validate(input: unknown): ChatInput {
   const raw = input as Partial<ChatInput> | undefined;
   const messages = Array.isArray(raw?.messages) ? raw.messages : [];
@@ -314,11 +340,10 @@ function validate(input: unknown): ChatInput {
   return {
     accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
     messages: clean,
-    context: typeof raw?.context === "string" ? raw.context.slice(0, MAX_CHARS) : "",
   };
 }
 
-/** Client context is wrapped as clearly fenced untrusted data, never as instructions. */
+/** Server-built context is still wrapped as fenced data, never as instructions. */
 function untrustedContextMessage(context: string) {
   return {
     role: "user" as const,
@@ -343,7 +368,7 @@ function denyReply(code: ManagerReply["code"], state: ManagerState, detail: stri
   return { ok: false, code, provider: "none", state, model, text: "", toolCalls: [], detail };
 }
 
-async function callOpenAI(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
+async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: string): Promise<ManagerReply> {
   const model = deps.model!;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -355,7 +380,7 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput): Promise<ManagerRe
       body: JSON.stringify({
         model,
         instructions: SYSTEM_PROMPT,
-        input: [untrustedContextMessage(data.context), ...data.messages.map((m) => ({ role: m.role, content: m.content }))],
+        input: [untrustedContextMessage(contextText), ...data.messages.map((m) => ({ role: m.role, content: m.content }))],
         tools: TOOLS,
         max_output_tokens: 900,
       }),
@@ -425,14 +450,25 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
     );
   }
 
-  // GATE 3 — durable per-owner rate and spending reservation. If limits cannot
+  // GATE 3 — live office facts, read on the server as the verified owner.
+  // A failed read fails closed: no paid call, and never a fall back to the
+  // early demonstration records.
+  const context = await deps.buildContext(data.accessToken, verification).catch(() => ({
+    ok: false as const,
+    message: "The office records could not be read just now, so no answer was requested.",
+  }));
+  if (!context.ok) {
+    return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
+  }
+
+  // GATE 4 — durable per-owner rate and spending reservation. If limits cannot
   // be reserved, the answer is no.
   const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_PER_CALL);
   if (!reservation.allowed) {
     return denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model);
   }
 
-  // GATE 4 — a real authenticated health check, every time.
+  // GATE 5 — a real authenticated health check, every time.
   const health = await providerHealthCheck(deps);
   if (!health.ok) {
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
@@ -440,7 +476,7 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
   }
 
   try {
-    const reply = await callOpenAI(deps, data);
+    const reply = await callOpenAI(deps, data, context.text);
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
     return reply;
   } catch (error) {
