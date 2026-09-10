@@ -437,6 +437,7 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
         model,
         text: "",
         toolCalls: [],
+        actionResults: [],
         detail: sanitizedProviderDetail(response.status),
       };
     }
