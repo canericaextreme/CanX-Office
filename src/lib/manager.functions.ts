@@ -462,7 +462,7 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
       .map((item) => ({ name: item.name!, arguments: sanitizeToolArgs(item.name!, item.arguments) }))
       .filter((call): call is ManagerToolCall => call.arguments !== null);
 
-    return { ok: true, code: "ok", provider: "openai", state: "verified", model, text, toolCalls };
+    return { ok: true, code: "ok", provider: "openai", state: "verified", model, text, toolCalls, actionResults: [] };
   } finally {
     clearTimeout(timer);
   }
