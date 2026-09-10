@@ -63,7 +63,7 @@ export type ManagerToolArgs = Record<string, string | number | boolean>;
 export interface ManagerToolCall {
   name: string;
   arguments: ManagerToolArgs;
-  rawArguments?: string;
+  rawArguments: string | undefined;
 }
 
 export interface ManagerActionResult {
