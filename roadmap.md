@@ -42,6 +42,15 @@
 - [x] Make aggregate privacy wording accurately distinguish detailed review from aggregate-only requests.
 - [x] Verify both corrections with focused tests, full tests, typecheck, and production build; do not deploy.
 
+## Owner-only Gmail receipt ingestion (2026-09-10)
+- [x] Route only explicit receipt/invoice retrieval requests into a narrow server-side ingestion path before any OpenAI call.
+- [x] Require verified owner AAL2, the existing CanX database, and a distinct linked CanX Google Mail connector; fail closed otherwise.
+- [x] Add bounded Gmail/MIME/PDF/image candidate handling, conservative extraction, untrusted-data treatment, and per-currency summaries.
+- [x] Add additive migration `0004_finance_receipt_ingestion.sql` with atomic locking, idempotent dedupe, checkpointing, audit counts, and verified read-back.
+- [x] Preserve legacy receipt JSON and the existing 12 records without rewriting them.
+- [x] Focused tests: 16 passed across 3 files. Full suite: 159 passed across 12 files. TypeScript and production build passed.
+- [ ] Blocked on one setup action: create/link a distinct CanX Google Mail connection and apply migration 0004 to the existing CanX database. Safehighways remains unused.
+
 ## Connections & readiness work (2026-09-09)
 - Systems room rebuilt as an honest two-group connection inventory (ChatGPT-verified accounts snapshot vs connections this office needs). Nothing shows connected unless checked live.
 - CanX-owned Supabase integration written end to end, configuration-ready and fail-closed: server adapter, browser client, owner sign-in + TOTP UI, owner-gated notes/round-table CRUD, append-only audit.
