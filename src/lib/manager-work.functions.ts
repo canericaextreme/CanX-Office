@@ -309,7 +309,7 @@ export async function assignManagerTaskWith(deps: WorkbenchDeps, input: AssignTa
   if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
 
   const [updated] = await Promise.all([
-    deps.rest<ManagerTask>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
+    deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
       status: "in_progress",
       worker,
       updated_at: new Date().toISOString(),
@@ -319,7 +319,7 @@ export async function assignManagerTaskWith(deps: WorkbenchDeps, input: AssignTa
       worker,
     }),
   ]);
-  if (!updated.ok || !updated.data) return fail("context_unavailable", updated.error ?? "Assignment could not be saved.");
+  if (!updated.ok || !updated.data?.[0]) return fail("context_unavailable", updated.error ?? "Assignment could not be saved.");
 
   await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
     _owner_id: v.userId,
@@ -330,7 +330,7 @@ export async function assignManagerTaskWith(deps: WorkbenchDeps, input: AssignTa
     _after: { status: "in_progress", worker },
   }).catch(() => undefined);
 
-  return updated.data;
+  return updated.data[0];
 }
 
 export interface VerifyTaskInput {
