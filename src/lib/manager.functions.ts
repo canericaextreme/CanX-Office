@@ -972,3 +972,17 @@ export const managerChat = createServerFn({ method: "POST" })
     }
     return runManagerChatWith(await realDeps(), data);
   });
+
+export const getManagerMemory = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    const raw = input as { accessToken?: unknown } | undefined;
+    return { accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "" };
+  })
+  .handler(async ({ data }): Promise<ManagerMemory | { ok: false; message: string }> => {
+    const deps = buildWorkbenchDeps(await realDeps());
+    const memory = await loadManagerMemoryWith(deps, data.accessToken);
+    if (memory && "ok" in memory && memory.ok === false) {
+      return { ok: false, message: memory.message };
+    }
+    return memory;
+  });
