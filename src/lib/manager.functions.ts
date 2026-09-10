@@ -602,7 +602,11 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
 
     const toolCalls: ManagerToolCall[] = (payload.output ?? [])
       .filter((item) => item.type === "function_call" && item.name)
-      .map((item) => ({ name: item.name!, arguments: sanitizeToolArgs(item.name!, item.arguments) }))
+      .map((item) => ({
+        name: item.name!,
+        arguments: sanitizeToolArgs(item.name!, item.arguments),
+        rawArguments: item.arguments,
+      }))
       .filter((call): call is ManagerToolCall => call.arguments !== null);
 
     return { ok: true, code: "ok", provider: "openai", state: "verified", model, text, toolCalls, actionResults: [] };
