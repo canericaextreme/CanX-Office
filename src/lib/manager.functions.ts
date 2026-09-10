@@ -909,6 +909,12 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
 
   try {
     const reply = await callOpenAI(deps, data, context.text);
+    if (reply.ok && reply.toolCalls.length > 0) {
+      const { textAdditions, actionResults, remainingToolCalls } = await executeToolCalls(deps, data.accessToken, reply.toolCalls);
+      const combinedText = [reply.text, ...textAdditions].filter(Boolean).join("\n\n");
+      await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
+      return { ...reply, text: combinedText, toolCalls: remainingToolCalls, actionResults };
+    }
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
     return reply;
   } catch (error) {
