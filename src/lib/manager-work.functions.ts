@@ -624,7 +624,7 @@ export const requestManagerApproval = createServerFn({ method: "POST" })
       detail: cleanString(raw?.detail, 2000),
       costCents: cleanCents(raw?.costCents) ?? null,
       risk: cleanRisk(raw?.risk),
-      taskId: cleanString(raw?.taskId, 100) || undefined,
+      taskId: cleanString(raw?.taskId, 100) || null,
     };
   })
   .handler(async ({ data }) => requestManagerApprovalWith(await realDeps(), data));
