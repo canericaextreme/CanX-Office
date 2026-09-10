@@ -7,14 +7,17 @@ import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetPanel } from "@/components/office/BudgetPanel";
 import { OwnerSignIn } from "@/components/office/OwnerSignIn";
+import { ClaudeReviewPanel } from "@/components/office/ClaudeReviewPanel";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getManagerStatus, type ManagerStatus } from "@/lib/manager.functions";
+import { getClaudeStatus, type ClaudeStatus } from "@/lib/claude-review.functions";
 import {
   CHATGPT_SNAPSHOT,
   CHATGPT_SNAPSHOT_LABEL,
   OFFICE_CONNECTIONS,
   SUPABASE_SETUP_URL,
 } from "@/lib/connections-inventory";
+
 
 export const Route = createFileRoute("/_office/systems")({
   head: () => ({
@@ -39,13 +42,19 @@ export const Route = createFileRoute("/_office/systems")({
 function Systems() {
   const session = useOwnerSession();
   const fetchStatus = useServerFn(getManagerStatus);
+  const fetchClaude = useServerFn(getClaudeStatus);
   const [ai, setAi] = useState<ManagerStatus | null>(null);
+  const [claude, setClaude] = useState<ClaudeStatus | null>(null);
 
   useEffect(() => {
     void fetchStatus({ data: { accessToken: session.accessToken ?? "" } })
       .then(setAi)
       .catch(() => setAi(null));
-  }, [fetchStatus, session.accessToken, session.state]);
+    void fetchClaude({ data: { accessToken: session.accessToken ?? "" } })
+      .then(setClaude)
+      .catch(() => setClaude(null));
+  }, [fetchStatus, fetchClaude, session.accessToken, session.state]);
+
 
   const dbConnected = session.configured;
   const signedIn = session.state === "owner";
@@ -83,6 +92,18 @@ function Systems() {
               }
               tone={ai?.connected ? "green" : ai?.state === "configured_unverified" ? "yellow" : "grey"}
             />
+            <Row
+              name="Claude — second eyes (independent review)"
+              note={
+                claude === null
+                  ? "Checking…"
+                  : claude.connected
+                    ? `Live and verified (${claude.model}).`
+                    : claude.detail
+              }
+              tone={claude?.connected ? "green" : claude?.state === "configured_unverified" ? "yellow" : "grey"}
+            />
+
             <Row name="Shared records across devices" note={signedIn ? "Saving to your CanX account." : "Device-only. Records stay in this browser."} tone={signedIn ? "green" : "grey"} />
             <Row name="Backups and restore" note="Not tested. There is no CanX-owned account to back up yet." tone="grey" />
             <Row name="Published site" note="Not published." tone="grey" />
@@ -125,8 +146,17 @@ function Systems() {
                   : connection.id === "openai"
                     ? ai?.connected
                       ? "green"
-                      : "grey"
-                    : "grey";
+                      : ai?.state === "configured_unverified"
+                        ? "yellow"
+                        : "grey"
+                    : connection.id === "claude"
+                      ? claude?.connected
+                        ? "green"
+                        : claude?.state === "configured_unverified"
+                          ? "yellow"
+                          : "grey"
+                      : "grey";
+
               return (
                 <div key={connection.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3">
                   <div>
@@ -149,7 +179,10 @@ function Systems() {
 
         <OwnerSignIn />
 
+        <ClaudeReviewPanel />
+
         <BudgetPanel />
+
 
         <Card className="border-border bg-card">
           <CardHeader>
