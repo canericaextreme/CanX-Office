@@ -186,12 +186,18 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
     "migrate",
     "schema_change",
     "major_change",
-    "cross_project_write",
     "external_write",
     "send_email",
   ];
   if (yellow.some((word) => a.includes(word))) return "yellow";
-  if ((s.includes("safe_highways") || s.includes("trail_tales")) && (a.includes("write") || a.includes("update") || a.includes("delete") || a.includes("change"))) {
+
+  // Routine cross-project coordination (Safe Highways, Trail Tales, Finance and
+  // other offices) is green. Only major or risky cross-project changes go yellow.
+  const risky = ["major", "bulk", "irreversible", "destructive", "restructure", "rewrite", "risky"];
+  if (
+    (s.includes("safe_highways") || s.includes("trail_tales") || s.includes("cross_project")) &&
+    risky.some((word) => a.includes(word) || s.includes(word))
+  ) {
     return "yellow";
   }
 
