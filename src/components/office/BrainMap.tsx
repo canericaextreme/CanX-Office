@@ -118,11 +118,11 @@ export function BrainMap() {
   const viewBox = `${(BRAIN_VIEW.width * (1 - 1 / zoom)) / 2 - pad} ${(BRAIN_VIEW.height * (1 - 1 / zoom)) / 2 - pad} ${BRAIN_VIEW.width / zoom + pad * 2} ${BRAIN_VIEW.height / zoom + pad * 2}`;
 
   return (
-    <Card className="overflow-hidden border-border bg-card shadow-sm">
-      <CardHeader className="border-b border-border">
+    <Card className="min-w-0 w-full max-w-full overflow-hidden border-border bg-card shadow-sm">
+      <CardHeader className="min-w-0 border-b border-border">
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
+            <div className="flex min-w-0 items-center gap-2">
               <CardTitle className="text-lg">CanX Brain</CardTitle>
               <SampleBadge />
             </div>
@@ -197,10 +197,10 @@ export function BrainMap() {
         </div>
       </CardHeader>
 
-      <CardContent className="p-0">
-        <div className="grid xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div>
-            <div className="relative min-h-[420px] overflow-hidden bg-gradient-to-br from-canx-black via-canx-charcoal to-canx-black sm:min-h-[520px]">
+      <CardContent className="min-w-0 max-w-full overflow-hidden p-0">
+        <div className="grid min-w-0 grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,20.625rem)]">
+          <div className="min-w-0 max-w-full">
+            <div className="relative min-h-[360px] min-w-0 max-w-full overflow-hidden bg-gradient-to-br from-canx-black via-canx-charcoal to-canx-black sm:min-h-[520px]">
               <div className="absolute right-3 top-3 z-10 flex gap-1">
                 <Button variant="outline" size="icon" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(2.2, z + 0.2))}>
                   <Plus />
@@ -214,7 +214,7 @@ export function BrainMap() {
               </div>
 
               <svg
-                className="h-full min-h-[420px] w-full sm:min-h-[520px]"
+                className="block min-h-[360px] w-full max-w-full sm:min-h-[520px]"
                 viewBox={viewBox}
                 role="img"
                 aria-label="Brain-shaped map of CanX Office rooms, projects, and planned worker roles"
@@ -413,7 +413,7 @@ export function BrainMap() {
               </div>
             </div>
 
-            <section className="border-t border-border p-4" aria-label="Live work activity">
+            <section className="min-w-0 border-t border-border p-4 [overflow-wrap:anywhere]" aria-label="Live work activity">
               <h3 className="mb-1 text-sm font-bold text-foreground">Live work activity</h3>
               {workFeed.events.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
@@ -446,7 +446,7 @@ export function BrainMap() {
             </section>
 
 
-            <div className="border-t border-border p-4">
+            <div className="min-w-0 border-t border-border p-4">
               <h3 className="mb-1 text-sm font-bold text-foreground">Keyboard-accessible list</h3>
               <p className="mb-3 text-xs text-muted-foreground">
                 Same records as the map. Pick a region, then a record.
@@ -484,7 +484,7 @@ export function BrainMap() {
             </div>
           </div>
 
-          <aside className="border-t border-border p-4 xl:border-l xl:border-t-0" aria-live="polite">
+          <aside className="min-w-0 border-t border-border p-4 [overflow-wrap:anywhere] 2xl:border-l 2xl:border-t-0" aria-live="polite">
             {(cell || edge) && (
               <Button variant="ghost" size="sm" className="float-right" onClick={() => { setCellId(null); setEdgeId(null); }}>
                 <X /> Clear
