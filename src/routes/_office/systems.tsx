@@ -216,7 +216,7 @@ function Systems() {
   );
 }
 
-type Tone = "green" | "yellow" | "grey";
+
 
 const PILL: Record<Tone, { label: string; className: string }> = {
   green: { label: "Connected", className: "border-canx-green/50 bg-canx-green/15 text-canx-green" },
