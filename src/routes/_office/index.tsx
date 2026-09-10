@@ -91,8 +91,11 @@ function Reception() {
 
           <div className="space-y-6">
             <StatusPanel items={SAMPLE_STATUS} />
-            <BrainMap />
           </div>
+        </div>
+
+        <div className="mb-6 min-w-0 max-w-full">
+          <BrainMap />
         </div>
       </div>
     </main>
