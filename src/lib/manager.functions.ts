@@ -197,6 +197,106 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    name: "create_task",
+    description:
+      "Create a durable task in the master task list. Green: the Manager may do this directly. Returns the task id.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["title"],
+      properties: {
+        title: { type: "string" },
+        detail: { type: "string" },
+        risk: { type: "string", enum: ["green", "yellow", "red"] },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    name: "assign_task",
+    description:
+      "Assign an open task to a worker and mark it in progress. Green: the Manager may do this directly.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["task_id", "worker"],
+      properties: {
+        task_id: { type: "string" },
+        worker: { type: "string" },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    name: "verify_task",
+    description:
+      "Mark a task done with a result summary and evidence. Green: the Manager may do this directly after verifying the result.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["task_id", "result"],
+      properties: {
+        task_id: { type: "string" },
+        result: { type: "string" },
+        evidence: { type: "string" },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    name: "request_approval",
+    description:
+      "Queue a yellow-light action in the approval box for John. Use for major/risky cross-project changes, sending emails, schema changes, or any external spend. Never use for red actions.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["title"],
+      properties: {
+        title: { type: "string" },
+        detail: { type: "string" },
+        cost_cents: { type: "number", minimum: 0, maximum: 100000 },
+        risk: { type: "string", enum: ["green", "yellow", "red"] },
+        task_id: { type: "string" },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    name: "log_change",
+    description:
+      "Append a rollback point to the change log with before/after snapshots. Green: the Manager logs significant changes automatically.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["action", "entity"],
+      properties: {
+        action: { type: "string" },
+        entity: { type: "string" },
+        entity_id: { type: "string" },
+        before: { type: "object" },
+        after: { type: "object" },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    name: "second_eyes_review",
+    description:
+      "Send a recommendation to Claude for independent second-eyes review. Green within the AI budget; the Manager does not need separate approval each time.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["subject", "primary_recommendation", "question"],
+      properties: {
+        subject: { type: "string" },
+        primary_recommendation: { type: "string" },
+        evidence: { type: "string" },
+        question: { type: "string" },
+      },
+    },
+  },
 ];
 
 /** Strict allowlist for tool arguments returned by the model. */
