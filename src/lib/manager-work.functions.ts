@@ -388,7 +388,7 @@ export interface RequestApprovalInput {
   accessToken: string;
   title: string;
   detail?: string;
-  costCents?: number;
+  costCents?: number | null;
   risk?: RiskLevel;
   taskId?: string;
 }
