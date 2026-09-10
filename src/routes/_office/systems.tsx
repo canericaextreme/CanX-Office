@@ -138,7 +138,7 @@ function Systems() {
                 connection.id === "supabase"
                   ? signedIn
                     ? "green"
-                    : dbConnected
+                    : session.configured
                       ? "yellow"
                       : "grey"
                   : connection.id === "openai"
