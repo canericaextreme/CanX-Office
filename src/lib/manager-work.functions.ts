@@ -13,7 +13,7 @@ import { runClaudeReviewWith, type ReviewInput } from "@/lib/claude-review.funct
 export type RiskLevel = "green" | "yellow" | "red";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
-type JsonObject = { [key: string]: JsonValue };
+export type JsonObject = { [key: string]: JsonValue };
 
 export interface ManagerTask {
   id: string;
