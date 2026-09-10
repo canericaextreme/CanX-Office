@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  classifyUnreachable,
   computeClaudeStatusWith,
   parseReview,
   runClaudeReviewWith,
+  UNREACHABLE_DETAILS,
   validateReviewInput,
   type ClaudeDeps,
 } from "./claude-review.functions";
@@ -318,6 +320,9 @@ describe("network failure classification — safe, non-secret categories", () =>
     vi.fn(async () => {
       throw Object.assign(new Error(`secret ${KEY} at 10.0.0.1:443`), { cause: { code } });
     });
+
+  const failingStatus = (fetchImpl: ReturnType<typeof vi.fn>) =>
+    computeClaudeStatusWith(deps({ fetchImpl: fetchImpl as unknown as typeof fetch }), "t");
 
   it("dns — names the lookup failure, never the raw error", async () => {
     const result = await status(codedThrow("ENOTFOUND"));
