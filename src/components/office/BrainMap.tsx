@@ -376,7 +376,7 @@ export function BrainMap() {
                 })}
               </svg>
 
-              <div className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md border border-border bg-card/95 p-3 text-xs shadow-sm">
+              <div className="absolute bottom-20 left-3 max-w-[calc(100%-1.5rem)] rounded-md border border-border bg-card/95 p-3 text-xs shadow-sm sm:bottom-3">
                 <div className="mb-2 font-bold text-foreground">{mode === "category" ? "Category legend" : "Status legend"}</div>
                 <div className="flex flex-wrap gap-x-3 gap-y-2">
                   {mode === "category"

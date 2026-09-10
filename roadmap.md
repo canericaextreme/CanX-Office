@@ -81,4 +81,4 @@
 ## Brain responsive repair (10 Sep 2026)
 - [x] Prevent Brain columns and text from forcing horizontal overflow.
 - [x] Stack Brain details before browser scaling makes two columns unsafe.
-- [ ] Verify requested desktop, narrow, and zoom-sensitive sizes.
+- [x] Verify requested desktop, narrow, and zoom-sensitive sizes.
