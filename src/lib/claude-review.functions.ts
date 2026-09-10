@@ -97,6 +97,17 @@ export interface ClaudeDeps {
   model: string | undefined;
 }
 
+/**
+ * A pasted secret often carries a trailing newline or stray spaces. That makes
+ * header construction throw before any request is sent, which looks exactly
+ * like "cannot reach Anthropic". Trim at read time, and treat an empty value
+ * as absent so the office reports "not configured" instead of "unreachable".
+ */
+export function readSetting(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 async function realDeps(): Promise<ClaudeDeps> {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
@@ -104,10 +115,12 @@ async function realDeps(): Promise<ClaudeDeps> {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
-    fetchImpl: fetch,
-    anthropicKey: process.env["ANTHROPIC_API_KEY"],
+    // Bound wrapper: a detached global fetch reference can throw in the worker
+    // runtime before a socket is ever opened.
+    fetchImpl: (input, init) => fetch(input, init),
+    anthropicKey: readSetting(process.env["ANTHROPIC_API_KEY"]),
     // Deliberate choice only. The office never guesses an Anthropic model.
-    model: process.env["ANTHROPIC_MODEL"],
+    model: readSetting(process.env["ANTHROPIC_MODEL"]),
   };
 }
 
