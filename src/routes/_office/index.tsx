@@ -72,9 +72,7 @@ function Reception() {
         </div>
 
         <div className="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-6">
-
-
+          <div className="min-w-0 space-y-6">
             <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Quick answers
