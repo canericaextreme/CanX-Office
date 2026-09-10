@@ -191,3 +191,54 @@ describe("receipt aggregation and privacy", () => {
     expect(result.text).toContain("CAD: 125.50 across 2 receipts");
   });
 });
+
+describe("aggregate totals follow the Finance room's own rules", () => {
+  const docWith = (rows: unknown[]) =>
+    JSON.stringify({ schemaVersion: RECEIPTS_SCHEMA_VERSION, kind: RECEIPTS_KIND, receipts: rows });
+
+  const base = {
+    date: "2026-08-01",
+    paymentStatus: "paid",
+    sourceMessageIds: ["m1"],
+    sourceUrl: "",
+    sourceEmailText: "",
+    orderNumber: "",
+  };
+
+  it("leaves receipts marked 'Not a business receipt' out of the money but still counts them", () => {
+    const summary = summariseReceiptDocument(
+      docWith([
+        { ...base, id: "a", vendor: "One", description: "d", total: 30, currency: "CAD", reviewStatus: "reviewed" },
+        { ...base, id: "b", vendor: "Two", description: "d", total: 900, currency: "CAD", reviewStatus: "excluded" },
+      ]),
+    );
+    expect(summary.receipts).toBe(2);
+    expect(summary.totalsByCurrency).toEqual([{ currency: "CAD", total: 30, count: 1 }]);
+  });
+
+  it("reports an unknown total, never zero, when an included receipt has no amount", async () => {
+    const doc = docWith([
+      { ...base, id: "a", vendor: "One", description: "d", total: 30, currency: "CAD", reviewStatus: "reviewed" },
+      { ...base, id: "b", vendor: "Two", description: "d", total: null, currency: "CAD", reviewStatus: "reviewed" },
+      { ...base, id: "c", vendor: "Three", description: "d", total: 12, currency: "USD", reviewStatus: "reviewed" },
+    ]);
+    const summary = summariseReceiptDocument(doc);
+    expect(summary.totalsByCurrency).toEqual([
+      { currency: "CAD", total: null, count: 2 },
+      { currency: "USD", total: 12, count: 1 },
+    ]);
+
+    const result = await buildLiveOfficeContext(
+      request(
+        rest({
+          office_notes: { ok: true, body: [] },
+          round_tables: { ok: true, body: [] },
+          finance_receipts: { ok: true, body: [{ doc: JSON.parse(doc) }] },
+        }),
+      ),
+    );
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.text).toContain("CAD: total unknown (at least one receipt has no amount) across 2 receipts");
+    expect(result.text).not.toContain("CAD: 0.00");
+  });
+});
