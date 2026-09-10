@@ -32,6 +32,13 @@
 - Reference SQL: owner-only policies require owner role AND aal2 AND owner_id; file remains unapplied and implements no auth.
 - Tests: src/lib/manager.functions.test.ts (3 passing).
 
+## Secure Manager receipt review (2026-09-10)
+- [x] Detect Finance intent from only the latest validated user message.
+- [x] Add a server-built, read-only, sanitized receipt-detail section capped at 100 records.
+- [x] Preserve aggregate-only context for unrelated questions and all existing security gates.
+- [x] Prove allowed fields, forbidden-field privacy, injection-data boundaries, cap behavior, stale-context exclusion, and fail-closed behavior.
+- [x] Run focused tests, full tests, typecheck, and production build; do not deploy.
+
 ## Connections & readiness work (2026-09-09)
 - Systems room rebuilt as an honest two-group connection inventory (ChatGPT-verified accounts snapshot vs connections this office needs). Nothing shows connected unless checked live.
 - CanX-owned Supabase integration written end to end, configuration-ready and fail-closed: server adapter, browser client, owner sign-in + TOTP UI, owner-gated notes/round-table CRUD, append-only audit.
