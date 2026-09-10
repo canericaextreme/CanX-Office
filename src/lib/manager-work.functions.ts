@@ -356,7 +356,7 @@ export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTa
   const now = new Date().toISOString();
 
   const [updated] = await Promise.all([
-    deps.rest<ManagerTask>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
+    deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
       status: "done",
       result: resultText,
       evidence,
@@ -368,7 +368,7 @@ export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTa
       evidence,
     }),
   ]);
-  if (!updated.ok || !updated.data) return fail("context_unavailable", updated.error ?? "Verification could not be saved.");
+  if (!updated.ok || !updated.data?.[0]) return fail("context_unavailable", updated.error ?? "Verification could not be saved.");
 
   await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
     _owner_id: v.userId,
@@ -379,7 +379,7 @@ export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTa
     _after: { status: "done", result: resultText, evidence },
   }).catch(() => undefined);
 
-  return updated.data;
+  return updated.data[0];
 }
 
 /* ------------------------------- approvals ------------------------------- */
