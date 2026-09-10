@@ -241,7 +241,57 @@ export function parseReview(text: string): ClaudeReview | null {
 
 /* --------------------------------- checks --------------------------------- */
 
-type HealthProbe = { kind: "ok" } | { kind: "status"; status: number } | { kind: "unreachable"; aborted: boolean };
+/**
+ * Safe failure categories. Only these fixed words ever leave the server —
+ * never the raw error text, stack, address, or any request material, because
+ * low-level network errors can echo hostnames, addresses, or worse.
+ */
+export type UnreachableClass = "dns" | "tls" | "refused" | "timeout" | "other";
+
+export const UNREACHABLE_DETAILS: Record<UnreachableClass, string> = {
+  dns: "The Claude address could not be looked up (name resolution failed), so Claude stays disconnected. This points at the network the office server runs on.",
+  tls: "The secure connection to Anthropic could not be established (security handshake failed), so Claude stays disconnected.",
+  refused: "The connection to Anthropic was refused or reset before any answer arrived, so Claude stays disconnected. This points at outbound access being blocked where the office server runs.",
+  timeout: "The Claude connection check timed out before Anthropic answered, so Claude stays disconnected. Try again.",
+  other: "The office server could not reach Anthropic before any answer arrived (no reply at all), so Claude stays disconnected.",
+};
+
+/**
+ * Classify a thrown fetch error by its own name and coded cause only.
+ * Raw messages and stacks are never read into the returned value.
+ */
+export function classifyUnreachable(error: unknown, aborted: boolean): UnreachableClass {
+  if (aborted) return "timeout";
+  const code = errorCauseCode(error);
+  if (code) {
+    if (code === "ENOTFOUND" || code === "EAI_AGAIN") return "dns";
+    if (code.startsWith("CERT") || code.startsWith("ERR_TLS") || code.includes("SSL")) return "tls";
+    if (code === "ECONNREFUSED" || code === "ECONNRESET" || code === "ENETUNREACH" || code === "EPERM") {
+      return "refused";
+    }
+    return "other";
+  }
+  // Worker runtimes throw plain TypeErrors with no coded cause; only the
+  // error's name is consulted, never its message.
+  if (error instanceof Error && error.name === "TypeError") return "other";
+  return "other";
+}
+
+/** Reads only machine error codes (e.g. cause.code), never message text. */
+function errorCauseCode(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  const cause = (error as { cause?: unknown }).cause;
+  if (cause && typeof cause === "object" && "code" in cause) {
+    const code = (cause as { code?: unknown }).code;
+    if (typeof code === "string" && /^[A-Z0-9_]{2,24}$/.test(code)) return code;
+  }
+  return null;
+}
+
+type HealthProbe =
+  | { kind: "ok" }
+  | { kind: "status"; status: number }
+  | { kind: "unreachable"; class: UnreachableClass; elapsedMs: number };
 
 /**
  * One authenticated, non-billable models request. Never touches /v1/messages,
@@ -249,6 +299,7 @@ type HealthProbe = { kind: "ok" } | { kind: "status"; status: number } | { kind:
  */
 async function probe(deps: ClaudeDeps, url: string): Promise<HealthProbe> {
   const controller = new AbortController();
+  const started = Date.now();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
     const response = await deps.fetchImpl(url, {
@@ -259,7 +310,11 @@ async function probe(deps: ClaudeDeps, url: string): Promise<HealthProbe> {
     return response.ok ? { kind: "ok" } : { kind: "status", status: response.status };
   } catch (error) {
     const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
-    return { kind: "unreachable", aborted };
+    return {
+      kind: "unreachable",
+      class: classifyUnreachable(error, aborted),
+      elapsedMs: Date.now() - started,
+    };
   } finally {
     clearTimeout(timer);
   }
