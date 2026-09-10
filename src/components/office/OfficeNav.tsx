@@ -98,10 +98,15 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           )}
         </div>
 
-        <Button variant="outline" size="sm" onClick={onToggleView} aria-label={viewMode === "3d" ? "Switch to simple view" : "Switch to office view"} className="gap-2">
-          {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          <span className="hidden sm:inline">{viewMode === "3d" ? "Simple" : "Office"}</span>
-        </Button>
+        {(() => {
+          const label = viewMode === "3d" ? "Simple view" : "Office view";
+          return (
+            <Button variant="outline" size="sm" onClick={onToggleView} aria-label={label} className="shrink-0 gap-2">
+              {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+              <span>{label}</span>
+            </Button>
+          );
+        })()}
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="All rooms"><Building2 className="h-5 w-5" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto">
