@@ -21,6 +21,19 @@ import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
+import {
+  assignManagerTaskWith,
+  classifyManagerRisk,
+  createManagerTaskWith,
+  getManagerBudgetStatusWith,
+  loadManagerMemoryWith,
+  logManagerChangeWith,
+  requestManagerApprovalWith,
+  runManagerSecondEyesWith,
+  verifyManagerTaskWith,
+  type ManagerMemory,
+  type RiskLevel,
+} from "@/lib/manager-work.functions";
 
 export type ManagerState =
   /** No CanX-owned database, or the caller is not a verified owner with MFA. */
