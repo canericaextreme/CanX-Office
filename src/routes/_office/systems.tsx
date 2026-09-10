@@ -189,20 +189,26 @@ function Systems() {
 
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Your next step</CardTitle>
+            <CardTitle className="text-base">{step.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p className="text-muted-foreground">
-              The office cannot create the database for you, and it should not: the account has to be yours.
-            </p>
-            <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="inline-block text-primary underline">
-              {SUPABASE_SETUP_URL}
-            </a>
-            <p className="text-muted-foreground">
-              Choose Supabase there and finish the setup. Then follow <code>docs/office-manager-setup.md</code>, which
-              lists the exact steps: the two database files to run, making your account the owner, turning on the
-              authenticator app, setting spending limits, and only then adding the AI key.
-            </p>
+            {step.paragraphs.map((paragraph, i) => (
+              <p key={i} className="text-muted-foreground">
+                {paragraph}
+              </p>
+            ))}
+            {step.setupLink && (
+              <>
+                <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="inline-block text-primary underline">
+                  {SUPABASE_SETUP_URL}
+                </a>
+                <p className="text-muted-foreground">
+                  Choose Supabase there and finish the setup. Then follow <code>docs/office-manager-setup.md</code>, which
+                  lists the exact steps: the two database files to run, making your account the owner, turning on the
+                  authenticator app, setting spending limits, and only then adding the AI key.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
