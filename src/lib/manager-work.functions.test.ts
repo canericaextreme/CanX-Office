@@ -28,7 +28,7 @@ function mockDeps(overrides?: Partial<WorkbenchDeps>): WorkbenchDeps {
     reserve: vi.fn().mockResolvedValue({ allowed: true, reservationId: "res-1", remainingToday: 100 } satisfies BudgetResult),
     settle: vi.fn().mockResolvedValue(undefined),
     ensureBudget: vi.fn().mockResolvedValue({ ok: true }),
-    rest: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+    rest: vi.fn().mockResolvedValue(Promise.resolve({ ok: true, data: [] })),
     ...overrides,
   };
 }
