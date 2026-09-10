@@ -15,17 +15,17 @@ import {
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 
 function okOwner(userId = "owner-1"): OwnerVerification {
-  return { ok: true, userId, role: "owner", aal: "aal2", email: "john@example.com" };
+  return { ok: true, userId, aal: "aal2", email: "john@example.com" };
 }
 
-function failOwner(message = "not signed in"): OwnerVerification {
-  return { ok: false, message };
+function failOwner(): OwnerVerification {
+  return { ok: false, reason: "no_session", message: "You are not signed in." };
 }
 
 function mockDeps(overrides?: Partial<WorkbenchDeps>): WorkbenchDeps {
   return {
     verifyOwner: vi.fn().mockResolvedValue(okOwner()),
-    reserve: vi.fn().mockResolvedValue({ allowed: true, reservationId: "res-1" } satisfies BudgetResult),
+    reserve: vi.fn().mockResolvedValue({ allowed: true, reservationId: "res-1", remainingToday: 100 } satisfies BudgetResult),
     settle: vi.fn().mockResolvedValue(undefined),
     ensureBudget: vi.fn().mockResolvedValue({ ok: true }),
     rest: vi.fn().mockResolvedValue({ ok: true, data: [] }),
