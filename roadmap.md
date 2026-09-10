@@ -38,9 +38,9 @@
 - [x] Preserve aggregate-only context for unrelated questions and all existing security gates.
 - [x] Prove allowed fields, forbidden-field privacy, injection-data boundaries, cap behavior, stale-context exclusion, and fail-closed behavior.
 - [x] Run focused tests, full tests, typecheck, and production build; do not deploy.
-- [ ] Fail closed before reservation/provider access when a requested receipt document is malformed.
-- [ ] Make aggregate privacy wording accurately distinguish detailed review from aggregate-only requests.
-- [ ] Verify both corrections with focused tests, full tests, typecheck, and production build; do not deploy.
+- [x] Fail closed before reservation/provider access when a requested receipt document is malformed.
+- [x] Make aggregate privacy wording accurately distinguish detailed review from aggregate-only requests.
+- [x] Verify both corrections with focused tests, full tests, typecheck, and production build; do not deploy.
 
 ## Connections & readiness work (2026-09-09)
 - Systems room rebuilt as an honest two-group connection inventory (ChatGPT-verified accounts snapshot vs connections this office needs). Nothing shows connected unless checked live.
