@@ -21,6 +21,7 @@ function deps(overrides: Partial<ManagerDeps> = {}): ManagerDeps {
     verifyOwner: async () => deny("backend_not_configured"),
     reserve: async () => ({ allowed: true, reservationId: "r1", remainingToday: 10 }),
     settle: async () => undefined,
+    buildContext: async () => ({ ok: true, text: "LIVE OFFICE CONTEXT" }),
     fetchImpl: vi.fn(() => {
       throw new Error("no upstream call expected");
     }) as unknown as typeof fetch,
@@ -30,7 +31,7 @@ function deps(overrides: Partial<ManagerDeps> = {}): ManagerDeps {
   };
 }
 
-const CHAT = { accessToken: "t", messages: [{ role: "user" as const, content: "hello" }], context: "x" };
+const CHAT = { accessToken: "t", messages: [{ role: "user" as const, content: "hello" }] };
 
 describe("access control — no paid call without a verified owner", () => {
   const cases: OwnerDenyReason[] = [
