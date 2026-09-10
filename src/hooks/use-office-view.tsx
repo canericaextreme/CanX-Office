@@ -49,11 +49,7 @@ export function useOfficeViewMode() {
   }, []);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, mode);
-    } catch {
-      // ignore storage errors
-    }
+    persistViewMode(mode);
   }, [mode]);
 
   const updateMode = (nextMode: OfficeViewMode) => {
