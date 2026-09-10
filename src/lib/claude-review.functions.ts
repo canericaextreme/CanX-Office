@@ -241,22 +241,79 @@ export function parseReview(text: string): ClaudeReview | null {
 
 /* --------------------------------- checks --------------------------------- */
 
-/** Real, authenticated call to Anthropic. Presence of a key proves nothing. */
-async function healthCheck(deps: ClaudeDeps): Promise<{ ok: boolean; detail: string }> {
+type HealthProbe = { kind: "ok" } | { kind: "status"; status: number } | { kind: "unreachable"; aborted: boolean };
+
+/**
+ * One authenticated, non-billable models request. Never touches /v1/messages,
+ * so a check can never cost anything. Bodies and headers are never surfaced.
+ */
+async function probe(deps: ClaudeDeps, url: string): Promise<HealthProbe> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
-    const response = await deps.fetchImpl(`https://api.anthropic.com/v1/models/${encodeURIComponent(deps.model!)}`, {
+    const response = await deps.fetchImpl(url, {
+      method: "GET",
       signal: controller.signal,
       headers: { "x-api-key": deps.anthropicKey!, "anthropic-version": ANTHROPIC_VERSION },
     });
-    if (response.ok) return { ok: true, detail: "" };
-    return { ok: false, detail: sanitizedProviderDetail(response.status) };
-  } catch {
-    return { ok: false, detail: "The Claude connection check did not complete, so Claude stays disconnected." };
+    return response.ok ? { kind: "ok" } : { kind: "status", status: response.status };
+  } catch (error) {
+    const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+    return { kind: "unreachable", aborted };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Does the model listing contain the configured model? Ids are not secrets. */
+async function modelIsListed(deps: ClaudeDeps): Promise<boolean | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+  try {
+    const response = await deps.fetchImpl("https://api.anthropic.com/v1/models?limit=100", {
+      method: "GET",
+      signal: controller.signal,
+      headers: { "x-api-key": deps.anthropicKey!, "anthropic-version": ANTHROPIC_VERSION },
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { data?: { id?: unknown }[] };
+    const ids = (payload.data ?? []).map((item) => item?.id).filter((id): id is string => typeof id === "string");
+    return ids.includes(deps.model!);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Real, authenticated check against Anthropic. Presence of a key proves nothing.
+ * Fail closed: anything other than a confirmed success stays disconnected.
+ */
+async function healthCheck(deps: ClaudeDeps): Promise<{ ok: boolean; detail: string }> {
+  const first = await probe(deps, `https://api.anthropic.com/v1/models/${encodeURIComponent(deps.model!)}`);
+  if (first.kind === "ok") return { ok: true, detail: "" };
+
+  // Fallback only where the per-model lookup itself is the unreliable part:
+  // a transient network failure, or a 404 that a listing can confirm or deny.
+  if (first.kind === "unreachable" || first.status === 404) {
+    const listed = await modelIsListed(deps);
+    if (listed === true) return { ok: true, detail: "" };
+    if (listed === false) {
+      return {
+        ok: false,
+        detail: `Anthropic does not offer the configured model "${deps.model}" on this account. Update ANTHROPIC_MODEL.`,
+      };
+    }
+    return {
+      ok: false,
+      detail: first.kind === "unreachable" && first.aborted
+        ? "The Claude connection check timed out before Anthropic answered, so Claude stays disconnected. Try again."
+        : "The server could not reach Anthropic to check the Claude connection, so Claude stays disconnected.",
+    };
+  }
+
+  return { ok: false, detail: sanitizedProviderDetail(first.status) };
 }
 
 export async function computeClaudeStatusWith(deps: ClaudeDeps, accessToken: string): Promise<ClaudeStatus> {
