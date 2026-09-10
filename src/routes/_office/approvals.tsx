@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SAMPLE_APPROVALS } from "@/lib/office-data";
 import { StatusBadge } from "@/components/office/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
+import { decideManagerApproval } from "@/lib/manager-work.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_office/approvals")({
   head: () => ({
@@ -20,6 +24,32 @@ export const Route = createFileRoute("/_office/approvals")({
 });
 
 function Approvals() {
+  const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } = useManagerMemory();
+  const decide = useServerFn(decideManagerApproval);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const onDecide = async (approvalId: string, decision: "approved" | "declined") => {
+    if (!accessToken) return;
+    setBusy(approvalId);
+    setNotice(null);
+    try {
+      const result = await decide({ data: { accessToken, approvalId, decision } });
+      if ("ok" in result && result.ok === false) {
+        setNotice(result.message);
+      } else {
+        setNotice(decision === "approved" ? "Approved and recorded." : "Declined and recorded.");
+        refresh();
+      }
+    } catch {
+      setNotice("That decision could not be saved.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const durable = memory?.approvals ?? null;
+
   return (
     <RoomShell>
       <Card className="border-l-4 border-l-canx-red border-border bg-card">
@@ -30,26 +60,89 @@ function Approvals() {
           </p>
         </CardContent>
       </Card>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {SAMPLE_APPROVALS.map((item) => (
-          <Card key={item.id} className="border-border bg-card">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{item.action}</CardTitle>
-                <StatusBadge tone={item.status} />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm text-muted-foreground">
-              <p>Cost: {item.cost}</p>
-              <p>Risk: {item.risk}</p>
-              <p>Requested: {item.requestedAt}</p>
-              <Button className="mt-3" disabled>
-                Review
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+
+      <Card className="mt-4 border-border bg-card">
+        <CardContent className="flex flex-wrap items-center justify-between gap-2 p-4 text-xs text-muted-foreground">
+          <span>
+            {durable
+              ? "Shared approval box — saved in the CanX-owned database."
+              : isOwner
+                ? error ?? "Shared approval box unavailable; showing labelled sample items."
+                : sessionMessage}
+          </span>
+          {isOwner && (
+            <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+              {loading ? "Checking…" : "Refresh"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {notice && <p className="mt-3 text-xs text-canx-yellow">{notice}</p>}
+
+      {durable ? (
+        durable.length === 0 ? (
+          <p className="mt-6 text-sm text-muted-foreground">Nothing is waiting for your approval.</p>
+        ) : (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {durable.map((item) => (
+              <Card key={item.id} className="border-border bg-card">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{item.title}</CardTitle>
+                    <StatusBadge
+                      tone={item.status === "approved" ? "green" : item.status === "declined" ? "red" : "yellow"}
+                      label={item.status}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1 text-sm text-muted-foreground">
+                  {item.detail && <p className="text-foreground">{item.detail}</p>}
+                  <p>Cost: {formatCents(item.cost_cents)}</p>
+                  <p>Risk: {item.risk}</p>
+                  <p>Requested: {new Date(item.created_at).toLocaleString()}</p>
+                  {item.status === "pending" && (
+                    <div className="mt-3 flex gap-2">
+                      <Button size="sm" disabled={busy === item.id} onClick={() => onDecide(item.id, "approved")}>
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy === item.id}
+                        onClick={() => onDecide(item.id, "declined")}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {SAMPLE_APPROVALS.map((item) => (
+            <Card key={item.id} className="border-border bg-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">{item.action}</CardTitle>
+                  <StatusBadge tone={item.status} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm text-muted-foreground">
+                <p>Cost: {item.cost}</p>
+                <p>Risk: {item.risk}</p>
+                <p>Requested: {item.requestedAt}</p>
+                <Button className="mt-3" disabled>
+                  Review
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </RoomShell>
   );
 }
