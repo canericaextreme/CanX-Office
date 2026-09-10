@@ -55,7 +55,7 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
-      <div className="mx-auto flex min-h-16 max-w-screen-2xl items-center gap-2 px-3 sm:gap-3 sm:px-5">
+      <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-2 px-3 sm:flex-nowrap sm:gap-3 sm:px-5">
         <Button variant="ghost" size="icon" aria-label="Back to previous CanX Office screen" onClick={goBack}><ChevronLeft className="h-5 w-5" /></Button>
         <Button variant="ghost" size="icon" asChild aria-label="Home / Reception"><Link to="/"><Home className="h-5 w-5" /></Link></Button>
 
@@ -98,10 +98,15 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           )}
         </div>
 
-        <Button variant="outline" size="sm" onClick={onToggleView} aria-label={viewMode === "3d" ? "Switch to simple view" : "Switch to office view"} className="gap-2">
-          {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          <span className="hidden sm:inline">{viewMode === "3d" ? "Simple" : "Office"}</span>
-        </Button>
+        {(() => {
+          const label = viewMode === "3d" ? "Simple view" : "Office view";
+          return (
+            <Button variant="outline" size="sm" onClick={onToggleView} aria-label={label} className="shrink-0 gap-2">
+              {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+              <span>{label}</span>
+            </Button>
+          );
+        })()}
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="All rooms"><Building2 className="h-5 w-5" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto">
