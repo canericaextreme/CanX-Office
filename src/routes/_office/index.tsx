@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_office/")({
 });
 
 function Reception() {
-  const { mode } = useOfficeViewMode();
+  const { mode, hydrated } = useOfficeViewMode();
 
   return (
     <main className="min-h-screen bg-background font-reception-body">
