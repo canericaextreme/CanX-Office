@@ -114,7 +114,7 @@ async function realDeps(): Promise<ManagerDeps> {
       return live.buildLiveOfficeContext({
         config,
         token,
-        ownerEmail: verification.email,
+        // The owner's email address is never sent to the provider.
         aal: verification.aal,
         provider: "OpenAI",
         model: model ?? "",
