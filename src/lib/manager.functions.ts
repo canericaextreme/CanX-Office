@@ -17,6 +17,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
+import type { LiveContextResult } from "@/lib/office-live-context.server";
 
 export type ManagerState =
   /** No CanX-owned database, or the caller is not a verified owner with MFA. */
@@ -56,6 +57,7 @@ export interface ManagerReply {
     | "not_configured"
     | "limit_blocked"
     | "health_check_failed"
+    | "context_unavailable"
     | "provider_error"
     | "invalid_input";
   provider: ManagerStatus["provider"];
@@ -77,6 +79,11 @@ export interface ManagerDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
   reserve: (token: string, cents: number) => Promise<BudgetResult>;
   settle: (token: string, reservationId: string, outcome: "ok" | "failed") => Promise<void>;
+  /**
+   * Server-built office context, read live from the CanX-owned database as the
+   * verified owner. The browser never supplies office facts.
+   */
+  buildContext: (verification: Extract<OwnerVerification, { ok: true }>) => Promise<LiveContextResult>;
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   model: string | undefined;
