@@ -7,6 +7,11 @@ alter table public.finance_receipts
   add column if not exists gmail_sync_checkpoint text,
   add column if not exists ingestion_updated_at timestamptz;
 
+-- Existing table grants remain explicit; repeat them so this migration is
+-- self-auditing and does not broaden access.
+grant select, insert, update, delete on public.finance_receipts to authenticated;
+grant all on public.finance_receipts to service_role;
+
 alter table public.finance_receipts
   add constraint finance_ingested_receipts_array
   check (jsonb_typeof(ingested_receipts) = 'array');
