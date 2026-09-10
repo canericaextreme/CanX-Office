@@ -170,9 +170,9 @@ describe("approval box", () => {
   it("requestManagerApprovalWith creates an approval and logs the change", async () => {
     const inserted = { id: "a1", title: "Spend $5", status: "pending" };
     const rest = vi.fn().mockImplementation((_token, _method, path) => {
-      if (path === "manager_approvals") return { ok: true, data: inserted };
-      if (path === "rpc/log_manager_change") return { ok: true };
-      return { ok: true, data: [] };
+      if (path === "manager_approvals") return Promise.resolve({ ok: true, data: inserted });
+      if (path === "rpc/log_manager_change") return Promise.resolve({ ok: true });
+      return Promise.resolve({ ok: true, data: [] });
     });
     const deps = mockDeps({ rest });
     const result = await requestManagerApprovalWith(deps, {
@@ -190,10 +190,10 @@ describe("approval box", () => {
     const before = { id: "a1", owner_id: "owner-1", status: "pending" };
     const after = { id: "a1", owner_id: "owner-1", status: "approved" };
     const rest = vi.fn().mockImplementation((_token, _method, path) => {
-      if (path.startsWith("manager_approvals?id=eq.a1") && _method === "GET") return { ok: true, data: [before] };
-      if (path.startsWith("manager_approvals") && _method === "PATCH") return { ok: true, data: after };
-      if (path === "rpc/log_manager_change") return { ok: true };
-      return { ok: true, data: [] };
+      if (path.startsWith("manager_approvals?id=eq.a1") && _method === "GET") return Promise.resolve({ ok: true, data: [before] });
+      if (path.startsWith("manager_approvals") && _method === "PATCH") return Promise.resolve({ ok: true, data: after });
+      if (path === "rpc/log_manager_change") return Promise.resolve({ ok: true });
+      return Promise.resolve({ ok: true, data: [] });
     });
     const deps = mockDeps({ rest });
     const result = await decideManagerApprovalWith(deps, { accessToken: "token", approvalId: "a1", decision: "approved" });
