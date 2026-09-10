@@ -181,6 +181,9 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const doc = receiptRows[0]?.doc ?? null;
   const docJson = doc ? JSON.stringify(doc) : null;
   const parsedReceiptDocument = docJson ? parseReceiptImport(docJson) : null;
+  if (request.includeReceiptDetails && parsedReceiptDocument && !parsedReceiptDocument.ok) {
+    return { ok: false, message: "The finance records could not be read just now, so no answer was requested." };
+  }
   const finance = summariseReceiptDocument(docJson);
 
   const totals = finance.totalsByCurrency.length
@@ -215,7 +218,9 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
       `- Needing review: ${finance.needsReview}`,
       `- Reconciled: ${finance.reconciled}`,
       `- Totals by original currency: ${totals}`,
-      "- Vendor names, individual amounts, order numbers, links, message ids and email text are deliberately withheld.",
+      request.includeReceiptDetails
+        ? "- Approved vendor, date, total, currency, category, status, business-use and source-count fields follow. Stored ids, descriptions, order numbers, subtotals, tax, notes, source evidence, import times, owner identity, raw receipt data and payment-account details remain withheld."
+        : "- Vendor names, individual amounts, order numbers, links, message ids and email text are deliberately withheld.",
     ].join("\n"),
     request.includeReceiptDetails
       ? receiptReviewSection(parsedReceiptDocument?.ok ? parsedReceiptDocument.receipts : [])

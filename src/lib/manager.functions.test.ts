@@ -8,6 +8,7 @@ import {
   type ManagerDeps,
 } from "./manager.functions";
 import { DENY_MESSAGES, type OwnerDenyReason, type OwnerVerification } from "./canx-backend.server";
+import { buildLiveOfficeContext, type RestImpl } from "./office-live-context.server";
 
 const deny = (reason: OwnerDenyReason): OwnerVerification => ({
   ok: false,
@@ -389,6 +390,34 @@ describe("live office context replaces anything the browser sends", () => {
     );
     expect(reply.code).toBe("context_unavailable");
     expect(buildContext).toHaveBeenCalledWith("t", OWNER, true);
+    expect(reserve).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("makes no reservation, health check, or provider call for malformed receipt review data", async () => {
+    const reserve = vi.fn();
+    const fetchImpl = vi.fn();
+    const rest = vi.fn(async (_config, _token, path: string) => ({
+      ok: true,
+      status: 200,
+      body: path.startsWith("finance_receipts") ? [{ doc: { kind: "wrong-kind", receipts: [] } }] : [],
+    })) as unknown as RestImpl;
+    const buildContext: ManagerDeps["buildContext"] = async (token, verification, includeReceiptDetails) =>
+      buildLiveOfficeContext({
+        config: { url: "https://example.supabase.co", publishableKey: "pk-test" },
+        token,
+        aal: verification.aal,
+        provider: "OpenAI",
+        model: "gpt-test",
+        includeReceiptDetails,
+        rest,
+      });
+    const reply = await runManagerChatWith(
+      deps({ verifyOwner: async () => OWNER, buildContext, reserve, fetchImpl: fetchImpl as unknown as typeof fetch }),
+      { accessToken: "t", messages: [{ role: "user", content: "Review my receipts" }] },
+    );
+    expect(reply.code).toBe("context_unavailable");
+    expect(reply.detail).toBe("The finance records could not be read just now, so no answer was requested.");
     expect(reserve).not.toHaveBeenCalled();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
