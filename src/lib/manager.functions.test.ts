@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   computeManagerStatusWith,
+  latestUserMessageRequestsReceiptReview,
   readSetting,
   runManagerChatWith,
   sanitizeToolArgs,
@@ -312,5 +313,38 @@ describe("live office context replaces anything the browser sends", () => {
     );
     expect(reply.code).toBe("context_unavailable");
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("enables receipt details only from the latest validated user message", async () => {
+    expect(latestUserMessageRequestsReceiptReview([{ role: "user", content: "Review my invoices" }])).toBe(true);
+    expect(latestUserMessageRequestsReceiptReview([{ role: "user", content: "Show office priorities" }])).toBe(false);
+    expect(
+      latestUserMessageRequestsReceiptReview([
+        { role: "user", content: "Review receipts" },
+        { role: "assistant", content: "What should I check?" },
+        { role: "user", content: "Show office priorities instead" },
+      ]),
+    ).toBe(false);
+  });
+
+  it("passes receipt intent to the server context builder while excluding stale client context", async () => {
+    const buildContext = vi.fn(async (_token, _owner, includeReceiptDetails: boolean) => ({
+      ok: true as const,
+      text: includeReceiptDetails ? "SERVER RECEIPT DETAILS" : "AGGREGATES ONLY",
+    }));
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ output_text: "ok", output: [] }), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const reply = await runManagerChatWith(
+      deps({ verifyOwner: async () => OWNER, buildContext, fetchImpl }),
+      { accessToken: "t", messages: [{ role: "user", content: "Please review my purchases" }], context: "STALE" } as unknown as typeof CHAT,
+    );
+    expect(reply.ok).toBe(true);
+    expect(buildContext).toHaveBeenCalledWith("t", OWNER, true);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const chatCall = calls.find(([url]) => String(url).includes("/v1/responses"));
+    const body = String((chatCall?.[1] as RequestInit).body);
+    expect(body).toContain("SERVER RECEIPT DETAILS");
+    expect(body).not.toContain("STALE");
   });
 });
