@@ -8,9 +8,12 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
-import { runClaudeReviewWith, type ClaudeDeps, type ReviewInput } from "@/lib/claude-review.functions";
+import { runClaudeReviewWith, type ReviewInput } from "@/lib/claude-review.functions";
 
 export type RiskLevel = "green" | "yellow" | "red";
+
+type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
+type JsonObject = { [key: string]: JsonValue };
 
 export interface ManagerTask {
   id: string;
@@ -55,8 +58,8 @@ export interface ManagerChange {
   action: string;
   entity: string;
   entity_id: string | null;
-  before: Record<string, unknown>;
-  after: Record<string, unknown>;
+  before: JsonObject;
+  after: JsonObject;
   at: string;
 }
 
@@ -87,8 +90,13 @@ export interface WorkbenchDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
   reserve: (token: string, cents: number) => Promise<BudgetResult>;
   settle: (token: string, reservationId: string, outcome: "ok" | "failed") => Promise<void>;
-  rest: <T>(token: string, method: string, path: string, body?: unknown) => Promise<{ ok: boolean; data?: T; error?: string }>;
+  rest: <T>(token: string, method: string, path: string, body?: JsonObject) => Promise<{ ok: boolean; data?: T; error?: string }>;
   ensureBudget: (token: string, ownerId: string) => Promise<{ ok: boolean; error?: string }>;
+}
+
+function readSetting(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 async function realDeps(): Promise<WorkbenchDeps> {
@@ -98,11 +106,21 @@ async function realDeps(): Promise<WorkbenchDeps> {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
-    rest: (token, method, path, body) => backend.restRequest(config, token, method, path, body),
+    rest: async (token, method, path, body) => {
+      if (!config) return { ok: false, error: "No CanX-owned database is configured." };
+      const init: RequestInit = { method };
+      if (body && method !== "GET") init.body = JSON.stringify(body);
+      const result = await backend.restRequest(config, token, path, init);
+      if (!result.ok) return { ok: false, error: `Request failed (${result.status}).` };
+      return { ok: true, data: result.body as unknown as JsonValue as T };
+    },
     ensureBudget: async (token, ownerId) => {
       if (!config) return { ok: false, error: "No CanX-owned database is configured." };
-      const result = await backend.restRequest(config, token, "POST", "/rpc/ensure_manager_ai_budget", { _owner_id: ownerId });
-      return result.ok ? { ok: true } : { ok: false, error: result.error ?? "Budget setup failed." };
+      const result = await backend.restRequest(config, token, "rpc/ensure_manager_ai_budget", {
+        method: "POST",
+        body: JSON.stringify({ _owner_id: ownerId }),
+      });
+      return result.ok ? { ok: true } : { ok: false, error: "Budget setup failed." };
     },
   };
 }
@@ -126,20 +144,14 @@ function cleanRisk(value: unknown): RiskLevel {
   return "green";
 }
 
-function cleanStatus(value: unknown): ManagerTask["status"] {
-  if (value === "open" || value === "in_progress" || value === "done" || value === "cancelled") return value;
-  return "open";
-}
-
-function cleanApprovalStatus(value: unknown): ManagerApproval["status"] {
-  if (value === "pending" || value === "approved" || value === "declined") return value;
-  return "pending";
-}
-
 function cleanCents(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const rounded = Math.max(0, Math.round(value));
   return rounded > 100000 ? null : rounded;
+}
+
+function isError<T>(value: T | ManagerWorkError): value is ManagerWorkError {
+  return value && typeof value === "object" && "ok" in value && value.ok === false;
 }
 
 /* ------------------------------- risk rules ------------------------------- */
@@ -152,8 +164,6 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
   const a = action.toLowerCase();
   const s = (scope ?? "").toLowerCase();
 
-  // Red: deployment, production changes, safety-critical AI authority,
-  // sending messages externally, destructive data changes, unapproved spend.
   const red = [
     "deploy",
     "publish",
@@ -172,8 +182,6 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
   if (red.some((word) => a.includes(word))) return "red";
   if (s.includes("production") && (a.includes("write") || a.includes("update") || a.includes("delete"))) return "red";
 
-  // Yellow: major/risky cross-project changes, schema changes, approval-required
-  // spend, external writes, sending emails.
   const yellow = [
     "request_approval",
     "migrate",
@@ -181,15 +189,12 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
     "major_change",
     "cross_project_write",
     "external_write",
-    "send_email",
   ];
   if (yellow.some((word) => a.includes(word))) return "yellow";
-  if (s.includes("safe_highways") || s.includes("trail_tales")) {
-    if (a.includes("write") || a.includes("update") || a.includes("delete") || a.includes("change")) return "yellow";
+  if ((s.includes("safe_highways") || s.includes("trail_tales")) && (a.includes("write") || a.includes("update") || a.includes("delete") || a.includes("change"))) {
+    return "yellow";
   }
 
-  // Green: routine reads, internal task work, drafting/sorting emails,
-  // cross-project coordination that is read-only or reversible.
   return "green";
 }
 
@@ -199,32 +204,21 @@ export async function getManagerBudgetStatusWith(deps: WorkbenchDeps, token: str
   const v = await verify(token, deps);
   if (!v.ok) return v;
 
-  const ensured = await deps.ensureBudget(token, v.user.id);
+  const ensured = await deps.ensureBudget(token, v.userId);
   if (!ensured.ok) return fail("context_unavailable", ensured.error ?? "Budget setup failed.");
 
-  const result = await deps.rest<{ used_cents: number; ceiling_cents: number; warn_cents: number; paused: boolean; warning: boolean }>(
-    token,
-    "POST",
-    "/rpc/manager_budget_status",
-    { _owner_id: v.user.id },
-  );
+  const result = await deps.rest<ManagerBudgetStatus>(token, "POST", "rpc/manager_budget_status", { _owner_id: v.userId });
   if (!result.ok || !result.data) {
     return fail("context_unavailable", result.error ?? "Could not read the Manager budget.");
   }
-  return {
-    used_cents: result.data.used_cents,
-    ceiling_cents: result.data.ceiling_cents,
-    warn_cents: result.data.warn_cents,
-    paused: result.data.paused,
-    warning: result.data.warning,
-  };
+  return result.data;
 }
 
 export async function reserveManagerAiCallWith(deps: WorkbenchDeps, token: string, cents: number): Promise<BudgetResult> {
   const v = await verify(token, deps);
-  if (!v.ok) return { allowed: false, message: v.message, reservationId: "" };
-  const ensured = await deps.ensureBudget(token, v.user.id);
-  if (!ensured.ok) return { allowed: false, message: ensured.error ?? "Budget setup failed.", reservationId: "" };
+  if (!v.ok) return { allowed: false, reason: "unavailable", message: v.message };
+  const ensured = await deps.ensureBudget(token, v.userId);
+  if (!ensured.ok) return { allowed: false, reason: "unavailable", message: ensured.error ?? "Budget setup failed." };
   return deps.reserve(token, cents);
 }
 
@@ -234,21 +228,21 @@ export async function loadManagerMemoryWith(deps: WorkbenchDeps, token: string):
   const v = await verify(token, deps);
   if (!v.ok) return v;
 
-  const ensured = await deps.ensureBudget(token, v.user.id);
+  const ensured = await deps.ensureBudget(token, v.userId);
   if (!ensured.ok) return fail("context_unavailable", ensured.error ?? "Budget setup failed.");
 
   const [tasks, assignments, approvals, changes, budget] = await Promise.all([
-    deps.rest<ManagerTask[]>(token, "GET", `/rest/v1/manager_tasks?owner_id=eq.${encodeURIComponent(v.user.id)}&order=created_at.desc`),
-    deps.rest<ManagerAssignment[]>(token, "GET", `/rest/v1/manager_assignments?order=assigned_at.desc`),
-    deps.rest<ManagerApproval[]>(token, "GET", `/rest/v1/manager_approvals?owner_id=eq.${encodeURIComponent(v.user.id)}&order=created_at.desc`),
-    deps.rest<ManagerChange[]>(token, "GET", `/rest/v1/manager_changes?owner_id=eq.${encodeURIComponent(v.user.id)}&order=at.desc&limit=50`),
+    deps.rest<ManagerTask[]>(token, "GET", `manager_tasks?owner_id=eq.${encodeURIComponent(v.userId)}&order=created_at.desc`),
+    deps.rest<ManagerAssignment[]>(token, "GET", "manager_assignments?order=assigned_at.desc"),
+    deps.rest<ManagerApproval[]>(token, "GET", `manager_approvals?owner_id=eq.${encodeURIComponent(v.userId)}&order=created_at.desc`),
+    deps.rest<ManagerChange[]>(token, "GET", `manager_changes?owner_id=eq.${encodeURIComponent(v.userId)}&order=at.desc&limit=50`),
     getManagerBudgetStatusWith(deps, token),
   ]);
 
   if (!tasks.ok) return fail("context_unavailable", tasks.error ?? "Could not read tasks.");
   if (!approvals.ok) return fail("context_unavailable", approvals.error ?? "Could not read approvals.");
   if (!changes.ok) return fail("context_unavailable", changes.error ?? "Could not read change log.");
-  if (!budget.ok) return budget;
+  if (isError(budget)) return budget;
 
   return {
     ok: true,
@@ -276,16 +270,16 @@ export async function createManagerTaskWith(deps: WorkbenchDeps, input: CreateTa
   const title = cleanString(input.title, 300);
   if (!title) return fail("invalid_input", "A task title is required.");
 
-  const result = await deps.rest<ManagerTask>(input.accessToken, "POST", "/rest/v1/manager_tasks", {
-    owner_id: v.user.id,
+  const result = await deps.rest<ManagerTask>(input.accessToken, "POST", "manager_tasks", {
+    owner_id: v.userId,
     title,
     detail: cleanString(input.detail, 2000),
     risk: cleanRisk(input.risk),
   });
   if (!result.ok || !result.data) return fail("context_unavailable", result.error ?? "Task could not be saved.");
 
-  await deps.rest(input.accessToken, "POST", "/rpc/log_manager_change", {
-    _owner_id: v.user.id,
+  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
     _action: "task.create",
     _entity: "manager_tasks",
     _entity_id: result.data.id,
@@ -309,26 +303,26 @@ export async function assignManagerTaskWith(deps: WorkbenchDeps, input: AssignTa
   const worker = cleanString(input.worker, 160);
   if (!worker) return fail("invalid_input", "A worker name is required.");
 
-  const taskResult = await deps.rest<ManagerTask[]>(input.accessToken, "GET", `/rest/v1/manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`);
+  const taskResult = await deps.rest<ManagerTask[]>(input.accessToken, "GET", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`);
   if (!taskResult.ok || !taskResult.data?.[0]) return fail("not_found", "Task not found.");
   const before = taskResult.data[0];
-  if (before.owner_id !== v.user.id) return fail("forbidden", "That task belongs to a different owner.");
+  if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
 
   const [updated] = await Promise.all([
-    deps.rest<ManagerTask>(input.accessToken, "PATCH", `/rest/v1/manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
+    deps.rest<ManagerTask>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
       status: "in_progress",
       worker,
       updated_at: new Date().toISOString(),
     }),
-    deps.rest<ManagerAssignment>(input.accessToken, "POST", "/rest/v1/manager_assignments", {
+    deps.rest<ManagerAssignment>(input.accessToken, "POST", "manager_assignments", {
       task_id: input.taskId,
       worker,
     }),
   ]);
   if (!updated.ok || !updated.data) return fail("context_unavailable", updated.error ?? "Assignment could not be saved.");
 
-  await deps.rest(input.accessToken, "POST", "/rpc/log_manager_change", {
-    _owner_id: v.user.id,
+  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
     _action: "task.assign",
     _entity: "manager_tasks",
     _entity_id: input.taskId,
@@ -353,22 +347,22 @@ export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTa
   const resultText = cleanString(input.result, 2000);
   if (!resultText) return fail("invalid_input", "A result summary is required to verify a task.");
 
-  const taskResult = await deps.rest<ManagerTask[]>(input.accessToken, "GET", `/rest/v1/manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`);
+  const taskResult = await deps.rest<ManagerTask[]>(input.accessToken, "GET", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`);
   if (!taskResult.ok || !taskResult.data?.[0]) return fail("not_found", "Task not found.");
   const before = taskResult.data[0];
-  if (before.owner_id !== v.user.id) return fail("forbidden", "That task belongs to a different owner.");
+  if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
 
   const evidence = cleanString(input.evidence, 2000);
   const now = new Date().toISOString();
 
   const [updated] = await Promise.all([
-    deps.rest<ManagerTask>(input.accessToken, "PATCH", `/rest/v1/manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
+    deps.rest<ManagerTask>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
       status: "done",
       result: resultText,
       evidence,
       updated_at: now,
     }),
-    deps.rest(input.accessToken, "PATCH", `/rest/v1/manager_assignments?task_id=eq.${encodeURIComponent(input.taskId)}&completed_at=is.null`, {
+    deps.rest(input.accessToken, "PATCH", `manager_assignments?task_id=eq.${encodeURIComponent(input.taskId)}&completed_at=is.null`, {
       completed_at: now,
       result: resultText,
       evidence,
@@ -376,8 +370,8 @@ export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTa
   ]);
   if (!updated.ok || !updated.data) return fail("context_unavailable", updated.error ?? "Verification could not be saved.");
 
-  await deps.rest(input.accessToken, "POST", "/rpc/log_manager_change", {
-    _owner_id: v.user.id,
+  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
     _action: "task.verify",
     _entity: "manager_tasks",
     _entity_id: input.taskId,
@@ -411,8 +405,8 @@ export async function requestManagerApprovalWith(deps: WorkbenchDeps, input: Req
 
   const costCents = cleanCents(input.costCents);
 
-  const result = await deps.rest<ManagerApproval>(input.accessToken, "POST", "/rest/v1/manager_approvals", {
-    owner_id: v.user.id,
+  const result = await deps.rest<ManagerApproval>(input.accessToken, "POST", "manager_approvals", {
+    owner_id: v.userId,
     task_id: input.taskId ? cleanString(input.taskId, 100) : null,
     title,
     detail: cleanString(input.detail, 2000),
@@ -422,8 +416,8 @@ export async function requestManagerApprovalWith(deps: WorkbenchDeps, input: Req
   });
   if (!result.ok || !result.data) return fail("context_unavailable", result.error ?? "Approval request could not be saved.");
 
-  await deps.rest(input.accessToken, "POST", "/rpc/log_manager_change", {
-    _owner_id: v.user.id,
+  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
     _action: "approval.request",
     _entity: "manager_approvals",
     _entity_id: result.data.id,
@@ -444,22 +438,22 @@ export async function decideManagerApprovalWith(deps: WorkbenchDeps, input: Deci
   const v = await verify(input.accessToken, deps);
   if (!v.ok) return v;
 
-  const decision = input.decision === "approved" || input.decision === "declined" ? input.decision : "declined";
+  const decision = input.decision === "approved" ? "approved" : "declined";
 
-  const approvalResult = await deps.rest<ManagerApproval[]>(input.accessToken, "GET", `/rest/v1/manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`);
+  const approvalResult = await deps.rest<ManagerApproval[]>(input.accessToken, "GET", `manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`);
   if (!approvalResult.ok || !approvalResult.data?.[0]) return fail("not_found", "Approval request not found.");
   const before = approvalResult.data[0];
-  if (before.owner_id !== v.user.id) return fail("forbidden", "That approval belongs to a different owner.");
+  if (before.owner_id !== v.userId) return fail("forbidden", "That approval belongs to a different owner.");
   if (before.status !== "pending") return fail("forbidden", "This approval has already been decided.");
 
-  const result = await deps.rest<ManagerApproval>(input.accessToken, "PATCH", `/rest/v1/manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`, {
+  const result = await deps.rest<ManagerApproval>(input.accessToken, "PATCH", `manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`, {
     status: decision,
     decided_at: new Date().toISOString(),
   });
   if (!result.ok || !result.data) return fail("context_unavailable", result.error ?? "Approval decision could not be saved.");
 
-  await deps.rest(input.accessToken, "POST", "/rpc/log_manager_change", {
-    _owner_id: v.user.id,
+  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
     _action: "approval.decide",
     _entity: "manager_approvals",
     _entity_id: input.approvalId,
@@ -477,16 +471,16 @@ export interface LogChangeInput {
   action: string;
   entity: string;
   entityId?: string;
-  before?: Record<string, unknown>;
-  after?: Record<string, unknown>;
+  before?: JsonObject;
+  after?: JsonObject;
 }
 
 export async function logManagerChangeWith(deps: WorkbenchDeps, input: LogChangeInput): Promise<{ ok: true } | ManagerWorkError> {
   const v = await verify(input.accessToken, deps);
   if (!v.ok) return v;
 
-  const result = await deps.rest(input.accessToken, "POST", "/rpc/log_manager_change", {
-    _owner_id: v.user.id,
+  const result = await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
     _action: cleanString(input.action, 120),
     _entity: cleanString(input.entity, 120),
     _entity_id: input.entityId ? cleanString(input.entityId, 120) : null,
@@ -546,14 +540,13 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
     question: cleanString(input.question, 2000),
   };
 
-  const backend = await import("@/lib/canx-backend.server");
-  const claudeDeps: ClaudeDeps = {
+  const claudeDeps = {
     verifyOwner: deps.verifyOwner,
     reserve: deps.reserve,
     settle: deps.settle,
-    fetchImpl: (url, init) => fetch(url, init),
-    anthropicKey: backend.readSetting(process.env["ANTHROPIC_API_KEY"]),
-    model: backend.readSetting(process.env["ANTHROPIC_MODEL"]),
+    fetchImpl: (url: string, init?: RequestInit) => fetch(url, init),
+    anthropicKey: readSetting(process.env["ANTHROPIC_API_KEY"]),
+    model: readSetting(process.env["ANTHROPIC_MODEL"]),
   };
 
   try {
@@ -629,7 +622,7 @@ export const requestManagerApproval = createServerFn({ method: "POST" })
       accessToken: strAccess(input).accessToken,
       title: cleanString(raw?.title, 300),
       detail: cleanString(raw?.detail, 2000),
-      costCents: cleanCents(raw?.costCents),
+      costCents: cleanCents(raw?.costCents) ?? undefined,
       risk: cleanRisk(raw?.risk),
       taskId: cleanString(raw?.taskId, 100) || undefined,
     };
@@ -642,7 +635,7 @@ export const decideManagerApproval = createServerFn({ method: "POST" })
     return {
       accessToken: strAccess(input).accessToken,
       approvalId: cleanString(raw?.approvalId, 100),
-      decision: raw?.decision === "approved" ? "approved" : "declined",
+      decision: raw?.decision === "approved" ? ("approved" as const) : ("declined" as const),
     };
   })
   .handler(async ({ data }) => decideManagerApprovalWith(await realDeps(), data));
@@ -650,3 +643,16 @@ export const decideManagerApproval = createServerFn({ method: "POST" })
 export const getManagerBudgetStatus = createServerFn({ method: "POST" })
   .inputValidator(strAccess)
   .handler(async ({ data }) => getManagerBudgetStatusWith(await realDeps(), data.accessToken));
+
+export const runManagerSecondEyes = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    const raw = input as Partial<SecondEyesInput> | undefined;
+    return {
+      accessToken: strAccess(input).accessToken,
+      subject: cleanString(raw?.subject, 300),
+      primaryRecommendation: cleanString(raw?.primaryRecommendation, 6000),
+      evidence: cleanString(raw?.evidence, 6000),
+      question: cleanString(raw?.question, 2000),
+    };
+  })
+  .handler(async ({ data }) => runManagerSecondEyesWith(await realDeps(), data));
