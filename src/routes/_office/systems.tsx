@@ -79,7 +79,7 @@ function Systems() {
               Nothing below is shown as connected unless the office has actually checked it. A key or an account
               somewhere else is not a connection.
             </p>
-            <Row name="CanX-owned database" note={databaseStatus({ state: session.state, configured: session.configured }).note} tone={databaseStatus({ state: session.state, configured: session.configured }).tone} />
+            <Row name="CanX-owned database" note={dbStatus.note} tone={dbStatus.tone} />
             <Row
               name="Owner sign-in with two-step verification"
               note={signedIn ? `Signed in as ${session.email}.` : session.message}
