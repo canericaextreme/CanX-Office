@@ -55,7 +55,7 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
-      <div className="mx-auto flex min-h-16 max-w-screen-2xl items-center gap-2 px-3 sm:gap-3 sm:px-5">
+      <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-2 px-3 sm:flex-nowrap sm:gap-3 sm:px-5">
         <Button variant="ghost" size="icon" aria-label="Back to previous CanX Office screen" onClick={goBack}><ChevronLeft className="h-5 w-5" /></Button>
         <Button variant="ghost" size="icon" asChild aria-label="Home / Reception"><Link to="/"><Home className="h-5 w-5" /></Link></Button>
 
