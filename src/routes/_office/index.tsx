@@ -67,7 +67,9 @@ function Reception() {
           </CardContent>
         </Card>
 
-        <div className="mb-6">{mode === "3d" ? <Office3D /> : <SimpleOffice />}</div>
+        <div className="mb-6 min-h-[320px]" aria-busy={!hydrated}>
+          {hydrated ? mode === "3d" ? <Office3D /> : <SimpleOffice /> : null}
+        </div>
 
         <div className="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
