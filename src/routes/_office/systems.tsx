@@ -59,6 +59,7 @@ function Systems() {
 
   const dbConnected = session.configured;
   const signedIn = session.state === "owner";
+  const dbStatus = databaseStatus({ state: session.state, configured: session.configured });
   const step = nextStep({
     state: session.state,
     configured: session.configured,
