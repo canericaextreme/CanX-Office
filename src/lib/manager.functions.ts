@@ -406,7 +406,7 @@ function sanitizedProviderDetail(status?: number): string {
 }
 
 function denyReply(code: ManagerReply["code"], state: ManagerState, detail: string, model: string | null = null): ManagerReply {
-  return { ok: false, code, provider: "none", state, model, text: "", toolCalls: [], detail };
+  return { ok: false, code, provider: "none", state, model, text: "", toolCalls: [], actionResults: [], detail };
 }
 
 async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: string): Promise<ManagerReply> {
