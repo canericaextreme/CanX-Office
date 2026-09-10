@@ -210,3 +210,91 @@ describe("no secret leakage and untrusted input handling", () => {
     expect(clean.accessToken).toBe("");
   });
 });
+
+describe("Claude connection check (non-billable, fail closed)", () => {
+  const status = (fetchImpl: unknown) =>
+    computeClaudeStatusWith(deps({ fetchImpl: fetchImpl as typeof fetch }), "t");
+
+  const listing = (ids: string[]) => ok({ data: ids.map((id) => ({ id })) });
+
+  it("never calls the paid messages endpoint while verifying", async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: unknown) => {
+      calls.push(String(url));
+      return ok({ id: "claude-test" });
+    });
+    await status(fetchImpl);
+    expect(calls.every((url) => url.includes("/v1/models"))).toBe(true);
+    expect(calls.some((url) => url.includes("/v1/messages"))).toBe(false);
+  });
+
+  it("connects on a direct per-model success without a fallback call", async () => {
+    const fetchImpl = vi.fn(async () => ok({ id: "claude-test" }));
+    const result = await status(fetchImpl);
+    expect(result.connected).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the model listing when the per-model lookup is unreachable", async () => {
+    const fetchImpl = vi.fn(async (url: unknown) => {
+      if (String(url).includes("/models/")) throw new TypeError("fetch failed");
+      return listing(["claude-test", "claude-other"]);
+    });
+    const result = await status(fetchImpl);
+    expect(result.connected).toBe(true);
+    expect(result.state).toBe("verified");
+  });
+
+  it("reports a missing model by name when the listing does not contain it", async () => {
+    const fetchImpl = vi.fn(async (url: unknown) =>
+      String(url).includes("/models/") ? new Response("", { status: 404 }) : listing(["claude-other"]),
+    );
+    const result = await status(fetchImpl);
+    expect(result.connected).toBe(false);
+    expect(result.detail).toContain("claude-test");
+    expect(result.detail).toContain("ANTHROPIC_MODEL");
+  });
+
+  it("stays disconnected on a timeout with a retry hint", async () => {
+    const fetchImpl = vi.fn(async () => {
+      const error = new Error("aborted");
+      error.name = "AbortError";
+      throw error;
+    });
+    const result = await status(fetchImpl);
+    expect(result.connected).toBe(false);
+    expect(result.state).toBe("configured_unverified");
+    expect(result.detail).toContain("timed out");
+  });
+
+  it("stays disconnected when the network fails and the listing also fails", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const result = await status(fetchImpl);
+    expect(result.connected).toBe(false);
+    expect(result.detail).toContain("could not reach Anthropic");
+  });
+
+  for (const [code, expected] of [
+    [401, "credentials"],
+    [403, "credentials"],
+    [429, "rate limiting"],
+    [500, "temporary failure"],
+  ] as const) {
+    it(`stays disconnected on HTTP ${code} without a fallback call`, async () => {
+      const fetchImpl = vi.fn(async () => new Response("secret-body", { status: code }));
+      const result = await status(fetchImpl);
+      expect(result.connected).toBe(false);
+      expect(result.detail).toContain(expected);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it("never discloses the key or provider bodies in the status", async () => {
+    const fetchImpl = vi.fn(async () => new Response(`body-with-${KEY}`, { status: 401 }));
+    const result = await status(fetchImpl);
+    expect(JSON.stringify(result)).not.toContain(KEY);
+    expect(JSON.stringify(result)).not.toContain("body-with");
+  });
+});
