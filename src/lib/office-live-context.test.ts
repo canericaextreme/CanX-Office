@@ -88,7 +88,6 @@ function rest(handlers: Record<string, { ok: boolean; body: unknown }>): RestImp
 const request = (restImpl: RestImpl) => ({
   config: CONFIG,
   token: "token",
-  ownerEmail: "owner@example.com",
   aal: "aal2",
   provider: "OpenAI",
   model: "gpt-test",
@@ -100,7 +99,7 @@ const FULL = {
     ok: true,
     body: [
       { title: "Confirm AI limits row", detail: "Before any paid call", kind: "task", provenance: "john" },
-      { title: "Sample demo item", detail: "", kind: "task", provenance: "sample" },
+      { title: "Sample demo item", detail: "Only for the demo", kind: "task", provenance: "sample" },
     ],
   },
   round_tables: { ok: true, body: [{ key: "monday-2026-09-14", updated_at: "2026-09-10T18:00:00Z" }] },
@@ -121,11 +120,21 @@ describe("live office context", () => {
     expect(result.text).toContain("last updated 2026-09-10T18:00:00Z");
   });
 
-  it("labels sample records as sample and never presents them as current work", async () => {
+  it("excludes demonstration records entirely, matching what the context claims", async () => {
     const result = await buildLiveOfficeContext(request(rest(FULL)));
     if (!result.ok) throw new Error("expected ok");
-    expect(result.text).toContain("(task, sample) Sample demo item");
+    expect(result.text).not.toContain("Sample demo item");
+    expect(result.text).not.toContain("Only for the demo");
+    expect(result.text).not.toContain("sample");
+    expect(result.text).toContain("Confirm AI limits row");
     expect(result.text).toContain("Do not describe any project or work item as current");
+  });
+
+  it("never sends the owner's email address to the provider", async () => {
+    const result = await buildLiveOfficeContext(request(rest(FULL)));
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.text).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    expect(result.text).toContain("verified owner account is confirmed");
   });
 
   it("says none recorded when the office is empty, instead of using sample data", async () => {
