@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BrainMap } from "@/components/office/BrainMap";
 import { Office3D } from "@/components/office/Office3D";
 import { SimpleOffice } from "@/components/office/SimpleOffice";
 import { StatusPanel } from "@/components/office/StatusPanel";
@@ -91,7 +90,6 @@ function Reception() {
 
           <div className="space-y-6">
             <StatusPanel items={SAMPLE_STATUS} />
-            <BrainMap />
           </div>
         </div>
       </div>
