@@ -238,3 +238,54 @@ describe("bound fetch dependency", () => {
     expect(calls).not.toContain("DETACHED");
   });
 });
+
+describe("live office context replaces anything the browser sends", () => {
+  it("ignores a client-supplied context field entirely", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ output_text: "ok", output: [] }), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const reply = await runManagerChatWith(
+      deps({ verifyOwner: async () => OWNER, fetchImpl }),
+      // A stale Phase 1 context is deliberately smuggled in by the caller.
+      { ...CHAT, context: "SAMPLE PHASE 1 CONTEXT" } as unknown as typeof CHAT,
+    );
+    expect(reply.ok).toBe(true);
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const chatCall = calls.find(([url]) => String(url).includes("/v1/responses"));
+    const body = String((chatCall?.[1] as RequestInit).body);
+    expect(body).not.toContain("SAMPLE PHASE 1 CONTEXT");
+    expect(body).toContain("LIVE OFFICE CONTEXT");
+  });
+
+  it("fails closed with no paid call when the live read fails", async () => {
+    const fetchImpl = vi.fn();
+    const reply = await runManagerChatWith(
+      deps({
+        verifyOwner: async () => OWNER,
+        buildContext: async () => ({ ok: false, message: "The office records could not be read just now." }),
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+      CHAT,
+    );
+    expect(reply.ok).toBe(false);
+    expect(reply.code).toBe("context_unavailable");
+    expect(reply.detail).toContain("could not be read");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the context builder throws", async () => {
+    const fetchImpl = vi.fn();
+    const reply = await runManagerChatWith(
+      deps({
+        verifyOwner: async () => OWNER,
+        buildContext: async () => {
+          throw new Error("network");
+        },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+      CHAT,
+    );
+    expect(reply.code).toBe("context_unavailable");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
