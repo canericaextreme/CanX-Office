@@ -324,9 +324,12 @@ Hard rules:
 export interface ChatInput {
   accessToken: string;
   messages: { role: "user" | "assistant"; content: string }[];
-  context: string;
 }
 
+/**
+ * Any `context` field sent by the browser is deliberately dropped here. Office
+ * facts are read on the server after the owner is verified.
+ */
 function validate(input: unknown): ChatInput {
   const raw = input as Partial<ChatInput> | undefined;
   const messages = Array.isArray(raw?.messages) ? raw.messages : [];
@@ -337,11 +340,10 @@ function validate(input: unknown): ChatInput {
   return {
     accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
     messages: clean,
-    context: typeof raw?.context === "string" ? raw.context.slice(0, MAX_CHARS) : "",
   };
 }
 
-/** Client context is wrapped as clearly fenced untrusted data, never as instructions. */
+/** Server-built context is still wrapped as fenced data, never as instructions. */
 function untrustedContextMessage(context: string) {
   return {
     role: "user" as const,
