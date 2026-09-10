@@ -360,12 +360,11 @@ async function healthCheck(deps: ClaudeDeps): Promise<{ ok: boolean; detail: str
         detail: `Anthropic does not offer the configured model "${deps.model}" on this account. Update ANTHROPIC_MODEL.`,
       };
     }
-    return {
-      ok: false,
-      detail: first.kind === "unreachable" && first.aborted
-        ? "The Claude connection check timed out before Anthropic answered, so Claude stays disconnected. Try again."
-        : "The server could not reach Anthropic to check the Claude connection, so Claude stays disconnected.",
-    };
+    if (first.kind === "unreachable") {
+      const seconds = Math.max(1, Math.round(first.elapsedMs / 1000));
+      return { ok: false, detail: `${UNREACHABLE_DETAILS[first.class]} (No reply after about ${seconds}s.)` };
+    }
+    return { ok: false, detail: UNREACHABLE_DETAILS.other };
   }
 
   return { ok: false, detail: sanitizedProviderDetail(first.status) };
