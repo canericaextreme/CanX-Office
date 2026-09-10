@@ -106,13 +106,13 @@ async function realDeps(): Promise<WorkbenchDeps> {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
-    rest: async (token, method, path, body) => {
+    rest: async <T>(token: string, method: string, path: string, body?: JsonObject) => {
       if (!config) return { ok: false, error: "No CanX-owned database is configured." };
       const init: RequestInit = { method };
       if (body && method !== "GET") init.body = JSON.stringify(body);
       const result = await backend.restRequest(config, token, path, init);
       if (!result.ok) return { ok: false, error: `Request failed (${result.status}).` };
-      return { ok: true, data: result.body as unknown as JsonValue as T };
+      return { ok: true, data: result.body as unknown as T };
     },
     ensureBudget: async (token, ownerId) => {
       if (!config) return { ok: false, error: "No CanX-owned database is configured." };
