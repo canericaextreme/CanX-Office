@@ -535,21 +535,6 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
     };
   }
 
-  const reservation = await deps.reserve(input.accessToken, 3);
-  if (!reservation.allowed) {
-    return {
-      ok: false,
-      code: "limit_blocked",
-      provider: "none",
-      state: "configured_unverified",
-      model: null,
-      reviewer: "Claude — independent review",
-      review: null,
-      text: "",
-      detail: reservation.message,
-    };
-  }
-
   const reviewInput: ReviewInput = {
     accessToken: input.accessToken,
     subject: cleanString(input.subject, 300),
@@ -568,11 +553,8 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
   };
 
   try {
-    const reply = await runClaudeReviewWith(claudeDeps, reviewInput);
-    await deps.settle(input.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-    return reply;
+    return await runClaudeReviewWith(claudeDeps, reviewInput);
   } catch (error) {
-    await deps.settle(input.accessToken, reservation.reservationId, "failed");
     return {
       ok: false,
       code: "provider_error",
