@@ -283,7 +283,7 @@ function errorCauseCode(error: unknown): string | null {
   const cause = (error as { cause?: unknown }).cause;
   if (cause && typeof cause === "object" && "code" in cause) {
     const code = (cause as { code?: unknown }).code;
-    if (typeof code === "string" && /^[A-Z0-9_]{2,24}$/.test(code)) return code;
+    if (typeof code === "string" && /^[A-Z0-9_]{2,40}$/.test(code)) return code;
   }
   return null;
 }
