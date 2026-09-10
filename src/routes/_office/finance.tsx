@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BudgetPanel } from "@/components/office/BudgetPanel";
+import { OwnerSignIn } from "@/components/office/OwnerSignIn";
 import { useOwnerSession } from "@/lib/owner-session";
 import { listPrivateReceipts, savePrivateReceipts } from "@/lib/finance.functions";
 import {
@@ -140,9 +141,28 @@ function Finance() {
     ? "Saved in your private CanX account"
     : "Saved on this device only — not shared, not backed up";
 
+  // Gate: nothing below is rendered until the server has verified the owner.
+  if (owner.state !== "owner") {
+    return (
+      <RoomShell showSample={false}>
+        <div className="mx-auto max-w-xl space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Sign in to Finance</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Private receipts are available only to the verified owner, with two-step verification. Nothing in this
+              room is shown until you are signed in.
+            </p>
+          </div>
+          <OwnerSignIn />
+        </div>
+      </RoomShell>
+    );
+  }
+
   return (
     <RoomShell showSample={false}>
       <div className="grid gap-4">
+        <OwnerSignIn />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: "Income", value: "Unknown", note: "Unknown until reconciliation" },
