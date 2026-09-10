@@ -112,7 +112,7 @@ describe("live office context", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.text).toContain("CanX-owned database: connected");
-    expect(result.text).toContain("owner@example.com");
+    expect(result.text).toContain("verified owner account is confirmed");
     expect(result.text).toContain("aal2");
     expect(result.text).toContain("model: gpt-test");
     expect(result.text).toContain("Confirm AI limits row");
@@ -151,6 +151,7 @@ describe("live office context", () => {
     expect(result.text).toContain("notes, tasks and decisions [provenance: live database]: none recorded.");
     expect(result.text).toContain("Round table records [provenance: live database]: none recorded.");
     expect(result.text).toContain("Receipts filed: 0");
+    expect(result.text).toContain("Totals by original currency: none recorded");
     expect(result.text).not.toContain("Trail Tales website");
   });
 
