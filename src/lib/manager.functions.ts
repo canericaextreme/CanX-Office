@@ -6,8 +6,10 @@
  *   2. The request carries a valid session for that database.
  *   3. That account holds the owner role, read from the database.
  *   4. The session passed two-step verification (AAL2).
- *   5. A durable per-owner request-rate and spending reservation succeeds.
- *   6. A live, authenticated provider health check passes.
+ *   5. A provider key and an explicit model are configured on the server.
+ *   6. The live office context is read from the database as that owner.
+ *   7. A durable per-owner request-rate and spending reservation succeeds.
+ *   8. A live, authenticated provider health check passes.
  *
  * Any failure, at any step, denies. There is no environment flag that bypasses
  * this, no gateway fallback, and a provider key on its own never enables
