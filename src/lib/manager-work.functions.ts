@@ -168,7 +168,6 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
     "deploy",
     "publish",
     "release",
-    "send_email",
     "send_message",
     "dispatch",
     "purchase",
@@ -189,6 +188,7 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
     "major_change",
     "cross_project_write",
     "external_write",
+    "send_email",
   ];
   if (yellow.some((word) => a.includes(word))) return "yellow";
   if ((s.includes("safe_highways") || s.includes("trail_tales")) && (a.includes("write") || a.includes("update") || a.includes("delete") || a.includes("change"))) {
