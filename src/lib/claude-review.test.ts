@@ -327,7 +327,7 @@ describe("bound fetch dependency", () => {
   it("works when fetch is supplied as a bound wrapper, not a detached reference", async () => {
     const calls: string[] = [];
     const globalLike = {
-      fetch(url: string) {
+      fetch(url: string, _init?: unknown) {
         // Throws if invoked detached from its owner, like the worker runtime.
         calls.push(this === globalLike ? url : "DETACHED");
         return Promise.resolve(new Response("{}", { status: 200 }));
