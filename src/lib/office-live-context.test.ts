@@ -178,8 +178,8 @@ describe("receipt aggregation and privacy", () => {
     const summary = summariseReceiptDocument(JSON.stringify(receiptDoc));
     expect(summary.totalsByCurrency).toEqual([
       { currency: "CAD", total: 125.5, count: 2 },
+      { currency: "UNKNOWN", total: 12.25, count: 1 },
       { currency: "USD", total: 40, count: 1 },
-      { currency: "unspecified", total: 12.25, count: 1 },
     ]);
   });
 
