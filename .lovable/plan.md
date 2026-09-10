@@ -1,56 +1,50 @@
-# Claude connection: diagnose the "could not reach Anthropic" result
+# Forensic review: which checkpoint matches the morning screen
 
-Diagnosis and plan only. No code changes, no deployment, no paid calls.
+Review only. No code was changed, nothing was deployed, no paid call was made.
 
-## What we actually know
+## A. Recommended target commit
 
-Confirmed by reading the code and the live status you reported:
+**46822827550379ef81cdde87de252bf874def758 — "Added real activity logging", 9 Sep 2026 23:11 UTC.**
 
-- The office reaches your own CanX database from the same server runtime: owner sign-in, owner role and two-step verification all succeed there. So the server is not cut off from the internet in general.
-- The Claude check never received any answer from Anthropic — both the single-model lookup and the model-list fallback failed before any reply arrived, and not by timeout (the message would have said so).
-- Anthropic itself is reachable and answering from outside the app (a plain unauthenticated request returns a normal "unauthorised" reply in about 0.2 seconds), so the service is up.
+Evidence from the history:
+- It is the last commit of yesterday. The next commit in the log is `a99807e3` at 10 Sep 16:51 ("Fixed stale Systems status"), the first change of today.
+- The two other candidates are earlier the same evening and are supersets-in-progress of the same work: `9c5cd837` 22:16 ("Added Claude second-eyes review") and `ea721d0f` 23:07 ("Enabled Claude review flow").
+- `11f4f5c7` is 9 Sep 21:53 — earlier than all three, which is why that rollback went too far back.
 
-Not yet confirmed, and the plan's first step is to confirm it: whether the failure is the app's own server being blocked from that particular address, or something in how the request is formed (for example a model name with unexpected characters in the address).
+At `46822827` the Reception page contains exactly the desired elements: dark charcoal CANX Office heading, sample badge, Tour, the Office Manager information banner, the view that renders the 20-card grid, the Office status panel, and the Brain map panel (the coloured/green lower visual portion) below it.
 
-## Answers to your five questions
+## B. What removed the green section and caused the compression
 
-1. **Outbound access.** The app's server code can make outbound requests — it already does, to your database. Whether that extends to `api.anthropic.com` is not something the code can tell us; it has to be measured. Preview and published are different runtimes with separately applied settings, so a result in one does not prove the other. Both need checking.
-2. **Telling the causes apart safely.** Yes. The failure category (name lookup, secure-connection failure, blocked/refused, timeout) can be recorded from the error's own type and name, with the elapsed time, without ever touching the key, the request headers, or the provider's response body. That is a small, safe addition.
-3. **Moving the calls into your own database's edge function.** Recommended only if step 1 shows the app's server genuinely cannot reach Anthropic. It is the durable fix in that case: the call would run inside your own CanX-owned infrastructure, the key would live there and never in the app, and all the existing gates stay in force. But it is a larger change and pointless if the real cause is a malformed address, so it is the fallback, not the first move.
-4. **Publishing.** Publishing alone is worth testing before any rewrite: settings you add are applied to the live site at publish time, and the live site runs on different infrastructure than the preview. It can be tested for free — the connection check only asks Anthropic to describe a model, which is not a billable request. It never sends anything to the paid review endpoint.
+Everything that touched Reception layout happened today, after `46822827`:
 
-## Recommended path — measure first, one small safe change
+- `6f57e1a` / `38a1ba5` "Refactored Reception layout" and `ead7809` "Fixed Reception desktop layout" (17:40–18:10) moved the Brain map between the wide left column and the narrow 340px right strip. That narrow strip is what squeezes the activity text into one-word lines and leaves the wide left column mostly empty.
+- `2621c88` "Fixed Brain responsive overflow", `ce5f778` "Fixed office toggle visibility", `ba83369` "Unified office view mode state", `68c249c` "Fixed startup view default bug" changed the view-mode state and defaults. The half-second flash of the correct grid followed by a compressed layout is this hydration/default-mode behaviour.
+- `cff32c4` rolled back to the too-early `11f4f5c7`, and `8bc9658` ("Removed BrainMap from Reception") deleted the Brain panel from Reception — that is the direct cause of the missing green lower section right now.
 
-**Step 1 — add non-secret failure detail (small change to one file plus its tests).**
-In the Claude check, record and display the failure category and how long it took: name-lookup failure, secure-connection failure, connection refused/blocked, timeout, or other. Also show the exact address shape being used (host and path only, no key, no headers, no provider body). Nothing secret is added to the display, and no extra request is made.
+The current tree differs from `46822827` in only 11 files: the Claude review files (deleted), Systems/round-table/inventory/doc edits, the Reception Brain removal, and a test file. Reception is otherwise byte-identical to the morning version.
 
-**Step 2 — you refresh the Systems page as owner.** The row now says which of the four it is.
+## C. Effect on Supabase / auth / Finance / receipts
 
-**Step 3 — act on what it says.**
-- Blocked/refused → the app's server cannot reach Anthropic. Go to the fallback below.
-- Name-lookup or secure-connection failure → likely the same conclusion; confirm by publishing and re-checking on the live site.
-- Something about the address or model name → fix the model value in settings; no architecture change needed.
-- It works on the live site but not preview → nothing to fix; the check is honest, preview simply cannot reach it.
+Restoring the whole commit is safe for data. Nothing under version control holds live data:
+- The external CanX-owned Supabase project, its rows, and its users are outside git and untouched by a code restore.
+- Secrets (`ANTHROPIC_API_KEY`, any Supabase keys, model names) live in Project Settings, not in the repo.
+- SQL migrations under `docs/migrations/` are documents only; restoring them changes no database.
+- Finance receipt review data stored device-locally in the browser is unaffected by a code restore.
 
-Throughout: no paid review call, no change to owner rules, budgets, Finance data, or any other room.
+One consequence to accept: `46822827` still contains the Claude Second Eyes code (added yesterday at `9c5cd837`/`ea721d0f`). Restoring the whole commit brings that code back, minus today's connectivity troubleshooting. Claude stays disconnected until a key and model are entered.
 
-## Fallback path — move the Anthropic calls into your own database's edge function
+## D. Safest restoration procedure
 
-Only if step 3 shows the app's server is genuinely blocked.
+Whole-checkpoint restore, no hybrid:
 
-Shape of it:
+1. Restore every tracked file to its exact `46822827` content, including deleting files added after it (the `-index.test.ts` regression file) and re-adding files deleted since (the Claude review files).
+2. Keep `.lovable/plan.md` as working metadata only.
+3. Verify: typecheck, full test run, production build.
+4. Browser check at 1920x1080 and 1366x768: Reception header, sample badge, Tour, Manager banner, the 20-card grid in four columns, Office status, and the Brain panel visible with its colour; no horizontal overflow; all 20 room routes load.
+5. Report the result. Do not publish until the screen is confirmed correct.
 
-- One new edge function in your CanX-owned Supabase project with two actions: `health` (free model lookup) and `review` (the paid review).
-- `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` move to that project's own secret storage and are removed from the app. The browser never sees either, before or after.
-- The function requires the caller's signed-in token, re-reads the owner role from your database, requires two-step verification, and reserves budget through the existing durable reservation before any paid call. Same order, same fail-closed behaviour as today.
-- Cross-site access restricted to the office's own addresses only.
-- The app's existing Claude code keeps its shape; only the address it calls changes, so the panel, Systems row, and activity records stay as they are.
-- Tests: success, refused credentials, unknown model, rate limited, provider failure, timeout, blocked network, and a check that no secret ever appears in any returned message.
-- Manual steps for you: add the two secrets in your database project, deploy the function, remove the two secrets from the app, refresh Systems.
-- Rollback: point the app back at the direct path and re-add the app secrets. No data is migrated, so nothing is lost either way.
+If after restore the Brain panel still reads compressed in the 340px right strip, that is the original layout, not a regression — a separate, explicitly approved layout change would be needed.
 
-## Technical notes
+## E. One open question
 
-- Failure classification uses the thrown error's `name`/`cause` only; the key, headers, and provider bodies stay out of logs and out of anything returned to the browser.
-- The health probe uses `GET /v1/models/{id}` with `GET /v1/models?limit=100` as fallback; neither is billable. `/v1/messages` is untouched by verification.
-- Files touched in step 1: `src/lib/claude-review.functions.ts`, `src/lib/claude-review.test.ts`, and the Systems row wording only if the detail needs a place to render.
+The morning screen opened directly in the 20-card "Simple view". At `46822827` the default is the office floor view, and Simple view is remembered from the browser's saved preference. Restoring this commit reproduces that behaviour exactly. If John wants Simple view to be the guaranteed default on every fresh load, that is a separate small change to approve after the restore.
