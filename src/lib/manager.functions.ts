@@ -315,6 +315,40 @@ const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" 
     kind: { type: "string", enum: ["task", "decision"] },
     owner: { type: "string", maxLen: 160 },
   },
+  create_task: {
+    title: { type: "string", maxLen: 300 },
+    detail: { type: "string", maxLen: 2000 },
+    risk: { type: "string", enum: ["green", "yellow", "red"] },
+  },
+  assign_task: {
+    task_id: { type: "string", maxLen: 100 },
+    worker: { type: "string", maxLen: 160 },
+  },
+  verify_task: {
+    task_id: { type: "string", maxLen: 100 },
+    result: { type: "string", maxLen: 2000 },
+    evidence: { type: "string", maxLen: 2000 },
+  },
+  request_approval: {
+    title: { type: "string", maxLen: 300 },
+    detail: { type: "string", maxLen: 2000 },
+    cost_cents: { type: "number", min: 0, max: 100000 },
+    risk: { type: "string", enum: ["green", "yellow", "red"] },
+    task_id: { type: "string", maxLen: 100 },
+  },
+  log_change: {
+    action: { type: "string", maxLen: 120 },
+    entity: { type: "string", maxLen: 120 },
+    entity_id: { type: "string", maxLen: 120 },
+    before: { type: "object" },
+    after: { type: "object" },
+  },
+  second_eyes_review: {
+    subject: { type: "string", maxLen: 300 },
+    primary_recommendation: { type: "string", maxLen: 6000 },
+    evidence: { type: "string", maxLen: 6000 },
+    question: { type: "string", maxLen: 2000 },
+  },
 };
 
 export function sanitizeToolArgs(name: string, raw: string | undefined): ManagerToolArgs | null {
