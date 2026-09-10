@@ -390,7 +390,7 @@ export interface RequestApprovalInput {
   detail?: string;
   costCents?: number | null;
   risk?: RiskLevel;
-  taskId?: string;
+  taskId?: string | null;
 }
 
 export async function requestManagerApprovalWith(deps: WorkbenchDeps, input: RequestApprovalInput): Promise<ManagerApproval | ManagerWorkError> {
