@@ -618,12 +618,16 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
   }
 }
 
+function isManagerError<T>(value: T | ManagerWorkError): value is ManagerWorkError {
+  return value !== null && typeof value === "object" && "ok" in value && value.ok === false;
+}
+
 function buildWorkbenchDeps(managerDeps: ManagerDeps): WorkbenchDeps {
   return {
     verifyOwner: managerDeps.verifyOwner,
     reserve: managerDeps.reserve,
     settle: managerDeps.settle,
-    rest: async <T>(token: string, method: string, path: string, body?: Record<string, unknown>) => {
+    rest: async <T>(token: string, method: string, path: string, body?: JsonObject) => {
       const backend = await import("@/lib/canx-backend.server");
       const config = backend.readBackendConfig();
       if (!config) return { ok: false, error: "No CanX-owned database is configured." };
@@ -640,13 +644,13 @@ function buildWorkbenchDeps(managerDeps: ManagerDeps): WorkbenchDeps {
       });
       if (!response.ok) return { ok: false, error: `Request failed (${response.status}).` };
       const text = await response.text().catch(() => "");
-      let data: T | undefined;
+      if (!text) return { ok: true };
       try {
-        data = text ? (JSON.parse(text) as T) : undefined;
+        const data = JSON.parse(text) as T;
+        return { ok: true, data };
       } catch {
-        data = undefined;
+        return { ok: true };
       }
-      return { ok: true, data };
     },
     ensureBudget: async (token, ownerId) => {
       const backend = await import("@/lib/canx-backend.server");
@@ -700,8 +704,8 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
     if (risk === "yellow") {
       const title = typeof call.arguments["title"] === "string" ? call.arguments["title"] : call.name;
       const detail = typeof call.arguments["detail"] === "string" ? call.arguments["detail"] : "";
-      const costCents = typeof call.arguments["cost_cents"] === "number" ? call.arguments["cost_cents"] : undefined;
-      const taskId = typeof call.arguments["task_id"] === "string" ? call.arguments["task_id"] : undefined;
+      const costCents = typeof call.arguments["cost_cents"] === "number" ? call.arguments["cost_cents"] : null;
+      const taskId = typeof call.arguments["task_id"] === "string" ? call.arguments["task_id"] : null;
       const result = await requestManagerApprovalWith(workbench, {
         accessToken,
         title,
@@ -710,19 +714,19 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
         risk: "yellow",
         taskId,
       });
-      if (result.ok) {
-        actionResults.push({
-          name: call.name,
-          risk,
-          status: "pending",
-          detail: `Queued for approval: "${title}" (approval id ${result.id}).`,
-        });
-      } else {
+      if (isManagerError(result)) {
         actionResults.push({
           name: call.name,
           risk,
           status: "stopped",
           detail: `Could not queue approval: ${result.message}`,
+        });
+      } else {
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: "pending",
+          detail: `Queued for approval: "${title}" (approval id ${result.id}).`,
         });
       }
       continue;
@@ -737,24 +741,32 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           detail: String(call.arguments["detail"] ?? ""),
           risk: (call.arguments["risk"] as RiskLevel) ?? "green",
         });
-        actionResults.push({
-          name: call.name,
-          risk,
-          status: result.ok ? "done" : "stopped",
-          detail: result.ok ? `Created task "${result.title}" (${result.id}).` : result.message,
-        });
+        if (isManagerError(result)) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
+        } else {
+          actionResults.push({
+            name: call.name,
+            risk,
+            status: "done",
+            detail: `Created task "${result.title}" (${result.id}).`,
+          });
+        }
       } else if (call.name === "assign_task") {
         const result = await assignManagerTaskWith(workbench, {
           accessToken,
           taskId: String(call.arguments["task_id"] ?? ""),
           worker: String(call.arguments["worker"] ?? ""),
         });
-        actionResults.push({
-          name: call.name,
-          risk,
-          status: result.ok ? "done" : "stopped",
-          detail: result.ok ? `Assigned "${result.title}" to ${result.worker}.` : result.message,
-        });
+        if (isManagerError(result)) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
+        } else {
+          actionResults.push({
+            name: call.name,
+            risk,
+            status: "done",
+            detail: `Assigned "${result.title}" to ${result.worker}.`,
+          });
+        }
       } else if (call.name === "verify_task") {
         const result = await verifyManagerTaskWith(workbench, {
           accessToken,
@@ -762,12 +774,16 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           result: String(call.arguments["result"] ?? ""),
           evidence: String(call.arguments["evidence"] ?? ""),
         });
-        actionResults.push({
-          name: call.name,
-          risk,
-          status: result.ok ? "done" : "stopped",
-          detail: result.ok ? `Verified "${result.title}" as done.` : result.message,
-        });
+        if (isManagerError(result)) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
+        } else {
+          actionResults.push({
+            name: call.name,
+            risk,
+            status: "done",
+            detail: `Verified "${result.title}" as done.`,
+          });
+        }
       } else if (call.name === "log_change") {
         let before: Record<string, unknown> = {};
         let after: Record<string, unknown> = {};
@@ -788,12 +804,11 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           before,
           after,
         });
-        actionResults.push({
-          name: call.name,
-          risk,
-          status: result.ok ? "done" : "stopped",
-          detail: result.ok ? "Change logged." : result.message,
-        });
+        if (isManagerError(result)) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
+        } else {
+          actionResults.push({ name: call.name, risk, status: "done", detail: "Change logged." });
+        }
       } else if (call.name === "second_eyes_review") {
         const result = await runManagerSecondEyesWith(workbench, {
           accessToken,
@@ -817,7 +832,7 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           name: call.name,
           risk,
           status: result.ok ? "done" : "stopped",
-          detail: result.ok ? "Second-eyes review completed." : result.detail ?? "Claude review failed.",
+          detail: result.ok ? "Second-eyes review completed." : (result.detail ?? "Claude review failed."),
         });
       } else if (call.name === "preview_appearance" || call.name === "propose_task") {
         remainingToolCalls.push(call);
