@@ -119,31 +119,10 @@ No limits row means no agreed budget, which means every paid call is refused.
 
 The office picks no model for you and never claims a model is "the latest".
 
-## Step 6b — optional: Claude "second eyes" (Anthropic)
-
-Claude is a separate, independent reviewer. It never replaces the Office
-Manager, never answers ordinary office chat, and cannot authorise a build or
-any spending. It passes exactly the same gates as the manager: owner sign-in,
-two-step verification, a durable spending and rate reservation, and a live
-authenticated check of the Anthropic connection.
-
-Add these in **Project Settings → Secrets**. Never paste a key into the Lovable
-chat, and never into a file:
-
-| Name | What it is |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | Your own Anthropic key. Server only, never sent to the browser. |
-| `ANTHROPIC_MODEL` | The exact Anthropic model you choose. Left unset on purpose — the office will not guess one. |
-
-Until both exist, the Systems room shows Claude as not connected. A key on its
-own changes nothing: "verified" appears only after a real authenticated call to
-Anthropic succeeds.
-
 ## Step 7 — check it in the office
 
 Open the **Systems** room. Each line says configured, verified, or blocked, and
 gives the reason. "Verified" appears only after a real successful call.
-
 
 ---
 

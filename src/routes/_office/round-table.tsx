@@ -20,7 +20,6 @@ import {
   type RoundTableDoc,
 } from "@/lib/round-table";
 import { FEASIBILITY_ITEMS } from "@/lib/feasibility-queue";
-import { CLAUDE_ASSIGNMENTS } from "@/lib/claude-assignments";
 import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
 import { IDEA_LAB_KNOWLEDGE } from "@/lib/office-knowledge";
 
@@ -285,45 +284,6 @@ function RoundTablePage() {
           );
         })}
 
-        {CLAUDE_ASSIGNMENTS.map((assignment) => (
-          <Card key={assignment.id} className="mb-5">
-            <CardHeader>
-              <CardTitle className="text-base">Second-eyes review prepared — {assignment.subject}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex flex-wrap gap-2">
-                <Tag>Prepared {assignment.preparedOn}</Tag>
-                <Tag>Requested by {assignment.requestedBy}</Tag>
-                <Tag>Not sent to Claude</Tag>
-              </div>
-              <p className="text-muted-foreground">{assignment.context}</p>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Recommendation being challenged
-                </div>
-                <p className="text-muted-foreground">{assignment.primaryRecommendation}</p>
-              </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Question for Claude
-                </div>
-                <p className="text-muted-foreground">{assignment.question}</p>
-              </div>
-              <ul className="ml-4 list-disc text-xs text-muted-foreground">
-                {assignment.boundaries.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-              <p className="text-xs text-muted-foreground">
-                No review has been carried out. The office has not called Claude, and it cannot: only John, signed in
-                with two-step verification, can send it.
-              </p>
-              <Link to="/systems" className="inline-block text-sm text-primary underline">
-                Open Systems to send this review
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
 
         <Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Meeting</CardTitle></CardHeader>

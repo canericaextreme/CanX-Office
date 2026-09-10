@@ -77,8 +77,3 @@
   protection, rising, rack limit, research gating, untrusted input).
 - Not live: no research service, no web/API scanning, no Innovation AI generation loop.
   Research cadence/budget values are recorded only; nothing runs and nothing can spend.
-
-## Brain responsive repair (10 Sep 2026)
-- [x] Prevent Brain columns and text from forcing horizontal overflow.
-- [x] Stack Brain details before browser scaling makes two columns unsafe.
-- [x] Verify requested desktop, narrow, and zoom-sensitive sizes.
