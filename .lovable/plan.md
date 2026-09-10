@@ -31,11 +31,11 @@ What is missing:
 2. **Manager memory across restarts.** The Manager reads the master list, open approvals, recent changes and the current budget position at the start of every conversation, so it does not forget between sessions.
 
 3. **Green / yellow / red.** Every action the Manager plans is labelled before it runs:
-   - Green: routine, reversible, inside budget. The Manager proceeds and logs it. Small calls never stop work.
-   - Yellow: money, outside contact, irreversible changes, or anything that crosses a project boundary. Goes to your approval box and waits.
+   - Green: routine, reversible, inside budget. The Manager proceeds and logs it. Small calls never stop work. Routine cross-project coordination between Safe Highways, Trail Tales, Finance and other offices is green.
+   - Yellow: money, outside contact, irreversible changes, major or risky cross-project changes. Goes to your approval box and waits.
    - Red: blocked by a rule (no verified sign-in, over budget, safety-critical, or explicitly forbidden). That one operation stops with a plain reason; everything else keeps going.
 
-   Safe Highways and Trail Tales are handled like any other project: routine data changes are green, major changes are yellow, and anything that would alter their production deployment or safety-critical rules is red.
+   Safe Highways and Trail Tales are handled like any other project: routine data changes and routine cross-project coordination are green, major changes are yellow, and anything that would alter their production deployment or safety-critical rules is red.
    Publishing, payments, subscriptions, and sending emails stay yellow or red regardless of budget. Reading, sorting and drafting emails are green.
 
 4. **Approval box.** One place in the office listing everything waiting on you, with what it will do, why, cost if any, and Approve / Decline. Nothing yellow runs until you press Approve.
