@@ -17,6 +17,7 @@ import {
   OFFICE_CONNECTIONS,
   SUPABASE_SETUP_URL,
 } from "@/lib/connections-inventory";
+import { backupsNote, databaseStatus, nextStep, type Tone } from "@/lib/systems-status";
 
 
 export const Route = createFileRoute("/_office/systems")({
@@ -58,6 +59,13 @@ function Systems() {
 
   const dbConnected = session.configured;
   const signedIn = session.state === "owner";
+  const dbStatus = databaseStatus({ state: session.state, configured: session.configured });
+  const step = nextStep({
+    state: session.state,
+    configured: session.configured,
+    aiConnected: Boolean(ai?.connected),
+    claudeConnected: Boolean(claude?.connected),
+  });
 
   return (
     <RoomShell showSample={false}>
@@ -71,11 +79,7 @@ function Systems() {
               Nothing below is shown as connected unless the office has actually checked it. A key or an account
               somewhere else is not a connection.
             </p>
-            <Row
-              name="CanX-owned database"
-              note={dbConnected ? "Configured. Sign-in still has to succeed." : "Not connected. Sign-in and shared saving are unavailable."}
-              tone={dbConnected ? "yellow" : "grey"}
-            />
+            <Row name="CanX-owned database" note={dbStatus.note} tone={dbStatus.tone} />
             <Row
               name="Owner sign-in with two-step verification"
               note={signedIn ? `Signed in as ${session.email}.` : session.message}
@@ -105,7 +109,7 @@ function Systems() {
             />
 
             <Row name="Shared records across devices" note={signedIn ? "Saving to your CanX account." : "Device-only. Records stay in this browser."} tone={signedIn ? "green" : "grey"} />
-            <Row name="Backups and restore" note="Not tested. There is no CanX-owned account to back up yet." tone="grey" />
+            <Row name="Backups and restore" note={backupsNote({ state: session.state, configured: session.configured })} tone="grey" />
             <Row name="Published site" note="Not published." tone="grey" />
           </CardContent>
         </Card>
@@ -186,20 +190,26 @@ function Systems() {
 
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Your next step</CardTitle>
+            <CardTitle className="text-base">{step.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p className="text-muted-foreground">
-              The office cannot create the database for you, and it should not: the account has to be yours.
-            </p>
-            <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="inline-block text-primary underline">
-              {SUPABASE_SETUP_URL}
-            </a>
-            <p className="text-muted-foreground">
-              Choose Supabase there and finish the setup. Then follow <code>docs/office-manager-setup.md</code>, which
-              lists the exact steps: the two database files to run, making your account the owner, turning on the
-              authenticator app, setting spending limits, and only then adding the AI key.
-            </p>
+            {step.paragraphs.map((paragraph, i) => (
+              <p key={i} className="text-muted-foreground">
+                {paragraph}
+              </p>
+            ))}
+            {step.setupLink && (
+              <>
+                <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="inline-block text-primary underline">
+                  {SUPABASE_SETUP_URL}
+                </a>
+                <p className="text-muted-foreground">
+                  Choose Supabase there and finish the setup. Then follow <code>docs/office-manager-setup.md</code>, which
+                  lists the exact steps: the two database files to run, making your account the owner, turning on the
+                  authenticator app, setting spending limits, and only then adding the AI key.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -207,7 +217,7 @@ function Systems() {
   );
 }
 
-type Tone = "green" | "yellow" | "grey";
+
 
 const PILL: Record<Tone, { label: string; className: string }> = {
   green: { label: "Connected", className: "border-canx-green/50 bg-canx-green/15 text-canx-green" },
