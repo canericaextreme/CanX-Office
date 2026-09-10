@@ -544,7 +544,7 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
     verifyOwner: deps.verifyOwner,
     reserve: deps.reserve,
     settle: deps.settle,
-    fetchImpl: (url: string, init?: RequestInit) => fetch(url, init),
+    fetchImpl: (input: string | Request | URL, init?: RequestInit) => fetch(input, init),
     anthropicKey: readSetting(process.env["ANTHROPIC_API_KEY"]),
     model: readSetting(process.env["ANTHROPIC_MODEL"]),
   };
