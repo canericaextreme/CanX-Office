@@ -570,6 +570,7 @@ export const managerChat = createServerFn({ method: "POST" })
             ].join("\n")
           : "",
         toolCalls: [],
+        actionResults: [],
       };
       if (!result.ok) reply.detail = result.message;
       return reply;
