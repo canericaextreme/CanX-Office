@@ -325,7 +325,7 @@ describe("network failure classification — safe, non-secret categories", () =>
     computeClaudeStatusWith(deps({ fetchImpl: fetchImpl as unknown as typeof fetch }), "t");
 
   it("dns — names the lookup failure, never the raw error", async () => {
-    const result = await status(codedThrow("ENOTFOUND"));
+    const result = await failingStatus(codedThrow("ENOTFOUND"));
     expect(result.connected).toBe(false);
     expect(result.detail).toContain("could not be looked up");
     expect(JSON.stringify(result)).not.toContain(KEY);
@@ -334,14 +334,14 @@ describe("network failure classification — safe, non-secret categories", () =>
   });
 
   it("tls — names the secure-connection failure", async () => {
-    const result = await status(codedThrow("CERT_HAS_EXPIRED"));
+    const result = await failingStatus(codedThrow("CERT_HAS_EXPIRED"));
     expect(result.connected).toBe(false);
     expect(result.detail).toContain("secure connection");
     expect(JSON.stringify(result)).not.toContain(KEY);
   });
 
   it("refused — names blocked/refused outbound access", async () => {
-    const result = await status(codedThrow("ECONNREFUSED"));
+    const result = await failingStatus(codedThrow("ECONNREFUSED"));
     expect(result.connected).toBe(false);
     expect(result.detail).toContain("refused or reset");
     expect(result.detail).toContain("blocked");
@@ -351,7 +351,7 @@ describe("network failure classification — safe, non-secret categories", () =>
     const fetchImpl = vi.fn(async () => {
       throw new TypeError(`Network connection lost while sending ${KEY}`);
     });
-    const result = await status(fetchImpl);
+    const result = await failingStatus(fetchImpl);
     expect(result.connected).toBe(false);
     expect(result.detail).toContain("no reply at all");
     expect(JSON.stringify(result)).not.toContain(KEY);
@@ -362,7 +362,7 @@ describe("network failure classification — safe, non-secret categories", () =>
     const fetchImpl = vi.fn(async () => {
       throw Object.assign(new Error("aborted"), { name: "AbortError" });
     });
-    const result = await status(fetchImpl);
+    const result = await failingStatus(fetchImpl);
     expect(result.detail).toContain("timed out");
     expect(result.detail).toMatch(/about \d+s/);
   });
