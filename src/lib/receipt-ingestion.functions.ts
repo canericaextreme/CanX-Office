@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { verifyOwner, readBackendConfig, restRequest, type OwnerVerification } from "./canx-backend.server";
-import { fetchGmailReceiptCandidates, readGmailSettings, type GmailFetchResult, type GmailSettings } from "./gmail-receipts.server";
+import type { OwnerVerification } from "./canx-backend.server";
+import type { GmailFetchResult, GmailSettings } from "./gmail-receipts.server";
 import {
   MAX_GMAIL_CANDIDATES,
   parseReceiptCandidate,
@@ -72,24 +72,26 @@ export interface SyncDeps {
 }
 
 async function realDeps(): Promise<SyncDeps> {
+  const backend = await import("./canx-backend.server");
+  const gmail = await import("./gmail-receipts.server");
   return {
-    verifyOwner,
-    gmailSettings: readGmailSettings,
+    verifyOwner: backend.verifyOwner,
+    gmailSettings: gmail.readGmailSettings,
     readState: async (token) => {
-      const config = readBackendConfig();
+      const config = backend.readBackendConfig();
       if (!config) return { ok: false, checkpoint: null, receipts: [] };
-      const response = await restRequest(config, token, "finance_receipts?select=doc,gmail_sync_checkpoint,ingested_receipts&limit=1");
+      const response = await backend.restRequest(config, token, "finance_receipts?select=doc,gmail_sync_checkpoint,ingested_receipts&limit=1");
       if (!response.ok) return { ok: false, checkpoint: null, receipts: [] };
       const row = Array.isArray(response.body) ? (response.body[0] as { doc?: { receipts?: unknown }; gmail_sync_checkpoint?: string; ingested_receipts?: unknown }) : null;
       const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
       const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];
       return { ok: true, checkpoint: row?.gmail_sync_checkpoint ?? null, receipts: [...legacy, ...ingested] };
     },
-    fetchCandidates: fetchGmailReceiptCandidates,
+    fetchCandidates: gmail.fetchGmailReceiptCandidates,
     atomicWrite: async (token, ownerId, receipts, checkpoint) => {
-      const config = readBackendConfig();
+      const config = backend.readBackendConfig();
       if (!config) return { ok: false, filed: [], duplicates: 0, allReceipts: [] };
-      const response = await restRequest(config, token, "rpc/ingest_finance_receipts", {
+      const response = await backend.restRequest(config, token, "rpc/ingest_finance_receipts", {
         method: "POST",
         body: JSON.stringify({ _owner_id: ownerId, _candidates: receipts, _checkpoint: checkpoint }),
       });
@@ -98,7 +100,7 @@ async function realDeps(): Promise<SyncDeps> {
       }
       const body = response.body as { filed?: unknown; duplicates_skipped?: unknown };
       const filed = Array.isArray(body.filed) ? (body.filed as IngestibleReceipt[]) : [];
-      const reread = await restRequest(config, token, "finance_receipts?select=doc,ingested_receipts&limit=1");
+      const reread = await backend.restRequest(config, token, "finance_receipts?select=doc,ingested_receipts&limit=1");
       const row = reread.ok && Array.isArray(reread.body) ? (reread.body[0] as { doc?: { receipts?: unknown }; ingested_receipts?: unknown }) : null;
       const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
       const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];

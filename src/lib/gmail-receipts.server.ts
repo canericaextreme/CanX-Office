@@ -54,7 +54,7 @@ function flatten(part: GmailPart): GmailPart[] {
   return [part, ...(part.parts ?? []).flatMap(flatten)];
 }
 
-async function textFromAttachment(bytes: Uint8Array, mimeType: string): Promise<string> {
+export async function textFromAttachment(bytes: Uint8Array, mimeType: string): Promise<string> {
   if (bytes.byteLength > MAX_ATTACHMENT_BYTES) throw new Error("attachment_too_large");
   if (mimeType === "application/pdf") {
     const pdf = await getDocumentProxy(bytes);
