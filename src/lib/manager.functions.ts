@@ -382,7 +382,7 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
       body: JSON.stringify({
         model,
         instructions: SYSTEM_PROMPT,
-        input: [untrustedContextMessage(contextText), ...data.messages.map((m) => ({ role: m.role, content: m.content }))],
+        input: [liveContextMessage(contextText), ...data.messages.map((m) => ({ role: m.role, content: m.content }))],
         tools: TOOLS,
         max_output_tokens: 900,
       }),
