@@ -32,6 +32,7 @@ import {
   runManagerSecondEyesWith,
   verifyManagerTaskWith,
   type ManagerMemory,
+  type ManagerWorkError,
   type RiskLevel,
   type WorkbenchDeps,
 } from "@/lib/manager-work.functions";
