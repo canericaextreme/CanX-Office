@@ -616,6 +616,230 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
   }
 }
 
+function buildWorkbenchDeps(managerDeps: ManagerDeps): WorkbenchDeps {
+  return {
+    verifyOwner: managerDeps.verifyOwner,
+    reserve: managerDeps.reserve,
+    settle: managerDeps.settle,
+    rest: async <T>(token: string, method: string, path: string, body?: Record<string, unknown>) => {
+      const backend = await import("@/lib/canx-backend.server");
+      const config = backend.readBackendConfig();
+      if (!config) return { ok: false, error: "No CanX-owned database is configured." };
+      const init: RequestInit = { method };
+      if (body && method !== "GET") init.body = JSON.stringify(body);
+      const response = await managerDeps.fetchImpl(`${config.url}/rest/v1/${path}`, {
+        ...init,
+        headers: {
+          apikey: config.publishableKey,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+      });
+      if (!response.ok) return { ok: false, error: `Request failed (${response.status}).` };
+      const text = await response.text().catch(() => "");
+      let data: T | undefined;
+      try {
+        data = text ? (JSON.parse(text) as T) : undefined;
+      } catch {
+        data = undefined;
+      }
+      return { ok: true, data };
+    },
+    ensureBudget: async (token, ownerId) => {
+      const backend = await import("@/lib/canx-backend.server");
+      const config = backend.readBackendConfig();
+      if (!config) return { ok: false, error: "No CanX-owned database is configured." };
+      const response = await managerDeps.fetchImpl(`${config.url}/rest/v1/rpc/ensure_manager_ai_budget`, {
+        method: "POST",
+        headers: {
+          apikey: config.publishableKey,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ _owner_id: ownerId }),
+      });
+      return response.ok ? { ok: true } : { ok: false, error: "Budget setup failed." };
+    },
+  };
+}
+
+interface ToolExecution {
+  textAdditions: string[];
+  actionResults: ManagerActionResult[];
+  remainingToolCalls: ManagerToolCall[];
+}
+
+/**
+ * Execute green actions directly, queue yellow actions in the approval box,
+ * and stop red actions. Appearance previews and task proposals are returned
+ * to the UI as before.
+ */
+async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCalls: ManagerToolCall[]): Promise<ToolExecution> {
+  const workbench = buildWorkbenchDeps(deps);
+  const textAdditions: string[] = [];
+  const actionResults: ManagerActionResult[] = [];
+  const remainingToolCalls: ManagerToolCall[] = [];
+
+  for (const call of toolCalls) {
+    const scope = typeof call.arguments["scope"] === "string" ? call.arguments["scope"] : "";
+    const risk = classifyManagerRisk(call.name, scope);
+
+    if (risk === "red") {
+      actionResults.push({
+        name: call.name,
+        risk,
+        status: "stopped",
+        detail: `Stopped: ${call.name} is a red-light action and requires explicit owner authorization outside the chat flow.`,
+      });
+      continue;
+    }
+
+    if (risk === "yellow") {
+      const title = typeof call.arguments["title"] === "string" ? call.arguments["title"] : call.name;
+      const detail = typeof call.arguments["detail"] === "string" ? call.arguments["detail"] : "";
+      const costCents = typeof call.arguments["cost_cents"] === "number" ? call.arguments["cost_cents"] : undefined;
+      const taskId = typeof call.arguments["task_id"] === "string" ? call.arguments["task_id"] : undefined;
+      const result = await requestManagerApprovalWith(workbench, {
+        accessToken,
+        title,
+        detail,
+        costCents,
+        risk: "yellow",
+        taskId,
+      });
+      if (result.ok) {
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: "pending",
+          detail: `Queued for approval: "${title}" (approval id ${result.id}).`,
+        });
+      } else {
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: "stopped",
+          detail: `Could not queue approval: ${result.message}`,
+        });
+      }
+      continue;
+    }
+
+    // Green actions: execute directly.
+    try {
+      if (call.name === "create_task") {
+        const result = await createManagerTaskWith(workbench, {
+          accessToken,
+          title: String(call.arguments["title"] ?? ""),
+          detail: String(call.arguments["detail"] ?? ""),
+          risk: (call.arguments["risk"] as RiskLevel) ?? "green",
+        });
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: result.ok ? "done" : "stopped",
+          detail: result.ok ? `Created task "${result.title}" (${result.id}).` : result.message,
+        });
+      } else if (call.name === "assign_task") {
+        const result = await assignManagerTaskWith(workbench, {
+          accessToken,
+          taskId: String(call.arguments["task_id"] ?? ""),
+          worker: String(call.arguments["worker"] ?? ""),
+        });
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: result.ok ? "done" : "stopped",
+          detail: result.ok ? `Assigned "${result.title}" to ${result.worker}.` : result.message,
+        });
+      } else if (call.name === "verify_task") {
+        const result = await verifyManagerTaskWith(workbench, {
+          accessToken,
+          taskId: String(call.arguments["task_id"] ?? ""),
+          result: String(call.arguments["result"] ?? ""),
+          evidence: String(call.arguments["evidence"] ?? ""),
+        });
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: result.ok ? "done" : "stopped",
+          detail: result.ok ? `Verified "${result.title}" as done.` : result.message,
+        });
+      } else if (call.name === "log_change") {
+        let before: Record<string, unknown> = {};
+        let after: Record<string, unknown> = {};
+        if (call.rawArguments) {
+          try {
+            const parsed = JSON.parse(call.rawArguments) as Record<string, unknown>;
+            before = typeof parsed["before"] === "object" && parsed["before"] ? (parsed["before"] as Record<string, unknown>) : {};
+            after = typeof parsed["after"] === "object" && parsed["after"] ? (parsed["after"] as Record<string, unknown>) : {};
+          } catch {
+            /* ignore malformed raw args */
+          }
+        }
+        const result = await logManagerChangeWith(workbench, {
+          accessToken,
+          action: String(call.arguments["action"] ?? "log"),
+          entity: String(call.arguments["entity"] ?? "unknown"),
+          entityId: String(call.arguments["entity_id"] ?? ""),
+          before,
+          after,
+        });
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: result.ok ? "done" : "stopped",
+          detail: result.ok ? "Change logged." : result.message,
+        });
+      } else if (call.name === "second_eyes_review") {
+        const result = await runManagerSecondEyesWith(workbench, {
+          accessToken,
+          subject: String(call.arguments["subject"] ?? ""),
+          primaryRecommendation: String(call.arguments["primary_recommendation"] ?? ""),
+          evidence: String(call.arguments["evidence"] ?? ""),
+          question: String(call.arguments["question"] ?? ""),
+        });
+        if (result.ok && result.review) {
+          textAdditions.push(
+            `Claude review: ${result.review.recommendation} (${result.review.confidence} confidence).`,
+            `Strongest reasons: ${result.review.strongestReasons.join("; ")}`,
+            `Risks: ${result.review.risks.join("; ")}`,
+            `Missing evidence: ${result.review.missingEvidence.join("; ")}`,
+            `Next step: ${result.review.nextStep}`,
+          );
+        } else {
+          textAdditions.push(`Claude review: ${result.detail ?? result.text ?? "unavailable"}`);
+        }
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: result.ok ? "done" : "stopped",
+          detail: result.ok ? "Second-eyes review completed." : result.detail ?? "Claude review failed.",
+        });
+      } else if (call.name === "preview_appearance" || call.name === "propose_task") {
+        remainingToolCalls.push(call);
+      } else {
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: "stopped",
+          detail: `Unknown action: ${call.name}.`,
+        });
+      }
+    } catch (error) {
+      actionResults.push({
+        name: call.name,
+        risk,
+        status: "stopped",
+        detail: error instanceof Error ? error.message : "Execution failed.",
+      });
+    }
+  }
+
+  return { textAdditions, actionResults, remainingToolCalls };
+}
+
 /** Testable chat implementation. The server function is a thin wrapper. */
 export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
   // GATE 1 — server-verified owner identity, role and MFA. Checked before
