@@ -77,7 +77,12 @@ export interface ClaudeReviewReply {
 
 const MAX_CHARS = 6000;
 const REQUEST_TIMEOUT_MS = 45_000;
-const HEALTH_TIMEOUT_MS = 15_000;
+/**
+ * Cold starts and first outbound connections from the server runtime can take
+ * well over the old 15s ceiling, which showed up as "check did not complete".
+ * The check is a non-billable models lookup, so a generous ceiling is safe.
+ */
+const HEALTH_TIMEOUT_MS = 45_000;
 const ESTIMATED_CENTS_PER_CALL = 3;
 const ANTHROPIC_VERSION = "2023-06-01";
 
