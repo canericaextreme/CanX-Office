@@ -73,29 +73,24 @@ function WorkBoard() {
             <p className="text-sm text-muted-foreground">{message}</p>
           )}
           {items.map((item) => {
-            const isTask = "status" in item;
-            const status = isTask ? item.status : "open";
+            const task = "status" in item ? (item as ManagerTask) : null;
+            const sample = task ? null : (item as typeof SAMPLE_WORK_ITEMS[number]);
+            const status = task?.status ?? "open";
             const tone = status === "done" ? "green" : status === "in_progress" ? "blue" : status === "cancelled" ? "red" : "grey";
             return (
               <div key={item.id} className="rounded-lg border border-border/50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge tone={tone} label={status.replace("_", " ")} />
                   <span className="font-medium">{item.title}</span>
-                  {isTask && item.worker ? (
-                    <span className="text-xs text-muted-foreground">· {item.worker}</span>
-                  ) : null}
+                  {task?.worker ? <span className="text-xs text-muted-foreground">· {task.worker}</span> : null}
                 </div>
-                {isTask && item.detail ? (
-                  <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                {task?.detail ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{task.detail}</p>
                 ) : (
-                  <p className="mt-1 text-xs text-muted-foreground">Project: {(item as { project?: string }).project}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Project: {sample?.project}</p>
                 )}
-                {"blocker" in item && item.blocker && (
-                  <p className="mt-1 text-xs text-canx-yellow">Blocker: {item.blocker}</p>
-                )}
-                {"evidence" in item && item.evidence && (
-                  <p className="mt-1 text-xs text-canx-green">Evidence: {item.evidence}</p>
-                )}
+                {sample?.blocker && <p className="mt-1 text-xs text-canx-yellow">Blocker: {sample.blocker}</p>}
+                {sample?.evidence && <p className="mt-1 text-xs text-canx-green">Evidence: {sample.evidence}</p>}
               </div>
             );
           })}
