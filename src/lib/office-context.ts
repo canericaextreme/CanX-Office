@@ -29,7 +29,7 @@ export interface OfficeContext {
 
 const BOUNDARIES = [
   "Sample office records are labelled demonstration data; records John saved himself are his own real notes.",
-  "No backend database is connected; anything saved stays on this device.",
+  "Records saved while signed out of the CanX account stay on this device only.",
   "No external connections, payments, mailboxes, or deployments are enabled.",
   "Safe Highways and Trail Tales are outside this project and are never modified.",
 ];
@@ -89,14 +89,34 @@ export function contextToText(context: OfficeContext, ownerRecords: OwnerRecord[
   ].join("\n\n");
 }
 
-/** Plain-language briefing generated without any AI. Always safe to show. */
-export function localBriefing(context: OfficeContext): string[] {
+/** What the office can truthfully say about its own connections. */
+export interface BriefingConnections {
+  /** The CanX-owned database answered as the verified owner. */
+  databaseConnected: boolean;
+  /** A live provider health check passed for the Office Manager. */
+  managerVerified: boolean;
+}
+
+/**
+ * Plain-language briefing generated without any AI. Always safe to show.
+ * It must never claim "no live connections" while connections are verified.
+ */
+export function localBriefing(context: OfficeContext, connections?: BriefingConnections): string[] {
   const lines: string[] = [];
-  lines.push(`The office has ${context.destinations} destinations and no live connections.`);
+  const connectionText = !connections
+    ? "connections not checked yet"
+    : connections.databaseConnected && connections.managerVerified
+      ? "the CanX-owned database and the Office Manager connection are both verified"
+      : connections.databaseConnected
+        ? "the CanX-owned database is verified; the Office Manager connection is not verified"
+        : connections.managerVerified
+          ? "the Office Manager connection is verified; the CanX-owned database is not verified for this session"
+          : "no verified connections in this session";
+  lines.push(`The office has ${context.destinations} destinations; ${connectionText}.`);
   if (context.redStops.length) lines.push(`Stop items: ${context.redStops.join("; ")}.`);
   if (context.needsInput.length) lines.push(`Waiting on you: ${context.needsInput.join("; ")}.`);
   if (context.priorities.length) lines.push(`Moving now: ${context.priorities.slice(0, 4).join("; ")}.`);
   if (context.blockers.length) lines.push(`Blocked: ${context.blockers.join("; ")}.`);
-  lines.push("Everything above is read from the office's recorded demonstration data, not measured activity.");
+  lines.push("The items listed above come from the office's recorded demonstration data, not measured activity. The Office Manager itself is given live records only.");
   return lines;
 }
