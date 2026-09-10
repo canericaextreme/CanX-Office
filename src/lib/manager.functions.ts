@@ -340,8 +340,6 @@ const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" 
     action: { type: "string", maxLen: 120 },
     entity: { type: "string", maxLen: 120 },
     entity_id: { type: "string", maxLen: 120 },
-    before: { type: "object" },
-    after: { type: "object" },
   },
   second_eyes_review: {
     subject: { type: "string", maxLen: 300 },
