@@ -52,7 +52,6 @@ describe("risk classification", () => {
     expect(classifyManagerRisk("schema_change")).toBe("yellow");
     expect(classifyManagerRisk("migrate")).toBe("yellow");
     expect(classifyManagerRisk("major_change")).toBe("yellow");
-    expect(classifyManagerRisk("cross_project_write")).toBe("yellow");
   });
 
   it("classifies production/safety/spend actions as red", () => {
@@ -64,10 +63,17 @@ describe("risk classification", () => {
     expect(classifyManagerRisk("authorize_spend")).toBe("red");
   });
 
-  it("classifies cross-project writes to Safe Highways or Trail Tales as yellow", () => {
-    expect(classifyManagerRisk("update", "safe_highways")).toBe("yellow");
-    expect(classifyManagerRisk("change", "trail_tales")).toBe("yellow");
+  it("classifies routine cross-project coordination as green", () => {
+    expect(classifyManagerRisk("update", "safe_highways")).toBe("green");
+    expect(classifyManagerRisk("change", "trail_tales")).toBe("green");
+    expect(classifyManagerRisk("coordinate", "cross_project")).toBe("green");
   });
+
+  it("classifies major or risky cross-project changes as yellow", () => {
+    expect(classifyManagerRisk("bulk_update", "safe_highways")).toBe("yellow");
+    expect(classifyManagerRisk("restructure", "trail_tales")).toBe("yellow");
+  });
+
 
   it("classifies routine cross-project reads as green", () => {
     expect(classifyManagerRisk("read", "safe_highways")).toBe("green");
