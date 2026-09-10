@@ -531,7 +531,7 @@ export const managerChat = createServerFn({ method: "POST" })
     const latestRequest = [...data.messages].reverse().find((message) => message.role === "user")?.content ?? "";
     if (isExplicitReceiptSyncRequest(latestRequest)) {
       const result = await runReceiptSync({ accessToken: data.accessToken, request: latestRequest });
-      return {
+      const reply: ManagerReply = {
         ok: result.ok,
         code: result.ok ? "ok" : result.code === "auth_not_ready" ? "auth_not_ready" : "context_unavailable",
         provider: "none",
@@ -547,8 +547,9 @@ export const managerChat = createServerFn({ method: "POST" })
             ].join("\n")
           : "",
         toolCalls: [],
-        detail: result.ok ? undefined : result.message,
       };
+      if (!result.ok) reply.detail = result.message;
+      return reply;
     }
     return runManagerChatWith(await realDeps(), data);
   });
