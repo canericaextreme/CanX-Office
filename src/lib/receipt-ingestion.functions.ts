@@ -58,7 +58,7 @@ const deny = (code: ReceiptSyncCode, message: string): ReceiptSyncResult => ({
   totalsByCurrency: [],
 });
 
-interface SyncDeps {
+export interface SyncDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
   gmailSettings: () => GmailSettings | null;
   readState: (token: string) => Promise<{ ok: boolean; checkpoint: string | null; receipts: FinanceReceipt[] }>;

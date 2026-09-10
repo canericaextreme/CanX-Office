@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { runReceiptSyncWith, isExplicitReceiptSyncRequest } from "./receipt-ingestion.functions";
+import { runReceiptSyncWith, isExplicitReceiptSyncRequest, type SyncDeps } from "./receipt-ingestion.functions";
 import type { OwnerVerification } from "./canx-backend.server";
 
 const owner: OwnerVerification = { ok: true, userId: "owner", email: "", aal: "aal2" };
 const settings = { lovableApiKey: "x", connectionApiKey: "y" };
-const base = () => ({
+const base = (): {
+  [K in keyof SyncDeps]: ReturnType<typeof vi.fn<SyncDeps[K]>>;
+} => ({
   verifyOwner: vi.fn(async () => owner),
   gmailSettings: vi.fn(() => settings),
   readState: vi.fn(async () => ({ ok: true, checkpoint: null, receipts: [] })),
