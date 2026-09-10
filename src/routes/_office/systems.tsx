@@ -102,7 +102,7 @@ function Systems() {
             />
 
             <Row name="Shared records across devices" note={signedIn ? "Saving to your CanX account." : "Device-only. Records stay in this browser."} tone={signedIn ? "green" : "grey"} />
-            <Row name="Backups and restore" note="Not tested. There is no CanX-owned account to back up yet." tone="grey" />
+            <Row name="Backups and restore" note={backupsNote({ state: session.state, configured: session.configured })} tone="grey" />
             <Row name="Published site" note="Not published." tone="grey" />
           </CardContent>
         </Card>
