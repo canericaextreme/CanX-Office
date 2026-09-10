@@ -3,6 +3,7 @@ import {
   computeClaudeStatusWith,
   parseReview,
   runClaudeReviewWith,
+  readSetting,
   validateReviewInput,
   type ClaudeDeps,
 } from "./claude-review.functions";
@@ -296,5 +297,49 @@ describe("Claude connection check (non-billable, fail closed)", () => {
     const result = await status(fetchImpl);
     expect(JSON.stringify(result)).not.toContain(KEY);
     expect(JSON.stringify(result)).not.toContain("body-with");
+  });
+});
+
+describe("readSetting — configuration normalisation", () => {
+  it("trims whitespace and newlines from a pasted value", () => {
+    expect(readSetting("  claude-test\n")).toBe("claude-test");
+  });
+
+  it("treats an empty or whitespace-only value as not configured", () => {
+    expect(readSetting("")).toBeUndefined();
+    expect(readSetting("   \n\t ")).toBeUndefined();
+    expect(readSetting(undefined)).toBeUndefined();
+  });
+
+  it("means an untrimmed model can never reach header construction", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
+    const status = await computeClaudeStatusWith(
+      deps({ model: readSetting(" \n "), fetchImpl: fetchImpl as unknown as typeof fetch }),
+      "token",
+    );
+    expect(status.state).toBe("not_configured");
+    expect(status.connected).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("bound fetch dependency", () => {
+  it("works when fetch is supplied as a bound wrapper, not a detached reference", async () => {
+    const calls: string[] = [];
+    const globalLike = {
+      fetch(url: string) {
+        // Throws if invoked detached from its owner, like the worker runtime.
+        calls.push(this === globalLike ? url : "DETACHED");
+        return Promise.resolve(new Response("{}", { status: 200 }));
+      },
+    };
+    const bound: typeof fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+      globalLike.fetch(String(input), init)) as unknown as typeof fetch;
+
+    const status = await computeClaudeStatusWith(deps({ fetchImpl: bound }), "token");
+    expect(status.connected).toBe(true);
+    expect(calls[0]).toContain("https://api.anthropic.com/v1/models/");
+    expect(calls).not.toContain("DETACHED");
+    expect(calls.join(" ")).not.toContain("/v1/messages");
   });
 });
