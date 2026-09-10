@@ -87,15 +87,15 @@ function Reception() {
                 These numbers are synthetic examples for demonstration only.
               </p>
             </div>
+
+            <div className="min-w-0 max-w-full">
+              <BrainMap />
+            </div>
           </div>
 
           <div className="space-y-6">
             <StatusPanel items={SAMPLE_STATUS} />
           </div>
-        </div>
-
-        <div className="mb-6 min-w-0 max-w-full">
-          <BrainMap />
         </div>
       </div>
     </main>
