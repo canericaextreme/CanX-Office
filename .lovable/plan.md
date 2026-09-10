@@ -1,66 +1,90 @@
-# Office Manager activation readiness — read-only review
+# Office Manager: truthful, server-built context
 
-Commit inspected: `ac0246c` ("Fixed Claude & database status"), the approved recovery baseline. No code, secrets, data or provider calls were touched.
+The Manager is live and answering, but it is being fed the old Phase 1 demonstration
+records plus a boundary line that wrongly says no database is connected. This repair
+makes the Manager read the real, owner-verified office on the server, and stops the
+browser from supplying office facts at all.
 
-## 1. Is the server path built, and what invokes it
+No visual change: appearance, layout, routes, Brain, Finance screen, receipts,
+sign-in, and Systems screen stay exactly as approved. No database schema change, no
+secret change, no data change.
 
-Yes, it is fully built.
+## What changes in behaviour
 
-- `src/lib/manager.functions.ts` — server functions `getManagerStatus` and `managerChat` (bottom of file), wrapping the testable `computeManagerStatusWith()` and `runManagerChatWith()`.
-- `src/components/office/OfficeManager.tsx` — the manager dock; `useServerFn(managerChat)` at line 47, sent by `send()` (line 138) from the "Send" button (line 338).
-- Mounted for every office page in `src/routes/_office.tsx` (line 26), so it appears on all 20 destinations, not one page.
+- The Manager's knowledge of the office is assembled on the server, only after the
+  existing owner + two-step verification passes.
+- Anything the browser sends as "office context" is ignored.
+- The context states verified facts: database connected, owner confirmed, two-step
+  verification confirmed, and the exact provider and model configured.
+- Shared notes, tasks and decisions come from the real shared office records.
+- Round table: whether a saved record exists, and its last update if the record
+  carries one.
+- Finance: counts only — receipts filed, source messages, needing review, reconciled,
+  and totals grouped by each receipt's own original currency. No vendor, no individual
+  amount, no order number, no email text, no link, no message id, no raw document.
+- Projects and work items: there is no authoritative table for these, so the Manager
+  is told none are recorded. The old sample projects and work items are not sent.
+- If a required live read fails, the Manager refuses with a plain message. It never
+  quietly falls back to the old demonstration data.
+- The non-AI "Office briefing" line that claims "no live connections" is corrected to
+  reflect actual verified state. Same place on screen, same styling, only the wording
+  and the facts behind it change.
 
-## 2. Required settings (presence only, no values shown)
+Existing health check and the durable spending/rate reservation stay exactly as they
+are, and still run before any paid call.
 
-| Name | Purpose | Present |
-| --- | --- | --- |
-| `OPENAI_API_KEY` | CanX-owned AI key | absent |
-| `OPENAI_MODEL` | model, must be chosen deliberately | absent |
-| `CANX_SUPABASE_URL` | CanX-owned database | present |
-| `CANX_SUPABASE_PUBLISHABLE_KEY` | database sign-in | present |
+## Technical notes
 
-`ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` are present but belong to Claude, not the manager. The manager reads its two names in `realDeps()` and never guesses a model.
+New server-only module `src/lib/office-live-context.server.ts`:
+- `buildLiveOfficeContext(config, token, { model, provider })` runs after
+  `verifyOwnerWith` succeeds, and uses `restRequest` from
+  `src/lib/canx-backend.server.ts` so RLS applies as the signed-in owner.
+- Reads `office_notes` (select, ordered), `round_tables` (existence + last update),
+  and `finance_receipts?select=doc` for the owner.
+- Receipts are reduced to aggregate counters and per-currency totals inside this
+  module. The raw `doc` never leaves it; the returned type has no free-text fields.
+- Any non-ok REST response or thrown error returns a typed failure, not partial data.
 
-## 3. Gates before any paid call
+`src/lib/manager.functions.ts`:
+- `ManagerDeps` gains `buildContext(token)`; `realDeps()` wires the module above.
+- `runManagerChatWith` builds context after gate 1 (owner verified) and before the
+  budget reservation; a context failure returns a new fail-closed code
+  (`context_unavailable`) with a plain message and makes no paid call.
+- `validate()` drops the client `context` field; `ChatInput` no longer carries it.
+- `untrustedContextMessage` keeps the fenced untrusted-data wrapper around the
+  server-built text, so provider output is still treated as data.
 
-All present in `runManagerChatWith()`, in this order, all server-side:
+`src/lib/office-context.ts`:
+- Keep the module for the non-AI briefing only. `localBriefing` takes the verified
+  connection state and reports it truthfully; the false "no backend is connected"
+  boundary line is removed. Sample-derived lines are either dropped from the live
+  briefing or kept explicitly labelled sample.
 
-1. Owner identity, role and two-step verification — `deps.verifyOwner()` → `verifyOwnerWith()` in `canx-backend.server.ts`; `aal !== "aal2"` denies (`mfa_required`, line 114). Role is read from the database, not the browser.
-2. Input validation — `validate()`: max 20 messages, 6000 characters each, token truncated to 4000, roles filtered.
-3. Key and explicit model both required.
-4. Durable reservation — `reserve_ai_call` RPC; refusal reasons `unavailable`, `rate_limit`, `budget_limit`.
-5. Live authenticated health check every call (`GET /v1/models/{model}`, 15s timeout).
-6. Request timeout 45s; output capped at 900 tokens; upstream bodies and status details never returned to the browser (`sanitizedProviderDetail`); every failure settles the reservation as `failed`.
+`src/components/office/OfficeManager.tsx`:
+- Stops passing `context` to `managerChat`; keeps notes UI, tabs, and layout intact.
+- Briefing call updated for the new signature.
 
-Fail-closed throughout: any failed step returns a deny reply and makes no upstream request.
+Tests (`src/lib/office-live-context.test.ts`, plus additions to
+`src/lib/manager.functions.test.ts`), all offline with stub fetch:
+- verified live context includes model, owner/MFA verified, notes, round table state;
+- empty live state reports "none recorded" rather than sample data;
+- failed read returns `context_unavailable` and no provider request is made;
+- receipt aggregation counts and per-currency totals are correct and never mix
+  currencies;
+- privacy: given receipts containing vendor, amount, order number, email body, URL and
+  message id, none of those strings appear anywhere in the provider request body.
 
-## 4. Is the C$500 ceiling enforced
+Then run typecheck, the full test suite, and the production build. No deployment.
 
-No — displayed only, and honestly labelled as such.
+## Files expected to change
 
-- `src/lib/office-budget.ts` is a written record; `budgetView()` returns `enforcement: "unverified"`.
-- `BudgetPanel.tsx` states "Status: not enforced."
-- Real enforcement lives in `docs/migrations/0002_ai_limits.sql` (`ai_limits` defaults: 6 calls/minute, 200/day, 500 cents/day, 5000 cents/month) — **status marked NOT APPLIED**. With no `ai_limits` row, `reserve_ai_call` returns `unavailable` and the manager denies. That is the intended behaviour.
-- Note: the migration's monthly default is 5000 cents = $50/month, not $500. The two numbers are unrelated today and must be reconciled deliberately before activation.
+- `src/lib/office-live-context.server.ts` (new)
+- `src/lib/office-live-context.test.ts` (new)
+- `src/lib/manager.functions.ts`
+- `src/lib/manager.functions.test.ts`
+- `src/lib/office-context.ts`
+- `src/components/office/OfficeManager.tsx`
 
-## 5. Smallest safe activation sequence
-
-No code changes are required. Order matters — the last step is the only one that can cost money.
-
-1. Confirm `0001`/`0002` migrations are actually applied in the CanX-owned database, and that an `ai_limits` row exists for John's owner account with the monthly cents figure he intends.
-2. Sign in as owner with two-step verification and confirm the manager reads `not_configured` (that proves gates 1 and 5 pass before any key exists).
-3. Choose the exact OpenAI model name deliberately and add `OPENAI_MODEL` in Project Settings → Secrets.
-4. Add `OPENAI_API_KEY` in Project Settings → Secrets.
-5. Reload, check status turns to verified, then send one short message and confirm one reserved-and-settled usage row appears.
-
-Optional, only if wanted: apply to the manager the same two fixes already made for Claude — a bound `fetch` wrapper and trim/empty-normalisation of the two settings in `realDeps()`. The manager currently uses a detached `fetchImpl: fetch` and untrimmed values, the exact pattern that produced Claude's unreachable state.
-
-## 6. Tests and gaps
-
-Covered in `src/lib/manager.functions.test.ts` (17 cases): all seven deny reasons with no upstream fetch, key-alone never connects, missing key/model, `unavailable`/`rate_limit`/`budget_limit`, failed health check releasing the reservation, no upstream body leakage, the successful path, verified status only after a passing health check, and tool-argument clamping.
-
-Gaps: no test for the bound-fetch/trimming behaviour of `realDeps()`, no test asserting the 20-message / 6000-character truncation, no test for the untrusted-context fencing, and no end-to-end test that the C$500 written ceiling matches the database limit.
-
-## Baseline
-
-Recovery baseline `ac0246c` is unchanged. Nothing in this review altered code, secrets, database or deployment.
+Not touched: Reception, Brain, Finance screen, receipts storage, Systems, sign-in,
+Supabase schema/RLS, migrations, secrets, budgets, Claude, deployment. Baseline
+`ac0246c` and current commit `faf8c1c` remain recoverable.
