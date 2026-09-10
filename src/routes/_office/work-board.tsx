@@ -3,6 +3,10 @@ import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SAMPLE_WORK_ITEMS } from "@/lib/office-data";
 import { StatusBadge } from "@/components/office/StatusBadge";
+import { useOwnerSession } from "@/lib/owner-session";
+import { loadManagerMemory, type ManagerTask } from "@/lib/manager-work.functions";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
@@ -19,28 +23,77 @@ export const Route = createFileRoute("/_office/work-board")({
 });
 
 function WorkBoard() {
+  const { state, accessToken, shared, message } = useOwnerSession();
+  const loadMemory = useServerFn(loadManagerMemory);
+  const [memory, setMemory] = useState<{ tasks: ManagerTask[]; error?: string } | null>(null);
+
+  useEffect(() => {
+    if (state !== "owner" || !accessToken) {
+      setMemory(null);
+      return;
+    }
+    let cancelled = false;
+    loadMemory({ data: { accessToken } })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setMemory({ tasks: result.tasks });
+        } else {
+          setMemory({ tasks: [], error: result.message });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMemory({ tasks: [], error: "Could not load the workbench." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state, accessToken, loadMemory]);
+
+  const items = memory?.tasks ?? SAMPLE_WORK_ITEMS;
+
   return (
     <RoomShell>
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-base">Canonical queue</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Canonical queue</CardTitle>
+            {!shared && (
+              <span className="text-xs text-muted-foreground">
+                {state === "owner" ? "Shared memory unavailable" : "Sign in as owner for shared memory"}
+              </span>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {SAMPLE_WORK_ITEMS.map((item) => (
-            <div key={item.id} className="rounded-lg border border-border/50 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge tone={item.status} />
-                <span className="font-medium">{item.title}</span>
+          {state === "owner" && memory?.error && (
+            <p className="text-xs text-canx-yellow">{memory.error}</p>
+          )}
+          {state !== "owner" && state !== "checking" && (
+            <p className="text-sm text-muted-foreground">{message}</p>
+          )}
+          {items.map((item) => {
+            const task = "status" in item ? (item as ManagerTask) : null;
+            const sample = task ? null : (item as typeof SAMPLE_WORK_ITEMS[number]);
+            const status = task?.status ?? "open";
+            const tone = status === "done" ? "green" : status === "in_progress" ? "blue" : status === "cancelled" ? "red" : "grey";
+            return (
+              <div key={item.id} className="rounded-lg border border-border/50 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone={tone} label={status.replace("_", " ")} />
+                  <span className="font-medium">{item.title}</span>
+                  {task?.worker ? <span className="text-xs text-muted-foreground">· {task.worker}</span> : null}
+                </div>
+                {task?.detail ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{task.detail}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">Project: {sample?.project}</p>
+                )}
+                {sample?.blocker && <p className="mt-1 text-xs text-canx-yellow">Blocker: {sample.blocker}</p>}
+                {sample?.evidence && <p className="mt-1 text-xs text-canx-green">Evidence: {sample.evidence}</p>}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Project: {item.project}</p>
-              {item.blocker && (
-                <p className="mt-1 text-xs text-canx-yellow">Blocker: {item.blocker}</p>
-              )}
-              {item.evidence && (
-                <p className="mt-1 text-xs text-canx-green">Evidence: {item.evidence}</p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
     </RoomShell>
