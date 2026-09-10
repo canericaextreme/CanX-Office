@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   computeManagerStatusWith,
+  readSetting,
   runManagerChatWith,
   sanitizeToolArgs,
   type ManagerDeps,
