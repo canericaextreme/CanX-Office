@@ -138,12 +138,12 @@ describe("task lifecycle", () => {
   });
 
   it("assignManagerTaskWith updates the worker and logs the change", async () => {
-    const updated = { id: "t1", title: "Task", worker: "Claude" };
+    const updated = { id: "t1", owner_id: "owner-1", title: "Task", worker: "Claude" };
     const rest = vi.fn().mockImplementation((_token, _method, path) => {
-      if (path.startsWith("manager_tasks")) return { ok: true, data: [updated] };
-      if (path === "manager_assignments") return { ok: true, data: { id: "as1", task_id: "t1", worker: "Claude" } };
-      if (path === "rpc/log_manager_change") return { ok: true };
-      return { ok: true, data: [] };
+      if (path.startsWith("manager_tasks")) return Promise.resolve({ ok: true, data: [updated] });
+      if (path === "manager_assignments") return Promise.resolve({ ok: true, data: { id: "as1", task_id: "t1", worker: "Claude" } });
+      if (path === "rpc/log_manager_change") return Promise.resolve({ ok: true });
+      return Promise.resolve({ ok: true, data: [] });
     });
     const deps = mockDeps({ rest });
     const result = await assignManagerTaskWith(deps, { accessToken: "token", taskId: "t1", worker: "Claude" });
