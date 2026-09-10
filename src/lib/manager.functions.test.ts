@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   computeManagerStatusWith,
+  readSetting,
   runManagerChatWith,
   sanitizeToolArgs,
   type ManagerDeps,
@@ -173,5 +174,66 @@ describe("tool arguments are strictly allowlisted", () => {
 
   it("rejects unknown tools", () => {
     expect(sanitizeToolArgs("deploy_everything", "{}")).toBeNull();
+  });
+});
+
+describe("readSetting — configuration normalisation", () => {
+  it("trims whitespace and newlines from a pasted value", () => {
+    expect(readSetting("  sk-test-not-real\n")).toBe("sk-test-not-real");
+  });
+
+  it("treats an empty or whitespace-only value as not configured", () => {
+    expect(readSetting("")).toBeUndefined();
+    expect(readSetting("   \n\t ")).toBeUndefined();
+    expect(readSetting(undefined)).toBeUndefined();
+  });
+
+  it("means an untrimmed model can never reach a request", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
+    const status = await computeManagerStatusWith(
+      deps({ verifyOwner: async () => OWNER, model: readSetting(" \n "), fetchImpl: fetchImpl as unknown as typeof fetch }),
+      "token",
+    );
+    expect(status.state).toBe("not_configured");
+    expect(status.connected).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("means an untrimmed key alone never enables anything", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
+    const status = await computeManagerStatusWith(
+      deps({
+        verifyOwner: async () => OWNER,
+        openaiKey: readSetting("\n\t"),
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+      "token",
+    );
+    expect(status.state).toBe("not_configured");
+    expect(status.keyPresent).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("bound fetch dependency", () => {
+  it("works when fetch is supplied as a bound wrapper, not a detached reference", async () => {
+    const calls: string[] = [];
+    const globalLike = {
+      fetch(url: string, _init?: unknown) {
+        // Throws if invoked detached from its owner, like the worker runtime.
+        calls.push(this === globalLike ? url : "DETACHED");
+        return Promise.resolve(new Response("{}", { status: 200 }));
+      },
+    };
+    const bound: typeof fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+      globalLike.fetch(String(input), init)) as unknown as typeof fetch;
+
+    const status = await computeManagerStatusWith(
+      deps({ verifyOwner: async () => OWNER, fetchImpl: bound }),
+      "token",
+    );
+    expect(status.connected).toBe(true);
+    expect(calls[0]).toContain("https://api.openai.com/v1/models/");
+    expect(calls).not.toContain("DETACHED");
   });
 });

@@ -77,3 +77,5 @@
   protection, rising, rack limit, research gating, untrusted input).
 - Not live: no research service, no web/API scanning, no Innovation AI generation loop.
   Research cadence/budget values are recorded only; nothing runs and nothing can spend.
+- Office Manager activation repair (approved): bound fetch wrapper + trim OPENAI_API_KEY/OPENAI_MODEL in realDeps(), focused tests, full checks. No provider calls, no deploy.
+- Later activation only: record John's Office Manager cap C$35 CAD/month (~US$25 at 2026-09-10 working rate); do not reinterpret the C$500 total office ceiling.

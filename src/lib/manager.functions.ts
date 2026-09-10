@@ -82,6 +82,15 @@ export interface ManagerDeps {
   model: string | undefined;
 }
 
+/**
+ * Trim a server setting at read time; an empty or whitespace-only value is
+ * treated as absent. Values are never exposed back to the browser.
+ */
+export function readSetting(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 async function realDeps(): Promise<ManagerDeps> {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
@@ -89,11 +98,13 @@ async function realDeps(): Promise<ManagerDeps> {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
-    fetchImpl: fetch,
-    openaiKey: process.env["OPENAI_API_KEY"],
+    // Bound wrapper, not a detached `fetch` reference — a bare global fetch
+    // can fail before any HTTP response in the server runtime.
+    fetchImpl: (input, init) => fetch(input, init),
+    openaiKey: readSetting(process.env["OPENAI_API_KEY"]),
     // Explicit configuration only. The office never asserts a model is "the
     // latest" and never guesses one on John's behalf.
-    model: process.env["OPENAI_MODEL"],
+    model: readSetting(process.env["OPENAI_MODEL"]),
   };
 }
 
