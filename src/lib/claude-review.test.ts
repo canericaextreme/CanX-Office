@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  classifyUnreachable,
   computeClaudeStatusWith,
   parseReview,
   runClaudeReviewWith,
+  UNREACHABLE_DETAILS,
   validateReviewInput,
   type ClaudeDeps,
 } from "./claude-review.functions";
@@ -296,5 +298,79 @@ describe("Claude connection check (non-billable, fail closed)", () => {
     const result = await status(fetchImpl);
     expect(JSON.stringify(result)).not.toContain(KEY);
     expect(JSON.stringify(result)).not.toContain("body-with");
+  });
+});
+
+describe("network failure classification — safe, non-secret categories", () => {
+  it("classifies coded causes without reading message text", () => {
+    const withCause = (code: string) => Object.assign(new Error("sensitive text with 10.0.0.1"), { cause: { code } });
+    expect(classifyUnreachable(withCause("ENOTFOUND"), false)).toBe("dns");
+    expect(classifyUnreachable(withCause("EAI_AGAIN"), false)).toBe("dns");
+    expect(classifyUnreachable(withCause("CERT_HAS_EXPIRED"), false)).toBe("tls");
+    expect(classifyUnreachable(withCause("ERR_TLS_CERT_ALTNAME_INVALID"), false)).toBe("tls");
+    expect(classifyUnreachable(withCause("ECONNREFUSED"), false)).toBe("refused");
+    expect(classifyUnreachable(withCause("ECONNRESET"), false)).toBe("refused");
+    expect(classifyUnreachable(withCause("ENETUNREACH"), false)).toBe("refused");
+    expect(classifyUnreachable(withCause("EUNKNOWN"), false)).toBe("other");
+    expect(classifyUnreachable(new TypeError("Network connection lost."), false)).toBe("other");
+    expect(classifyUnreachable(Object.assign(new Error("x"), { name: "AbortError" }), true)).toBe("timeout");
+  });
+
+  const codedThrow = (code: string) =>
+    vi.fn(async () => {
+      throw Object.assign(new Error(`secret ${KEY} at 10.0.0.1:443`), { cause: { code } });
+    });
+
+  const failingStatus = (fetchImpl: ReturnType<typeof vi.fn>) =>
+    computeClaudeStatusWith(deps({ fetchImpl: fetchImpl as unknown as typeof fetch }), "t");
+
+  it("dns — names the lookup failure, never the raw error", async () => {
+    const result = await failingStatus(codedThrow("ENOTFOUND"));
+    expect(result.connected).toBe(false);
+    expect(result.detail).toContain("could not be looked up");
+    expect(JSON.stringify(result)).not.toContain(KEY);
+    expect(JSON.stringify(result)).not.toContain("10.0.0.1");
+    expect(JSON.stringify(result)).not.toContain("ENOTFOUND");
+  });
+
+  it("tls — names the secure-connection failure", async () => {
+    const result = await failingStatus(codedThrow("CERT_HAS_EXPIRED"));
+    expect(result.connected).toBe(false);
+    expect(result.detail).toContain("secure connection");
+    expect(JSON.stringify(result)).not.toContain(KEY);
+  });
+
+  it("refused — names blocked/refused outbound access", async () => {
+    const result = await failingStatus(codedThrow("ECONNREFUSED"));
+    expect(result.connected).toBe(false);
+    expect(result.detail).toContain("refused or reset");
+    expect(result.detail).toContain("blocked");
+  });
+
+  it("other — generic no-reply wording for uncoded worker errors", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError(`Network connection lost while sending ${KEY}`);
+    });
+    const result = await failingStatus(fetchImpl);
+    expect(result.connected).toBe(false);
+    expect(result.detail).toContain("no reply at all");
+    expect(JSON.stringify(result)).not.toContain(KEY);
+    expect(JSON.stringify(result)).not.toContain("Network connection lost");
+  });
+
+  it("timeout — reports the elapsed wait in whole seconds", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw Object.assign(new Error("aborted"), { name: "AbortError" });
+    });
+    const result = await failingStatus(fetchImpl);
+    expect(result.detail).toContain("timed out");
+    expect(result.detail).toMatch(/about \d+s/);
+  });
+
+  it("classification details never embed the key, headers, or addresses", () => {
+    const joined = Object.values(UNREACHABLE_DETAILS).join(" ");
+    expect(joined).not.toContain("x-api-key");
+    expect(joined).not.toContain(KEY);
+    expect(joined).not.toMatch(/\d+\.\d+\.\d+\.\d+/);
   });
 });
