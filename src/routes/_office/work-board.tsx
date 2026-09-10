@@ -72,28 +72,33 @@ function WorkBoard() {
           {state !== "owner" && state !== "checking" && (
             <p className="text-sm text-muted-foreground">{message}</p>
           )}
-          {items.map((item) => (
-            <div key={item.id} className="rounded-lg border border-border/50 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge tone={"status" in item ? item.status : "open"} />
-                <span className="font-medium">{item.title}</span>
-                {"worker" in item && item.worker ? (
-                  <span className="text-xs text-muted-foreground">· {item.worker}</span>
-                ) : null}
+          {items.map((item) => {
+            const isTask = "status" in item;
+            const status = isTask ? item.status : "open";
+            const tone = status === "done" ? "green" : status === "in_progress" ? "blue" : status === "cancelled" ? "red" : "grey";
+            return (
+              <div key={item.id} className="rounded-lg border border-border/50 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone={tone} label={status.replace("_", " ")} />
+                  <span className="font-medium">{item.title}</span>
+                  {isTask && item.worker ? (
+                    <span className="text-xs text-muted-foreground">· {item.worker}</span>
+                  ) : null}
+                </div>
+                {isTask && item.detail ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">Project: {(item as { project?: string }).project}</p>
+                )}
+                {"blocker" in item && item.blocker && (
+                  <p className="mt-1 text-xs text-canx-yellow">Blocker: {item.blocker}</p>
+                )}
+                {"evidence" in item && item.evidence && (
+                  <p className="mt-1 text-xs text-canx-green">Evidence: {item.evidence}</p>
+                )}
               </div>
-              {"detail" in item && item.detail ? (
-                <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-              ) : (
-                <p className="mt-1 text-xs text-muted-foreground">Project: {(item as { project?: string }).project}</p>
-              )}
-              {"blocker" in item && item.blocker && (
-                <p className="mt-1 text-xs text-canx-yellow">Blocker: {item.blocker}</p>
-              )}
-              {"evidence" in item && item.evidence && (
-                <p className="mt-1 text-xs text-canx-green">Evidence: {item.evidence}</p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
     </RoomShell>
