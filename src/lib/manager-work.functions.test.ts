@@ -152,12 +152,12 @@ describe("task lifecycle", () => {
   });
 
   it("verifyManagerTaskWith marks a task done and logs the change", async () => {
-    const updated = { id: "t1", title: "Task", status: "done", worker: "Claude" };
+    const updated = { id: "t1", owner_id: "owner-1", title: "Task", status: "done", worker: "Claude" };
     const rest = vi.fn().mockImplementation((_token, _method, path) => {
-      if (path.startsWith("manager_tasks?id=eq")) return { ok: true, data: [updated] };
-      if (path.startsWith("manager_tasks")) return { ok: true, data: [updated] };
-      if (path === "rpc/log_manager_change") return { ok: true };
-      return { ok: true, data: [] };
+      if (path.startsWith("manager_tasks?id=eq")) return Promise.resolve({ ok: true, data: [updated] });
+      if (path.startsWith("manager_tasks")) return Promise.resolve({ ok: true, data: [updated] });
+      if (path === "rpc/log_manager_change") return Promise.resolve({ ok: true });
+      return Promise.resolve({ ok: true, data: [] });
     });
     const deps = mockDeps({ rest });
     const result = await verifyManagerTaskWith(deps, { accessToken: "token", taskId: "t1", result: "Done", evidence: "Test passed" });
