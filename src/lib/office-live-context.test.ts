@@ -244,6 +244,13 @@ describe("receipt aggregation and privacy", () => {
     expect(result.text).toContain("payment status=Refunded");
     expect(result.text).toContain("business use=not decided");
     expect(result.text).toContain("Showing 2 of 2 validated receipts; omitted: 0");
+    expect(result.text).toContain(
+      "Approved vendor, date, total, currency, category, status, business-use and source-count fields follow.",
+    );
+    expect(result.text).toContain("raw receipt data and payment-account details remain withheld");
+    expect(result.text).not.toContain(
+      "Vendor names, individual amounts, order numbers, links, message ids and email text are deliberately withheld.",
+    );
     for (const forbidden of [
       "r1",
       "Shop supplies",
@@ -266,8 +273,36 @@ describe("receipt aggregation and privacy", () => {
     const result = await buildLiveOfficeContext(request(rest(FULL)));
     if (!result.ok) throw new Error("expected ok");
     expect(result.text).toContain("aggregate only");
+    expect(result.text).toContain(
+      "Vendor names, individual amounts, order numbers, links, message ids and email text are deliberately withheld.",
+    );
+    expect(result.text).not.toContain("Approved vendor, date, total, currency, category");
     expect(result.text).toContain("Receipt review details: withheld");
     expect(result.text).not.toContain("vendor=Acme Hardware Ltd");
+  });
+
+  it("fails closed when detailed review is requested for a malformed stored document", async () => {
+    const result = await buildLiveOfficeContext(
+      reviewRequest(
+        rest({
+          ...FULL,
+          finance_receipts: { ok: true, body: [{ doc: { kind: "wrong-kind", receipts: [] } }] },
+        }),
+      ),
+    );
+    expect(result).toEqual({
+      ok: false,
+      message: "The finance records could not be read just now, so no answer was requested.",
+    });
+  });
+
+  it("preserves the empty detail state when no receipt document exists", async () => {
+    const result = await buildLiveOfficeContext(
+      reviewRequest(rest({ ...FULL, finance_receipts: { ok: true, body: [] } })),
+    );
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.text).toContain("Showing 0 of 0 validated receipts; omitted: 0");
+    expect(result.text).toContain("No receipt details are recorded.");
   });
 
   it("keeps prompt-injection text fenced as untrusted receipt data", async () => {
