@@ -20,6 +20,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
+import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 
 export type ManagerState =
   /** No CanX-owned database, or the caller is not a verified owner with MFA. */
@@ -526,4 +527,28 @@ export const getManagerStatus = createServerFn({ method: "POST" })
 
 export const managerChat = createServerFn({ method: "POST" })
   .inputValidator(validate)
-  .handler(async ({ data }): Promise<ManagerReply> => runManagerChatWith(await realDeps(), data));
+  .handler(async ({ data }): Promise<ManagerReply> => {
+    const latestRequest = [...data.messages].reverse().find((message) => message.role === "user")?.content ?? "";
+    if (isExplicitReceiptSyncRequest(latestRequest)) {
+      const result = await runReceiptSync({ accessToken: data.accessToken, request: latestRequest });
+      return {
+        ok: result.ok,
+        code: result.ok ? "ok" : result.code === "auth_not_ready" ? "auth_not_ready" : "context_unavailable",
+        provider: "none",
+        state: result.ok ? "verified" : result.code === "auth_not_ready" ? "auth_unavailable" : "configured_unverified",
+        model: null,
+        text: result.ok
+          ? [
+              result.message,
+              ...result.receipts.map((receipt) =>
+                `${receipt.vendor}: ${receipt.total ?? "total unknown"} ${receipt.currency ?? "currency not stated"}; ${receipt.paymentStatus}; ${receipt.dueDate ? `due ${receipt.dueDate}` : receipt.expectedRenewalDate ? `expected renewal ${receipt.expectedRenewalDate} (${receipt.expectedRenewalBasis})` : "no due date stated"}.`,
+              ),
+              ...result.totalsByCurrency.map((total) => `${total.currency}: ${total.count} receipt(s), ${total.total ?? "total incomplete"}.`),
+            ].join("\n")
+          : "",
+        toolCalls: [],
+        detail: result.ok ? undefined : result.message,
+      };
+    }
+    return runManagerChatWith(await realDeps(), data);
+  });

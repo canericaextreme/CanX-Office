@@ -115,6 +115,10 @@ async function realDeps(): Promise<SyncDeps> {
   };
 }
 
+export async function runReceiptSync(input: { accessToken: string; request: string }) {
+  return runReceiptSyncWith(await realDeps(), input);
+}
+
 export async function runReceiptSyncWith(
   deps: SyncDeps,
   input: { accessToken: string; request: string },
@@ -172,4 +176,4 @@ function validate(input: unknown) {
 
 export const syncGmailReceipts = createServerFn({ method: "POST" })
   .inputValidator(validate)
-  .handler(async ({ data }) => runReceiptSyncWith(await realDeps(), data));
+  .handler(async ({ data }) => runReceiptSync(data));
