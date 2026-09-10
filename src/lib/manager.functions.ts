@@ -83,7 +83,7 @@ export interface ManagerDeps {
    * Server-built office context, read live from the CanX-owned database as the
    * verified owner. The browser never supplies office facts.
    */
-  buildContext: (verification: Extract<OwnerVerification, { ok: true }>) => Promise<LiveContextResult>;
+  buildContext: (token: string, verification: Extract<OwnerVerification, { ok: true }>) => Promise<LiveContextResult>;
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   model: string | undefined;
@@ -106,14 +106,14 @@ async function realDeps(): Promise<ManagerDeps> {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
-    buildContext: async (verification) => {
+    buildContext: async (token, verification) => {
       if (!config) {
         return { ok: false as const, message: "No CanX-owned database is configured, so no office facts could be read." };
       }
       const live = await import("@/lib/office-live-context.server");
       return live.buildLiveOfficeContext({
         config,
-        token: verification.token,
+        token,
         ownerEmail: verification.email,
         aal: verification.aal,
         provider: "OpenAI",
