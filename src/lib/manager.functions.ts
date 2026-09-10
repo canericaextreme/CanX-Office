@@ -533,6 +533,7 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
       model: deps.model,
       text: "",
       toolCalls: [],
+      actionResults: [],
       detail: sanitizedProviderDetail(),
     };
   }
