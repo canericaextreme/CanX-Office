@@ -33,6 +33,7 @@ import {
   verifyManagerTaskWith,
   type ManagerMemory,
   type RiskLevel,
+  type WorkbenchDeps,
 } from "@/lib/manager-work.functions";
 
 export type ManagerState =
