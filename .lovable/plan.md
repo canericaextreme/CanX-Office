@@ -1,75 +1,62 @@
-# Permanent CanX receipt-review workflow
+# Manager-run office: inventory first, then fill only the gaps
 
-## Goal
-Add one owner-only, server-side Gmail-to-Finance workflow that runs only when John explicitly asks the Office Manager to review or retrieve receipts/invoices. It will preserve the existing office, Finance screen, 12 receipts, read-only Manager context, and every unrelated system.
+You talk only to the Manager. The Manager turns approved decisions into tasks, assigns workers, verifies results, and keeps one master task list. Nothing existing is deleted or rebuilt.
 
-The workflow will remain safely blocked until a distinct CanX Gmail connection is linked. The only available Gmail connection is named **Safehighways**; it will not be linked, queried, or reused.
+## Step 1 — Inventory (already done, no changes made)
 
-## What will be built
+What is already there:
 
-1. **Explicit receipt command**
-   - Extend the existing receipt-intent detection to distinguish retrieval/sync requests from ordinary read-only receipt questions.
-   - Route only a latest, explicit owner request such as “review receipts,” “retrieve receipts,” or “check invoices” into the narrow ingestion path.
-   - Keep ordinary receipt questions read-only and keep the Manager’s existing appearance/task tools unchanged.
+- Office Manager chat, owner sign-in with two-step verification, and fail-closed rules so nothing runs without a verified owner.
+- Manager can currently do only two things: preview a look change, and propose a task for you to save.
+- Tasks and decisions exist, but they live only in this browser (`office-notes`), not in the CanX database, so they do not survive a new device or a cleared browser.
+- An activity log exists, but only records real Claude review runs, and also only in this browser.
+- A spending ceiling of C$500/month is written down for the whole office, display only, not enforced.
+- Spending controls exist as unapplied database rules (`0002_ai_limits.sql`) that would enforce per-minute, per-day and per-month limits.
+- Claude second-eyes review exists as a separate screen you press yourself.
+- Receipt work, Brain, rooms, Finance and the 20 destinations exist and stay untouched.
 
-2. **Fail-closed server pipeline**
-   - Recheck the existing CanX database session, owner role, and two-step verification before Gmail access.
-   - Require the linked CanX Gmail connector settings and `gmail.readonly`; never request send, modify, delete, or mailbox-label powers.
-   - Make Gmail calls only from server code through Lovable’s connector gateway. No OAuth token, connector key, message ID, attachment ID, raw body, or source URL reaches the browser or Manager prompt.
-   - Return a specific safe next action when authentication, connector, migration, parsing, or verified writing is unavailable.
+What is missing:
 
-3. **Bounded Gmail retrieval**
-   - Use Gmail search and incremental history/checkpoint data to examine only new or changed receipt/invoice candidates by default.
-   - Support an explicit owner rescan without weakening deduplication.
-   - Fetch bounded message metadata, plain-text/decoded body parts, and bounded PDF/image attachments. Treat every filename, body, and attachment as untrusted data.
-   - Extract text deterministically from supported text PDFs with an edge-compatible parser. Image-only or unsupported documents that cannot be verified safely will be reported as needing review, not filed or guessed.
+- A single master task list that survives restarts and lives in the CanX database.
+- Workers, assignment, and Manager-verified results.
+- The green / yellow / red decision rule and an approval box.
+- A C$100/month AI budget with a warning at 75 and a pause at 100.
+- Manager permission to call Claude for second eyes on its own.
+- A change log with rollback points.
 
-4. **Validated receipt model**
-   - Add backward-compatible receipt fields for document type, invoice/order number, issue/transaction date, service period, subtotal, GST/HST, PST, other/combined tax, total, currency, actual due date, payment status, recurring interval, expected renewal with basis, category suggestion, review requirement, and business-use percentage.
-   - Continue accepting the existing version-1 receipt document so the 12 records are preserved.
-   - Never infer a confirmed due date. An inferred date is stored only as **expected renewal** with its basis.
-   - Keep unknown currencies explicit and all totals separated by currency.
-   - Keep category suggestions marked for owner/accountant review; never claim deductibility or automatically claim tax credits.
+## Step 2 — Build only the gaps
 
-5. **Private evidence, deduplication, and atomic storage**
-   - Add an unapplied external-database migration for owner-scoped ingestion state, opaque source identities/fingerprints, checkpoints, and restricted original evidence.
-   - Add explicit grants and owner/AAL2 RLS. Evidence tables will not be readable through the normal authenticated browser role.
-   - Add a narrow database function that atomically merges validated records, records source identities, advances the checkpoint only after success, and returns safe counts. A read-back check must confirm the write before anything is called “filed.”
-   - Deduplicate first by Gmail message plus attachment identity, then invoice/order number, then content fingerprint. Ambiguous matches are held for review rather than merged automatically.
-   - Preserve the existing 12 records and their edits; use server-side concurrency/version checks so a simultaneous Finance edit cannot be overwritten.
+1. **Master task list (survives restarts).** New owner-only tables in the existing CanX database for tasks, assignments, results, decisions and the change log. Every record keeps who created it, when, and what evidence backs the result. Existing browser-stored tasks are imported once on your say-so, never overwritten or deleted.
 
-6. **Concise Manager result**
-   - Return only: new receipts filed, duplicates skipped, items needing review, approved vendor/date/total/currency/payment/due-or-renewal fields, and running totals by currency.
-   - Clearly distinguish actual due dates from expected renewals.
-   - Keep raw evidence and forbidden identifiers outside the allowlisted Manager context.
-   - If some candidates fail, file only independently verified records in the atomic batch and report the remaining items as unfiled with safe next actions; never advance past failed candidates silently.
+2. **Manager memory across restarts.** The Manager reads the master list, open approvals, recent changes and the current budget position at the start of every conversation, so it does not forget between sessions.
 
-## Technical changes
+3. **Green / yellow / red.** Every action the Manager plans is labelled before it runs:
+   - Green: routine, reversible, inside budget. The Manager proceeds and logs it. Small calls never stop work.
+   - Yellow: money, outside contact, data changes, or anything not reversible. Goes to your approval box and waits.
+   - Red: blocked by a rule (no verified sign-in, over budget, forbidden project). That one operation stops with a plain reason; everything else keeps going.
+   Safe Highways and Trail Tales stay off limits, and publishing, payments, emails and new subscriptions stay yellow or red regardless of budget.
 
-- Add server-only Gmail gateway, MIME/attachment decoding, PDF text extraction, deterministic receipt extraction, and ingestion orchestration modules.
-- Extend `src/lib/finance-receipts.ts` compatibly rather than replacing the current document format blindly.
-- Add a narrow ingestion dependency to `src/lib/manager.functions.ts`; it runs before any OpenAI reservation, health check, or Manager provider call. If ingestion prerequisites fail, no OpenAI request occurs.
-- Add migration `docs/migrations/0004_finance_receipt_ingestion.sql` and update the combined setup script consistently. The migration will be supplied but not applied automatically.
-- Do not change the Finance page layout, office visuals, rooms, Brain, Systems, Claude, OpenAI configuration, existing data, or other projects.
+4. **Approval box.** One place in the office listing everything waiting on you, with what it will do, why, cost if any, and Approve / Decline. Nothing yellow runs until you press Approve.
 
-## Verification
+5. **AI budget C$100 per month.** Enforced in the database, not just written down: a warning banner at C$75 used, and a hard pause at C$100 where the Manager refuses further paid calls and tells you plainly. Every paid call is recorded with its cost estimate. The existing C$500 office-wide ceiling stays as the separate whole-office record.
 
-Focused tests will cover:
-- signed-out, non-owner, and non-AAL2 denial before Gmail or OpenAI calls;
-- missing/wrong connector and migration prerequisites;
-- prompt-injection text remaining inert;
-- Gmail message/attachment, invoice/order, and fingerprint deduplication;
-- checkpoint replay, explicit rescan, concurrency, and partial failure;
-- malformed MIME/PDF/image and oversized attachment rejection;
-- version-1 compatibility and preservation of the existing receipt set;
-- GST/HST, PST, combined/unknown tax handling without guessed allocation;
-- actual due date versus expected renewal;
-- unknown/multiple currency separation;
-- verified write/read-back and no “filed” claim on failure;
-- forbidden fields absent from browser results and Manager prompts.
+6. **Second eyes without asking.** Inside the C$100 budget, the Manager may send its own work to Claude for review as a green action, and shows the review in the task record. Outside budget it becomes red.
 
-Then run focused tests, the full test suite, TypeScript checking, and the production build. No provider call, database migration execution, deployment, publishing, or Safe Highways access will occur during implementation.
+7. **Verify before rebuild.** When something looks wrong, the Manager first checks the actual current state and reports what it found. Rebuilding or replacing working parts is always yellow, never automatic.
 
-## Known setup blocker
+8. **Change log and rollback points.** Every Manager-made change is logged with a before/after note and a named restore point, and you can restore from that list. Approved recovery baselines stay protected.
 
-A separate CanX Gmail workspace connection does not currently exist for this project. The available connection is **Safehighways** and is out of bounds. After the code and migration are ready, a workspace owner must create a CanX Google Mail connection and link it to this project once. Until then, the workflow will report Gmail as disconnected and make no mailbox request.
+## Technical notes
+
+- New migration `docs/migrations/0005_manager_workbench.sql`: `manager_tasks`, `manager_assignments`, `manager_approvals`, `manager_changes` (append-only), plus grants and owner + AAL2 RLS matching the existing pattern. Additive only; no existing table is altered destructively.
+- Reuse `reserve_ai_call` / `settle_ai_call` from `0002_ai_limits.sql` for budget enforcement, with `max_cents_per_month = 10000`; add a warn threshold read at 75%.
+- Server functions in `src/lib/manager-work.functions.ts`; Manager tool allowlist extended with narrow, validated task/assign/verify/log tools. No general write powers, no raw evidence in prompts.
+- Risk classification lives server-side and cannot be talked into changing by chat text.
+- UI: approval box and master list added as panels in existing rooms (Work Board / Owner Desk / Approvals). No visual redesign, no change to rooms, Brain, Finance or the 20 destinations.
+- Tests for: risk classification, budget warn/pause, restart memory reload, approval gating, rollback point creation, and fail-closed behaviour with no verified owner.
+- Migrations 0004 and 0005 are supplied but not applied by me, and nothing is published or deployed.
+
+## Blockers you will need to clear
+
+- Migrations `0004` and `0005` must be applied to the CanX database before the master list persists.
+- Paid second-eyes calls need the Anthropic settings already configured plus a verified owner session.
