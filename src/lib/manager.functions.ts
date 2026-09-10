@@ -31,6 +31,7 @@ import {
   requestManagerApprovalWith,
   runManagerSecondEyesWith,
   verifyManagerTaskWith,
+  type JsonObject,
   type ManagerMemory,
   type ManagerWorkError,
   type RiskLevel,
