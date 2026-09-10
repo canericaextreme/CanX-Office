@@ -59,6 +59,12 @@ function Systems() {
 
   const dbConnected = session.configured;
   const signedIn = session.state === "owner";
+  const step = nextStep({
+    state: session.state,
+    configured: session.configured,
+    aiConnected: Boolean(ai?.connected),
+    claudeConnected: Boolean(claude?.connected),
+  });
 
   return (
     <RoomShell showSample={false}>
