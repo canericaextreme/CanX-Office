@@ -1,50 +1,66 @@
-# Forensic review: which checkpoint matches the morning screen
+# Office Manager activation readiness — read-only review
 
-Review only. No code was changed, nothing was deployed, no paid call was made.
+Commit inspected: `ac0246c` ("Fixed Claude & database status"), the approved recovery baseline. No code, secrets, data or provider calls were touched.
 
-## A. Recommended target commit
+## 1. Is the server path built, and what invokes it
 
-**46822827550379ef81cdde87de252bf874def758 — "Added real activity logging", 9 Sep 2026 23:11 UTC.**
+Yes, it is fully built.
 
-Evidence from the history:
-- It is the last commit of yesterday. The next commit in the log is `a99807e3` at 10 Sep 16:51 ("Fixed stale Systems status"), the first change of today.
-- The two other candidates are earlier the same evening and are supersets-in-progress of the same work: `9c5cd837` 22:16 ("Added Claude second-eyes review") and `ea721d0f` 23:07 ("Enabled Claude review flow").
-- `11f4f5c7` is 9 Sep 21:53 — earlier than all three, which is why that rollback went too far back.
+- `src/lib/manager.functions.ts` — server functions `getManagerStatus` and `managerChat` (bottom of file), wrapping the testable `computeManagerStatusWith()` and `runManagerChatWith()`.
+- `src/components/office/OfficeManager.tsx` — the manager dock; `useServerFn(managerChat)` at line 47, sent by `send()` (line 138) from the "Send" button (line 338).
+- Mounted for every office page in `src/routes/_office.tsx` (line 26), so it appears on all 20 destinations, not one page.
 
-At `46822827` the Reception page contains exactly the desired elements: dark charcoal CANX Office heading, sample badge, Tour, the Office Manager information banner, the view that renders the 20-card grid, the Office status panel, and the Brain map panel (the coloured/green lower visual portion) below it.
+## 2. Required settings (presence only, no values shown)
 
-## B. What removed the green section and caused the compression
+| Name | Purpose | Present |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | CanX-owned AI key | absent |
+| `OPENAI_MODEL` | model, must be chosen deliberately | absent |
+| `CANX_SUPABASE_URL` | CanX-owned database | present |
+| `CANX_SUPABASE_PUBLISHABLE_KEY` | database sign-in | present |
 
-Everything that touched Reception layout happened today, after `46822827`:
+`ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` are present but belong to Claude, not the manager. The manager reads its two names in `realDeps()` and never guesses a model.
 
-- `6f57e1a` / `38a1ba5` "Refactored Reception layout" and `ead7809` "Fixed Reception desktop layout" (17:40–18:10) moved the Brain map between the wide left column and the narrow 340px right strip. That narrow strip is what squeezes the activity text into one-word lines and leaves the wide left column mostly empty.
-- `2621c88` "Fixed Brain responsive overflow", `ce5f778` "Fixed office toggle visibility", `ba83369` "Unified office view mode state", `68c249c` "Fixed startup view default bug" changed the view-mode state and defaults. The half-second flash of the correct grid followed by a compressed layout is this hydration/default-mode behaviour.
-- `cff32c4` rolled back to the too-early `11f4f5c7`, and `8bc9658` ("Removed BrainMap from Reception") deleted the Brain panel from Reception — that is the direct cause of the missing green lower section right now.
+## 3. Gates before any paid call
 
-The current tree differs from `46822827` in only 11 files: the Claude review files (deleted), Systems/round-table/inventory/doc edits, the Reception Brain removal, and a test file. Reception is otherwise byte-identical to the morning version.
+All present in `runManagerChatWith()`, in this order, all server-side:
 
-## C. Effect on Supabase / auth / Finance / receipts
+1. Owner identity, role and two-step verification — `deps.verifyOwner()` → `verifyOwnerWith()` in `canx-backend.server.ts`; `aal !== "aal2"` denies (`mfa_required`, line 114). Role is read from the database, not the browser.
+2. Input validation — `validate()`: max 20 messages, 6000 characters each, token truncated to 4000, roles filtered.
+3. Key and explicit model both required.
+4. Durable reservation — `reserve_ai_call` RPC; refusal reasons `unavailable`, `rate_limit`, `budget_limit`.
+5. Live authenticated health check every call (`GET /v1/models/{model}`, 15s timeout).
+6. Request timeout 45s; output capped at 900 tokens; upstream bodies and status details never returned to the browser (`sanitizedProviderDetail`); every failure settles the reservation as `failed`.
 
-Restoring the whole commit is safe for data. Nothing under version control holds live data:
-- The external CanX-owned Supabase project, its rows, and its users are outside git and untouched by a code restore.
-- Secrets (`ANTHROPIC_API_KEY`, any Supabase keys, model names) live in Project Settings, not in the repo.
-- SQL migrations under `docs/migrations/` are documents only; restoring them changes no database.
-- Finance receipt review data stored device-locally in the browser is unaffected by a code restore.
+Fail-closed throughout: any failed step returns a deny reply and makes no upstream request.
 
-One consequence to accept: `46822827` still contains the Claude Second Eyes code (added yesterday at `9c5cd837`/`ea721d0f`). Restoring the whole commit brings that code back, minus today's connectivity troubleshooting. Claude stays disconnected until a key and model are entered.
+## 4. Is the C$500 ceiling enforced
 
-## D. Safest restoration procedure
+No — displayed only, and honestly labelled as such.
 
-Whole-checkpoint restore, no hybrid:
+- `src/lib/office-budget.ts` is a written record; `budgetView()` returns `enforcement: "unverified"`.
+- `BudgetPanel.tsx` states "Status: not enforced."
+- Real enforcement lives in `docs/migrations/0002_ai_limits.sql` (`ai_limits` defaults: 6 calls/minute, 200/day, 500 cents/day, 5000 cents/month) — **status marked NOT APPLIED**. With no `ai_limits` row, `reserve_ai_call` returns `unavailable` and the manager denies. That is the intended behaviour.
+- Note: the migration's monthly default is 5000 cents = $50/month, not $500. The two numbers are unrelated today and must be reconciled deliberately before activation.
 
-1. Restore every tracked file to its exact `46822827` content, including deleting files added after it (the `-index.test.ts` regression file) and re-adding files deleted since (the Claude review files).
-2. Keep `.lovable/plan.md` as working metadata only.
-3. Verify: typecheck, full test run, production build.
-4. Browser check at 1920x1080 and 1366x768: Reception header, sample badge, Tour, Manager banner, the 20-card grid in four columns, Office status, and the Brain panel visible with its colour; no horizontal overflow; all 20 room routes load.
-5. Report the result. Do not publish until the screen is confirmed correct.
+## 5. Smallest safe activation sequence
 
-If after restore the Brain panel still reads compressed in the 340px right strip, that is the original layout, not a regression — a separate, explicitly approved layout change would be needed.
+No code changes are required. Order matters — the last step is the only one that can cost money.
 
-## E. One open question
+1. Confirm `0001`/`0002` migrations are actually applied in the CanX-owned database, and that an `ai_limits` row exists for John's owner account with the monthly cents figure he intends.
+2. Sign in as owner with two-step verification and confirm the manager reads `not_configured` (that proves gates 1 and 5 pass before any key exists).
+3. Choose the exact OpenAI model name deliberately and add `OPENAI_MODEL` in Project Settings → Secrets.
+4. Add `OPENAI_API_KEY` in Project Settings → Secrets.
+5. Reload, check status turns to verified, then send one short message and confirm one reserved-and-settled usage row appears.
 
-The morning screen opened directly in the 20-card "Simple view". At `46822827` the default is the office floor view, and Simple view is remembered from the browser's saved preference. Restoring this commit reproduces that behaviour exactly. If John wants Simple view to be the guaranteed default on every fresh load, that is a separate small change to approve after the restore.
+Optional, only if wanted: apply to the manager the same two fixes already made for Claude — a bound `fetch` wrapper and trim/empty-normalisation of the two settings in `realDeps()`. The manager currently uses a detached `fetchImpl: fetch` and untrimmed values, the exact pattern that produced Claude's unreachable state.
+
+## 6. Tests and gaps
+
+Covered in `src/lib/manager.functions.test.ts` (17 cases): all seven deny reasons with no upstream fetch, key-alone never connects, missing key/model, `unavailable`/`rate_limit`/`budget_limit`, failed health check releasing the reservation, no upstream body leakage, the successful path, verified status only after a passing health check, and tool-argument clamping.
+
+Gaps: no test for the bound-fetch/trimming behaviour of `realDeps()`, no test asserting the 20-message / 6000-character truncation, no test for the untrusted-context fencing, and no end-to-end test that the C$500 written ceiling matches the database limit.
+
+## Baseline
+
+Recovery baseline `ac0246c` is unchanged. Nothing in this review altered code, secrets, database or deployment.
