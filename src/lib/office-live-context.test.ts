@@ -88,7 +88,6 @@ function rest(handlers: Record<string, { ok: boolean; body: unknown }>): RestImp
 const request = (restImpl: RestImpl) => ({
   config: CONFIG,
   token: "token",
-  ownerEmail: "owner@example.com",
   aal: "aal2",
   provider: "OpenAI",
   model: "gpt-test",
@@ -100,7 +99,7 @@ const FULL = {
     ok: true,
     body: [
       { title: "Confirm AI limits row", detail: "Before any paid call", kind: "task", provenance: "john" },
-      { title: "Sample demo item", detail: "", kind: "task", provenance: "sample" },
+      { title: "Sample demo item", detail: "Only for the demo", kind: "task", provenance: "sample" },
     ],
   },
   round_tables: { ok: true, body: [{ key: "monday-2026-09-14", updated_at: "2026-09-10T18:00:00Z" }] },
@@ -113,7 +112,7 @@ describe("live office context", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.text).toContain("CanX-owned database: connected");
-    expect(result.text).toContain("owner@example.com");
+    expect(result.text).toContain("verified owner account is confirmed");
     expect(result.text).toContain("aal2");
     expect(result.text).toContain("model: gpt-test");
     expect(result.text).toContain("Confirm AI limits row");
@@ -121,11 +120,21 @@ describe("live office context", () => {
     expect(result.text).toContain("last updated 2026-09-10T18:00:00Z");
   });
 
-  it("labels sample records as sample and never presents them as current work", async () => {
+  it("excludes demonstration records entirely, matching what the context claims", async () => {
     const result = await buildLiveOfficeContext(request(rest(FULL)));
     if (!result.ok) throw new Error("expected ok");
-    expect(result.text).toContain("(task, sample) Sample demo item");
+    expect(result.text).not.toContain("Sample demo item");
+    expect(result.text).not.toContain("Only for the demo");
+    expect(result.text).not.toContain("sample");
+    expect(result.text).toContain("Confirm AI limits row");
     expect(result.text).toContain("Do not describe any project or work item as current");
+  });
+
+  it("never sends the owner's email address to the provider", async () => {
+    const result = await buildLiveOfficeContext(request(rest(FULL)));
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.text).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    expect(result.text).toContain("verified owner account is confirmed");
   });
 
   it("says none recorded when the office is empty, instead of using sample data", async () => {
@@ -142,6 +151,7 @@ describe("live office context", () => {
     expect(result.text).toContain("notes, tasks and decisions [provenance: live database]: none recorded.");
     expect(result.text).toContain("Round table records [provenance: live database]: none recorded.");
     expect(result.text).toContain("Receipts filed: 0");
+    expect(result.text).toContain("Totals by original currency: none recorded");
     expect(result.text).not.toContain("Trail Tales website");
   });
 
@@ -169,8 +179,8 @@ describe("receipt aggregation and privacy", () => {
     const summary = summariseReceiptDocument(JSON.stringify(receiptDoc));
     expect(summary.totalsByCurrency).toEqual([
       { currency: "CAD", total: 125.5, count: 2 },
+      { currency: "UNKNOWN", total: 12.25, count: 1 },
       { currency: "USD", total: 40, count: 1 },
-      { currency: "unspecified", total: 12.25, count: 1 },
     ]);
   });
 
@@ -180,5 +190,56 @@ describe("receipt aggregation and privacy", () => {
     for (const secret of SENSITIVE) expect(result.text).not.toContain(secret);
     expect(result.text).toContain("Receipts filed: 4");
     expect(result.text).toContain("CAD: 125.50 across 2 receipts");
+  });
+});
+
+describe("aggregate totals follow the Finance room's own rules", () => {
+  const docWith = (rows: unknown[]) =>
+    JSON.stringify({ schemaVersion: RECEIPTS_SCHEMA_VERSION, kind: RECEIPTS_KIND, receipts: rows });
+
+  const base = {
+    date: "2026-08-01",
+    paymentStatus: "paid",
+    sourceMessageIds: ["m1"],
+    sourceUrl: "",
+    sourceEmailText: "",
+    orderNumber: "",
+  };
+
+  it("leaves receipts marked 'Not a business receipt' out of the money but still counts them", () => {
+    const summary = summariseReceiptDocument(
+      docWith([
+        { ...base, id: "a", vendor: "One", description: "d", total: 30, currency: "CAD", reviewStatus: "reviewed" },
+        { ...base, id: "b", vendor: "Two", description: "d", total: 900, currency: "CAD", reviewStatus: "excluded" },
+      ]),
+    );
+    expect(summary.receipts).toBe(2);
+    expect(summary.totalsByCurrency).toEqual([{ currency: "CAD", total: 30, count: 1 }]);
+  });
+
+  it("reports an unknown total, never zero, when an included receipt has no amount", async () => {
+    const doc = docWith([
+      { ...base, id: "a", vendor: "One", description: "d", total: 30, currency: "CAD", reviewStatus: "reviewed" },
+      { ...base, id: "b", vendor: "Two", description: "d", total: null, currency: "CAD", reviewStatus: "reviewed" },
+      { ...base, id: "c", vendor: "Three", description: "d", total: 12, currency: "USD", reviewStatus: "reviewed" },
+    ]);
+    const summary = summariseReceiptDocument(doc);
+    expect(summary.totalsByCurrency).toEqual([
+      { currency: "CAD", total: null, count: 2 },
+      { currency: "USD", total: 12, count: 1 },
+    ]);
+
+    const result = await buildLiveOfficeContext(
+      request(
+        rest({
+          office_notes: { ok: true, body: [] },
+          round_tables: { ok: true, body: [] },
+          finance_receipts: { ok: true, body: [{ doc: JSON.parse(doc) }] },
+        }),
+      ),
+    );
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.text).toContain("CAD: total unknown (at least one receipt has no amount) across 2 receipts");
+    expect(result.text).not.toContain("CAD: 0.00");
   });
 });

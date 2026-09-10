@@ -16,7 +16,7 @@
  *    refuses instead of answering from stale or sample facts.
  */
 
-import { parseReceiptImport } from "@/lib/finance-receipts";
+import { parseReceiptImport, reconciliationSummary, totalsByCurrency } from "@/lib/finance-receipts";
 import type { BackendConfig } from "@/lib/canx-backend.server";
 
 export type RestImpl = (
@@ -29,7 +29,6 @@ export type RestImpl = (
 export interface LiveContextRequest {
   config: BackendConfig;
   token: string;
-  ownerEmail: string;
   aal: string;
   provider: string;
   model: string;
@@ -43,43 +42,39 @@ export interface ReceiptSummary {
   sourceMessages: number;
   needsReview: number;
   reconciled: number;
-  /** Totals never cross currencies. "unspecified" is a first-class case. */
-  totalsByCurrency: { currency: string; total: number; count: number }[];
+  /**
+   * Totals never cross currencies, receipts marked "Not a business receipt" are
+   * left out of the money, and a total of null means at least one included
+   * receipt has no amount, so the currency total is unknown — never zero.
+   */
+  totalsByCurrency: { currency: string; total: number | null; count: number }[];
 }
 
-/** Counts and per-currency totals only. No text from any receipt is kept. */
+/**
+ * Counts and per-currency totals only. No text from any receipt is kept.
+ * The money rules come from the Finance module itself, so the manager can
+ * never report a different total than the Finance room shows.
+ */
 export function summariseReceiptDocument(docJson: string | null): ReceiptSummary {
   const empty: ReceiptSummary = { receipts: 0, sourceMessages: 0, needsReview: 0, reconciled: 0, totalsByCurrency: [] };
   if (!docJson) return empty;
   const parsed = parseReceiptImport(docJson);
   if (!parsed.ok) return empty;
 
-  const totals = new Map<string, { total: number; count: number }>();
-  let sourceMessages = 0;
-  let needsReview = 0;
-  let reconciled = 0;
-
-  for (const receipt of parsed.receipts) {
-    sourceMessages += Math.max(receipt.sourceMessageIds.length, receipt.duplicateCount || 0, 1);
-    if (receipt.reviewStatus === "needs-review") needsReview += 1;
-    if (receipt.paymentStatus === "reconciled") reconciled += 1;
-    const currency = (receipt.currency ?? "").trim().toUpperCase() || "unspecified";
-    const bucket = totals.get(currency) ?? { total: 0, count: 0 };
-    bucket.total += typeof receipt.total === "number" ? receipt.total : 0;
-    bucket.count += 1;
-    totals.set(currency, bucket);
-  }
-
+  const counts = reconciliationSummary(parsed.receipts);
   return {
-    receipts: parsed.receipts.length,
-    sourceMessages,
-    needsReview,
-    reconciled,
-    totalsByCurrency: [...totals.entries()]
-      .map(([currency, value]) => ({ currency, total: Math.round(value.total * 100) / 100, count: value.count }))
-      .sort((a, b) => (a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0)),
+    receipts: counts.receipts,
+    sourceMessages: counts.sourceMessages,
+    needsReview: counts.needsReview,
+    reconciled: counts.reconciled,
+    totalsByCurrency: totalsByCurrency(parsed.receipts).map((t) => ({
+      currency: t.currency,
+      total: t.total === null ? null : Math.round(t.total * 100) / 100,
+      count: t.count,
+    })),
   };
 }
+
 
 const line = (value: unknown, max = 300) => (typeof value === "string" ? value.replace(/\s+/g, " ").slice(0, max) : "");
 
@@ -118,12 +113,13 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const noteRows = Array.isArray(notesResponse.body) ? (notesResponse.body as Record<string, unknown>[]) : [];
   const notes = noteRows
     .map((row) => {
+      // Demonstration rows from the early build never reach the provider.
+      if (line(row["provenance"], 20) === "sample") return null;
       const title = line(row["title"]);
       if (!title) return null;
       const kind = row["kind"] === "decision" ? "decision" : "task";
-      const provenance = line(row["provenance"], 20) === "sample" ? "sample" : "saved by John";
       const detail = line(row["detail"], 400);
-      return `- (${kind}, ${provenance}) ${title}${detail ? ` — ${detail}` : ""}`;
+      return `- (${kind}, saved by John) ${title}${detail ? ` — ${detail}` : ""}`;
     })
     .filter((value): value is string => value !== null);
 
@@ -139,7 +135,12 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const finance = summariseReceiptDocument(doc ? JSON.stringify(doc) : null);
 
   const totals = finance.totalsByCurrency.length
-    ? finance.totalsByCurrency.map((t) => `${t.currency}: ${t.total.toFixed(2)} across ${t.count} receipts`).join("; ")
+    ? finance.totalsByCurrency
+        .map(
+          (t) =>
+            `${t.currency}: ${t.total === null ? "total unknown (at least one receipt has no amount)" : t.total.toFixed(2)} across ${t.count} receipts`,
+        )
+        .join("; ")
     : "none recorded";
 
   const text = [
@@ -147,7 +148,8 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     [
       "Verified connection state [provenance: server-verified]:",
       "- CanX-owned database: connected and answering.",
-      `- Owner sign-in: confirmed for ${request.ownerEmail || "the owner account"}.`,
+      "- Owner sign-in: the verified owner account is confirmed (the account address is deliberately withheld).",
+
       `- Two-step verification: confirmed (${request.aal}).`,
       `- Office Manager provider: ${request.provider}; model: ${request.model}.`,
     ].join("\n"),
