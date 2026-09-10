@@ -9,6 +9,7 @@ import { BudgetPanel } from "@/components/office/BudgetPanel";
 import { OwnerSignIn } from "@/components/office/OwnerSignIn";
 import { ClaudeReviewPanel } from "@/components/office/ClaudeReviewPanel";
 import { useOwnerSession } from "@/lib/owner-session";
+import { backupsRowState, databaseRowState } from "@/lib/systems-status";
 import { getManagerStatus, type ManagerStatus } from "@/lib/manager.functions";
 import { getClaudeStatus, type ClaudeStatus } from "@/lib/claude-review.functions";
 import {
@@ -56,8 +57,9 @@ function Systems() {
   }, [fetchStatus, fetchClaude, session.accessToken, session.state]);
 
 
-  const dbConnected = session.configured;
   const signedIn = session.state === "owner";
+  const databaseRow = databaseRowState(session.configured, signedIn);
+  const backupsRow = backupsRowState(session.configured, signedIn);
 
   return (
     <RoomShell showSample={false}>
@@ -71,11 +73,7 @@ function Systems() {
               Nothing below is shown as connected unless the office has actually checked it. A key or an account
               somewhere else is not a connection.
             </p>
-            <Row
-              name="CanX-owned database"
-              note={dbConnected ? "Configured. Sign-in still has to succeed." : "Not connected. Sign-in and shared saving are unavailable."}
-              tone={dbConnected ? "yellow" : "grey"}
-            />
+            <Row name="CanX-owned database" note={databaseRow.note} tone={databaseRow.tone} />
             <Row
               name="Owner sign-in with two-step verification"
               note={signedIn ? `Signed in as ${session.email}.` : session.message}
@@ -105,7 +103,7 @@ function Systems() {
             />
 
             <Row name="Shared records across devices" note={signedIn ? "Saving to your CanX account." : "Device-only. Records stay in this browser."} tone={signedIn ? "green" : "grey"} />
-            <Row name="Backups and restore" note="Not tested. There is no CanX-owned account to back up yet." tone="grey" />
+            <Row name="Backups and restore" note={backupsRow.note} tone={backupsRow.tone} />
             <Row name="Published site" note="Not published." tone="grey" />
           </CardContent>
         </Card>
