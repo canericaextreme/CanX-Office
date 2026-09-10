@@ -113,12 +113,13 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const noteRows = Array.isArray(notesResponse.body) ? (notesResponse.body as Record<string, unknown>[]) : [];
   const notes = noteRows
     .map((row) => {
+      // Demonstration rows from the early build never reach the provider.
+      if (line(row["provenance"], 20) === "sample") return null;
       const title = line(row["title"]);
       if (!title) return null;
       const kind = row["kind"] === "decision" ? "decision" : "task";
-      const provenance = line(row["provenance"], 20) === "sample" ? "sample" : "saved by John";
       const detail = line(row["detail"], 400);
-      return `- (${kind}, ${provenance}) ${title}${detail ? ` — ${detail}` : ""}`;
+      return `- (${kind}, saved by John) ${title}${detail ? ` — ${detail}` : ""}`;
     })
     .filter((value): value is string => value !== null);
 
@@ -134,7 +135,12 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const finance = summariseReceiptDocument(doc ? JSON.stringify(doc) : null);
 
   const totals = finance.totalsByCurrency.length
-    ? finance.totalsByCurrency.map((t) => `${t.currency}: ${t.total.toFixed(2)} across ${t.count} receipts`).join("; ")
+    ? finance.totalsByCurrency
+        .map(
+          (t) =>
+            `${t.currency}: ${t.total === null ? "total unknown (at least one receipt has no amount)" : t.total.toFixed(2)} across ${t.count} receipts`,
+        )
+        .join("; ")
     : "none recorded";
 
   const text = [
@@ -142,7 +148,8 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     [
       "Verified connection state [provenance: server-verified]:",
       "- CanX-owned database: connected and answering.",
-      `- Owner sign-in: confirmed for ${request.ownerEmail || "the owner account"}.`,
+      "- Owner sign-in: the verified owner account is confirmed (the account address is deliberately withheld).",
+
       `- Two-step verification: confirmed (${request.aal}).`,
       `- Office Manager provider: ${request.provider}; model: ${request.model}.`,
     ].join("\n"),
