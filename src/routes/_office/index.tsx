@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_office/")({
 });
 
 function Reception() {
-  const { mode, hydrated } = useOfficeViewMode();
+  const { mode } = useOfficeViewMode();
 
   return (
     <main className="min-h-screen bg-background font-reception-body">
@@ -67,12 +67,12 @@ function Reception() {
           </CardContent>
         </Card>
 
-        <div className="mb-6 min-h-[320px]" aria-busy={!hydrated}>
-          {hydrated ? mode === "3d" ? <Office3D /> : <SimpleOffice /> : null}
-        </div>
+        <div className="mb-6">{mode === "3d" ? <Office3D /> : <SimpleOffice />}</div>
 
         <div className="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="min-w-0 space-y-6">
+          <div className="space-y-6">
+
+
             <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Quick answers
@@ -87,14 +87,11 @@ function Reception() {
                 These numbers are synthetic examples for demonstration only.
               </p>
             </div>
-
-            <div className="min-w-0 max-w-full">
-              <BrainMap />
-            </div>
           </div>
 
           <div className="space-y-6">
             <StatusPanel items={SAMPLE_STATUS} />
+            <BrainMap />
           </div>
         </div>
       </div>
