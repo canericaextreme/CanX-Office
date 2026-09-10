@@ -126,9 +126,9 @@ describe("task lifecycle", () => {
   it("createManagerTaskWith inserts a task and logs the change", async () => {
     const inserted = { id: "t1", title: "New task", risk: "green", status: "open" };
     const rest = vi.fn().mockImplementation((_token, _method, path) => {
-      if (path === "manager_tasks") return { ok: true, data: inserted };
-      if (path === "rpc/log_manager_change") return { ok: true };
-      return { ok: true, data: [] };
+      if (path === "manager_tasks") return Promise.resolve({ ok: true, data: inserted });
+      if (path === "rpc/log_manager_change") return Promise.resolve({ ok: true });
+      return Promise.resolve({ ok: true, data: [] });
     });
     const deps = mockDeps({ rest });
     const result = await createManagerTaskWith(deps, { accessToken: "token", title: "New task" });
