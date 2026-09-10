@@ -368,7 +368,7 @@ function denyReply(code: ManagerReply["code"], state: ManagerState, detail: stri
   return { ok: false, code, provider: "none", state, model, text: "", toolCalls: [], detail };
 }
 
-async function callOpenAI(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
+async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: string): Promise<ManagerReply> {
   const model = deps.model!;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -380,7 +380,7 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput): Promise<ManagerRe
       body: JSON.stringify({
         model,
         instructions: SYSTEM_PROMPT,
-        input: [untrustedContextMessage(data.context), ...data.messages.map((m) => ({ role: m.role, content: m.content }))],
+        input: [untrustedContextMessage(contextText), ...data.messages.map((m) => ({ role: m.role, content: m.content }))],
         tools: TOOLS,
         max_output_tokens: 900,
       }),
@@ -450,14 +450,25 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
     );
   }
 
-  // GATE 3 — durable per-owner rate and spending reservation. If limits cannot
+  // GATE 3 — live office facts, read on the server as the verified owner.
+  // A failed read fails closed: no paid call, and never a fall back to the
+  // early demonstration records.
+  const context = await deps.buildContext(data.accessToken, verification).catch(() => ({
+    ok: false as const,
+    message: "The office records could not be read just now, so no answer was requested.",
+  }));
+  if (!context.ok) {
+    return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
+  }
+
+  // GATE 4 — durable per-owner rate and spending reservation. If limits cannot
   // be reserved, the answer is no.
   const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_PER_CALL);
   if (!reservation.allowed) {
     return denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model);
   }
 
-  // GATE 4 — a real authenticated health check, every time.
+  // GATE 5 — a real authenticated health check, every time.
   const health = await providerHealthCheck(deps);
   if (!health.ok) {
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
@@ -465,7 +476,7 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
   }
 
   try {
-    const reply = await callOpenAI(deps, data);
+    const reply = await callOpenAI(deps, data, context.text);
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
     return reply;
   } catch (error) {
