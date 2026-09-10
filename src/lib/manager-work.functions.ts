@@ -622,7 +622,7 @@ export const requestManagerApproval = createServerFn({ method: "POST" })
       accessToken: strAccess(input).accessToken,
       title: cleanString(raw?.title, 300),
       detail: cleanString(raw?.detail, 2000),
-      costCents: cleanCents(raw?.costCents) ?? undefined,
+      costCents: cleanCents(raw?.costCents) ?? null,
       risk: cleanRisk(raw?.risk),
       taskId: cleanString(raw?.taskId, 100) || undefined,
     };
