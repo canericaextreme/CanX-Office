@@ -101,10 +101,26 @@ export function readSetting(value: string | undefined): string | undefined {
 async function realDeps(): Promise<ManagerDeps> {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
+  const model = readSetting(process.env["OPENAI_MODEL"]);
   return {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
+    buildContext: async (verification) => {
+      if (!config) {
+        return { ok: false as const, message: "No CanX-owned database is configured, so no office facts could be read." };
+      }
+      const live = await import("@/lib/office-live-context.server");
+      return live.buildLiveOfficeContext({
+        config,
+        token: verification.token,
+        ownerEmail: verification.email,
+        aal: verification.aal,
+        provider: "OpenAI",
+        model: model ?? "",
+        rest: backend.restRequest,
+      });
+    },
     // Bound wrapper, not a detached `fetch` reference — a bare global fetch
     // can fail before any HTTP response in the server runtime.
     fetchImpl: (input, init) => fetch(input, init),
