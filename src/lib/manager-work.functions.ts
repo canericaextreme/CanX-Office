@@ -471,8 +471,26 @@ export interface LogChangeInput {
   action: string;
   entity: string;
   entityId?: string;
-  before?: JsonObject;
-  after?: JsonObject;
+  before?: JsonObject | Record<string, unknown>;
+  after?: JsonObject | Record<string, unknown>;
+}
+
+function toJsonObject(value: unknown): JsonObject {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const out: JsonObject = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v === undefined) continue;
+      if (v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+        out[k] = v;
+      } else if (Array.isArray(v)) {
+        out[k] = v.map(toJsonObject) as JsonValue[];
+      } else {
+        out[k] = toJsonObject(v);
+      }
+    }
+    return out;
+  }
+  return {};
 }
 
 export async function logManagerChangeWith(deps: WorkbenchDeps, input: LogChangeInput): Promise<{ ok: true } | ManagerWorkError> {
@@ -484,8 +502,8 @@ export async function logManagerChangeWith(deps: WorkbenchDeps, input: LogChange
     _action: cleanString(input.action, 120),
     _entity: cleanString(input.entity, 120),
     _entity_id: input.entityId ? cleanString(input.entityId, 120) : null,
-    _before: input.before ?? {},
-    _after: input.after ?? {},
+    _before: toJsonObject(input.before),
+    _after: toJsonObject(input.after),
   });
   if (!result.ok) return fail("context_unavailable", result.error ?? "Change could not be logged.");
   return { ok: true };
