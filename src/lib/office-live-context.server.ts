@@ -77,7 +77,7 @@ export function summariseReceiptDocument(docJson: string | null): ReceiptSummary
     reconciled,
     totalsByCurrency: [...totals.entries()]
       .map(([currency, value]) => ({ currency, total: Math.round(value.total * 100) / 100, count: value.count }))
-      .sort((a, b) => a.currency.localeCompare(b.currency)),
+      .sort((a, b) => (a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0)),
   };
 }
 

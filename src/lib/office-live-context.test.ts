@@ -37,6 +37,20 @@ const receiptDoc = {
       sourceEmailText: "",
     },
     {
+      id: "r4",
+      vendor: "Acme Hardware Ltd",
+      description: "More shop supplies",
+      orderNumber: "ORD-778813",
+      date: "2026-08-02",
+      total: 25,
+      currency: "CAD",
+      reviewStatus: "reviewed",
+      paymentStatus: "paid",
+      sourceMessageIds: ["msg-ddd-444"],
+      sourceUrl: "",
+      sourceEmailText: "",
+    },
+    {
       id: "r3",
       vendor: "Unknown Shop",
       description: "Parts",
@@ -145,8 +159,8 @@ describe("live office context", () => {
 describe("receipt aggregation and privacy", () => {
   it("counts receipts, source messages, review and reconciled state", () => {
     const summary = summariseReceiptDocument(JSON.stringify(receiptDoc));
-    expect(summary.receipts).toBe(3);
-    expect(summary.sourceMessages).toBe(4);
+    expect(summary.receipts).toBe(4);
+    expect(summary.sourceMessages).toBe(5);
     expect(summary.needsReview).toBe(2);
     expect(summary.reconciled).toBe(1);
   });
@@ -154,7 +168,7 @@ describe("receipt aggregation and privacy", () => {
   it("groups totals by original currency and never mixes them", () => {
     const summary = summariseReceiptDocument(JSON.stringify(receiptDoc));
     expect(summary.totalsByCurrency).toEqual([
-      { currency: "CAD", total: 100.5, count: 1 },
+      { currency: "CAD", total: 125.5, count: 2 },
       { currency: "USD", total: 40, count: 1 },
       { currency: "unspecified", total: 12.25, count: 1 },
     ]);
@@ -164,7 +178,7 @@ describe("receipt aggregation and privacy", () => {
     const result = await buildLiveOfficeContext(request(rest(FULL)));
     if (!result.ok) throw new Error("expected ok");
     for (const secret of SENSITIVE) expect(result.text).not.toContain(secret);
-    expect(result.text).toContain("Receipts filed: 3");
-    expect(result.text).toContain("CAD: 100.50 across 1 receipts");
+    expect(result.text).toContain("Receipts filed: 4");
+    expect(result.text).toContain("CAD: 125.50 across 2 receipts");
   });
 });
