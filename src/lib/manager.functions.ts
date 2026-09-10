@@ -65,6 +65,13 @@ export interface ManagerToolCall {
   arguments: ManagerToolArgs;
 }
 
+export interface ManagerActionResult {
+  name: string;
+  risk: RiskLevel;
+  status: "done" | "pending" | "stopped";
+  detail: string;
+}
+
 export interface ManagerReply {
   ok: boolean;
   code:
@@ -81,6 +88,7 @@ export interface ManagerReply {
   model: string | null;
   text: string;
   toolCalls: ManagerToolCall[];
+  actionResults: ManagerActionResult[];
   detail?: string;
 }
 
