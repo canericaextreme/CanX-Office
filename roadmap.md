@@ -33,11 +33,11 @@
 - Tests: src/lib/manager.functions.test.ts (3 passing).
 
 ## Secure Manager receipt review (2026-09-10)
-- [ ] Detect Finance intent from only the latest validated user message.
-- [ ] Add a server-built, read-only, sanitized receipt-detail section capped at 100 records.
-- [ ] Preserve aggregate-only context for unrelated questions and all existing security gates.
-- [ ] Prove allowed fields, forbidden-field privacy, injection-data boundaries, cap behavior, stale-context exclusion, and fail-closed behavior.
-- [ ] Run focused tests, full tests, typecheck, and production build; do not deploy.
+- [x] Detect Finance intent from only the latest validated user message.
+- [x] Add a server-built, read-only, sanitized receipt-detail section capped at 100 records.
+- [x] Preserve aggregate-only context for unrelated questions and all existing security gates.
+- [x] Prove allowed fields, forbidden-field privacy, injection-data boundaries, cap behavior, stale-context exclusion, and fail-closed behavior.
+- [x] Run focused tests, full tests, typecheck, and production build; do not deploy.
 
 ## Connections & readiness work (2026-09-09)
 - Systems room rebuilt as an honest two-group connection inventory (ChatGPT-verified accounts snapshot vs connections this office needs). Nothing shows connected unless checked live.
