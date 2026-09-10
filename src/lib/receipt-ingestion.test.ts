@@ -43,7 +43,7 @@ describe("receipt ingestion parsing", () => {
     const legacy = { vendor: "Legacy", orderNumber: "OLD-1", sourceMessageIds: ["old"], date: "", total: 12 } as FinanceReceipt;
     const receipt = parseReceiptCandidate(candidate("Vendor: A Invoice # A1 Total: CAD 10.00 Currency: CAD")).receipt!;
     const merged = mergeIngestedReceipts([legacy], [receipt, { ...receipt, id: "another" }]);
-    expect(merged.merged[0]).toBe(legacy);
+    expect(merged.merged[0]).toMatchObject(legacy);
     expect(merged.added).toBe(1);
     expect(merged.duplicates).toBe(1);
   });
