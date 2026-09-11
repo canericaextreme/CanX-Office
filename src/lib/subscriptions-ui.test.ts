@@ -38,7 +38,7 @@ describe("global ChatGPT shortcut", () => {
     expect(navSource).toContain('href="https://chatgpt.com/"');
     expect(navSource).toContain('target="_blank"');
     expect(navSource).toContain('rel="noopener noreferrer"');
-    expect(navSource).toContain("Open ChatGPT beside the office");
+    expect(navSource).toContain("Show the CanX ChatGPT companion");
   });
 
   it("opens and reuses a named, right-aligned desktop companion", () => {
