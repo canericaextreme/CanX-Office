@@ -185,7 +185,7 @@ function WorkBoard() {
             return (
               <div key={task.id} className="rounded-lg border border-border/50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge tone={statusTone(task.status)} label={statusLabel(task.status)} />
+                  <StatusBadge tone={taskStatus(task).tone} label={taskStatus(task).label} />
                   <span className="font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
