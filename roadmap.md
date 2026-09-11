@@ -98,3 +98,9 @@
   Research cadence/budget values are recorded only; nothing runs and nothing can spend.
 - Office Manager activation repair (approved): bound fetch wrapper + trim OPENAI_API_KEY/OPENAI_MODEL in realDeps(), focused tests, full checks. No provider calls, no deploy.
 - Later activation only: record John's Office Manager cap C$35 CAD/month (~US$25 at 2026-09-10 working rate); do not reinterpret the C$500 total office ceiling.
+
+## Work Board fix (in progress)
+- [x] Result/Evidence always shown ("Not recorded" when empty); editable in edit + verify
+- [x] Blue badge "Blue — actively moving" separate from risk label
+- [ ] Grey status system: Planned/Disconnected/Unknown/Stale, labelled with reason
+- [ ] Publish and report live status
