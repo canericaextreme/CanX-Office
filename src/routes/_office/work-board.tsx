@@ -136,13 +136,18 @@ function WorkBoard() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Master task list</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {tasks
-                  ? "Shared memory — saved in the CanX-owned database."
-                  : isOwner
-                    ? (error ?? "The shared task list could not be read.")
-                    : sessionMessage}
-              </span>
+              {tasks ? (
+                <span className="text-xs text-muted-foreground">Shared memory — saved in the CanX-owned database.</span>
+              ) : isOwner ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone="grey" label="Grey — disconnected" />
+                  <span className="text-xs text-muted-foreground">
+                    {error ?? "The shared task list could not be read."}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">{sessionMessage}</span>
+              )}
               {isOwner && (
                 <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
                   {loading ? "Checking…" : "Refresh"}
