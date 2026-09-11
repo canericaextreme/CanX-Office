@@ -1,18 +1,20 @@
-# ChatGPT companion popup
+# Read-only CanX database verification report
 
 ## Scope
-- Change only the global ChatGPT shortcut and focused tests.
-- Preserve all pages, styling, authentication, database connections, Office Manager chat/voice, approvals, and working functions.
-- Do not query or change the database, secrets, connectors, or deployment.
+Produce a concise evidence report from the existing CanX-owned external database configuration only. Make no code, file, database, authentication, connector, secret, or deployment changes.
 
-## Implementation
-- Add a small browser-safe helper that opens the real `https://chatgpt.com/` in a named 520×760 resizable popup aligned to the right on desktop.
-- Reuse and focus the same named popup on later clicks.
-- Use a normal safe new tab on mobile or when the popup is blocked.
-- Keep keyboard activation through the existing button and update its accessible label and tooltip to “Open ChatGPT beside the office.”
-- Retain `noopener` and `noreferrer` protections and never embed ChatGPT.
+## Verified evidence to report
+- Identify the configured database host without exposing keys or credentials.
+- Record the successful authentication-service health response.
+- Record the anonymous read probes for the CanX Office tables and explain what their permission-denied responses establish.
+- Record the database API responses for every table proposed by DESIGN-ONLY migration 0007.
 
-## Validation
-- Add focused unit tests for desktop popup dimensions/position, named-window reuse, mobile new-tab behavior, and blocked-popup fallback.
-- Run focused tests, the full test suite, TypeScript checks, and the production build.
-- Verify the header in desktop and mobile preview without publishing.
+## Evidence boundaries
+- Label each finding as **VERIFIED**, **NOT VERIFIED**, **NOT PRESENT**, or **BLOCKED**.
+- Treat a permission-denied response as evidence that anonymous access is denied, not as evidence of row counts, RLS details, grants, or migration completeness.
+- Treat the database API's missing-table responses for all proposed 0007 tables as **NOT PRESENT** in the exposed `public` schema.
+- Do not infer that migrations 0001–0006 are fully applied from application source or local SQL files. Report individual objects only where the live endpoint provides evidence.
+- Mark schemas/catalog, exact policies and grants, authenticated row counts, storage buckets, and backup/restore status **BLOCKED** because this session has no direct database credentials or authenticated CanX owner session.
+
+## Safest next step
+Recommend a future read-only catalog inspection using an already-authorized database connection or a valid owner session with the required assurance level. Do not provision Lovable Cloud, connect anything, apply SQL, or suggest applying migration 0007.
