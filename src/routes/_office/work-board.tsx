@@ -46,6 +46,11 @@ function statusTone(status: ManagerTask["status"]) {
   return "grey" as const;
 }
 
+function statusLabel(status: ManagerTask["status"]): string {
+  if (status === "in_progress") return "Blue — actively moving";
+  return status.replace("_", " ");
+}
+
 function when(value: string | null | undefined): string {
   if (!value) return "Not recorded";
   const date = new Date(value);
@@ -149,7 +154,7 @@ function WorkBoard() {
             return (
               <div key={task.id} className="rounded-lg border border-border/50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge tone={statusTone(task.status)} label={task.status.replace("_", " ")} />
+                  <StatusBadge tone={statusTone(task.status)} label={statusLabel(task.status)} />
                   <span className="font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
@@ -174,8 +179,8 @@ function WorkBoard() {
                   </div>
                 </dl>
                 {task.detail && <p className="mt-2 text-xs text-muted-foreground">{task.detail}</p>}
-                {task.result && <p className="mt-1 text-xs text-canx-green">Result: {task.result}</p>}
-                {task.evidence && <p className="mt-1 text-xs text-muted-foreground">Evidence: {task.evidence}</p>}
+                <p className="mt-1 text-xs text-canx-green">Result: {task.result?.trim() || "Not recorded"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Evidence: {task.evidence?.trim() || "Not recorded"}</p>
                 {taskAssignments.length > 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {taskAssignments.length} assignment{taskAssignments.length === 1 ? "" : "s"} recorded · latest{" "}
