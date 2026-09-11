@@ -529,6 +529,41 @@ Answer style, because you are often heard rather than read:
 export interface ChatInput {
   accessToken: string;
   messages: { role: "user" | "assistant"; content: string }[];
+  /** Office team roster. Device-only records John maintains in the Office Team room. */
+  team: { name: string; role: string; room: string }[];
+}
+
+const MAX_TEAM = 24;
+
+/** Roster rows arrive from the browser, so they are trimmed, capped and fenced as data. */
+export function sanitizeTeam(input: unknown): ChatInput["team"] {
+  if (!Array.isArray(input)) return [];
+  const rows: ChatInput["team"] = [];
+  for (const entry of input) {
+    const item = entry as { name?: unknown; role?: unknown; room?: unknown } | null;
+    const name = typeof item?.name === "string" ? item.name.trim().slice(0, 60) : "";
+    if (!name) continue;
+    rows.push({
+      name,
+      role: typeof item?.role === "string" ? item.role.trim().slice(0, 80) : "",
+      room: typeof item?.room === "string" ? item.room.trim().slice(0, 80) : "",
+    });
+    if (rows.length >= MAX_TEAM) break;
+  }
+  return rows;
+}
+
+/** Roster lines appended to the server-read context, clearly labelled device-only. */
+export function teamContextLines(team: ChatInput["team"]): string[] {
+  if (!team.length) {
+    return [
+      "Office team roster [provenance: John's device, entered by John]: no team members are recorded on this device.",
+    ];
+  }
+  return [
+    "Office team roster [provenance: John's device, entered by John; device-only, not shared storage]:",
+    ...team.map((member) => `- ${member.name} — ${member.role || "role not stated"} — works out of ${member.room || "no room stated"}`),
+  ];
 }
 
 /**
