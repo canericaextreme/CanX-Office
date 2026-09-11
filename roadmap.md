@@ -102,5 +102,5 @@
 ## Work Board fix (in progress)
 - [x] Result/Evidence always shown ("Not recorded" when empty); editable in edit + verify
 - [x] Blue badge "Blue — actively moving" separate from risk label
-- [ ] Grey status system: Planned/Disconnected/Unknown/Stale, labelled with reason
+- [x] Grey status system: Planned/Disconnected/Unknown/Stale, labelled with reason
 - [ ] Publish and report live status
