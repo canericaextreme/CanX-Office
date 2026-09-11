@@ -55,6 +55,9 @@ export function OfficeSignInScreen() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [sent, setSent] = useState(false);
 
   const submit = async () => {
     setBusy(true);
@@ -63,6 +66,16 @@ export function OfficeSignInScreen() {
     if (problem) setError(problem);
     setBusy(false);
   };
+
+  const sendReset = async () => {
+    setBusy(true);
+    setError(null);
+    const problem = await session.requestPasswordReset(recoveryEmail.trim());
+    if (problem) setError(problem);
+    else setSent(true);
+    setBusy(false);
+  };
+
 
   if (!session.configured) {
     return (
