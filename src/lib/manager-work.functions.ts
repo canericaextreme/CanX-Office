@@ -331,6 +331,8 @@ export interface UpdateTaskInput {
   detail?: string;
   risk?: RiskLevel;
   project?: string;
+  result?: string | undefined;
+  evidence?: string | undefined;
 }
 
 /** Edit a task's title, details, project or risk. Never changes ownership or history. */
@@ -352,6 +354,8 @@ export async function updateManagerTaskWith(deps: WorkbenchDeps, input: UpdateTa
   if (input.detail !== undefined) patch["detail"] = cleanString(input.detail, 2000);
   if (input.risk !== undefined) patch["risk"] = cleanRisk(input.risk);
   if (input.project !== undefined) patch["project"] = cleanString(input.project, 160);
+  if (input.result !== undefined) patch["result"] = cleanString(input.result, 2000);
+  if (input.evidence !== undefined) patch["evidence"] = cleanString(input.evidence, 2000);
 
   const updated = await deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, patch);
   const row = firstRow<ManagerTask>(updated.data);
@@ -721,6 +725,8 @@ export const updateManagerTask = createServerFn({ method: "POST" })
       detail: cleanString(raw?.detail, 2000),
       risk: cleanRisk(raw?.risk),
       project: cleanString(raw?.project, 160),
+      result: raw?.result === undefined ? undefined : cleanString(raw?.result, 2000),
+      evidence: raw?.evidence === undefined ? undefined : cleanString(raw?.evidence, 2000),
     };
   })
   .handler(async ({ data }) => updateManagerTaskWith(await realDeps(), data));
