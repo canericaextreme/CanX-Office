@@ -66,11 +66,18 @@ function Finance() {
 
   useEffect(() => {
     if (!owner.shared || !owner.accessToken) return;
-    void listPrivateReceipts({ data: { accessToken: owner.accessToken } }).then((result) => {
-      if (!result.ok || !result.data) return;
-      const parsed = parseReceiptImport(result.data);
-      if (parsed.ok) setReceipts(parsed.receipts);
-    });
+    void listPrivateReceipts({ data: { accessToken: owner.accessToken } })
+      .then((result) => {
+        if (!result.ok) {
+          setNotice(result.message || "Your saved receipts could not be read just now. Nothing was changed.");
+          return;
+        }
+        if (!result.data) return; // No saved document yet; device records stay.
+        const parsed = parseReceiptImport(result.data);
+        if (parsed.ok) setReceipts(parsed.receipts);
+        else setNotice("Your saved receipts could not be read. Nothing was changed.");
+      })
+      .catch(() => setNotice("Your saved receipts could not be read just now. Nothing was changed."));
   }, [owner.shared, owner.accessToken]);
 
   const persist = async (next: FinanceReceipt[]) => {
