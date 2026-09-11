@@ -766,9 +766,29 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
   const actionResults: ManagerActionResult[] = [];
   const remainingToolCalls: ManagerToolCall[] = [];
 
+  // The authenticator (AAL2) is checked once, lazily, and only when a protected
+  // action is actually attempted. Ordinary talking never reaches this.
+  let stepUp: OwnerVerification | null = null;
+  const authenticatorConfirmed = async () => {
+    stepUp ??= await deps.verifyOwner(accessToken);
+    return stepUp.ok;
+  };
+
   for (const call of toolCalls) {
     const scope = typeof call.arguments["scope"] === "string" ? call.arguments["scope"] : "";
     const risk = classifyManagerRisk(call.name, scope);
+    const protectedCategory = protectedCategoryOf(`${call.name} ${scope}`);
+
+    if (protectedCategory && !(await authenticatorConfirmed())) {
+      actionResults.push({
+        name: call.name,
+        risk,
+        status: "stopped",
+        detail: `Authenticator required for this action (${protectedCategory}). Nothing was carried out.`,
+      });
+      continue;
+    }
+
 
     if (risk === "red") {
       actionResults.push({
