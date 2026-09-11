@@ -360,10 +360,30 @@ export function OfficeManager() {
                     }
                   }}
                 />
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Button size="sm" onClick={() => void send()} disabled={busy || !draft.trim()}>
                     <Send className="mr-1.5 h-4 w-4" /> Send
                   </Button>
+                  {dictation.supported ? (
+                    dictation.listening ? (
+                      <Button size="sm" variant="destructive" aria-label="Stop listening" onClick={dictation.stop}>
+                        <Square className="mr-1.5 h-4 w-4" /> Stop
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label="Talk — speak your message instead of typing"
+                        onClick={dictation.start}
+                      >
+                        <Mic className="mr-1.5 h-4 w-4" /> Talk
+                      </Button>
+                    )
+                  ) : (
+                    <Button size="sm" variant="outline" disabled aria-label="Voice input is not available in this browser">
+                      <MicOff className="mr-1.5 h-4 w-4" /> Talk
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={briefing}>
                     Office briefing
                   </Button>
@@ -371,6 +391,23 @@ export function OfficeManager() {
                     Monday round table
                   </Link>
                 </div>
+                {dictation.listening && (
+                  <p role="status" aria-live="polite" className="mt-2 flex items-center gap-2 text-xs text-foreground">
+                    <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                    Listening… your words appear in the box above. Nothing is sent until you press Send.
+                  </p>
+                )}
+                {dictation.error && (
+                  <p role="alert" className="mt-2 text-xs text-destructive">
+                    {dictation.error}
+                  </p>
+                )}
+                {!dictation.supported && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Voice input is not available in this browser. Please type your message, or try Chrome, Edge or
+                    Safari.
+                  </p>
+                )}
               </div>
             </>
           )}
