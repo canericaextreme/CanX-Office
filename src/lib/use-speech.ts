@@ -239,6 +239,8 @@ export interface ReadAloudState {
    * Returns false when the browser has no usable voice at all.
    */
   unlock: () => boolean;
+  /** True once the browser has actually started speaking the latest request. */
+  didSpeak: () => boolean;
 }
 
 /** Speaks only when asked to — by a button press, or by Voice Mode being on. */
@@ -248,6 +250,8 @@ export function useReadAloud(): ReadAloudState {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const cancelledRef = useRef(false);
+  const spokeRef = useRef(false);
+  const didSpeak = useCallback(() => spokeRef.current, []);
 
   useEffect(() => {
     const has = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -308,6 +312,7 @@ export function useReadAloud(): ReadAloudState {
       }
       window.speechSynthesis.cancel();
       cancelledRef.current = false;
+      spokeRef.current = false;
       // Shorter pieces: some browsers silently stop long utterances part-way.
       const chunks = speechChunks(text.slice(0, 4000), 150);
       if (!chunks.length) {
@@ -358,6 +363,9 @@ export function useReadAloud(): ReadAloudState {
           moved = true;
           speakChunk(index + 1);
         };
+        utterance.onstart = () => {
+          spokeRef.current = true;
+        };
         utterance.onend = next;
         // If a piece is dropped by the browser, carry on instead of stopping.
         utterance.onerror = next;
@@ -384,5 +392,5 @@ export function useReadAloud(): ReadAloudState {
     [clearKeepAlive],
   );
 
-  return { supported, hasVoice, speakingId, speak, stop, unlock };
+  return { supported, hasVoice, speakingId, speak, stop, unlock, didSpeak };
 }

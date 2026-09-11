@@ -74,9 +74,10 @@ describe("compact CanX companion", () => {
   });
 
   it("reports a clear problem when the browser has no speaking voice", () => {
-    expect(managerSource).toContain("No speaking voice is installed in this browser");
+    expect(managerSource).toContain("No speaking voice is available in this browser");
+    expect(managerSource).toContain("readAloud.didSpeak()");
     expect(managerSource).toContain("error: dictation.error ?? speechError");
-    expect(speechSource).toContain("hasVoice");
+    expect(speechSource).toContain("utterance.onstart");
     expect(managerVoiceLabel({ ...IDLE_MANAGER_VOICE_STATE, error: "No speaking voice" })).toBe("No speaking voice");
   });
 

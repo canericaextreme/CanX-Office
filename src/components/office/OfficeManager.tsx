@@ -404,19 +404,25 @@ export function OfficeManager() {
     voiceModeRef.current = true;
     setError(null);
     setSpeechError(null);
-    if (!readAloud.supported) {
+    // Checked live rather than from stored state: the engine is only reliably
+    // available inside the real button press.
+    const engineHere = typeof window !== "undefined" && "speechSynthesis" in window;
+    if (!engineHere) {
       setSpeechError("This browser cannot speak answers aloud. You can still talk and read the reply.");
       dictation.start();
       return;
     }
-    const ready = readAloud.unlock();
-    if (!ready && !readAloud.hasVoice) {
-      setSpeechError("No speaking voice is installed in this browser, so replies cannot be spoken aloud.");
-      dictation.start();
-      return;
-    }
+    // Wake the engine inside the click gesture, then always try the greeting —
+    // some browsers report no voices until speech has actually begun.
+    readAloud.unlock();
     dictation.start();
     speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(0));
+    // Honest fallback: if nothing was ever spoken, say so instead of pulsing silently.
+    window.setTimeout(() => {
+      if (!voiceModeRef.current) return;
+      if (readAloud.didSpeak()) return;
+      setSpeechError("No speaking voice is available in this browser, so replies cannot be spoken aloud.");
+    }, 2500);
   };
 
   const endVoiceMode = () => {
