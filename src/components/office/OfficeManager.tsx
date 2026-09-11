@@ -68,14 +68,28 @@ export function OfficeManager() {
   voiceModeRef.current = voiceMode;
   mutedRef.current = muted;
 
+  /** Full text of an answer that was summarised aloud, waiting for a yes. */
+  const pendingFullRef = useRef<{ id: string; text: string } | null>(null);
+  const [awaitingReadMore, setAwaitingReadMore] = useState(false);
+  const speakingRef = useRef(false);
+  const listeningRef = useRef(false);
+  const bargeInRef = useRef<(() => void) | null>(null);
+
   const dictation = useDictation({
     onFinal: (heard: string) =>
       setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
     onPause: () => {
       if (voiceModeRef.current) void sendRef.current();
     },
+    // Barge-in: as soon as John speaks, the Manager stops talking and listens.
+    onSpeechStart: () => bargeInRef.current?.(),
   });
   const readAloud = useReadAloud();
+  speakingRef.current = readAloud.speakingId !== null;
+  listeningRef.current = dictation.listening;
+  bargeInRef.current = () => {
+    if (speakingRef.current) readAloud.stop();
+  };
 
   const fetchStatus = useServerFn(getManagerStatus);
   const sendChat = useServerFn(managerChat);
