@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
+import { openChatGptFromBrowser } from "@/lib/chatgpt-popup";
 import type { OfficeViewMode } from "@/hooks/use-office-view";
 
 interface OfficeNavProps { viewMode: OfficeViewMode; onToggleView: () => void; }
@@ -103,13 +104,22 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="sm" asChild className="shrink-0 gap-2 px-2 sm:px-3">
-                <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" aria-label="Open ChatGPT in a new tab">
+                <a
+                  href="https://chatgpt.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open ChatGPT beside the office"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openChatGptFromBrowser();
+                  }}
+                >
                   <MessageCircle className="h-4 w-4" />
                   <span className="hidden md:inline">ChatGPT</span>
                 </a>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Open ChatGPT in a new tab.</TooltipContent>
+            <TooltipContent>Open ChatGPT beside the office</TooltipContent>
           </Tooltip>
         </TooltipProvider>
         <Button variant="outline" size="sm" onClick={onToggleView} aria-label={viewMode === "3d" ? "Switch to simple view" : "Switch to office view"} className="shrink-0 gap-2 px-2 sm:px-3">
