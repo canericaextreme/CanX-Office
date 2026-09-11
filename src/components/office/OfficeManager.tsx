@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { loadTeam, teamForManager } from "@/lib/office-team";
 import { getManagerStatus, managerChat, type ManagerStatus, type ManagerToolCall } from "@/lib/manager.functions";
 import { buildOfficeContext, localBriefing } from "@/lib/office-context";
 import {
@@ -238,6 +239,7 @@ export function OfficeManager() {
       const reply = await sendChat({
         data: {
           accessToken: token,
+          team: teamForManager(loadTeam()),
           messages: history
             .filter((m) => m.role !== "office")
             .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),

@@ -18,6 +18,7 @@ import {
 } from "@/lib/manager-work.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
+import { DEFAULT_TEAM, loadTeam, type TeamMember } from "@/lib/office-team";
 
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
@@ -99,6 +100,13 @@ function WorkBoard() {
   const [project, setProject] = useState("");
   const [risk, setRisk] = useState<RiskLevel>("green");
   const [worker, setWorker] = useState<Record<string, string>>({});
+  const [team, setTeam] = useState<TeamMember[]>(DEFAULT_TEAM);
+  useEffect(() => {
+    const sync = () => setTeam(loadTeam());
+    sync();
+    window.addEventListener("canx:team-changed", sync);
+    return () => window.removeEventListener("canx:team-changed", sync);
+  }, []);
   const [result, setResult] = useState<Record<string, string>>({});
   const [evidence, setEvidence] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<
@@ -148,6 +156,11 @@ function WorkBoard() {
 
   return (
     <RoomShell>
+      <datalist id="canx-team-names">
+        {team.map((member) => (
+          <option key={member.id} value={member.name} />
+        ))}
+      </datalist>
       <Card className="border-border bg-card">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -273,6 +286,7 @@ function WorkBoard() {
                       </Label>
                       <Input
                         id={`worker-${task.id}`}
+                        list="canx-team-names"
                         className="h-11 w-full sm:w-[220px]"
                         placeholder="Worker name"
                         value={worker[task.id] ?? ""}
