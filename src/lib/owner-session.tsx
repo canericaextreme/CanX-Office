@@ -36,6 +36,10 @@ export interface OwnerSession {
   /** True when shared saving to the CanX account is permitted. */
   shared: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
+  /** Sends the official Supabase password-reset email. Never says whether an email is registered. */
+  requestPasswordReset: (email: string) => Promise<string | null>;
+  /** Sets a new password for the session created by the recovery link. */
+  updatePassword: (newPassword: string) => Promise<string | null>;
   submitMfaCode: (code: string) => Promise<string | null>;
   enrolTotp: () => Promise<{ qr: string; secret: string; factorId: string } | string>;
   confirmEnrolment: (factorId: string, code: string) => Promise<string | null>;
@@ -122,6 +126,30 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { error } = await supabase.auth.signInWithPassword({ email: userEmail, password });
       if (error) return "That email and password were not accepted.";
+      await refresh();
+      return null;
+    },
+    [refresh],
+  );
+
+  const requestPasswordReset = useCallback(async (userEmail: string) => {
+    const supabase = await loadCanxSupabase();
+    if (!supabase) return "No CanX-owned database is connected yet.";
+    // Same origin, so this works in preview and on the published office alike.
+    const redirectTo =
+      typeof window === "undefined" ? undefined : `${window.location.origin}/auth/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, { redirectTo });
+    // Deliberately generic: never reveal whether an address has an account.
+    if (error) return "The reset email could not be sent just now. Check the address and try again in a moment.";
+    return null;
+  }, []);
+
+  const updatePassword = useCallback(
+    async (newPassword: string) => {
+      const supabase = await loadCanxSupabase();
+      if (!supabase) return "No CanX-owned database is connected yet.";
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) return "That password could not be saved. The link may have expired — request a new one.";
       await refresh();
       return null;
     },
