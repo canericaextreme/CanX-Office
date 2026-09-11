@@ -286,12 +286,15 @@ export function OfficeManager() {
   };
   sendRef.current = send;
 
-  /** Voice Mode picks the microphone back up once the answer has finished. */
-  function resumeListening() {
+  /**
+   * Voice Mode keeps the microphone open. It is started alongside the spoken
+   * answer (delay 0) so John can interrupt, and again once speaking ends.
+   */
+  function resumeListening(delay = 300) {
     if (!voiceModeRef.current) return;
     setTimeout(() => {
-      if (voiceModeRef.current) dictation.start();
-    }, 300);
+      if (voiceModeRef.current && !listeningRef.current) dictation.start();
+    }, delay);
   }
 
   const startVoiceMode = () => {
