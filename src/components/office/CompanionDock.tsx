@@ -50,6 +50,11 @@ export function CompanionDock() {
           <X className="h-4 w-4" />
         </button>
       </div>
+      <span
+        aria-hidden="true"
+        className="h-6 w-6 rounded-full bg-canx-blue shadow-[0_0_0_6px_var(--office-glass)]"
+      />
+      <span className="sr-only">Companion ready</span>
       <div className="flex w-full gap-1.5">
         <button
           type="button"
