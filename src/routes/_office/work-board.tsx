@@ -204,6 +204,11 @@ function WorkBoard() {
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
                   </span>
+                  {approvedOn[task.id] && (
+                    <span className="rounded-full border border-canx-green/60 px-2 py-0.5 text-xs text-canx-green">
+                      Approved by you — {when(approvedOn[task.id])}
+                    </span>
+                  )}
                 </div>
                 {status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
