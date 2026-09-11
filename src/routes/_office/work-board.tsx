@@ -182,15 +182,17 @@ function WorkBoard() {
           {tasks?.map((task) => {
             const taskAssignments = assignments.filter((a) => a.task_id === task.id);
             const edit = editing[task.id];
+            const status = taskStatus(task);
             return (
               <div key={task.id} className="rounded-lg border border-border/50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge tone={taskStatus(task).tone} label={taskStatus(task).label} />
+                  <StatusBadge tone={status.tone} label={status.label} />
                   <span className="font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
                   </span>
                 </div>
+                {status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
                   <div>
                     <dt className="inline font-medium">Project: </dt>
