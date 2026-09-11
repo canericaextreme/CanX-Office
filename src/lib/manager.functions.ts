@@ -504,6 +504,7 @@ Hard rules:
 
 Spoken task commands (Work Board):
 - When John tells you to make, add, log or assign a piece of work — for example "new task, order the gate hardware, assign John" — carry it out now with create_task, putting the worker's name in the worker field so it is created and assigned in one step. Do not just propose it and do not ask him to type it out.
+- The office team roster in the context lists who works in the office and which room they belong to. When John names someone, match them to a roster name even if he says it loosely, and use that exact roster name as the worker. If nobody on the roster matches, say who is on the roster and ask which one he means instead of inventing a person.
 - Use assign_task when he names an existing task, verify_task when he says something is done and states the result, and update the project field when he names a project.
 - Say the words back briefly so a misheard command is caught: name the task, the worker and the project you recorded, and stop there.
 - If the work is yellow or red, do not create it as green: use request_approval and tell him it is waiting for his approval.
@@ -529,6 +530,41 @@ Answer style, because you are often heard rather than read:
 export interface ChatInput {
   accessToken: string;
   messages: { role: "user" | "assistant"; content: string }[];
+  /** Office team roster. Device-only records John maintains in the Office Team room. */
+  team?: { name: string; role: string; room: string }[];
+}
+
+const MAX_TEAM = 24;
+
+/** Roster rows arrive from the browser, so they are trimmed, capped and fenced as data. */
+export function sanitizeTeam(input: unknown): { name: string; role: string; room: string }[] {
+  if (!Array.isArray(input)) return [];
+  const rows: { name: string; role: string; room: string }[] = [];
+  for (const entry of input) {
+    const item = entry as { name?: unknown; role?: unknown; room?: unknown } | null;
+    const name = typeof item?.name === "string" ? item.name.trim().slice(0, 60) : "";
+    if (!name) continue;
+    rows.push({
+      name,
+      role: typeof item?.role === "string" ? item.role.trim().slice(0, 80) : "",
+      room: typeof item?.room === "string" ? item.room.trim().slice(0, 80) : "",
+    });
+    if (rows.length >= MAX_TEAM) break;
+  }
+  return rows;
+}
+
+/** Roster lines appended to the server-read context, clearly labelled device-only. */
+export function teamContextLines(team: { name: string; role: string; room: string }[]): string[] {
+  if (!team.length) {
+    return [
+      "Office team roster [provenance: John's device, entered by John]: no team members are recorded on this device.",
+    ];
+  }
+  return [
+    "Office team roster [provenance: John's device, entered by John; device-only, not shared storage]:",
+    ...team.map((member) => `- ${member.name} — ${member.role || "role not stated"} — works out of ${member.room || "no room stated"}`),
+  ];
 }
 
 /**
@@ -544,6 +580,7 @@ function validate(input: unknown): ChatInput {
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
   return {
     accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
+    team: sanitizeTeam((raw as { team?: unknown } | undefined)?.team),
     messages: clean,
   };
 }
@@ -954,7 +991,8 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
   }
 
   try {
-    const reply = await callOpenAI(deps, data, context.text);
+    const contextWithTeam = [context.text, "", ...teamContextLines(sanitizeTeam(data.team))].join("\n");
+    const reply = await callOpenAI(deps, data, contextWithTeam);
     if (reply.ok && reply.toolCalls.length > 0) {
       const { textAdditions, actionResults, remainingToolCalls } = await executeToolCalls(deps, data.accessToken, reply.toolCalls);
       const combinedText = [reply.text, ...textAdditions].filter(Boolean).join("\n\n");
