@@ -75,6 +75,7 @@ export function useDictation(options: DictationOptions): DictationState {
   }, []);
 
   const stop = useCallback(() => {
+    wantListening.current = false;
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
     pauseTimer.current = null;
     try {
@@ -94,6 +95,7 @@ export function useDictation(options: DictationOptions): DictationState {
     }
     setError(null);
     heardSinceStart.current = false;
+    wantListening.current = true;
     try {
       const rec = new Ctor();
       rec.lang = typeof navigator !== "undefined" ? navigator.language || "en-CA" : "en-CA";
@@ -109,9 +111,10 @@ export function useDictation(options: DictationOptions): DictationState {
           else live += transcript;
         }
         setInterim(live);
-        // Barge-in: the moment anything is heard, tell the caller so it can
-        // stop the Manager's own voice and listen instead.
-        if (live.trim() || finalText.trim()) optionsRef.current.onSpeechStart?.();
+        // Barge-in: pass the words along so the caller can judge whether this is
+        // really the speaker talking, rather than the Manager's own voice.
+        const heard = (finalText || live).trim();
+        if (heard) optionsRef.current.onSpeechStart?.(heard);
         const trimmed = finalText.trim();
         if (trimmed) {
           heardSinceStart.current = true;
@@ -128,10 +131,9 @@ export function useDictation(options: DictationOptions): DictationState {
       };
       rec.onerror = (event: any) => {
         const code = typeof event?.error === "string" ? event.error : "unknown";
-        if (code === "no-speech" || code === "aborted") {
-          setListening(false);
-          return;
-        }
+        // A silent moment or an internal restart is normal — keep the mic open.
+        if (code === "no-speech" || code === "aborted" || code === "network") return;
+        wantListening.current = false;
         setError(
           code === "not-allowed" || code === "service-not-allowed"
             ? "Microphone access was refused, so nothing was heard. Allow the microphone in your browser and press Talk again."
@@ -140,17 +142,26 @@ export function useDictation(options: DictationOptions): DictationState {
         setListening(false);
       };
       rec.onend = () => {
-        setListening(false);
         setInterim("");
+        // Browsers end recognition on their own after a pause. If the caller
+        // still wants to listen, start it again so speech is not cut off.
+        if (wantListening.current) {
+          setTimeout(() => {
+            if (wantListening.current) startRef.current();
+          }, 250);
+          return;
+        }
+        setListening(false);
       };
       recRef.current = rec;
       rec.start();
       setListening(true);
     } catch {
-      setError("Voice input could not start on this device. You can type your message instead.");
-      setListening(false);
+      // An "already started" error just means the microphone is still open.
+      setListening(wantListening.current);
     }
   }, []);
+  startRef.current = start;
 
   return { supported, listening, interim, error, start, stop };
 }
