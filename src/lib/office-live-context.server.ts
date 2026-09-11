@@ -125,6 +125,117 @@ function receiptReviewSection(receipts: FinanceReceipt[]): string {
   ].join("\n");
 }
 
+/* ------------------------- other office rooms (read-only) ------------------------- */
+
+interface WorkbenchSections {
+  tasks: string;
+  approvals: string;
+  changes: string;
+}
+
+const UNREADABLE = (room: string) =>
+  `${room}: could not be read just now, so nothing is reported for it. Do not guess what it contains.`;
+
+/**
+ * Work Board, Approvals and the change log, read as the signed-in owner so RLS
+ * applies. Read-only: nothing here can be written from this path.
+ */
+async function readWorkbench(
+  config: BackendConfig,
+  token: string,
+  rest: RestImpl,
+): Promise<WorkbenchSections> {
+  const [tasksResponse, approvalsResponse, changesResponse] = await Promise.all([
+    rest(
+      config,
+      token,
+      "manager_tasks?select=id,title,status,risk,worker,project,result,evidence,updated_at&order=updated_at.desc&limit=60",
+    ).catch(() => null),
+    rest(
+      config,
+      token,
+      "manager_approvals?select=id,title,status,risk,cost_cents,created_at&order=created_at.desc&limit=40",
+    ).catch(() => null),
+    rest(config, token, "manager_changes?select=action,entity,created_at&order=created_at.desc&limit=15").catch(
+      () => null,
+    ),
+  ]);
+
+  const rows = (response: { ok: boolean; body: unknown } | null) =>
+    response?.ok && Array.isArray(response.body) ? (response.body as Record<string, unknown>[]) : null;
+
+  const taskRows = rows(tasksResponse);
+  const tasks = !taskRows
+    ? UNREADABLE("Work Board tasks and projects [provenance: live database]")
+    : taskRows.length === 0
+      ? "Work Board tasks and projects [provenance: live database]: no tasks are recorded."
+      : [
+          "Work Board tasks and projects [provenance: live database; read-only]:",
+          ...taskRows.map((row) => {
+            const project = line(row["project"], 120) || "no project";
+            return `- [${line(row["id"], 40)}] ${line(row["title"], 200) || "(untitled)"} — status ${line(row["status"], 40) || "unknown"}, risk ${line(row["risk"], 20) || "unknown"}, worker ${line(row["worker"], 120) || "unassigned"}, project ${project}, result ${line(row["result"], 200) || "not recorded"}, evidence ${line(row["evidence"], 200) || "not recorded"}, updated ${line(row["updated_at"], 40) || "unknown"}`;
+          }),
+        ].join("\n");
+
+  const approvalRows = rows(approvalsResponse);
+  const approvals = !approvalRows
+    ? UNREADABLE("Approval box [provenance: live database]")
+    : approvalRows.length === 0
+      ? "Approval box [provenance: live database]: no approvals are recorded."
+      : [
+          "Approval box [provenance: live database; read-only]:",
+          ...approvalRows.map((row) => {
+            const cost = typeof row["cost_cents"] === "number" ? `C$${(row["cost_cents"] / 100).toFixed(2)}` : "no cost stated";
+            return `- [${line(row["id"], 40)}] ${line(row["title"], 200) || "(untitled)"} — ${line(row["status"], 40) || "unknown"}, risk ${line(row["risk"], 20) || "unknown"}, ${cost}, raised ${line(row["created_at"], 40) || "unknown"}`;
+          }),
+        ].join("\n");
+
+  const changeRows = rows(changesResponse);
+  const changes = !changeRows
+    ? UNREADABLE("Recent change log [provenance: live database]")
+    : changeRows.length === 0
+      ? "Recent change log [provenance: live database]: no changes are recorded."
+      : [
+          "Recent change log [provenance: live database; read-only]:",
+          ...changeRows.map(
+            (row) =>
+              `- ${line(row["action"], 120) || "action not stated"} on ${line(row["entity"], 120) || "entity not stated"} at ${line(row["created_at"], 40) || "unknown"}`,
+          ),
+        ].join("\n");
+
+  return { tasks, approvals, changes };
+}
+
+/**
+ * Rooms whose content lives in the app itself rather than the database:
+ * the room directory, Idea Garage / Bike Rack cards, and the feasibility queue.
+ * These are the app's own durable records, not demonstration data.
+ */
+function staticRoomCatalogue(): string {
+  const rooms = ROOMS.map((room) => `- ${room.label} (${room.route}) — ${room.purpose}`);
+  const ideas = IDEA_CARDS.map(
+    (idea) =>
+      `- ${idea.title} — ${idea.status}; ${IDEA_PROVENANCE_LABELS[idea.provenance]}; captured ${idea.captured}; next step: ${idea.nextStep}. Working summary: ${idea.workingSummary}`,
+  );
+  const feasibility = FEASIBILITY_ITEMS.map(
+    (item) =>
+      `- ${item.title} — ${item.status}; build authorised: ${item.buildAuthorised}; investment authorised: ${item.investmentAuthorised}; decision authority: ${item.decisionAuthority}; round table ${item.roundTable}. Concept: ${item.workingConcept}`,
+  );
+
+  return [
+    "Office rooms directory [provenance: app configuration]:",
+    ...rooms,
+    "",
+    "Idea Garage / Bike Rack cards [provenance: app records; parked ideas, NOT approved projects]:",
+    ...(ideas.length ? ideas : ["- none recorded."]),
+    "",
+    "Feasibility queue [provenance: app records; research only, no build or spend authorised]:",
+    ...(feasibility.length ? feasibility : ["- none recorded."]),
+    "",
+    "Idea Lab scoring, evidence and research notes are stored on John's own device, not in the shared database, so they are not visible here. Say so rather than guessing.",
+  ].join("\n");
+}
+
 /**
  * Builds the office context from live, owner-scoped records.
  * Every read must succeed; otherwise the result is a plain failure.
