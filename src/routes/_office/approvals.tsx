@@ -29,8 +29,63 @@ export const Route = createFileRoute("/_office/approvals")({
 function Approvals() {
   const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } = useManagerMemory();
   const decide = useServerFn(decideManagerApproval);
+  const request = useServerFn(requestManagerApproval);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [detail, setDetail] = useState("");
+  const [cost, setCost] = useState("");
+  const [risk, setRisk] = useState<RiskLevel>("yellow");
+  const [taskId, setTaskId] = useState("");
+
+  // Keep the box current when the Office Manager files an approval request.
+  useEffect(() => {
+    const onChanged = () => refresh();
+    window.addEventListener("canx:workbench-changed", onChanged);
+    return () => window.removeEventListener("canx:workbench-changed", onChanged);
+  }, [refresh]);
+
+  const onSubmit = async () => {
+    if (!accessToken) return;
+    const clean = title.trim();
+    if (!clean) {
+      setProblem("Give the item a short title before sending it for approval.");
+      return;
+    }
+    const amount = Number.parseFloat(cost);
+    setBusy("new");
+    setNotice(null);
+    setProblem(null);
+    try {
+      const result = await request({
+        data: {
+          accessToken,
+          title: clean,
+          detail: detail.trim(),
+          costCents: Number.isFinite(amount) && cost.trim() !== "" ? Math.round(amount * 100) : null,
+          risk,
+          taskId: taskId || null,
+        },
+      });
+      if ("ok" in result && result.ok === false) {
+        setProblem(result.message);
+      } else {
+        setNotice("Sent for approval. It is now waiting in the box below.");
+        setTitle("");
+        setDetail("");
+        setCost("");
+        setTaskId("");
+        refresh();
+        window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
+      }
+    } catch {
+      setProblem("That request could not be saved. Nothing was changed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
 
   const onDecide = async (approvalId: string, decision: "approved" | "declined") => {
     if (!accessToken) return;
