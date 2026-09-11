@@ -2,17 +2,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { COMPANION_WORK_EVENT } from "./companion-bridge";
 import { clampCompanionPosition, readStoredPosition, COMPANION_POSITION_KEY } from "./companion-position";
-import { CHAT_PHASE_LABEL, isChatActive, managerHandoffOutput, realtimeEventPhase } from "./use-realtime-chat";
+import { CHAT_PHASE_LABEL, isChatActive, realtimeEventPhase } from "./use-realtime-chat";
 import {
   realtimeSessionBody,
   sanitizedRealtimeDetail,
-  budgetDenialDetail,
+  allowChatSession,
+  CHAT_SESSION_LIMIT,
   createRealtimeSessionWith,
   DEFAULT_REALTIME_MODEL,
-  MANAGER_HANDOFF_TOOL,
   type RealtimeDeps,
 } from "./realtime-voice.functions";
-import type { ManagerActionResult, ManagerReply } from "./manager.functions";
 
 const dockSource = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
 const navSource = readFileSync("src/components/office/OfficeNav.tsx", "utf8");
@@ -67,7 +66,7 @@ describe("compact CanX companion", () => {
     expect(isChatActive("error")).toBe(false);
     expect(isChatActive("listening")).toBe(true);
     expect(isChatActive("speaking")).toBe(true);
-    expect(CHAT_PHASE_LABEL.needs_approval).toBe("Needs approval");
+    expect(CHAT_PHASE_LABEL.error).toBe("Chat unavailable");
   });
 
   it("collapses to a restorable edge tab after X", () => {
@@ -99,57 +98,6 @@ describe("Chat conversation states", () => {
   });
 });
 
-describe("Office Manager handoff and approval boundary", () => {
-  const action = (status: ManagerActionResult["status"], detail: string): ManagerActionResult => ({
-    name: "create_task",
-    risk: "green" as ManagerActionResult["risk"],
-    status,
-    detail,
-  });
-  const reply = (over: Partial<ManagerReply>): ManagerReply =>
-    ({
-      ok: true,
-      code: "ok",
-      provider: "openai",
-      state: "verified",
-      model: "m",
-      text: "",
-      toolCalls: [],
-      actionResults: [],
-      ...over,
-    }) as ManagerReply;
-
-  it("explains a completed Manager result", () => {
-    const out = managerHandoffOutput(
-      reply({ text: "Three tasks are open.", actionResults: [action("done", "Task created.")] }),
-    );
-    expect(out.text).toContain("Three tasks are open.");
-    expect(out.needsApproval).toBe(false);
-  });
-
-  it("reports parked work as waiting for John, never as done", () => {
-    const out = managerHandoffOutput(reply({ actionResults: [action("pending", "Send the email")] }));
-    expect(out.needsApproval).toBe(true);
-    expect(out.text).toContain("Waiting for John's approval");
-  });
-
-  it("reports stopped work honestly", () => {
-    const out = managerHandoffOutput(reply({ actionResults: [action("stopped", "Deploy production")] }));
-    expect(out.needsApproval).toBe(true);
-    expect(out.text).toContain("John has to do this himself");
-  });
-
-  it("passes a refusal through without inventing an answer", () => {
-    const out = managerHandoffOutput({ ok: false, detail: "Not available." } as ManagerReply);
-    expect(out.text).toBe("Not available.");
-  });
-
-  it("declares one explicit handoff tool to the Office Manager", () => {
-    expect(MANAGER_HANDOFF_TOOL.name).toBe("ask_office_manager");
-    expect(realtimeSessionBody("m", "i").session.tools).toHaveLength(1);
-  });
-});
-
 describe("Chat session safety", () => {
   it("mints only a short-lived secret and never ships the CanX key", () => {
     expect(sessionSource).toContain("client_secrets");
@@ -157,8 +105,8 @@ describe("Chat session safety", () => {
     expect(chatSource).toContain("session.clientSecret");
   });
 
-  it("verifies owner, model and budget before any provider call", () => {
-    const order = ["verifyOwner", "openaiKey", "realtimeModel", "reserve", "fetchImpl"].map((token) =>
+  it("verifies the session and its own rate protection before any provider call", () => {
+    const order = ["verifySignedIn", "openaiKey", "allowSession", "fetchImpl"].map((token) =>
       sessionSource.indexOf(`deps.${token}`),
     );
     expect(order.every((index) => index > 0)).toBe(true);
@@ -181,13 +129,10 @@ describe("Chat session safety", () => {
   });
 });
 
-describe("Chat error classification", () => {
-  const SPEND_TEXT = "The CanX AI spending limit for this period has been reached.";
-
+describe("Chat is fully independent of the Office Manager", () => {
   const baseDeps = (over: Partial<RealtimeDeps> = {}): RealtimeDeps => ({
-    verifyOwner: async () => ({ ok: true, aal: "aal1", userId: "u1" }) as never,
-    reserve: async () => ({ allowed: true, reservationId: "r1", remainingToday: 10 }),
-    buildContext: async () => ({ ok: true, text: "office facts" }) as never,
+    verifySignedIn: async () => ({ ok: true, aal: "aal1", userId: "u1", email: "j@x" }) as never,
+    allowSession: () => true,
     fetchImpl: (async () =>
       new Response(JSON.stringify({ value: "ek_test", expires_at: 123 }), { status: 200 })) as unknown as typeof fetch,
     openaiKey: "sk-test",
@@ -203,42 +148,40 @@ describe("Chat error classification", () => {
     expect(result.model).toBe("gpt-realtime");
   });
 
-  it("shows the spend-limit text only when the budget guard is exhausted", () => {
-    expect(budgetDenialDetail({ allowed: false, reason: "budget_limit", message: "x" })).toBe(SPEND_TEXT);
+  it("never imports the Manager pipeline, tasks, budget guard or handoff tool", () => {
+    for (const source of [sessionSource, chatSource, dockSource]) {
+      expect(source).not.toContain("manager.functions");
+      expect(source).not.toContain("manager_tasks");
+      expect(source).not.toContain("ask_office_manager");
+      expect(source).not.toContain("reserveAiCall");
+      expect(source).not.toContain("spending limit");
+    }
   });
 
-  it("does not show the spend-limit text for rate limits or unavailable checks", () => {
-    expect(budgetDenialDetail({ allowed: false, reason: "rate_limit", message: "x" })).toBe(
-      "The AI service is temporarily busy. Please try again shortly.",
-    );
-    expect(budgetDenialDetail({ allowed: false, reason: "unavailable", message: "x" })).not.toContain("spending limit");
+  it("declares no tools at all in the realtime session", () => {
+    expect(realtimeSessionBody("m", "i").session).not.toHaveProperty("tools");
   });
 
-  it("does not show the spend-limit text when the provider refuses credentials", async () => {
-    const result = await createRealtimeSessionWith(
-      baseDeps({ fetchImpl: (async () => new Response("nope", { status: 401 })) as unknown as typeof fetch }),
-      "token",
-    );
-    expect(result.code).toBe("provider_error");
-    expect(result.detail).toBe("The AI provider connection needs attention.");
+  it("uses its own session-rate protection, not the office spending guard", async () => {
+    for (let i = 0; i < CHAT_SESSION_LIMIT; i += 1) expect(allowChatSession("rate-user")).toBe(true);
+    expect(allowChatSession("rate-user")).toBe(false);
+    const result = await createRealtimeSessionWith(baseDeps({ allowSession: () => false }), "token");
+    expect(result.code).toBe("too_many_sessions");
     expect(result.detail).not.toContain("spending limit");
   });
 
-  it("does not show the spend-limit text when the provider is rate limiting", async () => {
-    const result = await createRealtimeSessionWith(
+  it("keeps provider problems honest and free of spend-limit wording", async () => {
+    const refused = await createRealtimeSessionWith(
+      baseDeps({ fetchImpl: (async () => new Response("nope", { status: 401 })) as unknown as typeof fetch }),
+      "token",
+    );
+    expect(refused.code).toBe("provider_error");
+    expect(refused.detail).toBe("The AI provider connection needs attention.");
+    const busy = await createRealtimeSessionWith(
       baseDeps({ fetchImpl: (async () => new Response("slow", { status: 429 })) as unknown as typeof fetch }),
       "token",
     );
-    expect(result.detail).toBe("The AI service is temporarily busy. Please try again shortly.");
-  });
-
-  it("passes the exhausted budget message straight through", async () => {
-    const result = await createRealtimeSessionWith(
-      baseDeps({ reserve: async () => ({ allowed: false, reason: "budget_limit", message: "raw" }) }),
-      "token",
-    );
-    expect(result.code).toBe("limit_blocked");
-    expect(result.detail).toBe(SPEND_TEXT);
+    expect(busy.detail).toBe("The AI service is temporarily busy. Please try again shortly.");
   });
 });
 
