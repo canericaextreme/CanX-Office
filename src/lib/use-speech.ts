@@ -312,6 +312,7 @@ export function useReadAloud(): ReadAloudState {
       }
       window.speechSynthesis.cancel();
       cancelledRef.current = false;
+      spokeRef.current = false;
       // Shorter pieces: some browsers silently stop long utterances part-way.
       const chunks = speechChunks(text.slice(0, 4000), 150);
       if (!chunks.length) {
