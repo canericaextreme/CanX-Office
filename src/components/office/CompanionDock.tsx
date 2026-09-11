@@ -40,12 +40,7 @@ export function CompanionDock() {
       data-testid="canx-companion-dock"
       className="fixed bottom-4 left-4 z-40 flex h-28 w-28 flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur sm:h-32 sm:w-32"
     >
-      <div className="flex w-full items-start justify-between">
-        <span
-          aria-hidden="true"
-          className="mt-1 ml-1 h-3.5 w-3.5 rounded-full bg-canx-blue shadow-[0_0_0_4px_var(--office-glass)]"
-        />
-        <span className="sr-only">Companion ready</span>
+      <div className="flex w-full items-start justify-end">
         <button
           type="button"
           onClick={hide}
