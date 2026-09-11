@@ -250,6 +250,8 @@ export function useReadAloud(): ReadAloudState {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const cancelledRef = useRef(false);
+  const spokeRef = useRef(false);
+  const didSpeak = useCallback(() => spokeRef.current, []);
 
   useEffect(() => {
     const has = typeof window !== "undefined" && "speechSynthesis" in window;
