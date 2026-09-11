@@ -389,11 +389,29 @@ export function OfficeManager() {
     }, delay);
   }
 
+  /**
+   * Starts the one shared voice conversation. The greeting is spoken straight
+   * away so pressing Chat is always audibly confirmed, and the speech engine is
+   * woken inside the same button press so the browser allows it.
+   */
   const startVoiceMode = () => {
     setVoiceMode(true);
     voiceModeRef.current = true;
     setError(null);
+    setSpeechError(null);
+    if (!readAloud.supported) {
+      setSpeechError("This browser cannot speak answers aloud. You can still talk and read the reply.");
+      dictation.start();
+      return;
+    }
+    const ready = readAloud.unlock();
+    if (!ready && !readAloud.hasVoice) {
+      setSpeechError("No speaking voice is installed in this browser, so replies cannot be spoken aloud.");
+      dictation.start();
+      return;
+    }
     dictation.start();
+    speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(0));
   };
 
   const endVoiceMode = () => {
@@ -441,9 +459,9 @@ export function OfficeManager() {
       speaking: readAloud.speakingId !== null,
       thinking: busy,
       supported: dictation.supported,
-      error: dictation.error,
+      error: dictation.error ?? speechError,
     });
-  }, [voiceModeOn, dictation.listening, dictation.supported, dictation.error, readAloud.speakingId, busy]);
+  }, [voiceModeOn, dictation.listening, dictation.supported, dictation.error, speechError, readAloud.speakingId, busy]);
 
   const repeatAnswer = () => {
     const last = lastAnswerRef.current;
