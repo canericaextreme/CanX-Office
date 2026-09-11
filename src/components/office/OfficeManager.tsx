@@ -153,9 +153,11 @@ export function OfficeManager() {
     }
   }, [shared, token, pushShared, listShared]);
 
-  const send = async () => {
-    const text = draft.trim();
+  const send = async (override?: string) => {
+    const text = (override ?? draft).trim();
     if (!text || busy) return;
+    // In Voice Mode the microphone pauses while the Manager thinks and answers.
+    if (voiceModeRef.current) dictation.stop();
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
     const history = [...messages, userMessage];
