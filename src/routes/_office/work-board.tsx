@@ -185,6 +185,17 @@ function WorkBoard() {
             </p>
           )}
 
+          {pendingApprovals.length > 0 && (
+            <p role="status" className="rounded-md border border-canx-yellow/60 p-2 text-xs text-canx-yellow">
+              {pendingApprovals.length === 1
+                ? "1 item is waiting for your approval."
+                : `${pendingApprovals.length} items are waiting for your approval.`}{" "}
+              <Link to="/approvals" className="underline">
+                Open the Approval Box
+              </Link>
+            </p>
+          )}
+
           {loading && !tasks && <p className="text-sm text-muted-foreground">Loading your task list…</p>}
 
           {!isOwner && !loading && (
