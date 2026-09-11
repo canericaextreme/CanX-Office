@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AI_WORKERS_VERIFICATION } from "@/routes/_office/subscriptions";
+import {
+  CHATGPT_URL,
+  CHATGPT_WINDOW_NAME,
+  openChatGptCompanion,
+  resetChatGptCompanionForTests,
+} from "./chatgpt-popup";
 
 const subscriptionsSource = readFileSync("src/routes/_office/subscriptions.tsx", "utf8");
 const navSource = readFileSync("src/components/office/OfficeNav.tsx", "utf8");
@@ -28,10 +34,80 @@ describe("AI Workers subscription verification", () => {
 });
 
 describe("global ChatGPT shortcut", () => {
-  it("opens the exact external address safely without replacing Office Manager", () => {
+  it("keeps a safe link and clear accessible companion wording", () => {
     expect(navSource).toContain('href="https://chatgpt.com/"');
     expect(navSource).toContain('target="_blank"');
     expect(navSource).toContain('rel="noopener noreferrer"');
-    expect(navSource).toContain("Open ChatGPT in a new tab.");
+    expect(navSource).toContain("Open ChatGPT beside the office");
+  });
+
+  it("opens and reuses a named, right-aligned desktop companion", () => {
+    resetChatGptCompanionForTests();
+    const calls: Array<[string | URL | undefined, string | undefined, string | undefined]> = [];
+    let focused = 0;
+    let replacedWith = "";
+    const popup = {
+      closed: false,
+      focus: () => { focused += 1; },
+      opener: {} as Window,
+      location: { replace: (url: string) => { replacedWith = url; } },
+    };
+    const environment = {
+      viewportWidth: 1280,
+      availableWidth: 1440,
+      availableHeight: 900,
+      availableLeft: 0,
+      availableTop: 0,
+      openWindow: (url?: string | URL, target?: string, features?: string) => {
+        calls.push([url, target, features]);
+        return popup;
+      },
+    };
+
+    expect(openChatGptCompanion(environment)).toBe("popup");
+    expect(calls).toEqual([["", CHATGPT_WINDOW_NAME, expect.stringContaining("width=520,height=760,left=920")]]);
+    expect(replacedWith).toBe(CHATGPT_URL);
+    expect(popup.opener).toBeNull();
+    expect(openChatGptCompanion(environment)).toBe("focused");
+    expect(calls).toHaveLength(1);
+    expect(focused).toBe(2);
+  });
+
+  it("uses a protected normal tab on mobile", () => {
+    resetChatGptCompanionForTests();
+    const calls: Array<[string | URL | undefined, string | undefined, string | undefined]> = [];
+    const tab = { closed: false, focus: () => undefined, opener: null, location: { replace: () => undefined } };
+    const result = openChatGptCompanion({
+      viewportWidth: 390,
+      availableWidth: 390,
+      availableHeight: 844,
+      availableLeft: 0,
+      availableTop: 0,
+      openWindow: (url, target, features) => { calls.push([url, target, features]); return tab; },
+    });
+
+    expect(result).toBe("tab");
+    expect(calls).toEqual([[CHATGPT_URL, "_blank", "noopener,noreferrer"]]);
+  });
+
+  it("falls back to a protected normal tab when the companion is blocked", () => {
+    resetChatGptCompanionForTests();
+    const calls: Array<[string | URL | undefined, string | undefined, string | undefined]> = [];
+    const tab = { closed: false, focus: () => undefined, opener: null, location: { replace: () => undefined } };
+    const result = openChatGptCompanion({
+      viewportWidth: 1280,
+      availableWidth: 1440,
+      availableHeight: 900,
+      availableLeft: 0,
+      availableTop: 0,
+      openWindow: (url, target, features) => {
+        calls.push([url, target, features]);
+        return calls.length === 1 ? null : tab;
+      },
+    });
+
+    expect(result).toBe("tab");
+    expect(calls[0]?.[1]).toBe(CHATGPT_WINDOW_NAME);
+    expect(calls[1]).toEqual([CHATGPT_URL, "_blank", "noopener,noreferrer"]);
   });
 });

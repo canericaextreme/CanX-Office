@@ -119,3 +119,7 @@
 - [x] Short spoken summaries by default; asks before reading long lists/answers
 - [x] Read-only Manager access across rooms: Work Board, approvals, change log, room directory, Idea Garage/Bike Rack, feasibility queue
 - [x] Voice task commands wired to the Work Board (create/assign a real task by speaking)
+
+## ChatGPT companion popup (2026-09-11)
+- [ ] Open ChatGPT in one reusable desktop companion window with safe mobile/tab fallback
+- [ ] Verify focused tests, full tests, TypeScript, production build, and desktop/mobile preview
