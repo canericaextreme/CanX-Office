@@ -346,6 +346,24 @@ function WorkBoard() {
                       value={edit.project}
                       onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, project: e.target.value } }))}
                     />
+                    <Label className="text-xs" htmlFor={`edit-result-${task.id}`}>
+                      Result
+                    </Label>
+                    <Input
+                      id={`edit-result-${task.id}`}
+                      className="h-11"
+                      value={edit.result}
+                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, result: e.target.value } }))}
+                    />
+                    <Label className="text-xs" htmlFor={`edit-evidence-${task.id}`}>
+                      Evidence
+                    </Label>
+                    <Input
+                      id={`edit-evidence-${task.id}`}
+                      className="h-11"
+                      value={edit.evidence}
+                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, evidence: e.target.value } }))}
+                    />
                     <Button
                       className="h-11"
                       disabled={busy === task.id || !edit.title.trim() || !accessToken}
@@ -360,6 +378,8 @@ function WorkBoard() {
                                 title: edit.title,
                                 detail: edit.detail,
                                 project: edit.project,
+                                result: edit.result,
+                                evidence: edit.evidence,
                                 risk: task.risk,
                               },
                             });
