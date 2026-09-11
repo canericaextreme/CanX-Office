@@ -123,3 +123,5 @@
 ## ChatGPT companion popup (2026-09-11)
 - [x] Open ChatGPT in one reusable desktop companion window with safe mobile/tab fallback
 - [x] Verify focused tests, full tests, TypeScript, production build, and desktop/mobile preview
+
+- Compact companion: draggable + saved position, assistant face icon, Chat drives Office Manager voice, Work opens the Manager panel, X collapses to a restorable edge tab; header ChatGPT shortcut removed (11 Sep 2026).

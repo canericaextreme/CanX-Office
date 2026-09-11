@@ -1,14 +1,12 @@
 "use client";
 
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Building2, ChevronLeft, FileText, FolderKanban, Home, LayoutGrid, List, MessageCircle, Search, Users } from "lucide-react";
+import { Building2, ChevronLeft, FileText, FolderKanban, Home, LayoutGrid, List, Search, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
-import { COMPANION_OPEN_EVENT } from "@/lib/chatgpt-popup";
 import type { OfficeViewMode } from "@/hooks/use-office-view";
 
 interface OfficeNavProps { viewMode: OfficeViewMode; onToggleView: () => void; }
@@ -100,28 +98,6 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           )}
         </div>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm" asChild className="shrink-0 gap-2 px-2 sm:px-3">
-                <a
-                  href="https://chatgpt.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Show the CanX ChatGPT companion"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    window.dispatchEvent(new Event(COMPANION_OPEN_EVENT));
-                  }}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span className="hidden md:inline">ChatGPT</span>
-                </a>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Show the CanX ChatGPT companion</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
         <Button variant="outline" size="sm" onClick={onToggleView} aria-label={viewMode === "3d" ? "Switch to simple view" : "Switch to office view"} className="shrink-0 gap-2 px-2 sm:px-3">
           {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
           <span className="hidden sm:inline">{viewMode === "3d" ? "Simple" : "Office"}</span>

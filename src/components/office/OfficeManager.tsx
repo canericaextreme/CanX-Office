@@ -52,6 +52,11 @@ import {
 import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
+import {
+  COMPANION_CHAT_EVENT,
+  COMPANION_WORK_EVENT,
+  publishManagerVoiceState,
+} from "@/lib/companion-bridge";
 
 interface ChatMessage {
   id: string;
@@ -399,6 +404,36 @@ export function OfficeManager() {
     dictation.stop();
     readAloud.stop();
   };
+
+  // The compact companion drives this same voice conversation and work panel.
+  // It never starts a second voice engine and never opens the panel on its own.
+  const voiceModeOn = voiceMode;
+  useEffect(() => {
+    const onChat = () => (voiceModeRef.current ? endVoiceMode() : startVoiceMode());
+    const onWork = () => {
+      setOpen(true);
+      setMinimized(false);
+      setTab("manager");
+    };
+    window.addEventListener(COMPANION_CHAT_EVENT, onChat);
+    window.addEventListener(COMPANION_WORK_EVENT, onWork);
+    return () => {
+      window.removeEventListener(COMPANION_CHAT_EVENT, onChat);
+      window.removeEventListener(COMPANION_WORK_EVENT, onWork);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    publishManagerVoiceState({
+      voiceMode: voiceModeOn,
+      listening: dictation.listening,
+      speaking: readAloud.speakingId !== null,
+      thinking: busy,
+      supported: dictation.supported,
+      error: dictation.error,
+    });
+  }, [voiceModeOn, dictation.listening, dictation.supported, dictation.error, readAloud.speakingId, busy]);
 
   const repeatAnswer = () => {
     const last = lastAnswerRef.current;
