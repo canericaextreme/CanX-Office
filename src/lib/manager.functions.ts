@@ -205,7 +205,7 @@ const TOOLS = [
     type: "function" as const,
     name: "create_task",
     description:
-      "Create a durable task in the master task list. Green: the Manager may do this directly. Returns the task id.",
+      "Create a durable task on the Work Board. Green: the Manager may do this directly. Optionally set the project, and set worker to assign it to that person straight away (that is how a spoken command like 'new task, fix the gate, assign John' is carried out). Returns the task id.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -213,6 +213,8 @@ const TOOLS = [
       properties: {
         title: { type: "string" },
         detail: { type: "string" },
+        project: { type: "string" },
+        worker: { type: "string" },
         risk: { type: "string", enum: ["green", "yellow", "red"] },
       },
     },
