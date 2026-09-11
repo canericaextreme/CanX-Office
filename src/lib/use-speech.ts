@@ -239,6 +239,8 @@ export interface ReadAloudState {
    * Returns false when the browser has no usable voice at all.
    */
   unlock: () => boolean;
+  /** True once the browser has actually started speaking the latest request. */
+  didSpeak: () => boolean;
 }
 
 /** Speaks only when asked to — by a button press, or by Voice Mode being on. */
