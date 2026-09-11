@@ -593,7 +593,7 @@ export async function decideManagerApprovalWith(deps: WorkbenchDeps, input: Deci
       detail: decided.detail ? `Approved in the Approval Box. ${decided.detail}` : "Approved in the Approval Box.",
       risk: decided.risk,
     });
-    if (!("ok" in created && created.ok === false)) {
+    if (!("ok" in created)) {
       const linked = await deps.rest<ManagerApproval[]>(
         input.accessToken,
         "PATCH",
