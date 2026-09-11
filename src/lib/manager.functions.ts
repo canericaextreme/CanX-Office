@@ -750,16 +750,33 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           accessToken,
           title: String(call.arguments["title"] ?? ""),
           detail: String(call.arguments["detail"] ?? ""),
+          project: String(call.arguments["project"] ?? ""),
           risk: (call.arguments["risk"] as RiskLevel) ?? "green",
         });
         if (isManagerError(result)) {
           actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
         } else {
+          // A spoken command may name the worker in the same breath. The task
+          // is only reported as assigned when the assignment itself succeeded.
+          const worker = String(call.arguments["worker"] ?? "").trim();
+          let assignedTo: string | null = null;
+          let assignFailed: string | null = null;
+          if (worker) {
+            const assigned = await assignManagerTaskWith(workbench, {
+              accessToken,
+              taskId: result.id,
+              worker,
+            });
+            if (isManagerError(assigned)) assignFailed = assigned.message;
+            else assignedTo = assigned.worker ?? worker;
+          }
           actionResults.push({
             name: call.name,
             risk,
             status: "done",
-            detail: `Created task "${result.title}" (${result.id}).`,
+            detail: `Created task "${result.title}" (${result.id}).${
+              assignedTo ? ` Assigned to ${assignedTo}.` : assignFailed ? ` It could not be assigned: ${assignFailed}` : ""
+            }`,
           });
         }
       } else if (call.name === "assign_task") {
