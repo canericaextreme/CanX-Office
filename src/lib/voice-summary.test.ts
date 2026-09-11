@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
+import { forSpeech, isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
 import { pickNaturalVoice, speechChunks } from "@/lib/use-speech";
 
 describe("spokenSummary", () => {
