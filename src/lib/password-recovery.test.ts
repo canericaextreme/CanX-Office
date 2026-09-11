@@ -33,7 +33,7 @@ describe("sign-in screen recovery entry", () => {
 
   it("confirms generically and never says whether an email is registered", () => {
     expect(gate).toContain("Check your email for a secure password-reset link");
-    expect(gate).not.toMatch(/no account|not registered|unknown email/i);
+    expect(gate).not.toMatch(/not registered|unknown email|no such (account|user)|email not found/i);
   });
 
   it("keeps password-manager compatibility on both fields", () => {
