@@ -331,8 +331,8 @@ export interface UpdateTaskInput {
   detail?: string;
   risk?: RiskLevel;
   project?: string;
-  result?: string;
-  evidence?: string;
+  result?: string | undefined;
+  evidence?: string | undefined;
 }
 
 /** Edit a task's title, details, project or risk. Never changes ownership or history. */
