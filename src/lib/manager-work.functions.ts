@@ -279,6 +279,7 @@ export interface CreateTaskInput {
   title: string;
   detail?: string;
   risk?: RiskLevel;
+  project?: string;
 }
 
 export async function createManagerTaskWith(deps: WorkbenchDeps, input: CreateTaskInput): Promise<ManagerTask | ManagerWorkError> {
@@ -288,24 +289,119 @@ export async function createManagerTaskWith(deps: WorkbenchDeps, input: CreateTa
   const title = cleanString(input.title, 300);
   if (!title) return fail("invalid_input", "A task title is required.");
 
-  const result = await deps.rest<ManagerTask>(input.accessToken, "POST", "manager_tasks", {
+  const project = cleanString(input.project, 160);
+  const base: JsonObject = {
     owner_id: v.userId,
     title,
     detail: cleanString(input.detail, 2000),
     risk: cleanRisk(input.risk),
-  });
-  if (!result.ok || !result.data) return fail("context_unavailable", result.error ?? "Task could not be saved.");
+  };
+
+  // The project column is additive and may not exist yet in every copy of the
+  // database. When it is missing the insert is retried without it rather than
+  // losing the task.
+  let result = await deps.rest<ManagerTask[]>(
+    input.accessToken,
+    "POST",
+    "manager_tasks",
+    project ? { ...base, project } : base,
+  );
+  if ((!result.ok || !firstRow<ManagerTask>(result.data)) && project) {
+    result = await deps.rest<ManagerTask[]>(input.accessToken, "POST", "manager_tasks", base);
+  }
+  const created = firstRow<ManagerTask>(result.data);
+  if (!result.ok || !created) return fail("context_unavailable", result.error ?? "Task could not be saved.");
 
   await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
     _owner_id: v.userId,
     _action: "task.create",
     _entity: "manager_tasks",
-    _entity_id: result.data.id,
+    _entity_id: created.id,
     _before: {},
-    _after: { title, risk: cleanRisk(input.risk), status: "open" },
+    _after: { title, risk: cleanRisk(input.risk), status: "open", project },
   }).catch(() => undefined);
 
-  return result.data;
+  return created;
+}
+
+export interface UpdateTaskInput {
+  accessToken: string;
+  taskId: string;
+  title?: string;
+  detail?: string;
+  risk?: RiskLevel;
+}
+
+/** Edit a task's title, details or risk. Never changes ownership or history. */
+export async function updateManagerTaskWith(deps: WorkbenchDeps, input: UpdateTaskInput): Promise<ManagerTask | ManagerWorkError> {
+  const v = await verify(input.accessToken, deps);
+  if (!v.ok) return v;
+
+  const taskResult = await deps.rest<ManagerTask[]>(input.accessToken, "GET", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`);
+  const before = firstRow<ManagerTask>(taskResult.data);
+  if (!taskResult.ok || !before) return fail("not_found", "Task not found.");
+  if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
+
+  const patch: JsonObject = { updated_at: new Date().toISOString() };
+  const title = cleanString(input.title, 300);
+  if (input.title !== undefined) {
+    if (!title) return fail("invalid_input", "A task title is required.");
+    patch["title"] = title;
+  }
+  if (input.detail !== undefined) patch["detail"] = cleanString(input.detail, 2000);
+  if (input.risk !== undefined) patch["risk"] = cleanRisk(input.risk);
+
+  const updated = await deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, patch);
+  const row = firstRow<ManagerTask>(updated.data);
+  if (!updated.ok || !row) return fail("context_unavailable", updated.error ?? "The change could not be saved.");
+
+  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
+    _action: "task.update",
+    _entity: "manager_tasks",
+    _entity_id: input.taskId,
+    _before: { title: before.title, detail: before.detail, risk: before.risk },
+    _after: { title: row.title, detail: row.detail, risk: row.risk },
+  }).catch(() => undefined);
+
+  return row;
+}
+
+export interface CancelTaskInput {
+  accessToken: string;
+  taskId: string;
+  reason?: string;
+}
+
+/** Cancel a task. Nothing is deleted; the record and its history stay. */
+export async function cancelManagerTaskWith(deps: WorkbenchDeps, input: CancelTaskInput): Promise<ManagerTask | ManagerWorkError> {
+  const v = await verify(input.accessToken, deps);
+  if (!v.ok) return v;
+
+  const taskResult = await deps.rest<ManagerTask[]>(input.accessToken, "GET", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`);
+  const before = firstRow<ManagerTask>(taskResult.data);
+  if (!taskResult.ok || !before) return fail("not_found", "Task not found.");
+  if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
+
+  const reason = cleanString(input.reason, 2000);
+  const updated = await deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
+    status: "cancelled",
+    result: reason || before.result,
+    updated_at: new Date().toISOString(),
+  });
+  const row = firstRow<ManagerTask>(updated.data);
+  if (!updated.ok || !row) return fail("context_unavailable", updated.error ?? "The cancellation could not be saved.");
+
+  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
+    _owner_id: v.userId,
+    _action: "task.cancel",
+    _entity: "manager_tasks",
+    _entity_id: input.taskId,
+    _before: { status: before.status },
+    _after: { status: "cancelled", reason },
+  }).catch(() => undefined);
+
+  return row;
 }
 
 export interface AssignTaskInput {
