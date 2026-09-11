@@ -99,6 +99,24 @@ export interface RealtimeDeps {
 const ESTIMATED_CENTS_PER_SESSION = 12;
 const MINT_TIMEOUT_MS = 15_000;
 
+/**
+ * Verified available on the CanX-owned OpenAI account. Used only when no
+ * explicit OPENAI_REALTIME_MODEL override is configured on the server.
+ */
+export const DEFAULT_REALTIME_MODEL = "gpt-realtime";
+
+/**
+ * The spending-limit wording is reserved for one situation only: the office's
+ * own configured AI budget guard is genuinely exhausted. Rate limits, missing
+ * settings, provider refusals and unreachable services each get their own
+ * plain-language text so nobody is told to top up money that is not the cause.
+ */
+export function budgetDenialDetail(reservation: Extract<BudgetResult, { allowed: false }>): string {
+  if (reservation.reason === "budget_limit") return "The CanX AI spending limit for this period has been reached.";
+  if (reservation.reason === "rate_limit") return "The AI service is temporarily busy. Please try again shortly.";
+  return "The office's own spending and rate checks could not be completed, so the voice session was refused.";
+}
+
 /** Server-read office facts travel as clearly fenced data, never as instructions. */
 export function realtimeInstructions(contextText: string): string {
   return [
@@ -127,13 +145,11 @@ export function realtimeSessionBody(model: string, instructions: string) {
 
 /** Never echo an upstream body, header, or key material back to the browser. */
 export function sanitizedRealtimeDetail(status?: number): string {
-  if (status === 401 || status === 403)
-    return "The AI provider refused the voice session (credentials or policy). Nothing about the key was returned to the browser.";
-  if (status === 404)
-    return "The configured realtime voice model was not found on the CanX AI account.";
-  if (status === 429) return "The AI provider is rate limiting requests. Try again in a moment.";
-  if (status && status >= 500) return "The AI provider had a temporary failure. Try again in a moment.";
-  return "The voice session could not be started. Details were not returned to the browser.";
+  if (status === 401 || status === 403) return "The AI provider connection needs attention.";
+  if (status === 404) return "The configured realtime voice model was not found on the CanX AI account.";
+  if (status === 429) return "The AI service is temporarily busy. Please try again shortly.";
+  if (status && status >= 500) return "The AI service could not be reached. Please try again.";
+  return "The AI service could not be reached. Please try again.";
 }
 
 function deny(code: RealtimeSessionCode, detail: string, missing?: RealtimeSessionResult["missingSetting"]): RealtimeSessionResult {
@@ -160,7 +176,7 @@ export async function createRealtimeSessionWith(
   if (!context.ok) return deny("context_unavailable", context.message);
 
   const reservation = await deps.reserve(accessToken, ESTIMATED_CENTS_PER_SESSION);
-  if (!reservation.allowed) return deny("limit_blocked", reservation.message);
+  if (!reservation.allowed) return deny("limit_blocked", budgetDenialDetail(reservation));
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MINT_TIMEOUT_MS);
@@ -195,7 +211,9 @@ export async function createRealtimeSessionWith(
 async function realDeps(): Promise<RealtimeDeps> {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
-  const realtimeModel = readSetting(process.env["OPENAI_REALTIME_MODEL"]);
+  // Explicit override wins; otherwise the already-verified default is used, so
+  // a missing setting is never reported as a blocker and never as a spend limit.
+  const realtimeModel = readSetting(process.env["OPENAI_REALTIME_MODEL"]) ?? DEFAULT_REALTIME_MODEL;
   return {
     // Ordinary sign-in (AAL1) is enough to TALK. Protected actions are gated
     // separately, inside the Office Manager handoff, where they belong.
