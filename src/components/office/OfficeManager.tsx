@@ -43,6 +43,10 @@ export function OfficeManager() {
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const dictation = useDictation((heard) =>
+    setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
+  );
+  const readAloud = useReadAloud();
 
   const fetchStatus = useServerFn(getManagerStatus);
   const sendChat = useServerFn(managerChat);
