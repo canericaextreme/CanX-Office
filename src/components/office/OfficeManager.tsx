@@ -338,6 +338,8 @@ export function OfficeManager() {
         if (changedWork && typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
         }
+        // Something real was queued in the approval box — say so out loud.
+        const approvalLine = approvalSubmissionNotice(reply.actionResults);
         if (voiceModeRef.current) {
           if (mutedRef.current) {
             resumeListening();
@@ -348,7 +350,9 @@ export function OfficeManager() {
             setAwaitingReadMore(shaped.truncated);
             // Listening stays on while it speaks, so John can interrupt.
             resumeListening(0);
-            speakAnswer(answerId, shaped.spoken || answer, resumeListening);
+            if (approvalLine) suppressBannerSpeechRef.current = true;
+            const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
+            speakAnswer(answerId, spoken, resumeListening);
           }
         }
       }
