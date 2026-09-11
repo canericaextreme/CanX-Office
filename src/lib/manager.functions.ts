@@ -624,11 +624,10 @@ function liveContextMessage(context: string) {
 
 /** Never echo an upstream body, header, or key material back to the client. */
 function sanitizedProviderDetail(status?: number): string {
-  if (status === 401 || status === 403)
-    return "The AI provider refused the request (credentials or policy). Details were not returned to the browser.";
-  if (status === 429) return "The AI provider is rate limiting requests. Try again later.";
-  if (status && status >= 500) return "The AI provider had a temporary failure. Try again later.";
-  return "The AI request could not be completed. Details were not returned to the browser.";
+  if (status === 401 || status === 403) return "The AI provider connection needs attention.";
+  if (status === 429) return "The AI service is temporarily busy. Please try again shortly.";
+  if (status && status >= 500) return "The AI service could not be reached. Please try again.";
+  return "The AI service could not be reached. Please try again.";
 }
 
 function denyReply(code: ManagerReply["code"], state: ManagerState, detail: string, model: string | null = null): ManagerReply {
