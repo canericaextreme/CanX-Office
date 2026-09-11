@@ -51,6 +51,8 @@ type Tab = "manager" | "appearance" | "notes";
 
 export function OfficeManager() {
   const [open, setOpen] = useState(false);
+  /** Shrinks the window to a small floating control; the conversation stays live. */
+  const [minimized, setMinimized] = useState(false);
   const [tab, setTab] = useState<Tab>("manager");
   const [status, setStatus] = useState<ManagerStatus | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
