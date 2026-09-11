@@ -324,6 +324,8 @@ const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" 
   create_task: {
     title: { type: "string", maxLen: 300 },
     detail: { type: "string", maxLen: 2000 },
+    project: { type: "string", maxLen: 160 },
+    worker: { type: "string", maxLen: 160 },
     risk: { type: "string", enum: ["green", "yellow", "red"] },
   },
   assign_task: {
