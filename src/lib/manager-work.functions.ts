@@ -577,7 +577,7 @@ export async function decideManagerApprovalWith(deps: WorkbenchDeps, input: Deci
     _after: { status: decision },
   }).catch(() => undefined);
 
-  return result.data;
+  return decided;
 }
 
 /* ------------------------------- change log ------------------------------- */
