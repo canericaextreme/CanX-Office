@@ -363,6 +363,9 @@ export function useReadAloud(): ReadAloudState {
           moved = true;
           speakChunk(index + 1);
         };
+        utterance.onstart = () => {
+          spokeRef.current = true;
+        };
         utterance.onend = next;
         // If a piece is dropped by the browser, carry on instead of stopping.
         utterance.onerror = next;
