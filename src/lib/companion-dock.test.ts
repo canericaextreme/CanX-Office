@@ -60,12 +60,13 @@ describe("compact CanX companion", () => {
     expect(dockSource).toContain('aria-label="Open a larger ChatGPT work window for a substantial task"');
     expect(dockSource).toContain('aria-label="Close the CanX ChatGPT companion"');
     expect(dockSource).toContain("min-h-9");
-    expect(dockSource).toContain(">Chat<");
-    expect(dockSource).toContain(">Work<");
+    expect(dockSource).toMatch(/>\s*Chat\s*</);
+    expect(dockSource).toMatch(/>\s*Work\s*</);
   });
 
   it("closes to hidden state and reopens from the global header shortcut", () => {
-    expect(dockSource).toContain(COMPANION_OPEN_EVENT);
+    expect(dockSource).toContain("COMPANION_OPEN_EVENT");
+    expect(COMPANION_OPEN_EVENT).toBe("canx:open-companion");
     expect(dockSource).toContain("canx.companion.hidden");
     expect(navSource).toContain("COMPANION_OPEN_EVENT");
     expect(navSource).toContain("Show the CanX ChatGPT companion");
