@@ -1,15 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AI_WORKERS_VERIFICATION } from "@/routes/_office/subscriptions";
-import {
-  CHATGPT_URL,
-  CHATGPT_WINDOW_NAME,
-  openChatGptCompanion,
-  resetChatGptCompanionForTests,
-} from "./chatgpt-popup";
 
 const subscriptionsSource = readFileSync("src/routes/_office/subscriptions.tsx", "utf8");
-const navSource = readFileSync("src/components/office/OfficeNav.tsx", "utf8");
 
 describe("AI Workers subscription verification", () => {
   it("keeps the supplied verified aggregate facts", () => {
