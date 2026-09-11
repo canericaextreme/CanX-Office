@@ -106,7 +106,7 @@ commit;
 
 --
 -- 3. Confirm PUBLIC and anon have no execute on these functions.
--- Expected: zero rows for grantee in ('public', 'anon').
+-- Expected: zero rows for grantee in ('PUBLIC', 'anon').
 --
 -- select grantee, routine_name, privilege_type
 -- from information_schema.routine_privileges
@@ -116,4 +116,4 @@ commit;
 --     'ensure_manager_ai_budget',
 --     'log_manager_change'
 --   )
---   and grantee in ('public', 'anon');
+--   and grantee in ('PUBLIC', 'anon');
