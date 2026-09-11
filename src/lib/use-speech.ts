@@ -96,6 +96,20 @@ export function useDictation(options: DictationOptions): DictationState {
     setError(null);
     heardSinceStart.current = false;
     wantListening.current = true;
+    // Detach and drop any previous session first: two live recognisers fight
+    // over the microphone, which is the usual cause of speech dropping out.
+    const previous = recRef.current;
+    if (previous) {
+      previous.onresult = null;
+      previous.onerror = null;
+      previous.onend = null;
+      recRef.current = null;
+      try {
+        previous.abort();
+      } catch {
+        /* already finished */
+      }
+    }
     try {
       const rec = new Ctor();
       rec.lang = typeof navigator !== "undefined" ? navigator.language || "en-CA" : "en-CA";
@@ -144,11 +158,11 @@ export function useDictation(options: DictationOptions): DictationState {
       rec.onend = () => {
         setInterim("");
         // Browsers end recognition on their own after a pause. If the caller
-        // still wants to listen, start it again so speech is not cut off.
+        // still wants to listen, start it again quickly so speech is not lost.
         if (wantListening.current) {
           setTimeout(() => {
             if (wantListening.current) startRef.current();
-          }, 250);
+          }, 80);
           return;
         }
         setListening(false);
@@ -271,13 +285,13 @@ export function useReadAloud(): ReadAloudState {
       }
       setSpeakingId(id);
 
-      // Chrome stops speaking after roughly fifteen seconds unless it is nudged.
+      // Chrome quietly pauses long speech. Only resume when it is actually
+      // paused — pausing it ourselves is what used to make the voice drop out.
       clearKeepAlive();
       keepAlive.current = setInterval(() => {
-        if (cancelledRef.current || !window.speechSynthesis.speaking) return;
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }, 7000);
+        if (cancelledRef.current) return;
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      }, 4000);
 
       const finish = () => {
         clearKeepAlive();
@@ -294,7 +308,8 @@ export function useReadAloud(): ReadAloudState {
           finish();
           return;
         }
-        const utterance = new SpeechSynthesisUtterance(chunks[index]!);
+        const piece = chunks[index]!;
+        const utterance = new SpeechSynthesisUtterance(piece);
         if (voiceRef.current) {
           utterance.voice = voiceRef.current;
           utterance.lang = voiceRef.current.lang;
@@ -304,7 +319,10 @@ export function useReadAloud(): ReadAloudState {
         utterance.pitch = 1.02;
         utterance.volume = 1;
         let moved = false;
+        let guard: ReturnType<typeof setTimeout> | null = null;
         const next = () => {
+          if (guard) clearTimeout(guard);
+          guard = null;
           if (moved || cancelledRef.current) return;
           moved = true;
           speakChunk(index + 1);
@@ -313,9 +331,24 @@ export function useReadAloud(): ReadAloudState {
         // If a piece is dropped by the browser, carry on instead of stopping.
         utterance.onerror = next;
         window.speechSynthesis.speak(utterance);
+        // Safety net: if the browser never reports the piece as finished,
+        // carry on anyway so the rest of the answer is still spoken.
+        guard = setTimeout(
+          () => {
+            if (cancelledRef.current || moved) return;
+            if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+              guard = setTimeout(() => next(), 4000);
+              return;
+            }
+            next();
+          },
+          Math.round(piece.length * 90) + 4000,
+        );
       };
 
-      speakChunk(0);
+      // Chrome drops the first utterance when it is queued in the same tick as
+      // cancel(), so give it a moment before starting.
+      setTimeout(() => speakChunk(0), 90);
     },
     [clearKeepAlive],
   );
