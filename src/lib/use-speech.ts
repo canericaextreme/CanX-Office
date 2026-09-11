@@ -241,59 +241,84 @@ export function useReadAloud(): ReadAloudState {
     };
   }, []);
 
+  const keepAlive = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearKeepAlive = useCallback(() => {
+    if (keepAlive.current) clearInterval(keepAlive.current);
+    keepAlive.current = null;
+  }, []);
+
   const stop = useCallback(() => {
     cancelledRef.current = true;
+    clearKeepAlive();
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setSpeakingId(null);
-  }, []);
+  }, [clearKeepAlive]);
 
-  const speak = useCallback((id: string, text: string, onDone?: () => void) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      onDone?.();
-      return;
-    }
-    window.speechSynthesis.cancel();
-    cancelledRef.current = false;
-    const chunks = speechChunks(text.slice(0, 4000));
-    if (!chunks.length) {
-      onDone?.();
-      return;
-    }
-    setSpeakingId(id);
-
-    const finish = () => {
-      setSpeakingId(null);
-      onDone?.();
-    };
-
-    const speakChunk = (index: number) => {
-      if (cancelledRef.current) return;
-      if (index >= chunks.length) {
-        finish();
+  const speak = useCallback(
+    (id: string, text: string, onDone?: () => void) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+        onDone?.();
         return;
       }
-      const utterance = new SpeechSynthesisUtterance(chunks[index]!);
-      if (voiceRef.current) {
-        utterance.voice = voiceRef.current;
-        utterance.lang = voiceRef.current.lang;
+      window.speechSynthesis.cancel();
+      cancelledRef.current = false;
+      // Shorter pieces: some browsers silently stop long utterances part-way.
+      const chunks = speechChunks(text.slice(0, 4000), 150);
+      if (!chunks.length) {
+        onDone?.();
+        return;
       }
-      // Relaxed, conversational delivery rather than the flat default.
-      utterance.rate = 1.02;
-      utterance.pitch = 1.02;
-      utterance.volume = 1;
-      utterance.onend = () => {
-        if (cancelledRef.current) return;
-        speakChunk(index + 1);
-      };
-      utterance.onerror = () => {
-        if (cancelledRef.current) return;
-        finish();
-      };
-      window.speechSynthesis.speak(utterance);
-    };
+      setSpeakingId(id);
 
-    speakChunk(0);
-  }, []);
+      // Chrome stops speaking after roughly fifteen seconds unless it is nudged.
+      clearKeepAlive();
+      keepAlive.current = setInterval(() => {
+        if (cancelledRef.current || !window.speechSynthesis.speaking) return;
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }, 7000);
+
+      const finish = () => {
+        clearKeepAlive();
+        setSpeakingId(null);
+        onDone?.();
+      };
+
+      const speakChunk = (index: number) => {
+        if (cancelledRef.current) {
+          clearKeepAlive();
+          return;
+        }
+        if (index >= chunks.length) {
+          finish();
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(chunks[index]!);
+        if (voiceRef.current) {
+          utterance.voice = voiceRef.current;
+          utterance.lang = voiceRef.current.lang;
+        }
+        // Relaxed, conversational delivery rather than the flat default.
+        utterance.rate = 1.02;
+        utterance.pitch = 1.02;
+        utterance.volume = 1;
+        let moved = false;
+        const next = () => {
+          if (moved || cancelledRef.current) return;
+          moved = true;
+          speakChunk(index + 1);
+        };
+        utterance.onend = next;
+        // If a piece is dropped by the browser, carry on instead of stopping.
+        utterance.onerror = next;
+        window.speechSynthesis.speak(utterance);
+      };
+
+      speakChunk(0);
+    },
+    [clearKeepAlive],
+  );
 
   return { supported, speakingId, speak, stop };
 }
