@@ -424,6 +424,7 @@ export function OfficeManager() {
     voiceModeRef.current = false;
     pendingFullRef.current = null;
     setAwaitingReadMore(false);
+    setSpeechError(null);
     dictation.stop();
     readAloud.stop();
   };

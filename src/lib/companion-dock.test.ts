@@ -8,11 +8,13 @@ import {
   managerVoiceLabel,
 } from "./companion-bridge";
 import { clampCompanionPosition, readStoredPosition, COMPANION_POSITION_KEY } from "./companion-position";
+import { VOICE_GREETING } from "@/components/office/OfficeManager";
 
 const dockSource = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
 const navSource = readFileSync("src/components/office/OfficeNav.tsx", "utf8");
 const managerSource = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
 const layoutSource = readFileSync("src/routes/_office.tsx", "utf8");
+const speechSource = readFileSync("src/lib/use-speech.ts", "utf8");
 
 describe("compact CanX companion", () => {
   it("is mounted beside, not inside, the Office Manager", () => {
@@ -61,6 +63,21 @@ describe("compact CanX companion", () => {
     expect(dockSource).toContain("canx-companion-tab");
     expect(dockSource).toContain('aria-label="Restore the CanX companion"');
     expect(dockSource).toContain("canx.companion.hidden");
+  });
+
+  it("speaks a greeting and unlocks speech when Chat starts voice mode", () => {
+    expect(VOICE_GREETING).toBe("I'm listening, John.");
+    expect(managerSource).toContain("readAloud.unlock()");
+    expect(managerSource).toContain("speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING");
+    // Chat must never open the large Office Manager panel.
+    expect(managerSource).toContain("setOpen(false);\n      setMinimized(false);\n      startVoiceMode();");
+  });
+
+  it("reports a clear problem when the browser has no speaking voice", () => {
+    expect(managerSource).toContain("No speaking voice is installed in this browser");
+    expect(managerSource).toContain("error: dictation.error ?? speechError");
+    expect(speechSource).toContain("hasVoice");
+    expect(managerVoiceLabel({ ...IDLE_MANAGER_VOICE_STATE, error: "No speaking voice" })).toBe("No speaking voice");
   });
 
   it("removes the duplicate header ChatGPT shortcut", () => {
