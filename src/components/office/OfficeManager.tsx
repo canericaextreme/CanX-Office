@@ -197,7 +197,31 @@ export function OfficeManager() {
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || busy) return;
-    // In Voice Mode the microphone pauses while the Manager thinks and answers.
+
+    // A plain yes or no answers "shall I read the rest?" without going to the
+    // provider at all — nothing is spent and nothing is approved by it.
+    const pending = pendingFullRef.current;
+    if (voiceModeRef.current && pending) {
+      if (isAffirmative(text)) {
+        pendingFullRef.current = null;
+        setAwaitingReadMore(false);
+        setDraft("");
+        dictation.stop();
+        readAloud.speak(pending.id, pending.text, resumeListening);
+        return;
+      }
+      if (isNegative(text)) {
+        pendingFullRef.current = null;
+        setAwaitingReadMore(false);
+        setDraft("");
+        resumeListening();
+        return;
+      }
+      pendingFullRef.current = null;
+      setAwaitingReadMore(false);
+    }
+
+    // In Voice Mode the microphone pauses while the Manager thinks.
     if (voiceModeRef.current) dictation.stop();
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
