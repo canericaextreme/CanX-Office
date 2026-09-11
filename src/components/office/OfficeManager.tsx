@@ -409,7 +409,17 @@ export function OfficeManager() {
   // It never starts a second voice engine and never opens the panel on its own.
   const voiceModeOn = voiceMode;
   useEffect(() => {
-    const onChat = () => (voiceModeRef.current ? endVoiceMode() : startVoiceMode());
+    // Compact voice only: chat never opens the large Office Manager panel, and
+    // closes it if a previous session left it on screen.
+    const onChat = () => {
+      if (voiceModeRef.current) {
+        endVoiceMode();
+        return;
+      }
+      setOpen(false);
+      setMinimized(false);
+      startVoiceMode();
+    };
     const onWork = () => {
       setOpen(true);
       setMinimized(false);
