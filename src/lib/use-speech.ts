@@ -158,11 +158,11 @@ export function useDictation(options: DictationOptions): DictationState {
       rec.onend = () => {
         setInterim("");
         // Browsers end recognition on their own after a pause. If the caller
-        // still wants to listen, start it again so speech is not cut off.
+        // still wants to listen, start it again quickly so speech is not lost.
         if (wantListening.current) {
           setTimeout(() => {
             if (wantListening.current) startRef.current();
-          }, 250);
+          }, 80);
           return;
         }
         setListening(false);
