@@ -119,9 +119,16 @@ export function CompanionDock() {
       </div>
 
       <AssistantFace active={active} />
-      <span role="status" aria-live="polite" className="sr-only">
+      <p
+        data-testid="canx-companion-status-text"
+        role="status"
+        aria-live="polite"
+        className="w-full shrink-0 truncate px-1 text-center text-[10px] leading-tight text-muted-foreground"
+        title={chat.missingSetting ? `${label} (setting needed: ${chat.missingSetting})` : label}
+      >
         {label}
-      </span>
+      </p>
+
 
       <div className="flex w-full gap-1.5">
         <button
