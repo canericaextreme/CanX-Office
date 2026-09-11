@@ -110,6 +110,15 @@ function WorkBoard() {
 
   const tasks = memory?.tasks ?? null;
   const assignments = memory?.assignments ?? [];
+  const approvals = memory?.approvals ?? [];
+  const pendingApprovals = approvals.filter((a) => a.status === "pending");
+  // Tasks that came from, or are covered by, an approval you granted.
+  const approvedOn: Record<string, string> = {};
+  for (const approval of approvals) {
+    if (approval.status === "approved" && approval.task_id) {
+      approvedOn[approval.task_id] = approval.decided_at ?? approval.created_at;
+    }
+  }
 
   // When the Office Manager creates or changes a task — including from a spoken
   // command — the board reloads so John sees the real record straight away.
