@@ -158,11 +158,93 @@ describe("Chat session safety", () => {
   });
 
   it("fails safely and honestly, without leaking provider detail", () => {
-    expect(sanitizedRealtimeDetail(401)).toContain("refused");
+    expect(sanitizedRealtimeDetail(401)).toBe("The AI provider connection needs attention.");
     expect(sanitizedRealtimeDetail(401)).not.toContain("Bearer");
     expect(sanitizedRealtimeDetail(404)).toContain("realtime voice model");
-    expect(sanitizedRealtimeDetail()).toContain("could not be started");
-    expect(sessionSource).toContain('"OPENAI_REALTIME_MODEL",');
+    expect(sanitizedRealtimeDetail(429)).toBe("The AI service is temporarily busy. Please try again shortly.");
+    expect(sanitizedRealtimeDetail(500)).toBe("The AI service could not be reached. Please try again.");
+    expect(sanitizedRealtimeDetail()).toBe("The AI service could not be reached. Please try again.");
+  });
+
+  it("never reuses the spending-limit wording for provider or config problems", () => {
+    for (const status of [undefined, 401, 403, 404, 429, 500]) {
+      expect(sanitizedRealtimeDetail(status)).not.toContain("spending limit");
+    }
+  });
+});
+
+describe("Chat error classification", () => {
+  const SPEND_TEXT = "The CanX AI spending limit for this period has been reached.";
+
+  const baseDeps = (over: Partial<RealtimeDeps> = {}): RealtimeDeps => ({
+    verifyOwner: async () => ({ ok: true, aal: "aal1", userId: "u1" }) as never,
+    reserve: async () => ({ allowed: true, reservationId: "r1", remainingToday: 10 }),
+    buildContext: async () => ({ ok: true, text: "office facts" }) as never,
+    fetchImpl: (async () =>
+      new Response(JSON.stringify({ value: "ek_test", expires_at: 123 }), { status: 200 })) as unknown as typeof fetch,
+    openaiKey: "sk-test",
+    realtimeModel: DEFAULT_REALTIME_MODEL,
+    ...over,
+  });
+
+  it("uses the verified gpt-realtime default when no override is configured", async () => {
+    expect(DEFAULT_REALTIME_MODEL).toBe("gpt-realtime");
+    expect(sessionSource).toContain('readSetting(process.env["OPENAI_REALTIME_MODEL"]) ?? DEFAULT_REALTIME_MODEL');
+    const result = await createRealtimeSessionWith(baseDeps(), "token");
+    expect(result.ok).toBe(true);
+    expect(result.model).toBe("gpt-realtime");
+  });
+
+  it("shows the spend-limit text only when the budget guard is exhausted", () => {
+    expect(budgetDenialDetail({ allowed: false, reason: "budget_limit", message: "x" })).toBe(SPEND_TEXT);
+  });
+
+  it("does not show the spend-limit text for rate limits or unavailable checks", () => {
+    expect(budgetDenialDetail({ allowed: false, reason: "rate_limit", message: "x" })).toBe(
+      "The AI service is temporarily busy. Please try again shortly.",
+    );
+    expect(budgetDenialDetail({ allowed: false, reason: "unavailable", message: "x" })).not.toContain("spending limit");
+  });
+
+  it("does not show the spend-limit text when the provider refuses credentials", async () => {
+    const result = await createRealtimeSessionWith(
+      baseDeps({ fetchImpl: (async () => new Response("nope", { status: 401 })) as unknown as typeof fetch }),
+      "token",
+    );
+    expect(result.code).toBe("provider_error");
+    expect(result.detail).toBe("The AI provider connection needs attention.");
+    expect(result.detail).not.toContain("spending limit");
+  });
+
+  it("does not show the spend-limit text when the provider is rate limiting", async () => {
+    const result = await createRealtimeSessionWith(
+      baseDeps({ fetchImpl: (async () => new Response("slow", { status: 429 })) as unknown as typeof fetch }),
+      "token",
+    );
+    expect(result.detail).toBe("The AI service is temporarily busy. Please try again shortly.");
+  });
+
+  it("passes the exhausted budget message straight through", async () => {
+    const result = await createRealtimeSessionWith(
+      baseDeps({ reserve: async () => ({ allowed: false, reason: "budget_limit", message: "raw" }) }),
+      "token",
+    );
+    expect(result.code).toBe("limit_blocked");
+    expect(result.detail).toBe(SPEND_TEXT);
+  });
+});
+
+describe("Chat and Office Manager stay independent", () => {
+  it("keeps Chat state inside the realtime engine, not the Manager", () => {
+    expect(dockSource).toContain("useRealtimeChat");
+    expect(dockSource).not.toContain("managerChat");
+    // The dock renders only its own chat error.
+    expect(dockSource).toContain("chat.error");
+  });
+
+  it("never copies a Manager banner into the Chat companion", () => {
+    expect(managerSource).not.toContain("useRealtimeChat");
+    expect(managerSource).not.toContain("createRealtimeSession");
   });
 });
 
