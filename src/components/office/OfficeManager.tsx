@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, Check, Loader2, Paintbrush, Plus, Send, Trash2, Undo2, X } from "lucide-react";
+import { Bot, Check, Loader2, Mic, MicOff, Paintbrush, Plus, Send, Square, Trash2, Undo2, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/office-theme";
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
+import { useDictation, useReadAloud } from "@/lib/use-speech";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 
 interface ChatMessage {
