@@ -73,6 +73,8 @@ export function OfficeManager() {
   const mutedRef = useRef(false);
   const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
   const lastAnswerRef = useRef<{ id: string; text: string } | null>(null);
+  /** The full Manager panel can be dragged by its handle so it never blocks top buttons. */
+  const panel = useDraggablePanel({ initial: { right: 16, bottom: 80 } });
   voiceModeRef.current = voiceMode;
   mutedRef.current = muted;
 
