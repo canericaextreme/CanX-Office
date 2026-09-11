@@ -39,7 +39,7 @@ import {
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
 import { useDictation, useReadAloud } from "@/lib/use-speech";
-import { isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
+import { forSpeech, isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 
 interface ChatMessage {
@@ -328,7 +328,7 @@ export function OfficeManager() {
     const last = lastAnswerRef.current;
     if (!last) return;
     dictation.stop();
-    readAloud.speak(last.id, last.text, resumeListening);
+    readAloud.speak(last.id, forSpeech(last.text), resumeListening);
   };
 
 
@@ -513,7 +513,7 @@ export function OfficeManager() {
                         onClick={() =>
                           readAloud.speakingId === message.id
                             ? readAloud.stop()
-                            : readAloud.speak(message.id, message.content)
+                            : readAloud.speak(message.id, forSpeech(message.content))
                         }
                       >
                         {readAloud.speakingId === message.id ? (
