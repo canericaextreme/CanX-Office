@@ -55,6 +55,9 @@ export function useDictation(options: DictationOptions): DictationState {
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heardSinceStart = useRef(false);
+  /** True while the caller wants the microphone open, so short drop-outs restart. */
+  const wantListening = useRef(false);
+  const startRef = useRef<() => void>(() => undefined);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
