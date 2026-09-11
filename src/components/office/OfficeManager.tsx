@@ -187,24 +187,59 @@ export function OfficeManager() {
                     ? (reply.detail ?? "The office records could not be read just now, so nothing was asked.")
                   : (reply.detail ?? "The AI request could not be completed."),
         );
+        if (voiceModeRef.current) resumeListening();
       } else {
+        const answerId = `m-${Date.now()}-a`;
+        const answer = reply.text || "(The provider returned an empty answer.)";
+        lastAnswerRef.current = { id: answerId, text: answer };
         setMessages((current) => [
           ...current,
-          {
-            id: `m-${Date.now()}-a`,
-            role: "assistant",
-            content: reply.text || "(The provider returned an empty answer.)",
-            toolCalls: reply.toolCalls,
-          },
+          { id: answerId, role: "assistant", content: answer, toolCalls: reply.toolCalls },
         ]);
+        if (voiceModeRef.current) {
+          if (mutedRef.current) resumeListening();
+          else readAloud.speak(answerId, answer, resumeListening);
+        }
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The request could not be completed.");
+      if (voiceModeRef.current) resumeListening();
     } finally {
       setBusy(false);
       inputRef.current?.focus();
     }
   };
+  sendRef.current = send;
+
+  /** Voice Mode picks the microphone back up once the answer has finished. */
+  function resumeListening() {
+    if (!voiceModeRef.current) return;
+    setTimeout(() => {
+      if (voiceModeRef.current) dictation.start();
+    }, 300);
+  }
+
+  const startVoiceMode = () => {
+    setVoiceMode(true);
+    voiceModeRef.current = true;
+    setError(null);
+    dictation.start();
+  };
+
+  const endVoiceMode = () => {
+    setVoiceMode(false);
+    voiceModeRef.current = false;
+    dictation.stop();
+    readAloud.stop();
+  };
+
+  const repeatAnswer = () => {
+    const last = lastAnswerRef.current;
+    if (!last) return;
+    dictation.stop();
+    readAloud.speak(last.id, last.text, resumeListening);
+  };
+
 
   const briefing = () => {
     setMessages((current) => [
