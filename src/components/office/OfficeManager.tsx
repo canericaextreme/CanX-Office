@@ -52,11 +52,7 @@ import {
 import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
-import {
-  COMPANION_CHAT_EVENT,
-  COMPANION_WORK_EVENT,
-  publishManagerVoiceState,
-} from "@/lib/companion-bridge";
+import { COMPANION_WORK_EVENT } from "@/lib/companion-bridge";
 
 interface ChatMessage {
   id: string;
@@ -435,45 +431,18 @@ export function OfficeManager() {
     readAloud.stop();
   };
 
-  // The compact companion drives this same voice conversation and work panel.
-  // It never starts a second voice engine and never opens the panel on its own.
-  const voiceModeOn = voiceMode;
+  // The companion's Chat button no longer runs this browser speech engine:
+  // Chat is its own conversational voice session (see use-realtime-chat.ts).
+  // Only Work reaches the Office Manager here, opening its work/progress panel.
   useEffect(() => {
-    // Compact voice only: chat never opens the large Office Manager panel, and
-    // closes it if a previous session left it on screen.
-    const onChat = () => {
-      if (voiceModeRef.current) {
-        endVoiceMode();
-        return;
-      }
-      setOpen(false);
-      setMinimized(false);
-      startVoiceMode();
-    };
     const onWork = () => {
       setOpen(true);
       setMinimized(false);
       setTab("manager");
     };
-    window.addEventListener(COMPANION_CHAT_EVENT, onChat);
     window.addEventListener(COMPANION_WORK_EVENT, onWork);
-    return () => {
-      window.removeEventListener(COMPANION_CHAT_EVENT, onChat);
-      window.removeEventListener(COMPANION_WORK_EVENT, onWork);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => window.removeEventListener(COMPANION_WORK_EVENT, onWork);
   }, []);
-
-  useEffect(() => {
-    publishManagerVoiceState({
-      voiceMode: voiceModeOn,
-      listening: dictation.listening,
-      speaking: readAloud.speakingId !== null,
-      thinking: busy,
-      supported: dictation.supported,
-      error: dictation.error ?? speechError,
-    });
-  }, [voiceModeOn, dictation.listening, dictation.supported, dictation.error, speechError, readAloud.speakingId, busy]);
 
   const repeatAnswer = () => {
     const last = lastAnswerRef.current;
