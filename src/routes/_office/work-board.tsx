@@ -17,7 +17,7 @@ import {
   type RiskLevel,
 } from "@/lib/manager-work.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
