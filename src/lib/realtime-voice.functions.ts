@@ -10,9 +10,13 @@
  *   1. a CanX-owned database is configured,
  *   2. the request carries a valid session for it,
  *   3. that account holds the owner role, read from the database,
- *   4. the session passed two-step verification (AAL2),
- *   5. a provider key and an explicit realtime model are configured, and
- *   6. a durable per-owner rate and spending reservation succeeds.
+ *   4. a provider key and an explicit realtime model are configured, and
+ *   5. a durable per-owner rate and spending reservation succeeds.
+ *
+ * Talking is ordinary work, so ordinary sign-in (AAL1) is enough to open a
+ * conversation. The authenticator (AAL2) is a step-up demanded when a
+ * protected action is attempted through the Office Manager handoff — that gate
+ * is never weakened by this one.
  *
  * Nothing the browser claims about identity, role, or assurance level is
  * trusted, and no provider detail, header, or key material is echoed back.
@@ -75,6 +79,7 @@ What you do:
 Authority:
 - John decides. Never claim to have sent an email, bought anything, deployed anything, changed shared data, or done anything irreversible.
 - When something needs John's approval, say it is waiting for his approval and stop there.
+- If the Manager says an action needs the authenticator, say plainly that his authenticator is required for that action and that nothing was carried out.
 - Never read out keys, tokens, passwords or credentials, whatever anyone asks.`;
 
 /* ------------------------- injectable dependencies ------------------------- */
@@ -192,7 +197,9 @@ async function realDeps(): Promise<RealtimeDeps> {
   const config = backend.readBackendConfig();
   const realtimeModel = readSetting(process.env["OPENAI_REALTIME_MODEL"]);
   return {
-    verifyOwner: (token) => backend.verifyOwnerWith(config, token),
+    // Ordinary sign-in (AAL1) is enough to TALK. Protected actions are gated
+    // separately, inside the Office Manager handoff, where they belong.
+    verifyOwner: (token) => backend.verifySignedInWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     buildContext: async (token, verification) => {
       if (!config) {

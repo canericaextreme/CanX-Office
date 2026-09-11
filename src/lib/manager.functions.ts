@@ -21,6 +21,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
+import { protectedCategoryOf } from "@/lib/protected-actions";
 import {
   assignManagerTaskWith,
   classifyManagerRisk,
@@ -104,7 +105,17 @@ const ESTIMATED_CENTS_PER_CALL = 3;
 /* ------------------------- injectable dependencies ------------------------- */
 
 export interface ManagerDeps {
+  /**
+   * Strict check: signed-in owner WITH the authenticator confirmed (AAL2).
+   * Every protected action keeps going through this one.
+   */
   verifyOwner: (token: string) => Promise<OwnerVerification>;
+  /**
+   * Ordinary check: signed-in owner, authenticator not required (AAL1).
+   * Used for talking and read-only status only. Falls back to the strict check
+   * when a caller (or a test) does not supply it.
+   */
+  verifySignedIn?: (token: string) => Promise<OwnerVerification>;
   reserve: (token: string, cents: number) => Promise<BudgetResult>;
   settle: (token: string, reservationId: string, outcome: "ok" | "failed") => Promise<void>;
   /**
@@ -136,6 +147,7 @@ async function realDeps(): Promise<ManagerDeps> {
   const model = readSetting(process.env["OPENAI_MODEL"]);
   return {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
+    verifySignedIn: (token) => backend.verifySignedInWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
     buildContext: async (token, verification, includeReceiptDetails) => {
@@ -396,7 +408,8 @@ export async function computeManagerStatusWith(deps: ManagerDeps, accessToken: s
   const keyPresent = Boolean(deps.openaiKey);
   const modelConfigured = Boolean(deps.model);
 
-  const verification = await deps.verifyOwner(accessToken);
+  // Read-only status: ordinary sign-in is enough.
+  const verification = await (deps.verifySignedIn ?? deps.verifyOwner)(accessToken);
   if (!verification.ok) {
     return {
       provider: "none",
@@ -754,9 +767,29 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
   const actionResults: ManagerActionResult[] = [];
   const remainingToolCalls: ManagerToolCall[] = [];
 
+  // The authenticator (AAL2) is checked once, lazily, and only when a protected
+  // action is actually attempted. Ordinary talking never reaches this.
+  let stepUp: OwnerVerification | null = null;
+  const authenticatorConfirmed = async () => {
+    stepUp ??= await deps.verifyOwner(accessToken);
+    return stepUp.ok;
+  };
+
   for (const call of toolCalls) {
     const scope = typeof call.arguments["scope"] === "string" ? call.arguments["scope"] : "";
     const risk = classifyManagerRisk(call.name, scope);
+    const protectedCategory = protectedCategoryOf(`${call.name} ${scope}`);
+
+    if (protectedCategory && !(await authenticatorConfirmed())) {
+      actionResults.push({
+        name: call.name,
+        risk,
+        status: "stopped",
+        detail: `Authenticator required for this action (${protectedCategory}). Nothing was carried out.`,
+      });
+      continue;
+    }
+
 
     if (risk === "red") {
       actionResults.push({
@@ -943,9 +976,11 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
 
 /** Testable chat implementation. The server function is a thin wrapper. */
 export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
-  // GATE 1 — server-verified owner identity, role and MFA. Checked before
-  // anything else, so a present key can never produce an upstream request.
-  const verification = await deps.verifyOwner(data.accessToken);
+  // GATE 1 — server-verified owner identity and role, checked before anything
+  // else, so a present key can never produce an upstream request. Talking is
+  // ordinary work, so the authenticator is not demanded here; protected tool
+  // calls are re-verified with the strict AAL2 check before they run.
+  const verification = await (deps.verifySignedIn ?? deps.verifyOwner)(data.accessToken);
   if (!verification.ok) {
     return denyReply("auth_not_ready", "auth_unavailable", authDetail(verification, Boolean(deps.openaiKey)));
   }

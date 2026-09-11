@@ -27,6 +27,12 @@ export interface OwnerSession {
   email: string | null;
   message: string;
   accessToken: string | null;
+  /** Verified assurance level of the current session, from the server. */
+  aal: "aal1" | "aal2" | null;
+  /** Ordinary office access: signed in as the owner, authenticator not required. */
+  signedIn: boolean;
+  /** Authenticator confirmed — protected actions may proceed. */
+  stepUpComplete: boolean;
   /** True when shared saving to the CanX account is permitted. */
   shared: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
@@ -57,6 +63,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [message, setMessage] = useState("Checking your sign-in…");
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [aal, setAal] = useState<"aal1" | "aal2" | null>(null);
 
   const applyResult = useCallback((token: string | null, result: SessionResult) => {
     setAccessToken(token);
@@ -64,8 +71,10 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       setState("owner");
       setEmail(result.email);
       setMessage(result.message);
+      setAal(result.aal === "aal2" ? "aal2" : "aal1");
       return;
     }
+    setAal(null);
     setState(STATE_FROM_REASON[result.reason ?? "no_session"] ?? "signed_out");
     setMessage(result.message);
   }, []);
@@ -160,8 +169,9 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
     if (supabase) await supabase.auth.signOut();
     setAccessToken(null);
     setEmail(null);
+    setAal(null);
     setState(configured ? "signed_out" : "backend_missing");
-    setMessage("Signed out. The office is back to saving on this device only.");
+    setMessage("Signed out. Sign in again to open the office.");
   }, [configured]);
 
   const value = useMemo<OwnerSession>(
@@ -171,6 +181,9 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       email,
       message,
       accessToken,
+      aal,
+      signedIn: state === "owner" && Boolean(accessToken),
+      stepUpComplete: state === "owner" && aal === "aal2",
       shared: state === "owner" && Boolean(accessToken),
       signIn,
       submitMfaCode,
@@ -179,7 +192,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       signOut,
       refresh,
     }),
-    [state, configured, email, message, accessToken, signIn, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
+    [state, configured, email, message, accessToken, aal, signIn, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
