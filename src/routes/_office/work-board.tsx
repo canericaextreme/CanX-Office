@@ -111,6 +111,14 @@ function WorkBoard() {
   const tasks = memory?.tasks ?? null;
   const assignments = memory?.assignments ?? [];
 
+  // When the Office Manager creates or changes a task — including from a spoken
+  // command — the board reloads so John sees the real record straight away.
+  useEffect(() => {
+    const onChanged = () => refresh();
+    window.addEventListener("canx:workbench-changed", onChanged);
+    return () => window.removeEventListener("canx:workbench-changed", onChanged);
+  }, [refresh]);
+
   const run = async (key: string, fn: () => Promise<unknown>, done: string) => {
     setBusy(key);
     setNotice(null);
