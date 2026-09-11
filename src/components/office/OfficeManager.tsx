@@ -307,6 +307,8 @@ export function OfficeManager() {
   const endVoiceMode = () => {
     setVoiceMode(false);
     voiceModeRef.current = false;
+    pendingFullRef.current = null;
+    setAwaitingReadMore(false);
     dictation.stop();
     readAloud.stop();
   };
