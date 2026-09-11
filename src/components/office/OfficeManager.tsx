@@ -79,7 +79,9 @@ export function OfficeManager() {
   const [awaitingReadMore, setAwaitingReadMore] = useState(false);
   const speakingRef = useRef(false);
   const listeningRef = useRef(false);
-  const bargeInRef = useRef<(() => void) | null>(null);
+  const bargeInRef = useRef<((heard: string) => void) | null>(null);
+  /** What the Manager is saying, so its own voice is not mistaken for John's. */
+  const spokenTextRef = useRef("");
 
   const dictation = useDictation({
     onFinal: (heard: string) =>
@@ -88,13 +90,29 @@ export function OfficeManager() {
       if (voiceModeRef.current) void sendRef.current();
     },
     // Barge-in: as soon as John speaks, the Manager stops talking and listens.
-    onSpeechStart: () => bargeInRef.current?.(),
+    onSpeechStart: (heard: string) => bargeInRef.current?.(heard),
   });
   const readAloud = useReadAloud();
   speakingRef.current = readAloud.speakingId !== null;
   listeningRef.current = dictation.listening;
-  bargeInRef.current = () => {
-    if (speakingRef.current) readAloud.stop();
+  bargeInRef.current = (heard: string) => {
+    if (!speakingRef.current) return;
+    const words = heard.trim().split(/\s+/).filter(Boolean);
+    // Ignore one or two stray words, and ignore the Manager's own words coming
+    // back through the microphone — otherwise it cuts itself off mid-sentence.
+    if (words.length < 3) return;
+    const echo = spokenTextRef.current;
+    if (echo && echo.includes(heard.trim().toLowerCase())) return;
+    readAloud.stop();
+  };
+
+  /** Speak an answer, remembering the words so echo does not trigger barge-in. */
+  const speakAnswer = (id: string, text: string, onDone?: () => void) => {
+    spokenTextRef.current = text.toLowerCase().replace(/\s+/g, " ");
+    readAloud.speak(id, text, () => {
+      spokenTextRef.current = "";
+      onDone?.();
+    });
   };
 
   const fetchStatus = useServerFn(getManagerStatus);
