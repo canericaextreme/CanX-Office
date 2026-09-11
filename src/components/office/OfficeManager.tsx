@@ -109,12 +109,19 @@ export function OfficeManager() {
   listeningRef.current = dictation.listening;
   bargeInRef.current = (heard: string) => {
     if (!speakingRef.current) return;
-    const words = heard.trim().split(/\s+/).filter(Boolean);
-    // Ignore one or two stray words, and ignore the Manager's own words coming
-    // back through the microphone — otherwise it cuts itself off mid-sentence.
-    if (words.length < 3) return;
+    const clean = heard.trim().toLowerCase().replace(/\s+/g, " ");
+    const words = clean.split(" ").filter(Boolean);
+    // Ignore stray words, and ignore the Manager's own words coming back
+    // through the microphone — otherwise it cuts itself off mid-sentence.
+    if (words.length < 4) return;
     const echo = spokenTextRef.current;
-    if (echo && echo.includes(heard.trim().toLowerCase())) return;
+    if (echo) {
+      if (echo.includes(clean)) return;
+      // Any run of three words that the Manager just said is treated as echo.
+      for (let i = 0; i + 2 < words.length; i += 1) {
+        if (echo.includes(words.slice(i, i + 3).join(" "))) return;
+      }
+    }
     readAloud.stop();
   };
 
