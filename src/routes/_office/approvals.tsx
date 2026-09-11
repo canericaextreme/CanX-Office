@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SAMPLE_APPROVALS } from "@/lib/office-data";
 import { StatusBadge } from "@/components/office/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
-import { decideManagerApproval } from "@/lib/manager-work.functions";
+import { decideManagerApproval, requestManagerApproval, type RiskLevel } from "@/lib/manager-work.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_office/approvals")({
   head: () => ({
