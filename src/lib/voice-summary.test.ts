@@ -16,7 +16,9 @@ describe("spokenSummary", () => {
     expect(result.spoken).toContain("There are 8 items");
     expect(result.spoken).toContain("Want the rest?");
     expect(result.spoken).not.toContain("Task 8");
-    expect(result.full).toBe(list);
+    // `full` is the spoken form of the answer: bullet marks are not read out.
+    expect(result.full).toBe(forSpeech(list));
+    expect(result.full).toContain("Task 8");
   });
 
   it("shortens a long paragraph and offers the rest", () => {
