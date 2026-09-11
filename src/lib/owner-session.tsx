@@ -136,9 +136,9 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
     const supabase = await loadCanxSupabase();
     if (!supabase) return "No CanX-owned database is connected yet.";
     // Same origin, so this works in preview and on the published office alike.
-    const redirectTo =
-      typeof window === "undefined" ? undefined : `${window.location.origin}/auth/reset-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, { redirectTo });
+    const options =
+      typeof window === "undefined" ? {} : { redirectTo: `${window.location.origin}/auth/reset-password` };
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, options);
     // Deliberately generic: never reveal whether an address has an account.
     if (error) return "The reset email could not be sent just now. Check the address and try again in a moment.";
     return null;
@@ -214,13 +214,15 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       stepUpComplete: state === "owner" && aal === "aal2",
       shared: state === "owner" && Boolean(accessToken),
       signIn,
+      requestPasswordReset,
+      updatePassword,
       submitMfaCode,
       enrolTotp,
       confirmEnrolment,
       signOut,
       refresh,
     }),
-    [state, configured, email, message, accessToken, aal, signIn, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
+    [state, configured, email, message, accessToken, aal, signIn, requestPasswordReset, updatePassword, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
