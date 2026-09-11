@@ -72,7 +72,9 @@ function WorkBoard() {
   const [worker, setWorker] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Record<string, string>>({});
   const [evidence, setEvidence] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState<Record<string, { title: string; detail: string; project: string }>>({});
+  const [editing, setEditing] = useState<
+    Record<string, { title: string; detail: string; project: string; result: string; evidence: string }>
+  >({});
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -284,7 +286,16 @@ function WorkBoard() {
                         setEditing((e) =>
                           e[task.id]
                             ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== task.id))
-                            : { ...e, [task.id]: { title: task.title, detail: task.detail, project: task.project ?? "" } },
+                            : {
+                                ...e,
+                                [task.id]: {
+                                  title: task.title,
+                                  detail: task.detail,
+                                  project: task.project ?? "",
+                                  result: task.result ?? "",
+                                  evidence: task.evidence ?? "",
+                                },
+                              },
                         )
                       }
                     >
