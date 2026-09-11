@@ -96,6 +96,20 @@ export function useDictation(options: DictationOptions): DictationState {
     setError(null);
     heardSinceStart.current = false;
     wantListening.current = true;
+    // Detach and drop any previous session first: two live recognisers fight
+    // over the microphone, which is the usual cause of speech dropping out.
+    const previous = recRef.current;
+    if (previous) {
+      previous.onresult = null;
+      previous.onerror = null;
+      previous.onend = null;
+      recRef.current = null;
+      try {
+        previous.abort();
+      } catch {
+        /* already finished */
+      }
+    }
     try {
       const rec = new Ctor();
       rec.lang = typeof navigator !== "undefined" ? navigator.language || "en-CA" : "en-CA";
