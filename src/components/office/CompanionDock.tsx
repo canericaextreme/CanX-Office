@@ -151,13 +151,6 @@ export function CompanionDock() {
           Work
         </button>
       </div>
-      <p
-        data-testid="canx-companion-status-text"
-        className="w-full truncate text-center text-[10px] text-muted-foreground"
-        title={chat.missingSetting ? `${label} (setting needed: ${chat.missingSetting})` : label}
-      >
-        {label}
-      </p>
     </section>
   );
 }
