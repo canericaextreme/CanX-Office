@@ -27,6 +27,8 @@ export interface ManagerTask {
   evidence: string;
   created_at: string;
   updated_at: string;
+  /** Optional; only present when the database has the additive project column. */
+  project?: string;
 }
 
 export interface ManagerAssignment {
