@@ -100,26 +100,24 @@ export function CompanionDock() {
       ref={ref as React.RefObject<HTMLElement>}
       aria-label="CanX companion"
       data-testid="canx-companion-dock"
+      onPointerDown={onPointerDown}
+      onKeyDown={(event) => {
+        const step = event.shiftKey ? 40 : 12;
+        if (event.key === "ArrowLeft") { event.preventDefault(); nudge(-step, 0); }
+        if (event.key === "ArrowRight") { event.preventDefault(); nudge(step, 0); }
+        if (event.key === "ArrowUp") { event.preventDefault(); nudge(0, -step); }
+        if (event.key === "ArrowDown") { event.preventDefault(); nudge(0, step); }
+      }}
+      tabIndex={0}
+      title="Drag to move"
       style={pos ? { left: pos.left, top: pos.top } : { left: 16, bottom: 16 }}
-      className={`fixed z-40 flex h-28 w-28 flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur sm:h-32 sm:w-32 ${
+      className={`fixed z-40 flex h-28 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-32 sm:w-32 ${
         dragging ? "opacity-90" : ""
       }`}
     >
       <div
         data-testid="canx-companion-drag-handle"
-        onPointerDown={onPointerDown}
-        onKeyDown={(event) => {
-          const step = event.shiftKey ? 40 : 12;
-          if (event.key === "ArrowLeft") { event.preventDefault(); nudge(-step, 0); }
-          if (event.key === "ArrowRight") { event.preventDefault(); nudge(step, 0); }
-          if (event.key === "ArrowUp") { event.preventDefault(); nudge(0, -step); }
-          if (event.key === "ArrowDown") { event.preventDefault(); nudge(0, step); }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label="Move the CanX companion. Use the arrow keys to move it."
-        title="Drag to move"
-        className="flex w-full cursor-move touch-none select-none items-center justify-between rounded-md px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex w-full items-center justify-between px-1"
       >
         <span
           data-testid="canx-companion-status-light"
