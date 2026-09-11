@@ -10,8 +10,8 @@ const STORAGE_KEY = "canx.companion.hidden";
  * Compact CanX companion launcher.
  *
  * This is the office's own small control. It cannot read, drive, or change the
- * external ChatGPT page (cross-origin), so it shows no transcript and claims no
- * live conversation state. The blue dot means the launcher is ready.
+ * external ChatGPT page (cross-origin), so it shows no conversation text and claims no
+ * live state. The blue dot means the launcher is ready.
  */
 export function CompanionDock() {
   const [visible, setVisible] = useState(true);
