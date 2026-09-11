@@ -37,6 +37,7 @@ import {
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
 import { useDictation, useReadAloud } from "@/lib/use-speech";
+import { isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 
 interface ChatMessage {
