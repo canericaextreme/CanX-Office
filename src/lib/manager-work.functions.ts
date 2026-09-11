@@ -330,9 +330,10 @@ export interface UpdateTaskInput {
   title?: string;
   detail?: string;
   risk?: RiskLevel;
+  project?: string;
 }
 
-/** Edit a task's title, details or risk. Never changes ownership or history. */
+/** Edit a task's title, details, project or risk. Never changes ownership or history. */
 export async function updateManagerTaskWith(deps: WorkbenchDeps, input: UpdateTaskInput): Promise<ManagerTask | ManagerWorkError> {
   const v = await verify(input.accessToken, deps);
   if (!v.ok) return v;
