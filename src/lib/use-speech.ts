@@ -228,14 +228,23 @@ export function speechChunks(text: string, maxLength = 220): string[] {
 
 export interface ReadAloudState {
   supported: boolean;
+  /** True once the browser actually offers at least one usable voice. */
+  hasVoice: boolean;
   speakingId: string | null;
   speak: (id: string, text: string, onDone?: () => void) => void;
   stop: () => void;
+  /**
+   * Called inside a real button press. Browsers only allow speech after a user
+   * gesture, so this wakes the speech engine and reloads the voice list.
+   * Returns false when the browser has no usable voice at all.
+   */
+  unlock: () => boolean;
 }
 
 /** Speaks only when asked to — by a button press, or by Voice Mode being on. */
 export function useReadAloud(): ReadAloudState {
   const [supported, setSupported] = useState(false);
+  const [hasVoice, setHasVoice] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const cancelledRef = useRef(false);
@@ -245,7 +254,9 @@ export function useReadAloud(): ReadAloudState {
     setSupported(has);
     if (!has) return;
     const load = () => {
-      voiceRef.current = pickNaturalVoice(window.speechSynthesis.getVoices());
+      const voices = window.speechSynthesis.getVoices();
+      voiceRef.current = pickNaturalVoice(voices);
+      setHasVoice(voices.length > 0);
     };
     load();
     window.speechSynthesis.addEventListener?.("voiceschanged", load);
@@ -253,6 +264,26 @@ export function useReadAloud(): ReadAloudState {
       window.speechSynthesis.removeEventListener?.("voiceschanged", load);
       window.speechSynthesis.cancel();
     };
+  }, []);
+
+  const unlock = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+    try {
+      window.speechSynthesis.resume();
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length) {
+        voiceRef.current = pickNaturalVoice(voices);
+        setHasVoice(true);
+      }
+      // A silent utterance inside the click gesture wakes engines that
+      // otherwise ignore the first real sentence.
+      const primer = new SpeechSynthesisUtterance(" ");
+      primer.volume = 0;
+      window.speechSynthesis.speak(primer);
+      return voices.length > 0;
+    } catch {
+      return false;
+    }
   }, []);
 
   const keepAlive = useRef<ReturnType<typeof setInterval> | null>(null);
