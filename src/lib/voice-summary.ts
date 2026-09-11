@@ -115,3 +115,38 @@ export function isAffirmative(text: string): boolean {
 export function isNegative(text: string): boolean {
   return NO.test(text.trim().replace(/^[,.\s]+/, ""));
 }
+
+/* --------------------------- approval notices --------------------------- */
+
+export interface SpokenActionResult {
+  name: string;
+  status: string;
+  detail?: string;
+}
+
+/**
+ * What the Manager says out loud right after it puts something in the approval
+ * box. Only real pending results produce a sentence; nothing is invented.
+ */
+export function approvalSubmissionNotice(results: SpokenActionResult[] | undefined): string {
+  const queued = (results ?? []).filter((r) => r.status === "pending");
+  if (queued.length === 0) return "";
+  const titles = queued
+    .map((r) => /Queued for approval:\s*"([^"]+)"/.exec(r.detail ?? "")?.[1]?.trim())
+    .filter((t): t is string => !!t);
+  const lead =
+    queued.length === 1
+      ? titles[0]
+        ? `That's a yellow one, so I've put it in the approval box: ${titles[0]}.`
+        : "That's a yellow one, so I've put it in the approval box."
+      : `That's ${queued.length} yellow items, so I've put them in the approval box.`;
+  return `${lead} Nothing happens until you approve it. Say "open approvals" and I'll take you there.`;
+}
+
+/** What the Manager says when the pending-approval banner appears. */
+export function pendingApprovalNotice(count: number): string {
+  if (!Number.isFinite(count) || count <= 0) return "";
+  return count === 1
+    ? "One item is waiting for your approval."
+    : `${count} items are waiting for your approval.`;
+}
