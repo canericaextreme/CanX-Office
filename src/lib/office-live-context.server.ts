@@ -177,6 +177,12 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     return `- ${key}${updated ? ` — last updated ${updated}` : " — last update time not recorded"}`;
   });
 
+  // Room reads across the rest of the office. These are read-only and
+  // tolerant: if a table cannot be read, the context says so plainly instead
+  // of failing the whole answer or inventing records.
+  const workbench = await readWorkbench(config, token, rest);
+  const roomCatalogue = staticRoomCatalogue();
+
   const receiptRows = Array.isArray(receiptsResponse.body) ? (receiptsResponse.body as Array<{ doc?: unknown }>) : [];
   const doc = receiptRows[0]?.doc ?? null;
   const docJson = doc ? JSON.stringify(doc) : null;
