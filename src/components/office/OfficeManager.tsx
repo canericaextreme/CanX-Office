@@ -543,6 +543,12 @@ export function OfficeManager() {
                         {dictation.interim ? ` ${dictation.interim}` : ""}
                       </p>
                     )}
+                    {awaitingReadMore && (
+                      <p className="mt-1.5 text-xs text-foreground">
+                        Only a short summary was read aloud. Say “yes” to hear the rest, or just ask your next
+                        question. The full answer is written above.
+                      </p>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {dictation.listening ? (
                         <Button size="sm" variant="outline" aria-label="Stop listening" onClick={dictation.stop}>
