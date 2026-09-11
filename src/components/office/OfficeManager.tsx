@@ -290,6 +290,31 @@ export function OfficeManager() {
                     >
                       {message.content}
                     </div>
+                    {message.role !== "user" && readAloud.supported && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-1 h-7 px-2 text-xs"
+                        aria-label={
+                          readAloud.speakingId === message.id ? "Stop reading this answer aloud" : "Read this answer aloud"
+                        }
+                        onClick={() =>
+                          readAloud.speakingId === message.id
+                            ? readAloud.stop()
+                            : readAloud.speak(message.id, message.content)
+                        }
+                      >
+                        {readAloud.speakingId === message.id ? (
+                          <>
+                            <Square className="mr-1.5 h-3.5 w-3.5" /> Stop reading
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="mr-1.5 h-3.5 w-3.5" /> Read aloud
+                          </>
+                        )}
+                      </Button>
+                    )}
                     {message.toolCalls?.map((call, index) => (
                       <ProposalCard
                         key={`${message.id}-${index}`}
