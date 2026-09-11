@@ -129,6 +129,17 @@ export function OfficeManager() {
     if (open) inputRef.current?.focus();
   }, [open, tab]);
 
+  // Closing the panel always ends Voice Mode: the microphone never stays on.
+  useEffect(() => {
+    if (open) return;
+    voiceModeRef.current = false;
+    setVoiceMode(false);
+    setMuted(false);
+    dictation.stop();
+    readAloud.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, busy]);
