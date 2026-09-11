@@ -39,16 +39,45 @@ const RISK_WORDS: Record<RiskLevel, string> = {
   red: "Red — stopped",
 };
 
-function statusTone(status: ManagerTask["status"]) {
-  if (status === "done") return "green" as const;
-  if (status === "in_progress") return "blue" as const;
-  if (status === "cancelled") return "red" as const;
-  return "grey" as const;
+type StatusTone = "green" | "blue" | "yellow" | "red" | "grey";
+
+interface TaskStatus {
+  tone: StatusTone;
+  label: string;
+  /** Plain-language reason, always shown for Grey statuses. */
+  reason: string | null;
 }
 
-function statusLabel(status: ManagerTask["status"]): string {
-  if (status === "in_progress") return "Blue — actively moving";
-  return status.replace("_", " ");
+/** Milliseconds after which an unfinished task with no update is stale. */
+const STALE_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * Written work status for a task. Colour is never the only signal: every badge
+ * carries words, and Grey always names Planned, Disconnected, Unknown or Stale
+ * with its reason. Grey stays separate from Green/Blue/Yellow/Red.
+ */
+function taskStatus(task: ManagerTask): TaskStatus {
+  const updated = new Date(task.updated_at).getTime();
+  const isStale =
+    (task.status === "open" || task.status === "in_progress") &&
+    Number.isFinite(updated) &&
+    Date.now() - updated > STALE_MS;
+
+  if (isStale) {
+    return { tone: "grey", label: "Grey — stale", reason: "No update recorded in over 14 days." };
+  }
+  switch (task.status) {
+    case "done":
+      return { tone: "green", label: "Green — done", reason: null };
+    case "in_progress":
+      return { tone: "blue", label: "Blue — actively moving", reason: null };
+    case "cancelled":
+      return { tone: "red", label: "Red — cancelled", reason: null };
+    case "open":
+      return { tone: "grey", label: "Grey — planned", reason: "Not assigned to a worker yet." };
+    default:
+      return { tone: "grey", label: "Grey — unknown", reason: "The saved status is not recognized." };
+  }
 }
 
 function when(value: string | null | undefined): string {
@@ -107,13 +136,18 @@ function WorkBoard() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Master task list</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {tasks
-                  ? "Shared memory — saved in the CanX-owned database."
-                  : isOwner
-                    ? (error ?? "The shared task list could not be read.")
-                    : sessionMessage}
-              </span>
+              {tasks ? (
+                <span className="text-xs text-muted-foreground">Shared memory — saved in the CanX-owned database.</span>
+              ) : isOwner ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone="grey" label="Grey — disconnected" />
+                  <span className="text-xs text-muted-foreground">
+                    {error ?? "The shared task list could not be read."}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">{sessionMessage}</span>
+              )}
               {isOwner && (
                 <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
                   {loading ? "Checking…" : "Refresh"}
@@ -153,15 +187,17 @@ function WorkBoard() {
           {tasks?.map((task) => {
             const taskAssignments = assignments.filter((a) => a.task_id === task.id);
             const edit = editing[task.id];
+            const status = taskStatus(task);
             return (
               <div key={task.id} className="rounded-lg border border-border/50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge tone={statusTone(task.status)} label={statusLabel(task.status)} />
+                  <StatusBadge tone={status.tone} label={status.label} />
                   <span className="font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
                   </span>
                 </div>
+                {status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
                   <div>
                     <dt className="inline font-medium">Project: </dt>
