@@ -14,7 +14,7 @@ describe("spokenSummary", () => {
     const result = spokenSummary(list);
     expect(result.truncated).toBe(true);
     expect(result.spoken).toContain("There are 8 items");
-    expect(result.spoken).toContain("Would you like me to read the full list?");
+    expect(result.spoken).toContain("Want the rest?");
     expect(result.spoken).not.toContain("Task 8");
     expect(result.full).toBe(list);
   });
@@ -24,7 +24,7 @@ describe("spokenSummary", () => {
     const result = spokenSummary(long);
     expect(result.truncated).toBe(true);
     expect(result.spoken.length).toBeLessThan(long.length);
-    expect(result.spoken).toContain("Would you like me to read the whole answer?");
+    expect(result.spoken).toContain("Want the whole thing?");
   });
 });
 
