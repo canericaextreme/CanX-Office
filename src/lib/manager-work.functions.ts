@@ -704,9 +704,34 @@ export const createManagerTask = createServerFn({ method: "POST" })
       title: cleanString(raw?.title, 300),
       detail: cleanString(raw?.detail, 2000),
       risk: cleanRisk(raw?.risk),
+      project: cleanString(raw?.project, 160),
     };
   })
   .handler(async ({ data }) => createManagerTaskWith(await realDeps(), data));
+
+export const updateManagerTask = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    const raw = input as Partial<UpdateTaskInput> | undefined;
+    return {
+      accessToken: strAccess(input).accessToken,
+      taskId: cleanString(raw?.taskId, 100),
+      title: cleanString(raw?.title, 300),
+      detail: cleanString(raw?.detail, 2000),
+      risk: cleanRisk(raw?.risk),
+    };
+  })
+  .handler(async ({ data }) => updateManagerTaskWith(await realDeps(), data));
+
+export const cancelManagerTask = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    const raw = input as Partial<CancelTaskInput> | undefined;
+    return {
+      accessToken: strAccess(input).accessToken,
+      taskId: cleanString(raw?.taskId, 100),
+      reason: cleanString(raw?.reason, 2000),
+    };
+  })
+  .handler(async ({ data }) => cancelManagerTaskWith(await realDeps(), data));
 
 export const assignManagerTask = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => {
