@@ -31,3 +31,7 @@ Package `CANX-BRAIN-BASELINE-2026-09-11`, extracted unchanged into
 - No secret values are stored here.
 - Validated on import: 11 manifest files, all SHA-256 hashes matching, JSON and
   JSONL parsing cleanly, 11 projects, 16 Brain records, 18 decision records.
+
+## Security review
+
+- [Manager function security review — design only](./security/MANAGER_FUNCTION_SECURITY_REVIEW.md)
