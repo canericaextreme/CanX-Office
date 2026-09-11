@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest";
 import { COMPANION_WORK_EVENT } from "./companion-bridge";
 import { clampCompanionPosition, readStoredPosition, COMPANION_POSITION_KEY } from "./companion-position";
 import { CHAT_PHASE_LABEL, isChatActive, managerHandoffOutput, realtimeEventPhase } from "./use-realtime-chat";
-import { realtimeSessionBody, sanitizedRealtimeDetail, MANAGER_HANDOFF_TOOL } from "./realtime-voice.functions";
+import {
+  realtimeSessionBody,
+  sanitizedRealtimeDetail,
+  budgetDenialDetail,
+  createRealtimeSessionWith,
+  DEFAULT_REALTIME_MODEL,
+  MANAGER_HANDOFF_TOOL,
+  type RealtimeDeps,
+} from "./realtime-voice.functions";
 import type { ManagerActionResult, ManagerReply } from "./manager.functions";
 
 const dockSource = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
