@@ -31,6 +31,8 @@ export interface DictationOptions {
   onFinal: (text: string) => void;
   /** Called once the speaker has paused for a moment, if anything was heard. */
   onPause?: () => void;
+  /** Called the moment any speech is heard — used for barge-in. */
+  onSpeechStart?: () => void;
   /** How long a pause counts as "finished speaking", in milliseconds. */
   pauseMs?: number;
 }
@@ -104,6 +106,9 @@ export function useDictation(options: DictationOptions): DictationState {
           else live += transcript;
         }
         setInterim(live);
+        // Barge-in: the moment anything is heard, tell the caller so it can
+        // stop the Manager's own voice and listen instead.
+        if (live.trim() || finalText.trim()) optionsRef.current.onSpeechStart?.();
         const trimmed = finalText.trim();
         if (trimmed) {
           heardSinceStart.current = true;
@@ -147,6 +152,52 @@ export function useDictation(options: DictationOptions): DictationState {
   return { supported, listening, interim, error, start, stop };
 }
 
+/* ----------------------------- speaking aloud ----------------------------- */
+
+/**
+ * Choose the most natural-sounding English voice the browser offers. Modern
+ * browsers ship "Natural"/"Neural" voices that sound conversational; the plain
+ * default is only used when nothing better exists.
+ */
+export function pickNaturalVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  const english = voices.filter((voice) => /^en(-|$)/i.test(voice.lang || ""));
+  const pool = english.length ? english : voices;
+  if (!pool.length) return null;
+  const preferred = [
+    /natural/i,
+    /neural/i,
+    /google (uk|us) english/i,
+    /\b(samantha|aria|jenny|libby|sonia|ava|allison|serena)\b/i,
+    /google/i,
+  ];
+  for (const pattern of preferred) {
+    const match = pool.find((voice) => pattern.test(voice.name || ""));
+    if (match) return match;
+  }
+  return pool[0] ?? null;
+}
+
+/** Split into speakable chunks so pauses fall at sentence ends, not mid-thought. */
+export function speechChunks(text: string, maxLength = 220): string[] {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  const sentences = clean.match(/[^.!?]+[.!?]*/g) ?? [clean];
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of sentences) {
+    const piece = sentence.trim();
+    if (!piece) continue;
+    if ((current + " " + piece).trim().length <= maxLength) {
+      current = (current ? `${current} ` : "") + piece;
+    } else {
+      if (current) chunks.push(current);
+      current = piece.length > maxLength * 2 ? piece.slice(0, maxLength * 2) : piece;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
 export interface ReadAloudState {
   supported: boolean;
   speakingId: string | null;
@@ -158,15 +209,26 @@ export interface ReadAloudState {
 export function useReadAloud(): ReadAloudState {
   const [supported, setSupported] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
-    setSupported(typeof window !== "undefined" && "speechSynthesis" in window);
+    const has = typeof window !== "undefined" && "speechSynthesis" in window;
+    setSupported(has);
+    if (!has) return;
+    const load = () => {
+      voiceRef.current = pickNaturalVoice(window.speechSynthesis.getVoices());
+    };
+    load();
+    window.speechSynthesis.addEventListener?.("voiceschanged", load);
     return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      window.speechSynthesis.removeEventListener?.("voiceschanged", load);
+      window.speechSynthesis.cancel();
     };
   }, []);
 
   const stop = useCallback(() => {
+    cancelledRef.current = true;
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setSpeakingId(null);
   }, []);
@@ -177,17 +239,46 @@ export function useReadAloud(): ReadAloudState {
       return;
     }
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.slice(0, 4000));
-    utterance.onend = () => {
-      setSpeakingId(null);
+    cancelledRef.current = false;
+    const chunks = speechChunks(text.slice(0, 4000));
+    if (!chunks.length) {
       onDone?.();
-    };
-    utterance.onerror = () => {
-      setSpeakingId(null);
-      onDone?.();
-    };
+      return;
+    }
     setSpeakingId(id);
-    window.speechSynthesis.speak(utterance);
+
+    const finish = () => {
+      setSpeakingId(null);
+      onDone?.();
+    };
+
+    const speakChunk = (index: number) => {
+      if (cancelledRef.current) return;
+      if (index >= chunks.length) {
+        finish();
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(chunks[index]!);
+      if (voiceRef.current) {
+        utterance.voice = voiceRef.current;
+        utterance.lang = voiceRef.current.lang;
+      }
+      // Relaxed, conversational delivery rather than the flat default.
+      utterance.rate = 1.02;
+      utterance.pitch = 1.02;
+      utterance.volume = 1;
+      utterance.onend = () => {
+        if (cancelledRef.current) return;
+        speakChunk(index + 1);
+      };
+      utterance.onerror = () => {
+        if (cancelledRef.current) return;
+        finish();
+      };
+      window.speechSynthesis.speak(utterance);
+    };
+
+    speakChunk(0);
   }, []);
 
   return { supported, speakingId, speak, stop };

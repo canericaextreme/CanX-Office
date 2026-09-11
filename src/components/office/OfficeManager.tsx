@@ -37,6 +37,7 @@ import {
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
 import { useDictation, useReadAloud } from "@/lib/use-speech";
+import { isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 
 interface ChatMessage {
@@ -68,14 +69,28 @@ export function OfficeManager() {
   voiceModeRef.current = voiceMode;
   mutedRef.current = muted;
 
+  /** Full text of an answer that was summarised aloud, waiting for a yes. */
+  const pendingFullRef = useRef<{ id: string; text: string } | null>(null);
+  const [awaitingReadMore, setAwaitingReadMore] = useState(false);
+  const speakingRef = useRef(false);
+  const listeningRef = useRef(false);
+  const bargeInRef = useRef<(() => void) | null>(null);
+
   const dictation = useDictation({
     onFinal: (heard: string) =>
       setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
     onPause: () => {
       if (voiceModeRef.current) void sendRef.current();
     },
+    // Barge-in: as soon as John speaks, the Manager stops talking and listens.
+    onSpeechStart: () => bargeInRef.current?.(),
   });
   const readAloud = useReadAloud();
+  speakingRef.current = readAloud.speakingId !== null;
+  listeningRef.current = dictation.listening;
+  bargeInRef.current = () => {
+    if (speakingRef.current) readAloud.stop();
+  };
 
   const fetchStatus = useServerFn(getManagerStatus);
   const sendChat = useServerFn(managerChat);
@@ -183,7 +198,31 @@ export function OfficeManager() {
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || busy) return;
-    // In Voice Mode the microphone pauses while the Manager thinks and answers.
+
+    // A plain yes or no answers "shall I read the rest?" without going to the
+    // provider at all — nothing is spent and nothing is approved by it.
+    const pending = pendingFullRef.current;
+    if (voiceModeRef.current && pending) {
+      if (isAffirmative(text)) {
+        pendingFullRef.current = null;
+        setAwaitingReadMore(false);
+        setDraft("");
+        dictation.stop();
+        readAloud.speak(pending.id, pending.text, resumeListening);
+        return;
+      }
+      if (isNegative(text)) {
+        pendingFullRef.current = null;
+        setAwaitingReadMore(false);
+        setDraft("");
+        resumeListening();
+        return;
+      }
+      pendingFullRef.current = null;
+      setAwaitingReadMore(false);
+    }
+
+    // In Voice Mode the microphone pauses while the Manager thinks.
     if (voiceModeRef.current) dictation.stop();
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
@@ -224,8 +263,17 @@ export function OfficeManager() {
           { id: answerId, role: "assistant", content: answer, toolCalls: reply.toolCalls },
         ]);
         if (voiceModeRef.current) {
-          if (mutedRef.current) resumeListening();
-          else readAloud.speak(answerId, answer, resumeListening);
+          if (mutedRef.current) {
+            resumeListening();
+          } else {
+            // Short spoken summary by default; the full text stays on screen.
+            const shaped = spokenSummary(answer);
+            pendingFullRef.current = shaped.truncated ? { id: answerId, text: shaped.full } : null;
+            setAwaitingReadMore(shaped.truncated);
+            // Listening stays on while it speaks, so John can interrupt.
+            resumeListening(0);
+            readAloud.speak(answerId, shaped.spoken || answer, resumeListening);
+          }
         }
       }
     } catch (caught) {
@@ -238,12 +286,15 @@ export function OfficeManager() {
   };
   sendRef.current = send;
 
-  /** Voice Mode picks the microphone back up once the answer has finished. */
-  function resumeListening() {
+  /**
+   * Voice Mode keeps the microphone open. It is started alongside the spoken
+   * answer (delay 0) so John can interrupt, and again once speaking ends.
+   */
+  function resumeListening(delay = 300) {
     if (!voiceModeRef.current) return;
     setTimeout(() => {
-      if (voiceModeRef.current) dictation.start();
-    }, 300);
+      if (voiceModeRef.current && !listeningRef.current) dictation.start();
+    }, delay);
   }
 
   const startVoiceMode = () => {
@@ -256,6 +307,8 @@ export function OfficeManager() {
   const endVoiceMode = () => {
     setVoiceMode(false);
     voiceModeRef.current = false;
+    pendingFullRef.current = null;
+    setAwaitingReadMore(false);
     dictation.stop();
     readAloud.stop();
   };
@@ -488,6 +541,12 @@ export function OfficeManager() {
                       <p className="mt-1.5 text-xs text-muted-foreground">
                         Heard so far: {draft}
                         {dictation.interim ? ` ${dictation.interim}` : ""}
+                      </p>
+                    )}
+                    {awaitingReadMore && (
+                      <p className="mt-1.5 text-xs text-foreground">
+                        Only a short summary was read aloud. Say “yes” to hear the rest, or just ask your next
+                        question. The full answer is written above.
                       </p>
                     )}
                     <div className="mt-2 flex flex-wrap gap-2">
