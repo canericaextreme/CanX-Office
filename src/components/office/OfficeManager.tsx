@@ -41,7 +41,15 @@ import {
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
 import { useDictation, useReadAloud } from "@/lib/use-speech";
-import { forSpeech, isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
+import {
+  approvalSubmissionNotice,
+  forSpeech,
+  isAffirmative,
+  isNegative,
+  pendingApprovalNotice,
+  spokenSummary,
+} from "@/lib/voice-summary";
+import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 
