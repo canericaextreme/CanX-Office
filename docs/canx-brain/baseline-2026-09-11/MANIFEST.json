@@ -1,0 +1,30 @@
+{
+  "package_id": "CANX-BRAIN-BASELINE-2026-09-11",
+  "schema_version": "1.0",
+  "created_at": "2026-09-11T14:59:34Z",
+  "owner": "Canerica Extreme / CanX",
+  "files": [
+    {"path":"00_README.md","sha256":"e372328799f23e39a8294200533d067414f8b767458ba6c817e12e96efb2efe4"},
+    {"path":"01_KNOWLEDGE_TRANSFER_REPORT.md","sha256":"fc8dff8f99d9ea865d890f999767e2b5a081c9c47a0f3b2f4ef6a3b715a2c689"},
+    {"path":"MODEL_HANDOFF.md","sha256":"b8faa5cf7ec5c700b1fbf9d876ba097ebf258eb16413a27cd612418b20a97380"},
+    {"path":"database/0007_canx_brain_knowledge_DESIGN_ONLY.sql","sha256":"37bcf7d58975cf0ed7317c3a1127e23470e39416adba3686eb9fe10519d68ec8"},
+    {"path":"protected/PROTECTED_AREAS_DESIGN.md","sha256":"f93f7c5dfd4b39f53fecf0da5f4bb320d01f181307be0efa9528c4c58c487566"},
+    {"path":"records/canx-brain.json","sha256":"99735c13b8f72af27bfe4e9461d46ae9fd8676171894227d51865d52934f3ba9"},
+    {"path":"records/decisions.jsonl","sha256":"62867a6893d96078a5943d1a38545e3b55d77883cfb068d66a16727748dbed4c"},
+    {"path":"records/projects.json","sha256":"5f7466db3d0c417657692de040fabc83758ecdd9f6a5151dd0f2773a23d40998"},
+    {"path":"records/rules.md","sha256":"aae2874fc27960d0e08336d95108d76064cb100dfe5e15a50c4dc2d17a9f6e86"},
+    {"path":"schema/canx-knowledge-record.schema.json","sha256":"e7e9570368cdf510d69727325f485f454cd50d305911752ab81398c9f323643f"},
+    {"path":"sources/SOURCE_REGISTER.md","sha256":"09828b4e286afe6da59b8299a7773da1832c473060e43df30c97a688437afc1d"}
+  ],
+  "validation": {
+    "json_parse": "passed",
+    "record_shape": "passed",
+    "unique_record_ids": "passed",
+    "project_count": 11,
+    "brain_record_count": 16,
+    "decision_record_count": 18,
+    "protected_spaces_populated": false,
+    "secrets_included": false
+  }
+}
+

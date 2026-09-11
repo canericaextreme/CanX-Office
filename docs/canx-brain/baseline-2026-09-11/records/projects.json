@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0",
+  "retrieved_at": "2026-09-11T15:00:00Z",
+  "source": "SRC-LOV-WORKSPACE",
+  "workspace_project_count": 11,
+  "status_note": "Published and Lovable status describe technical platform state, not market readiness or owner priority.",
+  "projects": [
+    {
+      "project_key": "canx-office",
+      "display_name": "Pixel Perfect",
+      "intended_name": "CanX Office",
+      "source_platform_id": "52572715-7d7c-4c7a-85cb-96664ada3394",
+      "classification": "active",
+      "published": true,
+      "last_edited_at": "2026-09-11T02:40:48Z",
+      "purpose": "CanX visual command centre, Office Manager, Brain, work, approvals, finance, records, and decisions.",
+      "evidence_status": "Current code inspected through commit 48e61507; approved recovery point remains ac0246cb.",
+      "open_items": ["portable Brain database not installed", "full knowledge not imported", "external database read-only inventory pending", "project display-name mismatch"]
+    },
+    {
+      "project_key": "safe-highways-canada",
+      "display_name": "Safe Highways Canada",
+      "source_platform_id": "38171911-9627-4c42-9dea-9a37c1a83307",
+      "classification": "active_beta",
+      "published": true,
+      "last_edited_at": "2026-09-08T02:38:37Z",
+      "purpose": "Public road-hazard reporting application and first Alberta implementation.",
+      "evidence_status": "Recent code work addressed offline submission clarity, GPS fallback, and dictation failure messaging; real-device and current production verification remain limited.",
+      "open_items": ["authoritative maintenance boundaries", "real-device offline release gates", "production readiness evidence"]
+    },
+    {
+      "project_key": "safe-highway-ops-dash",
+      "display_name": "Safe Highways Foreman Hub",
+      "source_platform_id": "ebe3f8e4-0765-4a4f-871c-7f1cbe959089",
+      "classification": "active_beta",
+      "published": true,
+      "last_edited_at": "2026-09-08T01:28:32Z",
+      "purpose": "Foreman and operations workflow for incoming reports, priorities, assignments, status, and handover.",
+      "evidence_status": "Verified in Lovable as sharing the public reporting backend. Last audit found eight seeded demonstration reports and no confirmed genuine public reports.",
+      "open_items": ["separate demo from real data", "verify current roles and genuine operational use", "production participation"]
+    },
+    {
+      "project_key": "safe-roads-canada",
+      "display_name": "Safe Highways Canada Website",
+      "source_platform_id": "252adba5-62b4-4fdf-b5b9-efda77f45ec3",
+      "classification": "active_beta",
+      "published": true,
+      "last_edited_at": "2026-09-08T01:20:10Z",
+      "purpose": "National public website and parent-brand information architecture.",
+      "evidence_status": "Published. External GitHub two-way sync was not present in the 8 September read-only audit.",
+      "open_items": ["fresh GitHub and production verification", "replace planned capability claims only when verified"]
+    },
+    {
+      "project_key": "trail-story-keeper",
+      "display_name": "Trails & Tales",
+      "intended_name": "Trail Tales",
+      "source_platform_id": "85a5fd5d-6f8d-4b7d-85c3-f961a4d259e0",
+      "classification": "active_beta",
+      "published": true,
+      "last_edited_at": "2026-08-31T18:45:55Z",
+      "purpose": "Private, mobile-first, offline-first travel planning, capture, trail, group, and story application.",
+      "evidence_status": "Journey rollover and PWA repair work exists; physical-device convergence and all release gates are not fully proven.",
+      "open_items": ["resolve first-trip dates", "complete real Android/iPhone offline testing", "verify current sync and backup state"]
+    },
+    {
+      "project_key": "authenticity-guide",
+      "display_name": "Truth Seeker Lens",
+      "intended_name": "AI Guardian",
+      "source_platform_id": "26cc11e2-0b89-49fc-bd4e-42025576ad9c",
+      "classification": "needs_owner_classification",
+      "published": true,
+      "last_edited_at": "2026-08-27T14:35:11Z",
+      "purpose": "Browser-extension concept for AI-generated-content detection using optional external providers.",
+      "evidence_status": "Renamed in app/extension assets to AI Guardian; live provider responses and installed-extension testing were not verified.",
+      "open_items": ["choose Active, Parked, Archived, or Superseded", "do not store provider keys in the Brain"]
+    },
+    {
+      "project_key": "vidtrust-lens",
+      "display_name": "Trust Lens Extension",
+      "source_platform_id": "e3413d71-36e1-4570-92d8-fb06dcf0a890",
+      "classification": "needs_owner_classification",
+      "published": true,
+      "last_edited_at": "2026-08-27T13:57:26Z",
+      "purpose": "You-focused Chrome extension and evidence-analysis backend.",
+      "evidence_status": "A production v0.2 existed, but a later read-only audit found web search disabled in the analysis endpoint and important citation/scoring rules not enforced in code.",
+      "open_items": ["choose Active, Parked, Archived, or Superseded", "resolve evidence retrieval and endpoint security findings before claims"]
+    },
+    {
+      "project_key": "creativ-skill-lab",
+      "display_name": "Skill Creator Buddy",
+      "source_platform_id": "2b261500-d2b2-4f43-a4c4-76fea8d54048",
+      "classification": "needs_owner_classification",
+      "published": true,
+      "last_edited_at": "2026-08-20T16:26:05Z",
+      "purpose": "Explainer-video creation and Safe Highways Alberta media prototype.",
+      "evidence_status": "Latest evidence points the preview to a v5 Safe Highways explainer video.",
+      "open_items": ["choose Active, Parked, Archived, or Superseded"]
+    },
+    {
+      "project_key": "vital-roots-journey",
+      "display_name": "My Best Life Companion",
+      "source_platform_id": "5c9076d5-454e-4e4f-b551-89aaf60defcf",
+      "classification": "needs_owner_classification",
+      "published": true,
+      "last_edited_at": "2026-08-17T00:46:39Z",
+      "purpose": "Concept-test wellness companion for adults 55 and older using sample data, not medical authority.",
+      "evidence_status": "Prototype UI and session-lock work exist; it is not evidence of a production medical system.",
+      "open_items": ["choose Active, Parked, Archived, or Superseded", "retain wellness-not-diagnosis boundary"]
+    },
+    {
+      "project_key": "credit-update-tracker",
+      "display_name": "Credit Update Tracker",
+      "source_platform_id": "705cea88-798b-441c-a74d-9e3f0c58bce7",
+      "classification": "needs_owner_classification",
+      "published": false,
+      "last_edited_at": "2026-08-29T16:42:16Z",
+      "purpose": "One-question Lovable credit-cycle helper.",
+      "evidence_status": "Not published; no ongoing product purpose established.",
+      "open_items": ["choose Archived or delete only with separate approval"]
+    },
+    {
+      "project_key": "safe-bc-highways-prototype",
+      "display_name": "Safe British Columbia Highways",
+      "source_platform_id": "be99a663-5c2e-4115-8c35-3794246cccf8",
+      "classification": "likely_superseded_needs_owner_confirmation",
+      "published": false,
+      "last_edited_at": "2026-07-30T21:12:11Z",
+      "purpose": "Early BC highway-deficiency prototype with offline queue and email concept.",
+      "evidence_status": "Older prototype predating the national architecture; no published production state.",
+      "open_items": ["confirm superseded by Safe Highways national core", "preserve history until owner decides"]
+    }
+  ]
+}
+
