@@ -530,15 +530,15 @@ export interface ChatInput {
   accessToken: string;
   messages: { role: "user" | "assistant"; content: string }[];
   /** Office team roster. Device-only records John maintains in the Office Team room. */
-  team: { name: string; role: string; room: string }[];
+  team?: { name: string; role: string; room: string }[];
 }
 
 const MAX_TEAM = 24;
 
 /** Roster rows arrive from the browser, so they are trimmed, capped and fenced as data. */
-export function sanitizeTeam(input: unknown): ChatInput["team"] {
+export function sanitizeTeam(input: unknown): { name: string; role: string; room: string }[] {
   if (!Array.isArray(input)) return [];
-  const rows: ChatInput["team"] = [];
+  const rows: { name: string; role: string; room: string }[] = [];
   for (const entry of input) {
     const item = entry as { name?: unknown; role?: unknown; room?: unknown } | null;
     const name = typeof item?.name === "string" ? item.name.trim().slice(0, 60) : "";
@@ -554,7 +554,7 @@ export function sanitizeTeam(input: unknown): ChatInput["team"] {
 }
 
 /** Roster lines appended to the server-read context, clearly labelled device-only. */
-export function teamContextLines(team: ChatInput["team"]): string[] {
+export function teamContextLines(team: { name: string; role: string; room: string }[]): string[] {
   if (!team.length) {
     return [
       "Office team roster [provenance: John's device, entered by John]: no team members are recorded on this device.",
@@ -579,6 +579,7 @@ function validate(input: unknown): ChatInput {
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
   return {
     accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
+    team: sanitizeTeam((raw as { team?: unknown } | undefined)?.team),
     messages: clean,
   };
 }
@@ -989,7 +990,8 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
   }
 
   try {
-    const reply = await callOpenAI(deps, data, context.text);
+    const contextWithTeam = [context.text, "", ...teamContextLines(sanitizeTeam(data.team))].join("\n");
+    const reply = await callOpenAI(deps, data, contextWithTeam);
     if (reply.ok && reply.toolCalls.length > 0) {
       const { textAdditions, actionResults, remainingToolCalls } = await executeToolCalls(deps, data.accessToken, reply.toolCalls);
       const combinedText = [reply.text, ...textAdditions].filter(Boolean).join("\n\n");
