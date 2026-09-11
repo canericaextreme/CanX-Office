@@ -263,8 +263,17 @@ export function OfficeManager() {
           { id: answerId, role: "assistant", content: answer, toolCalls: reply.toolCalls },
         ]);
         if (voiceModeRef.current) {
-          if (mutedRef.current) resumeListening();
-          else readAloud.speak(answerId, answer, resumeListening);
+          if (mutedRef.current) {
+            resumeListening();
+          } else {
+            // Short spoken summary by default; the full text stays on screen.
+            const shaped = spokenSummary(answer);
+            pendingFullRef.current = shaped.truncated ? { id: answerId, text: shaped.full } : null;
+            setAwaitingReadMore(shaped.truncated);
+            // Listening stays on while it speaks, so John can interrupt.
+            resumeListening(0);
+            readAloud.speak(answerId, shaped.spoken || answer, resumeListening);
+          }
         }
       }
     } catch (caught) {
