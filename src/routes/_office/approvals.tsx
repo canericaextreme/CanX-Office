@@ -136,7 +136,84 @@ function Approvals() {
         </CardContent>
       </Card>
 
+      {durable && (
+        <Card className="mt-4 border-border bg-card">
+          <CardHeader>
+            <CardTitle className="text-base">Send something for approval</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="approval-title">What needs approval</Label>
+              <Input
+                id="approval-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Short title"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="approval-detail">Details</Label>
+              <Textarea
+                id="approval-detail"
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+                placeholder="Why it is needed, and what happens if you approve it"
+              />
+            </div>
+            <div>
+              <Label htmlFor="approval-cost">Cost in Canadian dollars (optional)</Label>
+              <Input
+                id="approval-cost"
+                inputMode="decimal"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="approval-risk">Risk</Label>
+              <select
+                id="approval-risk"
+                value={risk}
+                onChange={(e) => setRisk(e.target.value as RiskLevel)}
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+              >
+                <option value="green">Green — routine</option>
+                <option value="yellow">Yellow — needs your approval</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="approval-task">Link to an existing task (optional)</Label>
+              <select
+                id="approval-task"
+                value={taskId}
+                onChange={(e) => setTaskId(e.target.value)}
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+              >
+                <option value="">Create a new Work Board item when approved</option>
+                {(memory?.tasks ?? []).map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <Button onClick={onSubmit} disabled={busy === "new"}>
+                {busy === "new" ? "Sending…" : "Send for approval"}
+              </Button>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Red-light actions are stopped and cannot be queued here. Approved items appear on the
+                Work Board.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {notice && <p className="mt-3 text-xs text-canx-yellow">{notice}</p>}
+      {problem && <p className="mt-3 text-xs text-canx-red">{problem}</p>}
+
 
       {durable ? (
         durable.length === 0 ? (
