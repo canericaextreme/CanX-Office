@@ -176,7 +176,7 @@ export async function createRealtimeSessionWith(
   if (!context.ok) return deny("context_unavailable", context.message);
 
   const reservation = await deps.reserve(accessToken, ESTIMATED_CENTS_PER_SESSION);
-  if (!reservation.allowed) return deny("limit_blocked", reservation.message);
+  if (!reservation.allowed) return deny("limit_blocked", budgetDenialDetail(reservation));
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MINT_TIMEOUT_MS);
@@ -211,7 +211,9 @@ export async function createRealtimeSessionWith(
 async function realDeps(): Promise<RealtimeDeps> {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
-  const realtimeModel = readSetting(process.env["OPENAI_REALTIME_MODEL"]);
+  // Explicit override wins; otherwise the already-verified default is used, so
+  // a missing setting is never reported as a blocker and never as a spend limit.
+  const realtimeModel = readSetting(process.env["OPENAI_REALTIME_MODEL"]) ?? DEFAULT_REALTIME_MODEL;
   return {
     // Ordinary sign-in (AAL1) is enough to TALK. Protected actions are gated
     // separately, inside the Office Manager handoff, where they belong.
