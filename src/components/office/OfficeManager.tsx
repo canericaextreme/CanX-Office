@@ -344,23 +344,84 @@ export function OfficeManager() {
     ]);
   };
 
+  // Plain words for the small floating control, so the state is never a colour alone.
+  const liveState = busy
+    ? "Thinking…"
+    : readAloud.speakingId !== null
+      ? "Speaking…"
+      : dictation.listening
+        ? "Listening…"
+        : voiceMode
+          ? "Voice Mode on — paused"
+          : "Office Manager";
+
   return (
     <>
-      <Button
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-controls="office-manager-panel"
-        className="fixed bottom-4 right-4 z-40 h-12 rounded-full px-5 shadow-lg"
-      >
-        {open ? <X className="mr-1.5 h-4 w-4" /> : <Bot className="mr-1.5 h-4 w-4" />}
-        Office Manager
-      </Button>
+      {!(open && minimized) && (
+        <Button
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls="office-manager-panel"
+          className="fixed bottom-4 right-4 z-40 h-12 rounded-full px-5 shadow-lg"
+        >
+          {open ? <X className="mr-1.5 h-4 w-4" /> : <Bot className="mr-1.5 h-4 w-4" />}
+          Office Manager
+        </Button>
+      )}
+
+      {open && minimized && (
+        <div
+          aria-label="Office Manager, minimised"
+          className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-border bg-card px-3 py-2 shadow-2xl"
+        >
+          <Bot className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+          <span role="status" aria-live="polite" className="truncate text-sm font-medium text-foreground">
+            {liveState}
+          </span>
+          {voiceMode && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+            >
+              {dictation.listening ? (
+                <>
+                  <Square className="mr-1.5 h-3.5 w-3.5" /> Stop
+                </>
+              ) : (
+                <>
+                  <Mic className="mr-1.5 h-3.5 w-3.5" /> Listen
+                </>
+              )}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setMinimized(false)}>
+            <Maximize2 className="mr-1.5 h-3.5 w-3.5" /> Open
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Close the Office Manager"
+            onClick={() => {
+              setMinimized(false);
+              setOpen(false);
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {open && (
         <aside
           id="office-manager-panel"
           aria-label="Office Manager"
-          className="fixed bottom-20 right-4 z-40 flex max-h-[78vh] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+          hidden={minimized}
+          className={`fixed bottom-20 right-4 z-40 ${
+            minimized ? "hidden" : "flex"
+          } max-h-[78vh] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
         >
           <div className="flex shrink-0 items-center gap-1 border-b border-border bg-secondary/60 p-2">
             {(["manager", "appearance", "notes"] as Tab[]).map((name) => (
@@ -375,7 +436,17 @@ export function OfficeManager() {
                 {name === "notes" ? `Saved (${notes.length})` : name}
               </button>
             ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-8"
+              onClick={() => setMinimized(true)}
+              aria-label="Minimise the Office Manager to a small floating control"
+            >
+              <Minus className="mr-1.5 h-4 w-4" /> Minimise
+            </Button>
           </div>
+
 
           {tab === "manager" && (
             <>
