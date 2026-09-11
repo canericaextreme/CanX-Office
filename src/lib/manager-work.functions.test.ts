@@ -206,6 +206,37 @@ describe("approval box", () => {
     expect(result).toEqual(after);
     expect(rest).toHaveBeenCalledWith("token", "PATCH", "manager_approvals?id=eq.a1", expect.objectContaining({ status: "approved" }));
   });
+
+  it("approving an unlinked item puts it on the Work Board and links it", async () => {
+    const before = { id: "a1", owner_id: "owner-1", status: "pending", title: "Buy parts", detail: "", risk: "yellow", task_id: null };
+    const approved = { ...before, status: "approved" };
+    const rest = vi.fn().mockImplementation((_token, method, path, body) => {
+      if (path.startsWith("manager_approvals?id=eq.a1") && method === "GET") return Promise.resolve({ ok: true, data: [before] });
+      if (path.startsWith("manager_approvals") && method === "PATCH") {
+        const patched = { ...approved, ...(body as Record<string, unknown>) };
+        return Promise.resolve({ ok: true, data: [patched] });
+      }
+      if (path === "manager_tasks" && method === "POST") return Promise.resolve({ ok: true, data: [{ id: "t9", title: "Buy parts" }] });
+      return Promise.resolve({ ok: true, data: [] });
+    });
+    const deps = mockDeps({ rest });
+    const result = await decideManagerApprovalWith(deps, { accessToken: "token", approvalId: "a1", decision: "approved" });
+    expect(result).toMatchObject({ status: "approved", task_id: "t9" });
+    expect(rest).toHaveBeenCalledWith("token", "POST", "manager_tasks", expect.objectContaining({ title: "Buy parts" }));
+  });
+
+  it("declining an item never creates Work Board work", async () => {
+    const before = { id: "a1", owner_id: "owner-1", status: "pending", title: "Buy parts", risk: "yellow", task_id: null };
+    const rest = vi.fn().mockImplementation((_token, method, path) => {
+      if (path.startsWith("manager_approvals?id=eq.a1") && method === "GET") return Promise.resolve({ ok: true, data: [before] });
+      if (path.startsWith("manager_approvals") && method === "PATCH")
+        return Promise.resolve({ ok: true, data: [{ ...before, status: "declined" }] });
+      return Promise.resolve({ ok: true, data: [] });
+    });
+    const deps = mockDeps({ rest });
+    await decideManagerApprovalWith(deps, { accessToken: "token", approvalId: "a1", decision: "declined" });
+    expect(rest).not.toHaveBeenCalledWith("token", "POST", "manager_tasks", expect.anything());
+  });
 });
 
 describe("change log", () => {

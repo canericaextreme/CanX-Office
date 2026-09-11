@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { OfficeNav } from "@/components/office/OfficeNav";
 import { OfficeManager } from "@/components/office/OfficeManager";
+import { ApprovalAlert } from "@/components/office/ApprovalAlert";
 import { OfficeThemeProvider } from "@/lib/office-theme";
 import { OwnerSessionProvider } from "@/lib/owner-session";
 import { useOfficeViewMode } from "@/hooks/use-office-view";
@@ -23,6 +24,7 @@ function OfficeLayout() {
         <div className="flex-1 pb-20">
           <Outlet />
         </div>
+        <ApprovalAlert />
         <OfficeManager />
       </div>
       </OwnerSessionProvider>

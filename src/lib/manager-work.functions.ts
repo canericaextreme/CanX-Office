@@ -583,6 +583,29 @@ export async function decideManagerApprovalWith(deps: WorkbenchDeps, input: Deci
     _after: { status: decision },
   }).catch(() => undefined);
 
+  // Approved work belongs on the Work Board. When the approval is not already
+  // tied to a task, a real task is created and linked so the approved item is
+  // visible as work. A failure here never undoes the recorded decision.
+  if (decision === "approved" && !decided.task_id) {
+    const created = await createManagerTaskWith(deps, {
+      accessToken: input.accessToken,
+      title: decided.title,
+      detail: decided.detail ? `Approved in the Approval Box. ${decided.detail}` : "Approved in the Approval Box.",
+      risk: decided.risk,
+    });
+    if (!("ok" in created)) {
+      const linked = await deps.rest<ManagerApproval[]>(
+        input.accessToken,
+        "PATCH",
+        `manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`,
+        { task_id: created.id },
+      );
+      const relinked = firstRow<ManagerApproval>(linked.data);
+      if (linked.ok && relinked) return relinked;
+      return { ...decided, task_id: created.id };
+    }
+  }
+
   return decided;
 }
 

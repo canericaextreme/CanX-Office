@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/office/StatusBadge";
@@ -110,6 +110,15 @@ function WorkBoard() {
 
   const tasks = memory?.tasks ?? null;
   const assignments = memory?.assignments ?? [];
+  const approvals = memory?.approvals ?? [];
+  const pendingApprovals = approvals.filter((a) => a.status === "pending");
+  // Tasks that came from, or are covered by, an approval you granted.
+  const approvedOn: Record<string, string> = {};
+  for (const approval of approvals) {
+    if (approval.status === "approved" && approval.task_id) {
+      approvedOn[approval.task_id] = approval.decided_at ?? approval.created_at;
+    }
+  }
 
   // When the Office Manager creates or changes a task — including from a spoken
   // command — the board reloads so John sees the real record straight away.
@@ -176,6 +185,17 @@ function WorkBoard() {
             </p>
           )}
 
+          {pendingApprovals.length > 0 && (
+            <p role="status" className="rounded-md border border-canx-yellow/60 p-2 text-xs text-canx-yellow">
+              {pendingApprovals.length === 1
+                ? "1 item is waiting for your approval."
+                : `${pendingApprovals.length} items are waiting for your approval.`}{" "}
+              <Link to="/approvals" className="underline">
+                Open the Approval Box
+              </Link>
+            </p>
+          )}
+
           {loading && !tasks && <p className="text-sm text-muted-foreground">Loading your task list…</p>}
 
           {!isOwner && !loading && (
@@ -204,6 +224,11 @@ function WorkBoard() {
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
                   </span>
+                  {approvedOn[task.id] && (
+                    <span className="rounded-full border border-canx-green/60 px-2 py-0.5 text-xs text-canx-green">
+                      Approved by you — {when(approvedOn[task.id])}
+                    </span>
+                  )}
                 </div>
                 {status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
