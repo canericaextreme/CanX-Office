@@ -236,6 +236,11 @@ function Approvals() {
                   <p>Cost: {formatCents(item.cost_cents)}</p>
                   <p>Risk: {item.risk}</p>
                   <p>Requested: {new Date(item.created_at).toLocaleString()}</p>
+                  {item.status === "approved" && (
+                    <p className="text-foreground">
+                      {item.task_id ? "On the Work Board as approved work." : "Not linked to a Work Board item."}
+                    </p>
+                  )}
                   {item.status === "pending" && (
                     <div className="mt-3 flex gap-2">
                       <Button size="sm" disabled={busy === item.id} onClick={() => onDecide(item.id, "approved")}>
