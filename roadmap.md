@@ -125,3 +125,8 @@
 - [x] Verify focused tests, full tests, TypeScript, production build, and desktop/mobile preview
 
 - Compact companion: draggable + saved position, assistant face icon, Chat drives Office Manager voice, Work opens the Manager panel, X collapses to a restorable edge tab; header ChatGPT shortcut removed (11 Sep 2026).
+
+## CanX Chat companion (2026-09-12)
+- Chat is now its own realtime spoken conversation (server-minted short-lived client secret, CanX-owned account); it no longer uses the Office Manager browser speech voice.
+- Chat consults the Office Manager through one explicit `ask_office_manager` handoff; approval rules unchanged.
+- OPEN: `OPENAI_REALTIME_MODEL` is not set on the server, so Chat fails closed with an honest message until John chooses the model.

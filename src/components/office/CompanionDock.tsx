@@ -2,17 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import {
-  COMPANION_OPEN_EVENT,
-  COMPANION_STATE_EVENT,
-  IDLE_MANAGER_VOICE_STATE,
-  isVoiceActive,
-  managerVoiceLabel,
-  requestCompanionChat,
-  requestCompanionWork,
-  type ManagerVoiceState,
-} from "@/lib/companion-bridge";
+import { COMPANION_OPEN_EVENT, requestCompanionWork } from "@/lib/companion-bridge";
 import { useCompanionPosition } from "@/lib/companion-position";
+import { CHAT_PHASE_LABEL, useRealtimeChat } from "@/lib/use-realtime-chat";
 
 const HIDDEN_KEY = "canx.companion.hidden";
 
@@ -42,14 +34,16 @@ function AssistantFace({ active }: { active: boolean }) {
 }
 
 /**
- * Compact CanX companion. It drives the existing Office Manager voice and work
- * panel through events; it has no voice engine of its own, shows no transcript,
- * and never opens an external window.
+ * Compact CanX companion.
+ *
+ * Chat runs its own conversational voice session — never the Office Manager's
+ * browser speech voice, and never a transcript panel. Work asks the Office
+ * Manager, the operational agent, to show its own work and progress panel.
  */
 export function CompanionDock() {
   const [hidden, setHidden] = useState(false);
-  const [voice, setVoice] = useState<ManagerVoiceState>(IDLE_MANAGER_VOICE_STATE);
   const { ref, pos, dragging, onPointerDown, nudge } = useCompanionPosition();
+  const chat = useRealtimeChat();
 
   useEffect(() => {
     setHidden(window.localStorage.getItem(HIDDEN_KEY) === "1");
@@ -57,20 +51,12 @@ export function CompanionDock() {
       window.localStorage.removeItem(HIDDEN_KEY);
       setHidden(false);
     };
-    const onState = (event: Event) => {
-      const detail = (event as CustomEvent<ManagerVoiceState>).detail;
-      if (detail) setVoice(detail);
-    };
     window.addEventListener(COMPANION_OPEN_EVENT, reopen);
-    window.addEventListener(COMPANION_STATE_EVENT, onState);
-    return () => {
-      window.removeEventListener(COMPANION_OPEN_EVENT, reopen);
-      window.removeEventListener(COMPANION_STATE_EVENT, onState);
-    };
+    return () => window.removeEventListener(COMPANION_OPEN_EVENT, reopen);
   }, []);
 
-  const active = isVoiceActive(voice);
-  const label = managerVoiceLabel(voice);
+  const active = chat.active;
+  const label = chat.error ?? CHAT_PHASE_LABEL[chat.phase];
 
   if (hidden) {
     return (
@@ -90,7 +76,7 @@ export function CompanionDock() {
   }
 
   const closeCompanion = () => {
-    if (voice.voiceMode || active) requestCompanionChat(); // stops listening and speaking
+    chat.stop();
     window.localStorage.setItem(HIDDEN_KEY, "1");
     setHidden(true);
   };
@@ -115,10 +101,7 @@ export function CompanionDock() {
         dragging ? "opacity-90" : ""
       }`}
     >
-      <div
-        data-testid="canx-companion-drag-handle"
-        className="flex w-full items-center justify-between px-1"
-      >
+      <div data-testid="canx-companion-drag-handle" className="flex w-full items-center justify-between px-1">
         <span
           data-testid="canx-companion-status-light"
           aria-hidden="true"
@@ -136,24 +119,27 @@ export function CompanionDock() {
       </div>
 
       <AssistantFace active={active} />
-      <span role="status" aria-live="polite" className="sr-only">
+      <p
+        data-testid="canx-companion-status-text"
+        role="status"
+        aria-live="polite"
+        className="w-full shrink-0 truncate px-1 text-center text-[10px] leading-tight text-muted-foreground"
+        title={chat.missingSetting ? `${label} (setting needed: ${chat.missingSetting})` : label}
+      >
         {label}
-      </span>
+      </p>
+
 
       <div className="flex w-full gap-1.5">
         <button
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={requestCompanionChat}
-          aria-pressed={voice.voiceMode}
-          aria-label={
-            voice.voiceMode
-              ? "Stop the Office Manager voice conversation"
-              : "Start the Office Manager voice conversation"
-          }
+          onClick={chat.toggle}
+          aria-pressed={chat.on}
+          aria-label={chat.on ? "End the CanX Chat voice conversation" : "Start a CanX Chat voice conversation"}
           className="min-h-9 flex-1 rounded-md bg-primary px-1 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {voice.voiceMode ? "Stop" : "Chat"}
+          {chat.on ? "Stop" : "Chat"}
         </button>
         <button
           type="button"
@@ -165,11 +151,6 @@ export function CompanionDock() {
           Work
         </button>
       </div>
-      {voice.error && (
-        <p className="w-full truncate text-center text-[10px] text-muted-foreground" title={voice.error}>
-          {voice.error}
-        </p>
-      )}
     </section>
   );
 }
