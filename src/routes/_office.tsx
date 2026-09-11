@@ -24,6 +24,7 @@ function OfficeLayout() {
         <div className="flex-1 pb-20">
           <Outlet />
         </div>
+        <ApprovalAlert />
         <OfficeManager />
       </div>
       </OwnerSessionProvider>
