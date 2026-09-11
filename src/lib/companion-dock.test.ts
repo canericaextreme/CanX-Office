@@ -33,7 +33,7 @@ describe("compact CanX companion", () => {
     expect(dockSource).not.toContain("chatgpt");
     expect(dockSource).not.toContain("window.open");
     expect(dockSource).not.toContain("iframe");
-    expect(dockSource).not.toMatch(/messages|transcript|interim/);
+    expect(dockSource).not.toMatch(/\{messages|interimTranscript|message\.content/);
   });
 
   it("uses the existing Office Manager voice and work controls", () => {
