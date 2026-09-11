@@ -1,5 +1,11 @@
 # Phase 1 bright office completion
 
+## Subscription Watch and ChatGPT shortcut (2026-09-11)
+- [x] Replace AI Workers TBD summary with supplied verified OpenAI aggregate and honest partial-verification state
+- [x] Add accessible AI Workers detail dialog with provider, Result, Evidence, and read-only editing notice
+- [x] Add safe global ChatGPT new-tab shortcut without changing Office Manager
+- [x] Run focused/full checks and desktop/mobile preview verification; do not publish
+
 - [x] Build and verify the reception-only CanX character sample for visual approval
 
 - [x] Brighten shared design system and all destinations
