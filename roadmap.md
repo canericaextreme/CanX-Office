@@ -104,3 +104,5 @@
 - [x] Blue badge "Blue — actively moving" separate from risk label
 - [x] Grey status system: Planned/Disconnected/Unknown/Stale, labelled with reason
 - [ ] Publish and report live status
+
+- [x] Office Manager Voice Mode: Talk button, live transcript, auto-send on pause, spoken answers, Mute/Stop listening/Repeat answer/End Voice Mode, browser-only speech, typed fallback. No recordings stored; approval rules unchanged.

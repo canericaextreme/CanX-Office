@@ -3,7 +3,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, Check, Loader2, Mic, MicOff, Paintbrush, Plus, Send, Square, Trash2, Undo2, Volume2, X } from "lucide-react";
+import {
+  Bot,
+  Check,
+  Loader2,
+  Mic,
+  MicOff,
+  Paintbrush,
+  PhoneOff,
+  Plus,
+  Send,
+  Square,
+  Trash2,
+  Undo2,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -43,9 +59,22 @@ export function OfficeManager() {
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const dictation = useDictation((heard) =>
-    setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
-  );
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const voiceModeRef = useRef(false);
+  const mutedRef = useRef(false);
+  const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
+  const lastAnswerRef = useRef<{ id: string; text: string } | null>(null);
+  voiceModeRef.current = voiceMode;
+  mutedRef.current = muted;
+
+  const dictation = useDictation({
+    onFinal: (heard: string) =>
+      setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
+    onPause: () => {
+      if (voiceModeRef.current) void sendRef.current();
+    },
+  });
   const readAloud = useReadAloud();
 
   const fetchStatus = useServerFn(getManagerStatus);
@@ -100,6 +129,17 @@ export function OfficeManager() {
     if (open) inputRef.current?.focus();
   }, [open, tab]);
 
+  // Closing the panel always ends Voice Mode: the microphone never stays on.
+  useEffect(() => {
+    if (open) return;
+    voiceModeRef.current = false;
+    setVoiceMode(false);
+    setMuted(false);
+    dictation.stop();
+    readAloud.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, busy]);
@@ -140,9 +180,11 @@ export function OfficeManager() {
     }
   }, [shared, token, pushShared, listShared]);
 
-  const send = async () => {
-    const text = draft.trim();
+  const send = async (override?: string) => {
+    const text = (override ?? draft).trim();
     if (!text || busy) return;
+    // In Voice Mode the microphone pauses while the Manager thinks and answers.
+    if (voiceModeRef.current) dictation.stop();
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
     const history = [...messages, userMessage];
@@ -172,24 +214,59 @@ export function OfficeManager() {
                     ? (reply.detail ?? "The office records could not be read just now, so nothing was asked.")
                   : (reply.detail ?? "The AI request could not be completed."),
         );
+        if (voiceModeRef.current) resumeListening();
       } else {
+        const answerId = `m-${Date.now()}-a`;
+        const answer = reply.text || "(The provider returned an empty answer.)";
+        lastAnswerRef.current = { id: answerId, text: answer };
         setMessages((current) => [
           ...current,
-          {
-            id: `m-${Date.now()}-a`,
-            role: "assistant",
-            content: reply.text || "(The provider returned an empty answer.)",
-            toolCalls: reply.toolCalls,
-          },
+          { id: answerId, role: "assistant", content: answer, toolCalls: reply.toolCalls },
         ]);
+        if (voiceModeRef.current) {
+          if (mutedRef.current) resumeListening();
+          else readAloud.speak(answerId, answer, resumeListening);
+        }
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The request could not be completed.");
+      if (voiceModeRef.current) resumeListening();
     } finally {
       setBusy(false);
       inputRef.current?.focus();
     }
   };
+  sendRef.current = send;
+
+  /** Voice Mode picks the microphone back up once the answer has finished. */
+  function resumeListening() {
+    if (!voiceModeRef.current) return;
+    setTimeout(() => {
+      if (voiceModeRef.current) dictation.start();
+    }, 300);
+  }
+
+  const startVoiceMode = () => {
+    setVoiceMode(true);
+    voiceModeRef.current = true;
+    setError(null);
+    dictation.start();
+  };
+
+  const endVoiceMode = () => {
+    setVoiceMode(false);
+    voiceModeRef.current = false;
+    dictation.stop();
+    readAloud.stop();
+  };
+
+  const repeatAnswer = () => {
+    const last = lastAnswerRef.current;
+    if (!last) return;
+    dictation.stop();
+    readAloud.speak(last.id, last.text, resumeListening);
+  };
+
 
   const briefing = () => {
     setMessages((current) => [
@@ -364,24 +441,22 @@ export function OfficeManager() {
                   <Button size="sm" onClick={() => void send()} disabled={busy || !draft.trim()}>
                     <Send className="mr-1.5 h-4 w-4" /> Send
                   </Button>
-                  {dictation.supported ? (
-                    dictation.listening ? (
-                      <Button size="sm" variant="destructive" aria-label="Stop listening" onClick={dictation.stop}>
-                        <Square className="mr-1.5 h-4 w-4" /> Stop
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label="Talk — speak your message instead of typing"
-                        onClick={dictation.start}
-                      >
-                        <Mic className="mr-1.5 h-4 w-4" /> Talk
-                      </Button>
-                    )
-                  ) : (
-                    <Button size="sm" variant="outline" disabled aria-label="Voice input is not available in this browser">
+                  {!dictation.supported ? (
+                    <Button size="sm" variant="outline" disabled aria-label="Voice Mode is not available in this browser">
                       <MicOff className="mr-1.5 h-4 w-4" /> Talk
+                    </Button>
+                  ) : !voiceMode ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-label="Talk — start Voice Mode and speak with the Office Manager"
+                      onClick={startVoiceMode}
+                    >
+                      <Mic className="mr-1.5 h-4 w-4" /> Talk
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="destructive" aria-label="End Voice Mode" onClick={endVoiceMode}>
+                      <PhoneOff className="mr-1.5 h-4 w-4" /> End Voice Mode
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={briefing}>
@@ -391,12 +466,72 @@ export function OfficeManager() {
                     Monday round table
                   </Link>
                 </div>
-                {dictation.listening && (
-                  <p role="status" aria-live="polite" className="mt-2 flex items-center gap-2 text-xs text-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
-                    Listening… your words appear in the box above. Nothing is sent until you press Send.
-                  </p>
+
+                {voiceMode && (
+                  <div className="mt-2 rounded-lg border border-border bg-secondary/50 p-2.5">
+                    <p role="status" aria-live="polite" className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full ${
+                          busy ? "bg-amber-500" : readAloud.speakingId ? "bg-sky-500" : dictation.listening ? "bg-red-500" : "bg-muted-foreground"
+                        }`}
+                        aria-hidden="true"
+                      />
+                      {busy
+                        ? "Thinking… the Manager is working on your answer."
+                        : readAloud.speakingId
+                          ? "Speaking… reading the answer aloud."
+                          : dictation.listening
+                            ? "Listening… speak now, then pause and it will be sent."
+                            : "Voice Mode is on, but the microphone is stopped. Press Start listening."}
+                    </p>
+                    {(dictation.interim || draft) && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        Heard so far: {draft}
+                        {dictation.interim ? ` ${dictation.interim}` : ""}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {dictation.listening ? (
+                        <Button size="sm" variant="outline" aria-label="Stop listening" onClick={dictation.stop}>
+                          <Square className="mr-1.5 h-4 w-4" /> Stop listening
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" aria-label="Start listening again" onClick={dictation.start}>
+                          <Mic className="mr-1.5 h-4 w-4" /> Start listening
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-pressed={muted}
+                        aria-label={muted ? "Unmute spoken answers" : "Mute spoken answers"}
+                        onClick={() => {
+                          const next = !muted;
+                          setMuted(next);
+                          mutedRef.current = next;
+                          if (next) readAloud.stop();
+                        }}
+                      >
+                        {muted ? <VolumeX className="mr-1.5 h-4 w-4" /> : <Volume2 className="mr-1.5 h-4 w-4" />}
+                        {muted ? "Unmute" : "Mute"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label="Repeat the last answer aloud"
+                        disabled={!lastAnswerRef.current}
+                        onClick={repeatAnswer}
+                      >
+                        <Volume2 className="mr-1.5 h-4 w-4" /> Repeat answer
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      No recording is kept — only the written conversation above. Speaking never approves anything:
+                      yellow actions still wait for your approval and red actions still stop.
+                    </p>
+                  </div>
                 )}
+
                 {dictation.error && (
                   <p role="alert" className="mt-2 text-xs text-destructive">
                     {dictation.error}
@@ -404,8 +539,8 @@ export function OfficeManager() {
                 )}
                 {!dictation.supported && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Voice input is not available in this browser. Please type your message, or try Chrome, Edge or
-                    Safari.
+                    Voice Mode is not available in this browser, so please type your message and use Send. Chrome, Edge
+                    and Safari support it.
                   </p>
                 )}
               </div>

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Browser-only speech helpers. No paid service, no secrets, no network calls of
- * our own: this uses the speech features already built into the browser.
+ * Browser-only speech helpers. No paid service, no subscription, no secret and
+ * no recording is ever stored: the browser's own speech features turn sound
+ * into words, and only the written words are kept.
  */
 
 type SpeechRecognitionLike = {
@@ -25,30 +26,40 @@ function recognitionCtor(): (new () => SpeechRecognitionLike) | null {
   return (w["SpeechRecognition"] ?? w["webkitSpeechRecognition"]) as (new () => SpeechRecognitionLike) | null;
 }
 
+export interface DictationOptions {
+  /** Called with each finished phrase the browser recognised. */
+  onFinal: (text: string) => void;
+  /** Called once the speaker has paused for a moment, if anything was heard. */
+  onPause?: () => void;
+  /** How long a pause counts as "finished speaking", in milliseconds. */
+  pauseMs?: number;
+}
+
 export interface DictationState {
   supported: boolean;
   listening: boolean;
+  /** Words the browser is still hearing, shown live and not yet confirmed. */
+  interim: string;
   error: string | null;
   start: () => void;
   stop: () => void;
 }
 
-/**
- * Dictation. Recognised words are handed back through `onText` so the caller can
- * put them in the message box for the owner to read and correct. Nothing is ever
- * sent automatically.
- */
-export function useDictation(onText: (text: string) => void): DictationState {
+export function useDictation(options: DictationOptions): DictationState {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
+  const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
-  const textRef = useRef(onText);
-  textRef.current = onText;
+  const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heardSinceStart = useRef(false);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
     setSupported(recognitionCtor() !== null);
     return () => {
+      if (pauseTimer.current) clearTimeout(pauseTimer.current);
       try {
         recRef.current?.abort();
       } catch {
@@ -59,12 +70,15 @@ export function useDictation(onText: (text: string) => void): DictationState {
   }, []);
 
   const stop = useCallback(() => {
+    if (pauseTimer.current) clearTimeout(pauseTimer.current);
+    pauseTimer.current = null;
     try {
       recRef.current?.stop();
     } catch {
       /* already stopped */
     }
     setListening(false);
+    setInterim("");
   }, []);
 
   const start = useCallback(() => {
@@ -74,32 +88,53 @@ export function useDictation(onText: (text: string) => void): DictationState {
       return;
     }
     setError(null);
+    heardSinceStart.current = false;
     try {
       const rec = new Ctor();
       rec.lang = typeof navigator !== "undefined" ? navigator.language || "en-CA" : "en-CA";
       rec.continuous = true;
-      rec.interimResults = false;
+      rec.interimResults = true;
       rec.onresult = (event: any) => {
-        let heard = "";
+        let finalText = "";
+        let live = "";
         for (let i = event.resultIndex ?? 0; i < event.results.length; i += 1) {
           const result = event.results[i];
-          if (result?.isFinal && result[0]?.transcript) heard += result[0].transcript;
+          const transcript = result?.[0]?.transcript ?? "";
+          if (result?.isFinal) finalText += transcript;
+          else live += transcript;
         }
-        const trimmed = heard.trim();
-        if (trimmed) textRef.current(trimmed);
+        setInterim(live);
+        const trimmed = finalText.trim();
+        if (trimmed) {
+          heardSinceStart.current = true;
+          optionsRef.current.onFinal(trimmed);
+        }
+        if (pauseTimer.current) clearTimeout(pauseTimer.current);
+        pauseTimer.current = setTimeout(() => {
+          if (heardSinceStart.current) {
+            heardSinceStart.current = false;
+            setInterim("");
+            optionsRef.current.onPause?.();
+          }
+        }, optionsRef.current.pauseMs ?? 1600);
       };
       rec.onerror = (event: any) => {
         const code = typeof event?.error === "string" ? event.error : "unknown";
+        if (code === "no-speech" || code === "aborted") {
+          setListening(false);
+          return;
+        }
         setError(
           code === "not-allowed" || code === "service-not-allowed"
             ? "Microphone access was refused, so nothing was heard. Allow the microphone in your browser and press Talk again."
-            : code === "no-speech"
-              ? "Nothing was heard. Press Talk and speak again."
-              : "Voice input stopped unexpectedly. You can type your message instead.",
+            : "Voice input stopped unexpectedly. You can type your message instead.",
         );
         setListening(false);
       };
-      rec.onend = () => setListening(false);
+      rec.onend = () => {
+        setListening(false);
+        setInterim("");
+      };
       recRef.current = rec;
       rec.start();
       setListening(true);
@@ -109,17 +144,17 @@ export function useDictation(onText: (text: string) => void): DictationState {
     }
   }, []);
 
-  return { supported, listening, error, start, stop };
+  return { supported, listening, interim, error, start, stop };
 }
 
 export interface ReadAloudState {
   supported: boolean;
   speakingId: string | null;
-  speak: (id: string, text: string) => void;
+  speak: (id: string, text: string, onDone?: () => void) => void;
   stop: () => void;
 }
 
-/** Read aloud on request only — never autoplayed. */
+/** Speaks only when asked to — by a button press, or by Voice Mode being on. */
 export function useReadAloud(): ReadAloudState {
   const [supported, setSupported] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -136,18 +171,24 @@ export function useReadAloud(): ReadAloudState {
     setSpeakingId(null);
   }, []);
 
-  const speak = useCallback(
-    (id: string, text: string) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.onend = () => setSpeakingId(null);
-      utterance.onerror = () => setSpeakingId(null);
-      setSpeakingId(id);
-      window.speechSynthesis.speak(utterance);
-    },
-    [],
-  );
+  const speak = useCallback((id: string, text: string, onDone?: () => void) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      onDone?.();
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.slice(0, 4000));
+    utterance.onend = () => {
+      setSpeakingId(null);
+      onDone?.();
+    };
+    utterance.onerror = () => {
+      setSpeakingId(null);
+      onDone?.();
+    };
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utterance);
+  }, []);
 
   return { supported, speakingId, speak, stop };
 }
