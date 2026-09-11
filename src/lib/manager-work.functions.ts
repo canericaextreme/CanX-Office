@@ -519,7 +519,7 @@ export async function requestManagerApprovalWith(deps: WorkbenchDeps, input: Req
 
   const costCents = cleanCents(input.costCents);
 
-  const result = await deps.rest<ManagerApproval>(input.accessToken, "POST", "manager_approvals", {
+  const result = await deps.rest<ManagerApproval[]>(input.accessToken, "POST", "manager_approvals", {
     owner_id: v.userId,
     task_id: input.taskId ? cleanString(input.taskId, 100) : null,
     title,
@@ -528,18 +528,19 @@ export async function requestManagerApprovalWith(deps: WorkbenchDeps, input: Req
     risk,
     status: "pending",
   });
-  if (!result.ok || !result.data) return fail("context_unavailable", result.error ?? "Approval request could not be saved.");
+  const created = firstRow<ManagerApproval>(result.data);
+  if (!result.ok || !created) return fail("context_unavailable", result.error ?? "Approval request could not be saved.");
 
   await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
     _owner_id: v.userId,
     _action: "approval.request",
     _entity: "manager_approvals",
-    _entity_id: result.data.id,
+    _entity_id: created.id,
     _before: {},
     _after: { title, risk, cost_cents: costCents, status: "pending" },
   }).catch(() => undefined);
 
-  return result.data;
+  return created;
 }
 
 export interface DecideApprovalInput {
@@ -560,11 +561,12 @@ export async function decideManagerApprovalWith(deps: WorkbenchDeps, input: Deci
   if (before.owner_id !== v.userId) return fail("forbidden", "That approval belongs to a different owner.");
   if (before.status !== "pending") return fail("forbidden", "This approval has already been decided.");
 
-  const result = await deps.rest<ManagerApproval>(input.accessToken, "PATCH", `manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`, {
+  const result = await deps.rest<ManagerApproval[]>(input.accessToken, "PATCH", `manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`, {
     status: decision,
     decided_at: new Date().toISOString(),
   });
-  if (!result.ok || !result.data) return fail("context_unavailable", result.error ?? "Approval decision could not be saved.");
+  const decided = firstRow<ManagerApproval>(result.data);
+  if (!result.ok || !decided) return fail("context_unavailable", result.error ?? "Approval decision could not be saved.");
 
   await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
     _owner_id: v.userId,
