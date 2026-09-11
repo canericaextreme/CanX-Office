@@ -231,7 +231,7 @@ export function OfficeManager() {
         setAwaitingReadMore(false);
         setDraft("");
         dictation.stop();
-        readAloud.speak(pending.id, pending.text, resumeListening);
+        speakAnswer(pending.id, pending.text, resumeListening);
         return;
       }
       if (isNegative(text)) {
@@ -303,7 +303,7 @@ export function OfficeManager() {
             setAwaitingReadMore(shaped.truncated);
             // Listening stays on while it speaks, so John can interrupt.
             resumeListening(0);
-            readAloud.speak(answerId, shaped.spoken || answer, resumeListening);
+            speakAnswer(answerId, shaped.spoken || answer, resumeListening);
           }
         }
       }
@@ -348,7 +348,7 @@ export function OfficeManager() {
     const last = lastAnswerRef.current;
     if (!last) return;
     dictation.stop();
-    readAloud.speak(last.id, forSpeech(last.text), resumeListening);
+    speakAnswer(last.id, forSpeech(last.text), resumeListening);
   };
 
 
@@ -533,7 +533,7 @@ export function OfficeManager() {
                         onClick={() =>
                           readAloud.speakingId === message.id
                             ? readAloud.stop()
-                            : readAloud.speak(message.id, forSpeech(message.content))
+                            : speakAnswer(message.id, forSpeech(message.content))
                         }
                       >
                         {readAloud.speakingId === message.id ? (
