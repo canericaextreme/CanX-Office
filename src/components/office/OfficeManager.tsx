@@ -67,6 +67,9 @@ interface ChatMessage {
 
 type Tab = "manager" | "appearance" | "notes";
 
+/** Spoken the moment Chat starts, so voice mode is always audibly confirmed. */
+export const VOICE_GREETING = "I'm listening, John.";
+
 export function OfficeManager() {
   const [open, setOpen] = useState(false);
   /** Shrinks the window to a small floating control; the conversation stays live. */
@@ -77,6 +80,8 @@ export function OfficeManager() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Plain-language problem with speaking aloud, shown on the compact companion. */
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
