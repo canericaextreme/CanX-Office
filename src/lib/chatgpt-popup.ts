@@ -62,12 +62,13 @@ export function openChatGptCompanion(environment: ChatGptWindowEnvironment): Cha
 }
 
 export function openChatGptFromBrowser(): ChatGptOpenResult {
+  const screenWithOffsets = window.screen as Screen & { availLeft?: number; availTop?: number };
   return openChatGptCompanion({
     viewportWidth: window.innerWidth,
     availableWidth: window.screen.availWidth,
     availableHeight: window.screen.availHeight,
-    availableLeft: window.screen.availLeft,
-    availableTop: window.screen.availTop,
+    availableLeft: screenWithOffsets.availLeft ?? window.screenX,
+    availableTop: screenWithOffsets.availTop ?? window.screenY,
     openWindow: window.open.bind(window) as OpenWindow,
   });
 }
