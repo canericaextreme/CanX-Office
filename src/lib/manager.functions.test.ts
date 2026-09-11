@@ -178,6 +178,25 @@ describe("tool arguments are strictly allowlisted", () => {
   it("rejects unknown tools", () => {
     expect(sanitizeToolArgs("deploy_everything", "{}")).toBeNull();
   });
+
+  it("accepts a spoken task command that names a worker and project", () => {
+    const args = sanitizeToolArgs(
+      "create_task",
+      JSON.stringify({
+        title: "Order the gate hardware",
+        worker: "John",
+        project: "Safe Highways Alberta",
+        risk: "green",
+        secret: "ignore me",
+      }),
+    );
+    expect(args).toEqual({
+      title: "Order the gate hardware",
+      worker: "John",
+      project: "Safe Highways Alberta",
+      risk: "green",
+    });
+  });
 });
 
 describe("readSetting — configuration normalisation", () => {

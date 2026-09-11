@@ -205,7 +205,7 @@ const TOOLS = [
     type: "function" as const,
     name: "create_task",
     description:
-      "Create a durable task in the master task list. Green: the Manager may do this directly. Returns the task id.",
+      "Create a durable task on the Work Board. Green: the Manager may do this directly. Optionally set the project, and set worker to assign it to that person straight away (that is how a spoken command like 'new task, fix the gate, assign John' is carried out). Returns the task id.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -213,6 +213,8 @@ const TOOLS = [
       properties: {
         title: { type: "string" },
         detail: { type: "string" },
+        project: { type: "string" },
+        worker: { type: "string" },
         risk: { type: "string", enum: ["green", "yellow", "red"] },
       },
     },
@@ -322,6 +324,8 @@ const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" 
   create_task: {
     title: { type: "string", maxLen: 300 },
     detail: { type: "string", maxLen: 2000 },
+    project: { type: "string", maxLen: 160 },
+    worker: { type: "string", maxLen: 160 },
     risk: { type: "string", enum: ["green", "yellow", "red"] },
   },
   assign_task: {
@@ -497,6 +501,12 @@ Hard rules:
 - Never impersonate Claude or any other reviewer.
 - The live context gives you READ access across the office rooms: office notes, round tables, Finance receipt summaries, the Work Board tasks and projects, the approval box, the recent change log, the room directory, Idea Garage / Bike Rack cards and the feasibility queue. Answer questions from those records. Reading is free; changing anything still goes through your allowlisted tools, and yellow or red actions still need John's approval.
 - If a room says it could not be read, or that its records live on John's device, say that plainly instead of guessing.
+
+Spoken task commands (Work Board):
+- When John tells you to make, add, log or assign a piece of work — for example "new task, order the gate hardware, assign John" — carry it out now with create_task, putting the worker's name in the worker field so it is created and assigned in one step. Do not just propose it and do not ask him to type it out.
+- Use assign_task when he names an existing task, verify_task when he says something is done and states the result, and update the project field when he names a project.
+- Say the words back briefly so a misheard command is caught: name the task, the worker and the project you recorded, and stop there.
+- If the work is yellow or red, do not create it as green: use request_approval and tell him it is waiting for his approval.
 
 Voice and tone:
 - Talk like a capable colleague in conversation with John: warm, direct, contractions welcome, no corporate filler and no jargon.
@@ -746,16 +756,33 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           accessToken,
           title: String(call.arguments["title"] ?? ""),
           detail: String(call.arguments["detail"] ?? ""),
+          project: String(call.arguments["project"] ?? ""),
           risk: (call.arguments["risk"] as RiskLevel) ?? "green",
         });
         if (isManagerError(result)) {
           actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
         } else {
+          // A spoken command may name the worker in the same breath. The task
+          // is only reported as assigned when the assignment itself succeeded.
+          const worker = String(call.arguments["worker"] ?? "").trim();
+          let assignedTo: string | null = null;
+          let assignFailed: string | null = null;
+          if (worker) {
+            const assigned = await assignManagerTaskWith(workbench, {
+              accessToken,
+              taskId: result.id,
+              worker,
+            });
+            if (isManagerError(assigned)) assignFailed = assigned.message;
+            else assignedTo = assigned.worker ?? worker;
+          }
           actionResults.push({
             name: call.name,
             risk,
             status: "done",
-            detail: `Created task "${result.title}" (${result.id}).`,
+            detail: `Created task "${result.title}" (${result.id}).${
+              assignedTo ? ` Assigned to ${assignedTo}.` : assignFailed ? ` It could not be assigned: ${assignFailed}` : ""
+            }`,
           });
         }
       } else if (call.name === "assign_task") {

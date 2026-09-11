@@ -262,6 +262,13 @@ export function OfficeManager() {
           ...current,
           { id: answerId, role: "assistant", content: answer, toolCalls: reply.toolCalls },
         ]);
+        // A real task change — typed or spoken — reloads the Work Board.
+        const changedWork = (reply.toolCalls ?? []).some((call) =>
+          ["create_task", "assign_task", "verify_task", "request_approval"].includes(call.name),
+        );
+        if (changedWork && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
+        }
         if (voiceModeRef.current) {
           if (mutedRef.current) {
             resumeListening();
