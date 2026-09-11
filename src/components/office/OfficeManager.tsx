@@ -3,7 +3,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, Check, Loader2, Mic, MicOff, Paintbrush, Plus, Send, Square, Trash2, Undo2, Volume2, X } from "lucide-react";
+import {
+  Bot,
+  Check,
+  Loader2,
+  Mic,
+  MicOff,
+  Paintbrush,
+  PhoneOff,
+  Plus,
+  Send,
+  Square,
+  Trash2,
+  Undo2,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
