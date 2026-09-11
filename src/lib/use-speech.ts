@@ -388,5 +388,5 @@ export function useReadAloud(): ReadAloudState {
     [clearKeepAlive],
   );
 
-  return { supported, hasVoice, speakingId, speak, stop, unlock };
+  return { supported, hasVoice, speakingId, speak, stop, unlock, didSpeak };
 }
