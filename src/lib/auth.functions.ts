@@ -22,6 +22,8 @@ export interface SessionResult {
   message: string;
   userId: string | null;
   email: string | null;
+  /** Verified assurance level of this session: "aal1" ordinary, "aal2" authenticator. */
+  aal: string | null;
 }
 
 export const getBackendStatus = createServerFn({ method: "GET" }).handler(async (): Promise<BackendStatus> => {
@@ -31,7 +33,7 @@ export const getBackendStatus = createServerFn({ method: "GET" }).handler(async 
     configured,
     signInAvailable: configured,
     detail: configured
-      ? "A CanX-owned database is configured. Sign-in still has to succeed, with two-step verification, before anything is shared."
+      ? "A CanX-owned database is configured. Ordinary sign-in opens the office; protected actions additionally require the authenticator."
       : "No CanX-owned database is configured, so sign-in is unavailable and the office is running in device-only mode.",
   };
 });
@@ -55,13 +57,28 @@ function tokenOf(input: unknown): string {
   return typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "";
 }
 
+/**
+ * Ordinary office sign-in check (AAL1): a valid session for the CanX-owned
+ * project, held by the owner account. The authenticator is NOT demanded here —
+ * it is a step-up, enforced separately when a protected action is attempted.
+ */
 export const verifyOwnerSession = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: tokenOf(input) }))
   .handler(async ({ data }): Promise<SessionResult> => {
-    const { verifyOwner } = await import("@/lib/canx-backend.server");
-    const result = await verifyOwner(data.accessToken);
+    const { verifySignedIn } = await import("@/lib/canx-backend.server");
+    const result = await verifySignedIn(data.accessToken);
     if (!result.ok) {
-      return { ok: false, reason: result.reason, message: result.message, userId: null, email: null };
+      return { ok: false, reason: result.reason, message: result.message, userId: null, email: null, aal: null };
     }
-    return { ok: true, reason: null, message: "Signed in as the CanX owner with two-step verification.", userId: result.userId, email: result.email };
+    return {
+      ok: true,
+      reason: null,
+      message:
+        result.aal === "aal2"
+          ? "Signed in as the CanX owner, with the authenticator confirmed for protected actions."
+          : "Signed in as the CanX owner. Protected actions will ask for your authenticator.",
+      userId: result.userId,
+      email: result.email,
+      aal: result.aal,
+    };
   });

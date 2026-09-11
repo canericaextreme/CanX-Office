@@ -78,12 +78,20 @@ async function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>): Promise
 }
 
 /**
- * Server-verified owner identity. Default deny at every step.
+ * Server-verified identity. Default deny at every step.
  * Testable: configuration and fetch are injected.
+ *
+ * `requireAal2` is the step-up switch. Ordinary office access and read-only
+ * work verify at AAL1: a valid session for the CanX-owned project, held by an
+ * account that carries the owner role in the database. Protected actions —
+ * approvals, external sends, purchases, publishing, secrets, roles, anything
+ * destructive, and protected finance operations — additionally require the
+ * authenticator (AAL2). Nothing about assurance is taken from the browser.
  */
-export async function verifyOwnerWith(
+export async function verifyAccessWith(
   config: BackendConfig | null,
   accessToken: string | undefined,
+  requireAal2: boolean,
   fetchImpl: Fetcher = fetch,
 ): Promise<OwnerVerification> {
   if (!config) return deny("backend_not_configured");
@@ -111,7 +119,7 @@ export async function verifyOwnerWith(
   const exp = typeof claims["exp"] === "number" ? claims["exp"] : 0;
   if (!exp || exp * 1000 <= Date.now()) return deny("expired_session");
   const aal = typeof claims["aal"] === "string" ? claims["aal"] : "aal1";
-  if (aal !== "aal2") return deny("mfa_required");
+  if (requireAal2 && aal !== "aal2") return deny("mfa_required");
 
   // Owner role comes from the database, checked as the signed-in user.
   try {
@@ -137,8 +145,30 @@ export async function verifyOwnerWith(
   return { ok: true, userId: user.id, email: user.email ?? "", aal };
 }
 
+/** Protected actions: valid session + owner role + authenticator (AAL2). */
+export function verifyOwnerWith(
+  config: BackendConfig | null,
+  accessToken: string | undefined,
+  fetchImpl: Fetcher = fetch,
+): Promise<OwnerVerification> {
+  return verifyAccessWith(config, accessToken, true, fetchImpl);
+}
+
+/** Ordinary office access and read-only work: valid session + owner role (AAL1). */
+export function verifySignedInWith(
+  config: BackendConfig | null,
+  accessToken: string | undefined,
+  fetchImpl: Fetcher = fetch,
+): Promise<OwnerVerification> {
+  return verifyAccessWith(config, accessToken, false, fetchImpl);
+}
+
 export function verifyOwner(accessToken: string | undefined, fetchImpl: Fetcher = fetch) {
   return verifyOwnerWith(readBackendConfig(), accessToken, fetchImpl);
+}
+
+export function verifySignedIn(accessToken: string | undefined, fetchImpl: Fetcher = fetch) {
+  return verifySignedInWith(readBackendConfig(), accessToken, fetchImpl);
 }
 
 /* ------------------------------------------------------------------ */

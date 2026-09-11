@@ -104,7 +104,17 @@ const ESTIMATED_CENTS_PER_CALL = 3;
 /* ------------------------- injectable dependencies ------------------------- */
 
 export interface ManagerDeps {
+  /**
+   * Strict check: signed-in owner WITH the authenticator confirmed (AAL2).
+   * Every protected action keeps going through this one.
+   */
   verifyOwner: (token: string) => Promise<OwnerVerification>;
+  /**
+   * Ordinary check: signed-in owner, authenticator not required (AAL1).
+   * Used for talking and read-only status only. Falls back to the strict check
+   * when a caller (or a test) does not supply it.
+   */
+  verifySignedIn?: (token: string) => Promise<OwnerVerification>;
   reserve: (token: string, cents: number) => Promise<BudgetResult>;
   settle: (token: string, reservationId: string, outcome: "ok" | "failed") => Promise<void>;
   /**
@@ -136,6 +146,7 @@ async function realDeps(): Promise<ManagerDeps> {
   const model = readSetting(process.env["OPENAI_MODEL"]);
   return {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
+    verifySignedIn: (token) => backend.verifySignedInWith(config, token),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
     buildContext: async (token, verification, includeReceiptDetails) => {
@@ -396,7 +407,8 @@ export async function computeManagerStatusWith(deps: ManagerDeps, accessToken: s
   const keyPresent = Boolean(deps.openaiKey);
   const modelConfigured = Boolean(deps.model);
 
-  const verification = await deps.verifyOwner(accessToken);
+  // Read-only status: ordinary sign-in is enough.
+  const verification = await (deps.verifySignedIn ?? deps.verifyOwner)(accessToken);
   if (!verification.ok) {
     return {
       provider: "none",
