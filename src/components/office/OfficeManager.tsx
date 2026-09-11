@@ -43,9 +43,22 @@ export function OfficeManager() {
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const dictation = useDictation((heard) =>
-    setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
-  );
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const voiceModeRef = useRef(false);
+  const mutedRef = useRef(false);
+  const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
+  const lastAnswerRef = useRef<{ id: string; text: string } | null>(null);
+  voiceModeRef.current = voiceMode;
+  mutedRef.current = muted;
+
+  const dictation = useDictation({
+    onFinal: (heard: string) =>
+      setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
+    onPause: () => {
+      if (voiceModeRef.current) void sendRef.current();
+    },
+  });
   const readAloud = useReadAloud();
 
   const fetchStatus = useServerFn(getManagerStatus);
