@@ -108,10 +108,10 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
                   href="https://chatgpt.com/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Open ChatGPT beside the office"
+                  aria-label="Show the CanX ChatGPT companion"
                   onClick={(event) => {
                     event.preventDefault();
-                    openChatGptFromBrowser();
+                    window.dispatchEvent(new Event(COMPANION_OPEN_EVENT));
                   }}
                 >
                   <MessageCircle className="h-4 w-4" />
