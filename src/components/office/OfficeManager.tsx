@@ -141,8 +141,8 @@ export function OfficeManager() {
   }, [open, status, fetchStatus, token]);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open, tab]);
+    if (open && !minimized) inputRef.current?.focus();
+  }, [open, minimized, tab]);
 
   // Closing the panel always ends Voice Mode: the microphone never stays on.
   useEffect(() => {
