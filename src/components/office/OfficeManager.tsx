@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Bot,
   Check,
+  GripVertical,
   Loader2,
   Maximize2,
   Mic,
@@ -42,6 +43,7 @@ import { useOwnerSession } from "@/lib/owner-session";
 import { useDictation, useReadAloud } from "@/lib/use-speech";
 import { forSpeech, isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
+import { useDraggablePanel } from "@/lib/use-draggable-panel";
 
 interface ChatMessage {
   id: string;
