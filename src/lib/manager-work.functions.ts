@@ -152,6 +152,16 @@ function cleanCents(value: unknown): number | null {
   return rounded > 100000 ? null : rounded;
 }
 
+/**
+ * PostgREST returns a representation array for insert/update. Take the first
+ * row, and tolerate a bare object so tests and future shapes both work.
+ */
+export function firstRow<T>(data: unknown): T | null {
+  if (Array.isArray(data)) return (data[0] as T) ?? null;
+  if (data && typeof data === "object") return data as T;
+  return null;
+}
+
 function isError<T>(value: T | ManagerWorkError): value is ManagerWorkError {
   return value && typeof value === "object" && "ok" in value && value.ok === false;
 }
