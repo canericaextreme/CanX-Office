@@ -4,7 +4,7 @@
 - [x] Replace AI Workers TBD summary with supplied verified OpenAI aggregate and honest partial-verification state
 - [x] Add accessible AI Workers detail dialog with provider, Result, Evidence, and read-only editing notice
 - [x] Add safe global ChatGPT new-tab shortcut without changing Office Manager
-- [ ] Run focused/full checks and desktop/mobile preview verification; do not publish
+- [ ] Run focused/full checks and desktop/mobile preview verification; do not publish (focused/full checks passed; preview validation in progress)
 
 - [x] Build and verify the reception-only CanX character sample for visual approval
 

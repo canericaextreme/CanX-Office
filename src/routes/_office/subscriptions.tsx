@@ -92,7 +92,7 @@ function AiWorkersDetails() {
               </span>
             </span>
           </span>
-          <span className="flex shrink-0 items-center gap-2">
+          <span className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
             <StatusBadge tone="yellow" label={AI_WORKERS_VERIFICATION.status} />
             <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
           </span>
@@ -144,7 +144,9 @@ function AiWorkersDetails() {
         <section aria-labelledby="claude-provider" className="rounded-md border border-border p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="claude-provider" className="font-semibold">Claude API</h2>
-            <StatusBadge tone="grey" label="Connected, billing not yet verified" />
+            <span className="max-w-full whitespace-normal text-right">
+              <StatusBadge tone="grey" label="Connected, billing not yet verified" />
+            </span>
           </div>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
             <Detail label="Cost" value="Unknown" />
