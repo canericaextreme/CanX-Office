@@ -351,6 +351,7 @@ export async function updateManagerTaskWith(deps: WorkbenchDeps, input: UpdateTa
   }
   if (input.detail !== undefined) patch["detail"] = cleanString(input.detail, 2000);
   if (input.risk !== undefined) patch["risk"] = cleanRisk(input.risk);
+  if (input.project !== undefined) patch["project"] = cleanString(input.project, 160);
 
   const updated = await deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, patch);
   const row = firstRow<ManagerTask>(updated.data);
@@ -719,6 +720,7 @@ export const updateManagerTask = createServerFn({ method: "POST" })
       title: cleanString(raw?.title, 300),
       detail: cleanString(raw?.detail, 2000),
       risk: cleanRisk(raw?.risk),
+      project: cleanString(raw?.project, 160),
     };
   })
   .handler(async ({ data }) => updateManagerTaskWith(await realDeps(), data));
