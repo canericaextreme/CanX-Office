@@ -32,7 +32,7 @@ export interface DictationOptions {
   /** Called once the speaker has paused for a moment, if anything was heard. */
   onPause?: () => void;
   /** Called the moment any speech is heard — used for barge-in. */
-  onSpeechStart?: () => void;
+  onSpeechStart?: (text: string) => void;
   /** How long a pause counts as "finished speaking", in milliseconds. */
   pauseMs?: number;
 }
@@ -55,6 +55,9 @@ export function useDictation(options: DictationOptions): DictationState {
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heardSinceStart = useRef(false);
+  /** True while the caller wants the microphone open, so short drop-outs restart. */
+  const wantListening = useRef(false);
+  const startRef = useRef<() => void>(() => undefined);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -72,6 +75,7 @@ export function useDictation(options: DictationOptions): DictationState {
   }, []);
 
   const stop = useCallback(() => {
+    wantListening.current = false;
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
     pauseTimer.current = null;
     try {
@@ -91,6 +95,7 @@ export function useDictation(options: DictationOptions): DictationState {
     }
     setError(null);
     heardSinceStart.current = false;
+    wantListening.current = true;
     try {
       const rec = new Ctor();
       rec.lang = typeof navigator !== "undefined" ? navigator.language || "en-CA" : "en-CA";
@@ -106,9 +111,10 @@ export function useDictation(options: DictationOptions): DictationState {
           else live += transcript;
         }
         setInterim(live);
-        // Barge-in: the moment anything is heard, tell the caller so it can
-        // stop the Manager's own voice and listen instead.
-        if (live.trim() || finalText.trim()) optionsRef.current.onSpeechStart?.();
+        // Barge-in: pass the words along so the caller can judge whether this is
+        // really the speaker talking, rather than the Manager's own voice.
+        const heard = (finalText || live).trim();
+        if (heard) optionsRef.current.onSpeechStart?.(heard);
         const trimmed = finalText.trim();
         if (trimmed) {
           heardSinceStart.current = true;
@@ -125,10 +131,9 @@ export function useDictation(options: DictationOptions): DictationState {
       };
       rec.onerror = (event: any) => {
         const code = typeof event?.error === "string" ? event.error : "unknown";
-        if (code === "no-speech" || code === "aborted") {
-          setListening(false);
-          return;
-        }
+        // A silent moment or an internal restart is normal — keep the mic open.
+        if (code === "no-speech" || code === "aborted" || code === "network") return;
+        wantListening.current = false;
         setError(
           code === "not-allowed" || code === "service-not-allowed"
             ? "Microphone access was refused, so nothing was heard. Allow the microphone in your browser and press Talk again."
@@ -137,17 +142,26 @@ export function useDictation(options: DictationOptions): DictationState {
         setListening(false);
       };
       rec.onend = () => {
-        setListening(false);
         setInterim("");
+        // Browsers end recognition on their own after a pause. If the caller
+        // still wants to listen, start it again so speech is not cut off.
+        if (wantListening.current) {
+          setTimeout(() => {
+            if (wantListening.current) startRef.current();
+          }, 250);
+          return;
+        }
+        setListening(false);
       };
       recRef.current = rec;
       rec.start();
       setListening(true);
     } catch {
-      setError("Voice input could not start on this device. You can type your message instead.");
-      setListening(false);
+      // An "already started" error just means the microphone is still open.
+      setListening(wantListening.current);
     }
   }, []);
+  startRef.current = start;
 
   return { supported, listening, interim, error, start, stop };
 }
@@ -227,59 +241,84 @@ export function useReadAloud(): ReadAloudState {
     };
   }, []);
 
+  const keepAlive = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearKeepAlive = useCallback(() => {
+    if (keepAlive.current) clearInterval(keepAlive.current);
+    keepAlive.current = null;
+  }, []);
+
   const stop = useCallback(() => {
     cancelledRef.current = true;
+    clearKeepAlive();
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setSpeakingId(null);
-  }, []);
+  }, [clearKeepAlive]);
 
-  const speak = useCallback((id: string, text: string, onDone?: () => void) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      onDone?.();
-      return;
-    }
-    window.speechSynthesis.cancel();
-    cancelledRef.current = false;
-    const chunks = speechChunks(text.slice(0, 4000));
-    if (!chunks.length) {
-      onDone?.();
-      return;
-    }
-    setSpeakingId(id);
-
-    const finish = () => {
-      setSpeakingId(null);
-      onDone?.();
-    };
-
-    const speakChunk = (index: number) => {
-      if (cancelledRef.current) return;
-      if (index >= chunks.length) {
-        finish();
+  const speak = useCallback(
+    (id: string, text: string, onDone?: () => void) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+        onDone?.();
         return;
       }
-      const utterance = new SpeechSynthesisUtterance(chunks[index]!);
-      if (voiceRef.current) {
-        utterance.voice = voiceRef.current;
-        utterance.lang = voiceRef.current.lang;
+      window.speechSynthesis.cancel();
+      cancelledRef.current = false;
+      // Shorter pieces: some browsers silently stop long utterances part-way.
+      const chunks = speechChunks(text.slice(0, 4000), 150);
+      if (!chunks.length) {
+        onDone?.();
+        return;
       }
-      // Relaxed, conversational delivery rather than the flat default.
-      utterance.rate = 1.02;
-      utterance.pitch = 1.02;
-      utterance.volume = 1;
-      utterance.onend = () => {
-        if (cancelledRef.current) return;
-        speakChunk(index + 1);
-      };
-      utterance.onerror = () => {
-        if (cancelledRef.current) return;
-        finish();
-      };
-      window.speechSynthesis.speak(utterance);
-    };
+      setSpeakingId(id);
 
-    speakChunk(0);
-  }, []);
+      // Chrome stops speaking after roughly fifteen seconds unless it is nudged.
+      clearKeepAlive();
+      keepAlive.current = setInterval(() => {
+        if (cancelledRef.current || !window.speechSynthesis.speaking) return;
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }, 7000);
+
+      const finish = () => {
+        clearKeepAlive();
+        setSpeakingId(null);
+        onDone?.();
+      };
+
+      const speakChunk = (index: number) => {
+        if (cancelledRef.current) {
+          clearKeepAlive();
+          return;
+        }
+        if (index >= chunks.length) {
+          finish();
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(chunks[index]!);
+        if (voiceRef.current) {
+          utterance.voice = voiceRef.current;
+          utterance.lang = voiceRef.current.lang;
+        }
+        // Relaxed, conversational delivery rather than the flat default.
+        utterance.rate = 1.02;
+        utterance.pitch = 1.02;
+        utterance.volume = 1;
+        let moved = false;
+        const next = () => {
+          if (moved || cancelledRef.current) return;
+          moved = true;
+          speakChunk(index + 1);
+        };
+        utterance.onend = next;
+        // If a piece is dropped by the browser, carry on instead of stopping.
+        utterance.onerror = next;
+        window.speechSynthesis.speak(utterance);
+      };
+
+      speakChunk(0);
+    },
+    [clearKeepAlive],
+  );
 
   return { supported, speakingId, speak, stop };
 }
