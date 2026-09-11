@@ -127,9 +127,11 @@ describe("live office context", () => {
     if (!result.ok) throw new Error("expected ok");
     expect(result.text).not.toContain("Sample demo item");
     expect(result.text).not.toContain("Only for the demo");
-    expect(result.text).not.toContain("sample");
+    // Demonstration-labelled note rows never reach the provider.
+    expect(result.text).not.toMatch(/\(task, saved by John\) Sample/);
     expect(result.text).toContain("Confirm AI limits row");
-    expect(result.text).toContain("Do not describe any project or work item as current");
+    // Room reads that fail are reported as unreadable, never guessed.
+    expect(result.text).toContain("could not be read just now");
   });
 
   it("never sends the owner's email address to the provider", async () => {
