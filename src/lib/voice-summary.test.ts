@@ -54,3 +54,22 @@ describe("speech shaping", () => {
     expect(pickNaturalVoice([])).toBeNull();
   });
 });
+
+describe("forSpeech", () => {
+  it("drops markdown marks instead of reading them out", () => {
+    expect(forSpeech("## Heading\n- **Bold** item\n- `code` item")).toBe("Heading\nBold item\ncode item");
+  });
+
+  it("says money and shorthand the way a person would", () => {
+    expect(forSpeech("Total C$1,240.00 e.g. parts")).toBe("Total 1240 Canadian dollars for example parts");
+  });
+
+  it("replaces links with a spoken word", () => {
+    expect(forSpeech("See https://example.com/x now")).toBe("See a link now");
+  });
+
+  it("keeps the spoken summary free of markdown", () => {
+    const shaped = spokenSummary("**Done.** Two receipts filed.");
+    expect(shaped.spoken).toBe("Done. Two receipts filed.");
+  });
+});
