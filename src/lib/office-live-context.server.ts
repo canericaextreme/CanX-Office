@@ -28,6 +28,9 @@ import {
   type FinanceReceipt,
 } from "@/lib/finance-receipts";
 import type { BackendConfig } from "@/lib/canx-backend.server";
+import { ROOMS } from "@/lib/office-data";
+import { IDEA_CARDS, IDEA_PROVENANCE_LABELS } from "@/lib/idea-garage";
+import { FEASIBILITY_ITEMS } from "@/lib/feasibility-queue";
 
 export type RestImpl = (
   config: BackendConfig,
