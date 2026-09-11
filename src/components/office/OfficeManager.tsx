@@ -414,24 +414,22 @@ export function OfficeManager() {
                   <Button size="sm" onClick={() => void send()} disabled={busy || !draft.trim()}>
                     <Send className="mr-1.5 h-4 w-4" /> Send
                   </Button>
-                  {dictation.supported ? (
-                    dictation.listening ? (
-                      <Button size="sm" variant="destructive" aria-label="Stop listening" onClick={dictation.stop}>
-                        <Square className="mr-1.5 h-4 w-4" /> Stop
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label="Talk — speak your message instead of typing"
-                        onClick={dictation.start}
-                      >
-                        <Mic className="mr-1.5 h-4 w-4" /> Talk
-                      </Button>
-                    )
-                  ) : (
-                    <Button size="sm" variant="outline" disabled aria-label="Voice input is not available in this browser">
+                  {!dictation.supported ? (
+                    <Button size="sm" variant="outline" disabled aria-label="Voice Mode is not available in this browser">
                       <MicOff className="mr-1.5 h-4 w-4" /> Talk
+                    </Button>
+                  ) : !voiceMode ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-label="Talk — start Voice Mode and speak with the Office Manager"
+                      onClick={startVoiceMode}
+                    >
+                      <Mic className="mr-1.5 h-4 w-4" /> Talk
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="destructive" aria-label="End Voice Mode" onClick={endVoiceMode}>
+                      <PhoneOff className="mr-1.5 h-4 w-4" /> End Voice Mode
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={briefing}>
@@ -441,12 +439,72 @@ export function OfficeManager() {
                     Monday round table
                   </Link>
                 </div>
-                {dictation.listening && (
-                  <p role="status" aria-live="polite" className="mt-2 flex items-center gap-2 text-xs text-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
-                    Listening… your words appear in the box above. Nothing is sent until you press Send.
-                  </p>
+
+                {voiceMode && (
+                  <div className="mt-2 rounded-lg border border-border bg-secondary/50 p-2.5">
+                    <p role="status" aria-live="polite" className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full ${
+                          busy ? "bg-amber-500" : readAloud.speakingId ? "bg-sky-500" : dictation.listening ? "bg-red-500" : "bg-muted-foreground"
+                        }`}
+                        aria-hidden="true"
+                      />
+                      {busy
+                        ? "Thinking… the Manager is working on your answer."
+                        : readAloud.speakingId
+                          ? "Speaking… reading the answer aloud."
+                          : dictation.listening
+                            ? "Listening… speak now, then pause and it will be sent."
+                            : "Voice Mode is on, but the microphone is stopped. Press Start listening."}
+                    </p>
+                    {(dictation.interim || draft) && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        Heard so far: {draft}
+                        {dictation.interim ? ` ${dictation.interim}` : ""}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {dictation.listening ? (
+                        <Button size="sm" variant="outline" aria-label="Stop listening" onClick={dictation.stop}>
+                          <Square className="mr-1.5 h-4 w-4" /> Stop listening
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" aria-label="Start listening again" onClick={dictation.start}>
+                          <Mic className="mr-1.5 h-4 w-4" /> Start listening
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-pressed={muted}
+                        aria-label={muted ? "Unmute spoken answers" : "Mute spoken answers"}
+                        onClick={() => {
+                          const next = !muted;
+                          setMuted(next);
+                          mutedRef.current = next;
+                          if (next) readAloud.stop();
+                        }}
+                      >
+                        {muted ? <VolumeX className="mr-1.5 h-4 w-4" /> : <Volume2 className="mr-1.5 h-4 w-4" />}
+                        {muted ? "Unmute" : "Mute"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label="Repeat the last answer aloud"
+                        disabled={!lastAnswerRef.current}
+                        onClick={repeatAnswer}
+                      >
+                        <Volume2 className="mr-1.5 h-4 w-4" /> Repeat answer
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      No recording is kept — only the written conversation above. Speaking never approves anything:
+                      yellow actions still wait for your approval and red actions still stop.
+                    </p>
+                  </div>
                 )}
+
                 {dictation.error && (
                   <p role="alert" className="mt-2 text-xs text-destructive">
                     {dictation.error}
@@ -454,8 +512,8 @@ export function OfficeManager() {
                 )}
                 {!dictation.supported && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Voice input is not available in this browser. Please type your message, or try Chrome, Edge or
-                    Safari.
+                    Voice Mode is not available in this browser, so please type your message and use Send. Chrome, Edge
+                    and Safari support it.
                   </p>
                 )}
               </div>
