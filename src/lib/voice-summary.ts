@@ -67,17 +67,23 @@ export function forSpeech(text: string): string {
 }
 
 export function spokenSummary(text: string): SpokenAnswer {
-  const full = forSpeech(text).trim();
+  const source = text.trim();
+  // `full` is what gets read aloud if John asks for the rest, so it is spoken
+  // text too — the written answer in the chat stays exactly as written.
+  const full = forSpeech(source);
   if (!full) return { spoken: "", truncated: false, full };
 
-  const bullets = listLines(full);
+  const bullets = listLines(source);
   if (bullets.length > MAX_LIST_ITEMS_SPOKEN) {
-    const lead = firstSentences(full.split("\n")[0] ?? "", 160);
-    const head = bullets.slice(0, MAX_LIST_ITEMS_SPOKEN).map((line) => line.replace(/^([-*•]|\d+[.)])\s+/, ""));
+    const firstLine = source.split("\n")[0] ?? "";
+    const lead = /^([-*•]|\d+[.)])\s+/.test(firstLine.trim()) ? "" : firstSentences(forSpeech(firstLine), 160);
+    const head = bullets
+      .slice(0, MAX_LIST_ITEMS_SPOKEN)
+      .map((line) => forSpeech(line.replace(/^([-*•]|\d+[.)])\s+/, "")));
     const spoken = [
-      lead && !/^([-*•]|\d+[.)])\s+/.test(lead) ? lead : "",
+      lead,
       `There are ${bullets.length} items. The first ${MAX_LIST_ITEMS_SPOKEN} are: ${head.join("; ")}.`,
-      "Would you like me to read the full list?",
+      "Want the rest?",
     ]
       .filter(Boolean)
       .join(" ");
@@ -88,7 +94,7 @@ export function spokenSummary(text: string): SpokenAnswer {
   if (clean.length > MAX_SPOKEN_CHARS) {
     const summary = firstSentences(clean, MAX_SPOKEN_CHARS);
     return {
-      spoken: `${summary} That is the short version. Would you like me to read the whole answer?`,
+      spoken: `${summary} That's the short version. Want the whole thing?`,
       truncated: true,
       full,
     };
