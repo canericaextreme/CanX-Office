@@ -220,9 +220,9 @@ export async function reserveAiCallWith(
         reason,
         message:
           reason === "budget_limit"
-            ? "The AI spending limit for this period has been reached."
+            ? "The CanX AI spending limit for this period has been reached."
             : reason === "rate_limit"
-              ? "Too many AI requests in a short time. Wait a moment and try again."
+              ? "The AI service is temporarily busy. Please try again shortly."
               : "Spending and rate limits could not be checked, so the AI call was refused.",
       };
     }
