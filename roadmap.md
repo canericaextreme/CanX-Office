@@ -112,4 +112,4 @@
 - [x] Barge-in: speaking stops the moment John talks
 - [x] Short spoken summaries by default; asks before reading long lists/answers
 - [x] Read-only Manager access across rooms: Work Board, approvals, change log, room directory, Idea Garage/Bike Rack, feasibility queue
-- [ ] Voice task commands wired to the Work Board (create/assign a real task by speaking)
+- [x] Voice task commands wired to the Work Board (create/assign a real task by speaking)
