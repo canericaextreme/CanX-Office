@@ -21,6 +21,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
+import { protectedCategoryOf } from "@/lib/protected-actions";
 import {
   assignManagerTaskWith,
   classifyManagerRisk,
