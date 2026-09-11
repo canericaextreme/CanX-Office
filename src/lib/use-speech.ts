@@ -32,7 +32,7 @@ export interface DictationOptions {
   /** Called once the speaker has paused for a moment, if anything was heard. */
   onPause?: () => void;
   /** Called the moment any speech is heard — used for barge-in. */
-  onSpeechStart?: () => void;
+  onSpeechStart?: (text: string) => void;
   /** How long a pause counts as "finished speaking", in milliseconds. */
   pauseMs?: number;
 }
