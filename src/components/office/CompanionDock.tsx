@@ -100,7 +100,6 @@ export function CompanionDock() {
       ref={ref as React.RefObject<HTMLElement>}
       aria-label="CanX companion"
       data-testid="canx-companion-dock"
-      data-testid-drag="canx-companion-drag-handle"
       onPointerDown={onPointerDown}
       onKeyDown={(event) => {
         const step = event.shiftKey ? 40 : 12;
@@ -118,7 +117,6 @@ export function CompanionDock() {
     >
       <div
         data-testid="canx-companion-drag-handle"
-        aria-hidden="true"
         className="flex w-full items-center justify-between px-1"
       >
         <span
