@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, Check, Loader2, Paintbrush, Plus, Send, Trash2, Undo2, X } from "lucide-react";
+import { Bot, Check, Loader2, Mic, MicOff, Paintbrush, Plus, Send, Square, Trash2, Undo2, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/office-theme";
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
+import { useDictation, useReadAloud } from "@/lib/use-speech";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 
 interface ChatMessage {
@@ -42,6 +43,10 @@ export function OfficeManager() {
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const dictation = useDictation((heard) =>
+    setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
+  );
+  const readAloud = useReadAloud();
 
   const fetchStatus = useServerFn(getManagerStatus);
   const sendChat = useServerFn(managerChat);
@@ -285,6 +290,31 @@ export function OfficeManager() {
                     >
                       {message.content}
                     </div>
+                    {message.role !== "user" && readAloud.supported && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-1 h-7 px-2 text-xs"
+                        aria-label={
+                          readAloud.speakingId === message.id ? "Stop reading this answer aloud" : "Read this answer aloud"
+                        }
+                        onClick={() =>
+                          readAloud.speakingId === message.id
+                            ? readAloud.stop()
+                            : readAloud.speak(message.id, message.content)
+                        }
+                      >
+                        {readAloud.speakingId === message.id ? (
+                          <>
+                            <Square className="mr-1.5 h-3.5 w-3.5" /> Stop reading
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="mr-1.5 h-3.5 w-3.5" /> Read aloud
+                          </>
+                        )}
+                      </Button>
+                    )}
                     {message.toolCalls?.map((call, index) => (
                       <ProposalCard
                         key={`${message.id}-${index}`}
@@ -330,10 +360,30 @@ export function OfficeManager() {
                     }
                   }}
                 />
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Button size="sm" onClick={() => void send()} disabled={busy || !draft.trim()}>
                     <Send className="mr-1.5 h-4 w-4" /> Send
                   </Button>
+                  {dictation.supported ? (
+                    dictation.listening ? (
+                      <Button size="sm" variant="destructive" aria-label="Stop listening" onClick={dictation.stop}>
+                        <Square className="mr-1.5 h-4 w-4" /> Stop
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label="Talk — speak your message instead of typing"
+                        onClick={dictation.start}
+                      >
+                        <Mic className="mr-1.5 h-4 w-4" /> Talk
+                      </Button>
+                    )
+                  ) : (
+                    <Button size="sm" variant="outline" disabled aria-label="Voice input is not available in this browser">
+                      <MicOff className="mr-1.5 h-4 w-4" /> Talk
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={briefing}>
                     Office briefing
                   </Button>
@@ -341,6 +391,23 @@ export function OfficeManager() {
                     Monday round table
                   </Link>
                 </div>
+                {dictation.listening && (
+                  <p role="status" aria-live="polite" className="mt-2 flex items-center gap-2 text-xs text-foreground">
+                    <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                    Listening… your words appear in the box above. Nothing is sent until you press Send.
+                  </p>
+                )}
+                {dictation.error && (
+                  <p role="alert" className="mt-2 text-xs text-destructive">
+                    {dictation.error}
+                  </p>
+                )}
+                {!dictation.supported && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Voice input is not available in this browser. Please type your message, or try Chrome, Edge or
+                    Safari.
+                  </p>
+                )}
               </div>
             </>
           )}
