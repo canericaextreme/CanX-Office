@@ -183,6 +183,19 @@ export function OfficeSignInScreen() {
         </Button>
       </form>
 
+      <button
+        type="button"
+        className="mt-3 text-sm font-medium text-primary underline"
+        onClick={() => {
+          setRecoveryEmail(email.trim());
+          setError(null);
+          setSent(false);
+          setRecovering(true);
+        }}
+      >
+        Forgot password?
+      </button>
+
       {session.state === "not_owner" && (
         <p className="mt-3 text-sm text-foreground">
           That account is signed in, but it is not the CanX owner account.
