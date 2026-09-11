@@ -41,7 +41,15 @@ import {
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
 import { useDictation, useReadAloud } from "@/lib/use-speech";
-import { forSpeech, isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
+import {
+  approvalSubmissionNotice,
+  forSpeech,
+  isAffirmative,
+  isNegative,
+  pendingApprovalNotice,
+  spokenSummary,
+} from "@/lib/voice-summary";
+import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 
@@ -118,6 +126,39 @@ export function OfficeManager() {
       onDone?.();
     });
   };
+
+  /**
+   * The real approval box. Voice Mode reads the pending banner aloud when it
+   * changes, so a spoken approval request is heard as well as seen.
+   */
+  const workbenchMemory = useManagerMemory();
+  const refreshMemory = workbenchMemory.refresh;
+  const pendingApprovals = (workbenchMemory.memory?.approvals ?? []).filter((a) => a.status === "pending").length;
+  const lastPendingRef = useRef<number | null>(null);
+  /** Set when the Manager has just said the approval line itself. */
+  const suppressBannerSpeechRef = useRef(false);
+
+  useEffect(() => {
+    const onChanged = () => refreshMemory();
+    window.addEventListener("canx:workbench-changed", onChanged);
+    return () => window.removeEventListener("canx:workbench-changed", onChanged);
+  }, [refreshMemory]);
+
+  useEffect(() => {
+    const previous = lastPendingRef.current;
+    lastPendingRef.current = pendingApprovals;
+    if (previous === null || pendingApprovals <= previous) return;
+    if (suppressBannerSpeechRef.current) {
+      suppressBannerSpeechRef.current = false;
+      return;
+    }
+    if (!voiceModeRef.current || mutedRef.current) return;
+    const line = pendingApprovalNotice(pendingApprovals);
+    if (line) speakAnswer(`approvals-${pendingApprovals}`, line);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingApprovals]);
+
+
 
   const fetchStatus = useServerFn(getManagerStatus);
   const sendChat = useServerFn(managerChat);
@@ -297,6 +338,8 @@ export function OfficeManager() {
         if (changedWork && typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
         }
+        // Something real was queued in the approval box — say so out loud.
+        const approvalLine = approvalSubmissionNotice(reply.actionResults);
         if (voiceModeRef.current) {
           if (mutedRef.current) {
             resumeListening();
@@ -307,7 +350,9 @@ export function OfficeManager() {
             setAwaitingReadMore(shaped.truncated);
             // Listening stays on while it speaks, so John can interrupt.
             resumeListening(0);
-            speakAnswer(answerId, shaped.spoken || answer, resumeListening);
+            if (approvalLine) suppressBannerSpeechRef.current = true;
+            const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
+            speakAnswer(answerId, spoken, resumeListening);
           }
         }
       }

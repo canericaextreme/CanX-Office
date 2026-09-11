@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { forSpeech, isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
+import { approvalSubmissionNotice, forSpeech, isAffirmative, isNegative, pendingApprovalNotice, spokenSummary } from "@/lib/voice-summary";
 import { pickNaturalVoice, speechChunks } from "@/lib/use-speech";
 
 describe("spokenSummary", () => {
@@ -73,5 +73,28 @@ describe("forSpeech", () => {
   it("keeps the spoken summary free of markdown", () => {
     const shaped = spokenSummary("**Done.** Two receipts filed.");
     expect(shaped.spoken).toBe("Done. Two receipts filed.");
+  });
+});
+
+describe("approval notices", () => {
+  it("says nothing when no approval was queued", () => {
+    expect(approvalSubmissionNotice([])).toBe("");
+    expect(approvalSubmissionNotice(undefined)).toBe("");
+    expect(approvalSubmissionNotice([{ name: "create_task", status: "ok" }])).toBe("");
+  });
+
+  it("names the queued item and states nothing happens yet", () => {
+    const line = approvalSubmissionNotice([
+      { name: "request_approval", status: "pending", detail: 'Queued for approval: "Order gate hardware"' },
+    ]);
+    expect(line).toContain("Order gate hardware");
+    expect(line).toContain("approval box");
+    expect(line).toContain("Nothing happens until you approve it");
+  });
+
+  it("reads the pending banner aloud, or stays silent at zero", () => {
+    expect(pendingApprovalNotice(0)).toBe("");
+    expect(pendingApprovalNotice(1)).toBe("One item is waiting for your approval.");
+    expect(pendingApprovalNotice(3)).toBe("3 items are waiting for your approval.");
   });
 });
