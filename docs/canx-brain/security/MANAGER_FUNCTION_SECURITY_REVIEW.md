@@ -55,7 +55,7 @@ Run these checks in a safe test session:
 - Authenticated role at AAL2: succeeds on `manager_budget_status` with own UUID; denied with a different owner's UUID.
 - Manager budget/task flows continue to pass for an AAL2 owner.
 - `service_role` behavior remains functional.
-- `information_schema.routine_privileges` shows no `EXECUTE` row for `grantee` = `public` or `anon` on these functions.
+- `information_schema.routine_privileges` shows no `EXECUTE` row for `grantee` = `PUBLIC` or `anon` on these functions.
 
 ## Rollback
 
