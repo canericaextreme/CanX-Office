@@ -75,16 +75,16 @@ describe("compact CanX companion", () => {
     resetChatGptCompanionForTests();
     const { calls, environment } = fakeEnvironment();
     expect(openChatGptCompanion(environment, "chat")).toBe("popup");
-    expect(calls[0][1]).toBe(CHATGPT_WINDOW_NAME);
-    expect(calls[0][2]).toContain("width=520");
+    expect(calls[0]![1]).toBe(CHATGPT_WINDOW_NAME);
+    expect(calls[0]![2]).toContain("width=520");
   });
 
   it("opens a separate, larger work window for Work", () => {
     resetChatGptCompanionForTests();
     const { calls, environment } = fakeEnvironment();
     expect(openChatGptCompanion(environment, "work")).toBe("popup");
-    expect(calls[0][1]).toBe(CHATGPT_WORK_WINDOW_NAME);
-    expect(calls[0][2]).toContain("width=960");
+    expect(calls[0]![1]).toBe(CHATGPT_WORK_WINDOW_NAME);
+    expect(calls[0]![2]).toContain("width=960");
   });
 
   it("keeps the real ChatGPT site and never embeds it", () => {
