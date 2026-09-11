@@ -92,6 +92,60 @@ export function OfficeSignInScreen() {
     );
   }
 
+  if (recovering) {
+    return (
+      <Shell>
+        <h1 className="text-base font-semibold">Reset your password</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Enter the email address for your CanX owner account. We will send a secure link you can use to set a new
+          password.
+        </p>
+        {sent ? (
+          <p role="status" className="mt-4 text-sm text-foreground">
+            Check your email for a secure password-reset link. It may take a minute to arrive, and it can land in
+            your spam folder.
+          </p>
+        ) : (
+          <form
+            className="mt-4 space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!busy && recoveryEmail) void sendReset();
+            }}
+          >
+            <Input
+              type="email"
+              autoComplete="email"
+              value={recoveryEmail}
+              placeholder="Account email"
+              aria-label="Account email"
+              onChange={(event) => setRecoveryEmail(event.target.value)}
+            />
+            <Button type="submit" size="lg" className="w-full" disabled={busy || !recoveryEmail}>
+              {busy ? "Sending…" : "Send reset link"}
+            </Button>
+          </form>
+        )}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <button
+          type="button"
+          className="mt-4 text-sm text-primary underline"
+          onClick={() => {
+            setRecovering(false);
+            setSent(false);
+            setError(null);
+          }}
+        >
+          Back to sign in
+        </button>
+      </Shell>
+    );
+  }
+
   return (
     <Shell>
       <h1 className="text-base font-semibold">Sign in to open the office</h1>
