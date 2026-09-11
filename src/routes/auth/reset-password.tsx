@@ -68,6 +68,7 @@ function ResetPasswordCard() {
 
   useEffect(() => {
     let cancelled = false;
+    let cleanup: (() => void) | undefined;
     void (async () => {
       const supabase = await loadCanxSupabase();
       if (!supabase) {
@@ -87,13 +88,14 @@ function ResetPasswordCard() {
       const timer = setTimeout(() => {
         if (!cancelled) setLinkState((current) => (current === "ready" ? current : "expired"));
       }, 2500);
-      return () => {
+      cleanup = () => {
         clearTimeout(timer);
         sub.subscription.unsubscribe();
       };
     })();
     return () => {
       cancelled = true;
+      cleanup?.();
     };
   }, []);
 
