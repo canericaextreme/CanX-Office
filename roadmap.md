@@ -106,3 +106,10 @@
 - [ ] Publish and report live status
 
 - [x] Office Manager Voice Mode: Talk button, live transcript, auto-send on pause, spoken answers, Mute/Stop listening/Repeat answer/End Voice Mode, browser-only speech, typed fallback. No recordings stored; approval rules unchanged.
+
+## Manager voice upgrade (2026-09-11)
+- [x] Natural conversational browser voice (voice selection, rate/pitch, sentence chunking)
+- [x] Barge-in: speaking stops the moment John talks
+- [x] Short spoken summaries by default; asks before reading long lists/answers
+- [x] Read-only Manager access across rooms: Work Board, approvals, change log, room directory, Idea Garage/Bike Rack, feasibility queue
+- [ ] Voice task commands wired to the Work Board (create/assign a real task by speaking)
