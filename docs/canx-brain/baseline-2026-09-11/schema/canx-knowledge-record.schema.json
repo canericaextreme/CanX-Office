@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canx.example/schemas/canx-knowledge-record-v1.json",
+  "title": "CanX Knowledge Record",
+  "type": "object",
+  "required": [
+    "id",
+    "schema_version",
+    "space",
+    "category",
+    "record_type",
+    "title",
+    "summary",
+    "status",
+    "confidence",
+    "sensitivity",
+    "sources",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^CANX-[A-Z0-9-]+$" },
+    "schema_version": { "const": "1.0" },
+    "space": { "enum": ["operational", "business_protected", "personal", "legacy"] },
+    "category": {
+      "enum": ["profile", "master_plan", "project", "decision", "status", "goal", "rule", "relationship", "conflict"]
+    },
+    "record_type": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 5000 },
+    "body": { "type": ["object", "array", "string", "null"] },
+    "status": {
+      "enum": ["current", "proposed", "planned", "active", "blocked", "needs_review", "conflicting", "superseded", "archived", "unknown"]
+    },
+    "confidence": { "enum": ["verified", "high", "medium", "low", "unknown"] },
+    "sensitivity": { "enum": ["internal", "restricted", "highly_restricted"] },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^SRC-[A-Z0-9-]+$" }
+    },
+    "effective_date": { "type": ["string", "null"], "format": "date" },
+    "recorded_date": { "type": ["string", "null"], "format": "date" },
+    "review_after": { "type": ["string", "null"], "format": "date" },
+    "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "project_keys": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "supersedes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "conflicts_with": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}
+
