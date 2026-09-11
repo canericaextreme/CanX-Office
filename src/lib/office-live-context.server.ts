@@ -231,7 +231,11 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     request.includeReceiptDetails
       ? receiptReviewSection(parsedReceiptDocument?.ok ? parsedReceiptDocument.receipts : [])
       : "Receipt review details: withheld because the latest user message did not ask about receipts or Finance.",
-    "Projects and work items [provenance: live database]: there is no authoritative projects or work-items table in this office, so none are recorded. Do not describe any project or work item as current.",
+    workbench.tasks,
+    workbench.approvals,
+    workbench.changes,
+    roomCatalogue,
+    "Read-only rule for the rooms above [provenance: system fact]: all room facts in this context are READ ONLY. You may answer questions about them and recommend action, but you may only change records through your own allowlisted task, approval and change-log tools, and yellow or red actions still need John's approval.",
     [
       "Boundaries [provenance: system fact]:",
       "- Demonstration records from the early build are not included here and must not be reported as current status.",
