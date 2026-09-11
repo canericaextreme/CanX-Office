@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Bot,
   Check,
+  GripVertical,
   Loader2,
   Maximize2,
   Mic,
@@ -42,6 +43,7 @@ import { useOwnerSession } from "@/lib/owner-session";
 import { useDictation, useReadAloud } from "@/lib/use-speech";
 import { forSpeech, isAffirmative, isNegative, spokenSummary } from "@/lib/voice-summary";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
+import { useDraggablePanel } from "@/lib/use-draggable-panel";
 
 interface ChatMessage {
   id: string;
@@ -71,6 +73,8 @@ export function OfficeManager() {
   const mutedRef = useRef(false);
   const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
   const lastAnswerRef = useRef<{ id: string; text: string } | null>(null);
+  /** The full Manager panel can be dragged by its handle so it never blocks top buttons. */
+  const panel = useDraggablePanel({ initial: { right: 16, bottom: 80 } });
   voiceModeRef.current = voiceMode;
   mutedRef.current = muted;
 
@@ -438,14 +442,22 @@ export function OfficeManager() {
 
       {open && (
         <aside
+          ref={panel.ref as React.RefObject<HTMLElement>}
           id="office-manager-panel"
           aria-label="Office Manager"
           hidden={minimized}
-          className={`fixed bottom-20 right-4 z-40 ${
+          style={panel.style}
+          className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
           } max-h-[78vh] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
         >
           <div className="flex shrink-0 items-center gap-1 border-b border-border bg-secondary/60 p-2">
+            <div
+              {...panel.handleProps}
+              className="mr-1 flex cursor-move touch-none select-none items-center rounded-md p-1.5 text-muted-foreground hover:bg-background active:bg-secondary"
+            >
+              <GripVertical className="h-4 w-4" aria-hidden="true" />
+            </div>
             {(["manager", "appearance", "notes"] as Tab[]).map((name) => (
               <button
                 key={name}
