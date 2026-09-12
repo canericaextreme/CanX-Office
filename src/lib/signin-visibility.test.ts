@@ -29,7 +29,7 @@ describe("Owner sign-in password visibility toggle", () => {
 
   it("leaves the reset-password page's existing eye controls untouched", () => {
     expect(resetRouteSource).toContain("EyeOff");
-    expect(resetRouteSource).toContain("Show new password");
-    expect(resetRouteSource).toContain("Hide confirmation password");
+    expect(resetRouteSource).toContain("aria-label={shown ? `Hide ${toggleName}` : `Show ${toggleName}`}");
+    expect(resetRouteSource).toContain('toggleName="new password"');
   });
 });
