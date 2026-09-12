@@ -181,29 +181,36 @@ export function useRealtimeChat(): RealtimeChat {
     else void start();
   }, [on, start, stop]);
 
-  const shareOfficeContext = useCallback(
-    (observation: { text: string; room: string; path: string }) => {
-      const channel = channelRef.current;
-      if (!channel || channel.readyState !== "open") return false;
+  const shareOfficeContext = useCallback((observation: OfficeSnapshot) => {
+    const channel = channelRef.current;
+    if (!channel || channel.readyState !== "open") return false;
+
+    const room = String(observation.room ?? "").slice(0, 120);
+    const path = String(observation.path ?? "").slice(0, 200);
+    const text = String(observation.text ?? "").slice(0, 4000);
+    const content: Array<Record<string, string>> = [
+      {
+        type: "input_text",
+        text: `Context only, do not reply yet. John pressed "See Office Screen" to share one snapshot of his CanX Office page "${room}" (${path}). It is a single still picture, not a live feed, and it is already redacted. Use it when he asks his next question.\n\nWritten observation of the same screen:\n${text}`,
+      },
+    ];
+    if (validRealtimeImage(observation.voiceImage))
+      content.push({ type: "input_image", image_url: observation.voiceImage });
+
+    try {
+      // One conversation item only. Deliberately no response.create: Chat must
+      // not start speaking by itself just because a picture arrived.
       channel.send(
         JSON.stringify({
           type: "conversation.item.create",
-          item: {
-            type: "message",
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: `Context only, do not reply yet. John asked for an observation of his CanX Office page "${observation.room}" (${observation.path}):\n${observation.text.slice(0, 4000)}`,
-              },
-            ],
-          },
+          item: { type: "message", role: "user", content },
         }),
       );
       return true;
-    },
-    [],
-  );
+    } catch {
+      return false;
+    }
+  }, []);
 
   return {
     phase,
