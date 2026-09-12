@@ -515,11 +515,12 @@ export function OfficeManager() {
           <span role="status" aria-live="polite" className="truncate text-sm font-medium text-foreground">
             {liveState}
           </span>
-          {voiceMode && (
+          {voiceMode ? (
             <Button
               variant="outline"
               size="sm"
               className="h-8"
+              aria-label={dictation.listening ? "Stop listening" : "Start listening again"}
               onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
             >
               {dictation.listening ? (
@@ -532,6 +533,18 @@ export function OfficeManager() {
                 </>
               )}
             </Button>
+          ) : (
+            dictation.supported && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                aria-label="Talk — start Voice Mode and speak with the Office Manager"
+                onClick={startVoiceMode}
+              >
+                <Mic className="mr-1.5 h-3.5 w-3.5" /> Talk
+              </Button>
+            )
           )}
           <Button variant="outline" size="sm" className="h-8" onClick={() => setMinimized(false)}>
             <Maximize2 className="mr-1.5 h-3.5 w-3.5" /> Open
@@ -701,6 +714,14 @@ export function OfficeManager() {
               </div>
 
               <div className="shrink-0 border-t border-border p-2">
+                {handoffNotice && (
+                  <p
+                    data-testid="canx-manager-handoff-notice"
+                    className="mb-2 rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground"
+                  >
+                    {handoffNotice} Review or edit it, then press Send yourself.
+                  </p>
+                )}
                 <Textarea
                   ref={inputRef}
                   rows={2}
