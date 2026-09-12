@@ -48,7 +48,7 @@ export function officeRoomLabel(path: string): string {
 
 /** True when an element must be kept out of the picture and the text. */
 export function isExcludedElement(el: Element): boolean {
-  if (el.hasAttribute(NO_CAPTURE_ATTR)) return false || true;
+  if (el.hasAttribute(NO_CAPTURE_ATTR)) return true;
   if (el.closest(`[${NO_CAPTURE_ATTR}]`)) return true;
   if (FIELD_TAGS.has(el.tagName)) return true;
   if ((el as HTMLElement).isContentEditable) return true;
