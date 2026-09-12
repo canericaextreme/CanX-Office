@@ -67,9 +67,11 @@ const DEVICE_ONLY = "No CanX-owned database is connected, so the office is savin
  * new link"; policy rejections and reuse must say so; anything unknown must
  * not falsely declare the link expired. No secrets, no account details.
  */
-export function mapUpdatePasswordError(error: { message?: string; code?: string | null; status?: number | null }): string {
-  const code = (error.code ?? "").toLowerCase();
-  const message = (error.message ?? "").toLowerCase();
+export function mapUpdatePasswordError(error: unknown): string {
+  const authError = (error ?? {}) as { message?: unknown; code?: unknown; status?: unknown };
+  const code = typeof authError.code === "string" ? authError.code.toLowerCase() : "";
+  const message = typeof authError.message === "string" ? authError.message.toLowerCase() : "";
+  const status = typeof authError.status === "number" ? authError.status : null;
   if (
     code.includes("session_not_found") ||
     code.includes("otp_expired") ||
