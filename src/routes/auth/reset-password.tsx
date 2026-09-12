@@ -229,6 +229,7 @@ function ResetPasswordCard() {
           value={password}
           onChange={setPassword}
           label="New password"
+          toggleName="new password"
           shown={showPassword}
           onToggle={() => setShowPassword((current) => !current)}
         />
@@ -236,6 +237,7 @@ function ResetPasswordCard() {
           value={confirm}
           onChange={setConfirm}
           label="Confirm new password"
+          toggleName="confirmation password"
           shown={showConfirm}
           onToggle={() => setShowConfirm((current) => !current)}
         />

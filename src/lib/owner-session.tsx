@@ -61,6 +61,34 @@ const STATE_FROM_REASON: Record<string, OwnerState> = {
 
 const DEVICE_ONLY = "No CanX-owned database is connected, so the office is saving on this device only.";
 
+/**
+ * Plain, honest mapping for updateUser failures. A wrong diagnosis is worse
+ * than a vague one: only genuine session/expiry failures may say "request a
+ * new link"; policy rejections and reuse must say so; anything unknown must
+ * not falsely declare the link expired. No secrets, no account details.
+ */
+export function mapUpdatePasswordError(error: { message?: string; code?: string | null; status?: number }): string {
+  const code = (error.code ?? "").toLowerCase();
+  const message = (error.message ?? "").toLowerCase();
+  if (
+    code.includes("session_not_found") ||
+    code.includes("otp_expired") ||
+    message.includes("session") && message.includes("not") && message.includes("found") ||
+    message.includes("jwt") && message.includes("expired") ||
+    error.status === 401 ||
+    error.status === 403
+  ) {
+    return "This reset link is no longer valid. Go back to sign-in and request a fresh link — links can only be used once and stop working after a short time.";
+  }
+  if (code === "same_password" || message.includes("same password") || message.includes("different from the old")) {
+    return "That is the same password as before. Please choose a different password you have not used for this account.";
+  }
+  if (code === "weak_password" || message.includes("weak password") || message.includes("at least") || message.includes("password") && message.includes("strength")) {
+    return "That password was not accepted by the password rules. Use at least 10 characters, and avoid passwords that are very common or easy to guess.";
+  }
+  return "That password could not be saved just now. Please try again in a moment — if it keeps failing, go back to sign-in and request a fresh reset link.";
+}
+
 export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OwnerState>("checking");
   const [configured, setConfigured] = useState(false);
