@@ -316,6 +316,26 @@ describe("The shared Office picture stays bounded, private and text-only to the 
     expect(dockSource).not.toContain("OfficeManager");
   });
 
+  it("refuses to send anything when the picture is missing or invalid", () => {
+    const share = chatSource.slice(chatSource.indexOf("const shareOfficeContext"));
+    // The hard gate sits BEFORE any data-channel send.
+    expect(share).toContain("if (!validRealtimeImage(observation.voiceImage)) return false;");
+    expect(share.indexOf("return false;")).toBeLessThan(share.indexOf("channel.send("));
+    // No text-only fallback: the image is always part of the one message sent.
+    expect(share).toContain('content.push({ type: "input_image", image_url: observation.voiceImage });');
+    expect(share).not.toContain("if (validRealtimeImage(observation.voiceImage))");
+  });
+
+  it("tells John plainly when the picture could not be handed to voice, and clears it after success", () => {
+    expect(dockSource).toContain("The Office picture could not be shared. Press See Office Screen again.");
+    expect(dockSource).toContain('data-testid="canx-companion-share-error"');
+    expect(dockSource).toContain('role="alert"');
+    expect(dockSource).toContain("setShareError(null)");
+    const handoff = dockSource.slice(dockSource.indexOf("chat.shareOfficeContext(pending)"));
+    expect(handoff).toContain("sharedRef.current = pending;");
+    expect(handoff.indexOf("setShareError(null)")).toBeLessThan(handoff.indexOf("Press See Office Screen again."));
+  });
+
   it("tells the voice model honestly what it can and cannot see", () => {
     expect(CHAT_SYSTEM_PROMPT).toContain("See Office Screen");
     expect(CHAT_SYSTEM_PROMPT).toContain("not a live feed");
