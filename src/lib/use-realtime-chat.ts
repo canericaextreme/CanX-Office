@@ -199,8 +199,8 @@ export function useRealtimeChat(): RealtimeChat {
         text: `Context only, do not reply yet. John pressed "See Office Screen" to share one snapshot of his CanX Office page "${room}" (${path}). It is a single still picture, not a live feed, and it is already redacted. Use it when he asks his next question.\n\nWritten observation of the same screen:\n${text}`,
       },
     ];
-    if (validRealtimeImage(observation.voiceImage))
-      content.push({ type: "input_image", image_url: observation.voiceImage });
+    // Always one item carrying BOTH the written observation and the picture.
+    content.push({ type: "input_image", image_url: observation.voiceImage ?? "" });
 
     try {
       // One conversation item only. Deliberately no response-create event is

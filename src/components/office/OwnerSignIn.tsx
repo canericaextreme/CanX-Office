@@ -22,6 +22,7 @@ export function OwnerSignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enrolment, setEnrolment] = useState<{ qr: string; secret: string; factorId: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const run = async (action: () => Promise<string | null>) => {
     setBusy(true);
