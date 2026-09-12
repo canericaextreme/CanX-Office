@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
 import { createRealtimeSession } from "@/lib/realtime-voice.functions";
+import { validRealtimeImage } from "@/lib/office-observe";
 
 export type ChatPhase = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
