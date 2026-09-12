@@ -38,8 +38,9 @@ function AssistantFace({ active }: { active: boolean }) {
  * Compact CanX companion.
  *
  * Chat runs its own conversational voice session — never the Office Manager's
- * browser speech voice, and never a transcript panel. Work asks the Office
- * Manager, the operational agent, to show its own work and progress panel.
+ * browser speech voice, and never a transcript panel. Work opens the
+ * companion's own written ChatGPT Work panel inside the office page and never
+ * reaches the Office Manager.
  */
 export function CompanionDock() {
   const [hidden, setHidden] = useState(false);
