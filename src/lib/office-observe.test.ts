@@ -11,7 +11,15 @@ import {
   type ObserveDeps,
   type ObservePayload,
 } from "./office-observe.functions";
-import { managerDraft, officeRoomLabel, OFFICE_VIEW_ATTR, NO_CAPTURE_ATTR } from "./office-observe";
+import {
+  managerDraft,
+  officeRoomLabel,
+  validRealtimeImage,
+  OFFICE_VIEW_ATTR,
+  NO_CAPTURE_ATTR,
+  REALTIME_MAX_IMAGE_CHARS,
+} from "./office-observe";
+import { CHAT_SYSTEM_PROMPT } from "./realtime-voice.functions";
 
 const clientSource = readFileSync("src/lib/office-observe.ts", "utf8");
 const serverSource = readFileSync("src/lib/office-observe.functions.ts", "utf8");
