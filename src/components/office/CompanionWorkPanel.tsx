@@ -104,12 +104,16 @@ export function CompanionWorkPanel({
     setWork("Completed");
   };
 
-  /** Runs only from John's explicit press. One look, then it stops. */
+  /** Runs only from John's explicit press. One snapshot, then it stops. */
   const runObserve = async () => {
     if (work === "Working" || work === "Observing") return;
     if (!requireSession()) return;
     setError(null);
     setHandedOff(false);
+    // Clear the previous snapshot first, so a failed fresh look can never be
+    // mistaken for the screen John is looking at now.
+    setObservation(null);
+    onObservation?.(null);
     setWork("Observing");
 
     const captured = await captureOfficeView(path);
