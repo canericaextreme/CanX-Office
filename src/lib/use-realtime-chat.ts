@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
 import { createRealtimeSession } from "@/lib/realtime-voice.functions";
+import { validRealtimeImage } from "@/lib/office-observe";
 
 export type ChatPhase = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
@@ -56,12 +57,22 @@ export interface RealtimeChat {
   stop: () => void;
   toggle: () => void;
   /**
-   * Narrow, opt-in context hand-in: the sanitized TEXT of an office observation
-   * John has already asked for, plus the room and path. No picture is ever sent
-   * to the voice provider, and this never asks for a spoken reply by itself.
-   * Returns false when no live session is available.
+   * Narrow, opt-in context hand-in for a snapshot John explicitly asked to
+   * share with "See Office Screen": the sanitized observation text plus the
+   * actual bounded, already-redacted Office picture, added once to the live
+   * conversation. It never asks for a spoken reply by itself — Chat uses the
+   * picture on John's next question. Returns false when there is no live
+   * session or the message could not be put on the connection.
    */
-  shareOfficeContext: (observation: { text: string; room: string; path: string }) => boolean;
+  shareOfficeContext: (observation: OfficeSnapshot) => boolean;
+}
+
+export interface OfficeSnapshot {
+  text: string;
+  room: string;
+  path: string;
+  /** data:image/jpeg;base64,… — memory only, never stored or logged. */
+  voiceImage?: string;
 }
 
 export function useRealtimeChat(): RealtimeChat {
@@ -171,29 +182,36 @@ export function useRealtimeChat(): RealtimeChat {
     else void start();
   }, [on, start, stop]);
 
-  const shareOfficeContext = useCallback(
-    (observation: { text: string; room: string; path: string }) => {
-      const channel = channelRef.current;
-      if (!channel || channel.readyState !== "open") return false;
+  const shareOfficeContext = useCallback((observation: OfficeSnapshot) => {
+    const channel = channelRef.current;
+    if (!channel || channel.readyState !== "open") return false;
+
+    const room = String(observation.room ?? "").slice(0, 120);
+    const path = String(observation.path ?? "").slice(0, 200);
+    const text = String(observation.text ?? "").slice(0, 4000);
+    const content: Array<Record<string, string>> = [
+      {
+        type: "input_text",
+        text: `Context only, do not reply yet. John pressed "See Office Screen" to share one snapshot of his CanX Office page "${room}" (${path}). It is a single still picture, not a live feed, and it is already redacted. Use it when he asks his next question.\n\nWritten observation of the same screen:\n${text}`,
+      },
+    ];
+    if (validRealtimeImage(observation.voiceImage))
+      content.push({ type: "input_image", image_url: observation.voiceImage });
+
+    try {
+      // One conversation item only. Deliberately no response-create event is
+      // sent: Chat must not start speaking just because a picture arrived.
       channel.send(
         JSON.stringify({
           type: "conversation.item.create",
-          item: {
-            type: "message",
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: `Context only, do not reply yet. John asked for an observation of his CanX Office page "${observation.room}" (${observation.path}):\n${observation.text.slice(0, 4000)}`,
-              },
-            ],
-          },
+          item: { type: "message", role: "user", content },
         }),
       );
       return true;
-    },
-    [],
-  );
+    } catch {
+      return false;
+    }
+  }, []);
 
   return {
     phase,

@@ -7,13 +7,15 @@
  * completely separate from the Office Manager: no Manager events, tasks,
  * workbench state or spending guard. It cannot change office records.
  *
- * "Observe Office" takes one picture of the CanX Office view John is looking
- * at — never a camera, never the screen, never another tab — only when he
- * presses the button. The picture is held in memory for that request alone.
+ * "See Office Screen" takes ONE snapshot of the CanX Office view John is
+ * looking at — never a camera, never the whole screen, never another tab — and
+ * only when he presses the button. It is not a live feed: he presses it again
+ * when the screen has changed. The picture is held in memory alone and is
+ * never stored, logged, or handed to the Office Manager.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, Minus, Send as SendIcon, X } from "lucide-react";
+import { Eye, Mic, Minus, Send as SendIcon, X } from "lucide-react";
 import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
@@ -34,16 +36,21 @@ export interface Observation {
   text: string;
   room: string;
   path: string;
+  /** The bounded, already-redacted snapshot. Memory only, never persisted. */
+  voiceImage?: string;
 }
 
 export function CompanionWorkPanel({
   onClose,
   onObservation,
+  onTalkAboutScreen,
   voiceNote,
 }: {
   onClose: () => void;
   /** Hands the latest sanitized observation up to the companion (memory only). */
-  onObservation?: (observation: Observation) => void;
+  onObservation?: (observation: Observation | null) => void;
+  /** Closes Work and starts the separate voice Chat with this snapshot ready. */
+  onTalkAboutScreen?: (observation: Observation) => void;
   /** Honest one-line note about voice context, shown under the card. */
   voiceNote?: string;
 }) {
@@ -97,12 +104,16 @@ export function CompanionWorkPanel({
     setWork("Completed");
   };
 
-  /** Runs only from John's explicit press. One look, then it stops. */
+  /** Runs only from John's explicit press. One snapshot, then it stops. */
   const runObserve = async () => {
     if (work === "Working" || work === "Observing") return;
     if (!requireSession()) return;
     setError(null);
     setHandedOff(false);
+    // Clear the previous snapshot first, so a failed fresh look can never be
+    // mistaken for the screen John is looking at now.
+    setObservation(null);
+    onObservation?.(null);
     setWork("Observing");
 
     const captured = await captureOfficeView(path);
@@ -121,7 +132,14 @@ export function CompanionWorkPanel({
       setError(reply?.detail ?? "The office view could not be observed just now.");
       return;
     }
-    const result = { text: reply.text, room: reply.room, path: reply.path };
+    const result: Observation = {
+      text: reply.text,
+      room: reply.room,
+      path: reply.path,
+      // The picture itself stays in memory here and travels only to the live
+      // voice conversation. It is never stored and never given to the Manager.
+      voiceImage: captured.observation.voiceImage,
+    };
     setObservation(result);
     onObservation?.(result);
     setWork("Completed");
@@ -183,14 +201,15 @@ export function CompanionWorkPanel({
               data-testid="canx-observe-button"
               onClick={() => void runObserve()}
               disabled={busy}
-              aria-label="Observe Office — take one look at the office page you are on"
+              aria-label="See Office Screen — take one protected snapshot of this CanX Office page"
               className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Eye className="h-4 w-4" aria-hidden="true" />
-              Observe Office
+              See Office Screen
             </button>
             <p className="text-[11px] leading-tight text-muted-foreground">
-              One look at this office page only — no camera, no screen sharing, nothing saved.
+              One snapshot of this office page — not a live feed. Press it again when the screen changes. No camera, no
+              screen sharing, nothing saved.
             </p>
           </div>
 
@@ -224,26 +243,42 @@ export function CompanionWorkPanel({
                   Office observation — {observation.room}
                 </h3>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{observation.text}</p>
-                <button
-                  type="button"
-                  data-testid="canx-send-to-manager"
-                  onClick={() => {
-                    sendManagerHandoff({
-                      text: managerDraft(observation.room, observation.path, observation.text),
-                      room: observation.room,
-                      path: observation.path,
-                    });
-                    setHandedOff(true);
-                  }}
-                  className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <SendIcon className="h-4 w-4" aria-hidden="true" />
-                  Send to Manager
-                </button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="canx-talk-about-screen"
+                    onClick={() => onTalkAboutScreen?.(observation)}
+                    aria-label="Talk with ChatGPT about this screen — closes this window and starts voice Chat"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Mic className="h-4 w-4" aria-hidden="true" />
+                    Talk with ChatGPT about this screen
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="canx-send-to-manager"
+                    onClick={() => {
+                      sendManagerHandoff({
+                        text: managerDraft(observation.room, observation.path, observation.text),
+                        room: observation.room,
+                        path: observation.path,
+                      });
+                      setHandedOff(true);
+                    }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <SendIcon className="h-4 w-4" aria-hidden="true" />
+                    Send to Manager
+                  </button>
+                </div>
                 <p className="mt-2 text-[11px] text-muted-foreground">
+                  Talking closes this window and starts voice Chat, then hands this one snapshot to it. The Office
+                  Manager is never involved in that.
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
                   {handedOff
                     ? "Draft placed in the Office Manager for you to review. Nothing was sent or saved."
-                    : "This look is held in memory only. Sending puts a draft in the Office Manager for you to review — nothing is sent or saved."}
+                    : "This snapshot is held in memory only and disappears if you reload. Sending puts a text-only draft in the Office Manager for you to review — nothing is sent or saved, and the picture never goes to the Manager."}
                 </p>
                 {voiceNote && <p className="mt-1 text-[11px] text-muted-foreground">{voiceNote}</p>}
               </article>
