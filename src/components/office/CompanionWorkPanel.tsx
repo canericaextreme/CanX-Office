@@ -36,16 +36,21 @@ export interface Observation {
   text: string;
   room: string;
   path: string;
+  /** The bounded, already-redacted snapshot. Memory only, never persisted. */
+  voiceImage?: string;
 }
 
 export function CompanionWorkPanel({
   onClose,
   onObservation,
+  onTalkAboutScreen,
   voiceNote,
 }: {
   onClose: () => void;
   /** Hands the latest sanitized observation up to the companion (memory only). */
   onObservation?: (observation: Observation) => void;
+  /** Closes Work and starts the separate voice Chat with this snapshot ready. */
+  onTalkAboutScreen?: (observation: Observation) => void;
   /** Honest one-line note about voice context, shown under the card. */
   voiceNote?: string;
 }) {
