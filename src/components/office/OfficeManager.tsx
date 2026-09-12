@@ -52,7 +52,7 @@ import {
 import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
-import { COMPANION_WORK_EVENT } from "@/lib/companion-bridge";
+
 
 interface ChatMessage {
   id: string;
@@ -431,18 +431,10 @@ export function OfficeManager() {
     readAloud.stop();
   };
 
-  // The companion's Chat button no longer runs this browser speech engine:
-  // Chat is its own conversational voice session (see use-realtime-chat.ts).
-  // Only Work reaches the Office Manager here, opening its work/progress panel.
-  useEffect(() => {
-    const onWork = () => {
-      setOpen(true);
-      setMinimized(false);
-      setTab("manager");
-    };
-    window.addEventListener(COMPANION_WORK_EVENT, onWork);
-    return () => window.removeEventListener(COMPANION_WORK_EVENT, onWork);
-  }, []);
+  // The floating companion is fully separate: its Chat is its own voice
+  // session and its Work is its own written panel. Neither opens the Office
+  // Manager, which opens only from its own control.
+
 
   const repeatAnswer = () => {
     const last = lastAnswerRef.current;

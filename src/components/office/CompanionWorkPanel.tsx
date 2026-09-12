@@ -1,0 +1,183 @@
+"use client";
+
+/**
+ * ChatGPT Work — the companion's OWN written work window.
+ *
+ * It lives inside the CanX Office page (never an external tab or an embedded page) and is
+ * completely separate from the Office Manager: no Manager events, tasks,
+ * workbench state or spending guard. It cannot change office records.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { Minus, X } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useOwnerSession } from "@/lib/owner-session";
+import { askCompanionWork } from "@/lib/companion-work.functions";
+
+export type WorkState = "Ready" | "Working" | "Completed" | "Error";
+
+interface WorkTurn {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+export function CompanionWorkPanel({ onClose }: { onClose: () => void }) {
+  const { state: ownerState, accessToken } = useOwnerSession();
+  const ask = useServerFn(askCompanionWork);
+
+  const [minimized, setMinimized] = useState(false);
+  const [turns, setTurns] = useState<WorkTurn[]>([]);
+  const [input, setInput] = useState("");
+  const [work, setWork] = useState<WorkState>("Ready");
+  const [error, setError] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [turns, work]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || work === "Working") return;
+    if (ownerState === "signed_out" || !accessToken) {
+      setWork("Error");
+      setError("Sign in to the CanX Office to use ChatGPT Work.");
+      return;
+    }
+    const next = [...turns, { id: `u-${Date.now()}`, role: "user" as const, content: text }];
+    setTurns(next);
+    setInput("");
+    setError(null);
+    setWork("Working");
+
+    const reply = await ask({
+      data: { accessToken, messages: next.map(({ role, content }) => ({ role, content })) },
+    }).catch(() => null);
+
+    if (!reply || !reply.ok || !reply.text) {
+      setWork("Error");
+      setError(reply?.detail ?? "ChatGPT Work could not answer just now.");
+      return;
+    }
+    setTurns((current) => [...current, { id: `a-${Date.now()}`, role: "assistant", content: reply.text }]);
+    setWork("Completed");
+  };
+
+  const stateTone =
+    work === "Error"
+      ? "bg-canx-red/15 text-canx-red"
+      : work === "Working"
+        ? "bg-canx-yellow/20 text-foreground"
+        : "bg-canx-blue/15 text-foreground";
+
+  return (
+    <section
+      data-testid="canx-work-panel"
+      aria-label="ChatGPT Work"
+      className={`fixed bottom-4 right-4 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl ${
+        minimized ? "" : "max-h-[min(34rem,calc(100vh-6rem))]"
+      }`}
+    >
+      <header className="flex items-center justify-between gap-2 border-b border-border bg-secondary px-3 py-2">
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-semibold text-foreground">ChatGPT Work</h2>
+          <p className="truncate text-[11px] text-muted-foreground">
+            Thinking and drafting only — separate from the Office Manager.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <span data-testid="canx-work-state" className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${stateTone}`}>
+            {work}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMinimized((v) => !v)}
+            aria-label={minimized ? "Expand the ChatGPT Work window" : "Minimize the ChatGPT Work window"}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close the ChatGPT Work window"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </header>
+
+      {!minimized && (
+        <>
+          <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
+            {turns.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Ask for thinking, drafting, analysis or wording. This window cannot read or change office records.
+              </p>
+            )}
+            {turns.map((turn) => (
+              <div key={turn.id} className={turn.role === "user" ? "flex justify-end" : ""}>
+                <div
+                  className={
+                    turn.role === "user"
+                      ? "max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
+                      : "max-w-full whitespace-pre-wrap text-sm text-foreground"
+                  }
+                >
+                  {turn.content}
+                </div>
+              </div>
+            ))}
+            {work === "Working" && (
+              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+                Working…
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="rounded-md border border-canx-red/40 bg-canx-red/10 px-3 py-2 text-sm text-foreground">
+                {error}
+              </p>
+            )}
+            <div ref={endRef} />
+          </div>
+
+          <form
+            className="flex items-end gap-2 border-t border-border p-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void send();
+            }}
+          >
+            <label className="sr-only" htmlFor="canx-work-input">
+              Message ChatGPT Work
+            </label>
+            <textarea
+              id="canx-work-input"
+              data-testid="canx-work-input"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void send();
+                }
+              }}
+              rows={2}
+              placeholder="What should I think through?"
+              className="min-h-[44px] flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <button
+              type="submit"
+              disabled={work === "Working" || input.trim().length === 0}
+              className="min-h-[44px] rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Send
+            </button>
+          </form>
+        </>
+      )}
+    </section>
+  );
+}

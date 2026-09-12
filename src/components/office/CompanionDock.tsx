@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { COMPANION_OPEN_EVENT, requestCompanionWork } from "@/lib/companion-bridge";
+import { COMPANION_OPEN_EVENT } from "@/lib/companion-bridge";
+import { CompanionWorkPanel } from "@/components/office/CompanionWorkPanel";
 import { useCompanionPosition } from "@/lib/companion-position";
 import { CHAT_PHASE_LABEL, useRealtimeChat } from "@/lib/use-realtime-chat";
 
@@ -42,6 +43,7 @@ function AssistantFace({ active }: { active: boolean }) {
  */
 export function CompanionDock() {
   const [hidden, setHidden] = useState(false);
+  const [workOpen, setWorkOpen] = useState(false);
   const { ref, pos, dragging, onPointerDown, nudge } = useCompanionPosition();
   const chat = useRealtimeChat();
 
@@ -77,11 +79,26 @@ export function CompanionDock() {
 
   const closeCompanion = () => {
     chat.stop();
+    setWorkOpen(false);
     window.localStorage.setItem(HIDDEN_KEY, "1");
     setHidden(true);
   };
 
+  // Chat and Work never run together: voice stops when the Work window opens,
+  // and the Work window closes when a voice conversation starts.
+  const toggleWork = () => {
+    if (!workOpen) chat.stop();
+    setWorkOpen((open) => !open);
+  };
+
+  const toggleChat = () => {
+    if (!chat.on) setWorkOpen(false);
+    chat.toggle();
+  };
+
   return (
+    <>
+    {workOpen && <CompanionWorkPanel onClose={() => setWorkOpen(false)} />}
     <section
       ref={ref as React.RefObject<HTMLElement>}
       aria-label="CanX companion"
@@ -134,7 +151,7 @@ export function CompanionDock() {
         <button
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={chat.toggle}
+          onClick={toggleChat}
           aria-pressed={chat.on}
           aria-label={chat.on ? "End the CanX Chat voice conversation" : "Start a CanX Chat voice conversation"}
           className="min-h-9 flex-1 rounded-md bg-primary px-1 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -144,13 +161,15 @@ export function CompanionDock() {
         <button
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={requestCompanionWork}
-          aria-label="Show the Office Manager work and progress panel"
+          onClick={toggleWork}
+          aria-pressed={workOpen}
+          aria-label={workOpen ? "Close the ChatGPT Work window" : "Open the ChatGPT Work window"}
           className="min-h-9 flex-1 rounded-md border border-border bg-secondary px-1 text-xs font-semibold text-secondary-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Work
         </button>
       </div>
     </section>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { COMPANION_WORK_EVENT } from "./companion-bridge";
+import * as bridge from "./companion-bridge";
 import { clampCompanionPosition, readStoredPosition, COMPANION_POSITION_KEY } from "./companion-position";
 import { CHAT_PHASE_LABEL, isChatActive, realtimeEventPhase } from "./use-realtime-chat";
 import {
@@ -52,10 +52,15 @@ describe("compact CanX companion", () => {
     expect(managerSource).not.toContain("COMPANION_CHAT_EVENT");
   });
 
-  it("keeps Work pointed at the existing Office Manager panel", () => {
-    expect(dockSource).toContain("requestCompanionWork");
-    expect(managerSource).toContain("COMPANION_WORK_EVENT");
-    expect(COMPANION_WORK_EVENT).toBe("canx:companion-work");
+  it("owns its Work window instead of reaching the Office Manager", () => {
+    expect(dockSource).toContain("CompanionWorkPanel");
+    expect(dockSource).toContain("setWorkOpen");
+    expect(dockSource).not.toContain("requestCompanionWork");
+    expect(bridge).not.toHaveProperty("COMPANION_WORK_EVENT");
+    expect(bridge).not.toHaveProperty("requestCompanionWork");
+    expect(managerSource).not.toContain("COMPANION_WORK_EVENT");
+    expect(managerSource).not.toContain("companion-bridge");
+    expect(managerSource).not.toContain("CompanionWorkPanel");
   });
 
   it("shows a talking-head icon and pulses only while the conversation is active", () => {
