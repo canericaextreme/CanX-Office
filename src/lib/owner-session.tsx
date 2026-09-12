@@ -149,7 +149,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       const supabase = await loadCanxSupabase();
       if (!supabase) return "No CanX-owned database is connected yet.";
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) return "That password could not be saved. The link may have expired — request a new one.";
+      if (error) return mapUpdatePasswordError(error);
       await refresh();
       return null;
     },

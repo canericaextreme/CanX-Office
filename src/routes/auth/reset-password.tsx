@@ -60,12 +60,14 @@ function PasswordField({
   value,
   onChange,
   label,
+  toggleName,
   shown,
   onToggle,
 }: {
   value: string;
   onChange: (next: string) => void;
   label: string;
+  toggleName: string;
   shown: boolean;
   onToggle: () => void;
 }) {
@@ -82,7 +84,7 @@ function PasswordField({
       />
       <button
         type="button"
-        aria-label={shown ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        aria-label={shown ? `Hide ${toggleName}` : `Show ${toggleName}`}
         aria-pressed={shown}
         className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={onToggle}
