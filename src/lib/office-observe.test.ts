@@ -52,8 +52,12 @@ describe("Office observation is opt-in and scoped to the marked office view", ()
     expect(OFFICE_VIEW_ATTR).toBe("data-canx-office-view");
   });
 
-  it("runs only from John's explicit Observe Office press", () => {
-    expect(panelSource).toContain("Observe Office");
+  it("runs only from John's explicit See Office Screen press", () => {
+    expect(panelSource).toContain("See Office Screen");
+    expect(panelSource).toContain("take one protected snapshot of this CanX Office page");
+    expect(panelSource).toContain("not a live feed");
+    expect(panelSource).toContain("Press it again when the screen changes");
+    expect(panelSource).not.toContain("Observe Office");
     expect(panelSource).toContain("onClick={() => void runObserve()}");
     // No timers, intervals or automatic observation anywhere in the path.
     for (const source of [clientSource, panelSource]) {
