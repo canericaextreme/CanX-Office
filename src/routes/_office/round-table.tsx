@@ -23,6 +23,20 @@ import { FEASIBILITY_ITEMS } from "@/lib/feasibility-queue";
 import { CLAUDE_ASSIGNMENTS } from "@/lib/claude-assignments";
 import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
 import { IDEA_LAB_KNOWLEDGE } from "@/lib/office-knowledge";
+import { getManagerStatus, type ManagerStatus } from "@/lib/manager.functions";
+import { getClaudeStatus, type ClaudeStatus } from "@/lib/claude-review.functions";
+import { runRoundTableRehearsal } from "@/lib/round-table-rehearsal.functions";
+import {
+  CONNECTION_CHECKLIST,
+  MONDAY_AGENDA,
+  MONDAY_AGENDA_MINUTES,
+  PREPARED_MARK,
+  REHEARSAL_COST_NOTICE,
+  preparedNotesText,
+  type RehearsalResult,
+  type RoleBrief,
+} from "@/lib/round-table-rehearsal";
+
 
 export const Route = createFileRoute("/_office/round-table")({
   head: () => ({
@@ -56,12 +70,80 @@ function RoundTablePage() {
   const loadShared = useServerFn(loadSharedRoundTable);
   const pushShared = useServerFn(saveSharedRoundTable);
 
+  // Live readiness. Neither provider is called until an owner session exists.
+  const fetchManagerStatus = useServerFn(getManagerStatus);
+  const fetchClaudeStatus = useServerFn(getClaudeStatus);
+  const [managerStatus, setManagerStatus] = useState<ManagerStatus | null>(null);
+  const [claudeStatus, setClaudeStatus] = useState<ClaudeStatus | null>(null);
+
+  // Rehearsal. Never runs on its own; never saves anything on its own.
+  const runRehearsal = useServerFn(runRoundTableRehearsal);
+  const [rehearsal, setRehearsal] = useState<RehearsalResult | null>(null);
+  const [rehearsing, setRehearsing] = useState(false);
+  const [rehearsalError, setRehearsalError] = useState<string | null>(null);
+
   useEffect(() => {
     setDoc(loadRoundTable());
     setLoaded(true);
   }, []);
 
+  useEffect(() => {
+    if (session.state !== "owner" || !token) {
+      setManagerStatus(null);
+      setClaudeStatus(null);
+      return;
+    }
+    let alive = true;
+    void fetchManagerStatus({ data: { accessToken: token } })
+      .then((status) => alive && setManagerStatus(status))
+      .catch(() => alive && setManagerStatus(null));
+    void fetchClaudeStatus({ data: { accessToken: token } })
+      .then((status) => alive && setClaudeStatus(status))
+      .catch(() => alive && setClaudeStatus(null));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.state, token]);
+
+  const startRehearsal = () => {
+    setRehearsing(true);
+    setRehearsalError(null);
+    setRehearsal(null);
+    void runRehearsal({ data: { accessToken: token } })
+      .then((result) => {
+        setRehearsal(result);
+        if (!result.ok) setRehearsalError(result.detail);
+      })
+      .catch(() =>
+        setRehearsalError("The rehearsal could not be run just now. Nothing was changed and nothing was saved."),
+      )
+      .finally(() => setRehearsing(false));
+  };
+
+  const putPreparedIntoNotes = () => {
+    if (!rehearsal) return;
+    const prepared = preparedNotesText(rehearsal);
+    update({ notes: doc.notes ? `${doc.notes}\n\n${prepared}` : prepared });
+    setMessage("Prepared text was put into the meeting notes below. Press Save yourself to keep it.");
+  };
+
+  const loadPreparedAgenda = () => {
+    update({
+      agenda: MONDAY_AGENDA.map((item) => ({
+        id: newId("ag"),
+        title: item.title,
+        minutes: item.minutes,
+        notes: item.notes,
+      })),
+    });
+    setMessage(
+      `Loaded the prepared ${MONDAY_AGENDA_MINUTES}-minute Monday agenda. Nothing was saved — press Save if you want to keep it.`,
+    );
+  };
+
   const update = (patch: Partial<RoundTableDoc>) => setDoc((current) => ({ ...current, ...patch }));
+
 
   const save = () => {
     const saved = saveRoundTable(doc);
