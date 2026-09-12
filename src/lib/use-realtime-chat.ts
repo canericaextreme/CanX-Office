@@ -186,6 +186,10 @@ export function useRealtimeChat(): RealtimeChat {
     const channel = channelRef.current;
     if (!channel || channel.readyState !== "open") return false;
 
+    // Truthfulness: Chat must never be told it "saw the screen" on text alone.
+    // Without a valid bounded picture the handoff fails honestly instead.
+    if (!validRealtimeImage(observation.voiceImage)) return false;
+
     const room = String(observation.room ?? "").slice(0, 120);
     const path = String(observation.path ?? "").slice(0, 200);
     const text = String(observation.text ?? "").slice(0, 4000);
@@ -195,8 +199,8 @@ export function useRealtimeChat(): RealtimeChat {
         text: `Context only, do not reply yet. John pressed "See Office Screen" to share one snapshot of his CanX Office page "${room}" (${path}). It is a single still picture, not a live feed, and it is already redacted. Use it when he asks his next question.\n\nWritten observation of the same screen:\n${text}`,
       },
     ];
-    if (validRealtimeImage(observation.voiceImage))
-      content.push({ type: "input_image", image_url: observation.voiceImage });
+    // Always one item carrying BOTH the written observation and the picture.
+    content.push({ type: "input_image", image_url: observation.voiceImage });
 
     try {
       // One conversation item only. Deliberately no response-create event is
