@@ -199,8 +199,8 @@ export function useRealtimeChat(): RealtimeChat {
       content.push({ type: "input_image", image_url: observation.voiceImage });
 
     try {
-      // One conversation item only. Deliberately no response.create: Chat must
-      // not start speaking by itself just because a picture arrived.
+      // One conversation item only. Deliberately no response-create event is
+      // sent: Chat must not start speaking just because a picture arrived.
       channel.send(
         JSON.stringify({
           type: "conversation.item.create",
