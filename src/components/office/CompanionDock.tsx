@@ -60,14 +60,21 @@ export function CompanionDock() {
    */
   const observationRef = useRef<Observation | null>(null);
   const sharedRef = useRef<Observation | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   // Chat and Work do not run at the same time, so the observation is injected
-  // once the voice session is actually live.
+  // once the voice session is actually live. If the picture cannot be handed
+  // over, John is told honestly instead of Chat implying it saw the screen.
   useEffect(() => {
     if (chat.phase !== "listening") return;
     const pending = observationRef.current;
     if (!pending || sharedRef.current === pending) return;
-    if (chat.shareOfficeContext(pending)) sharedRef.current = pending;
+    if (chat.shareOfficeContext(pending)) {
+      sharedRef.current = pending;
+      setShareError(null);
+    } else {
+      setShareError("The Office picture could not be shared. Press See Office Screen again.");
+    }
   }, [chat]);
 
   useEffect(() => {
