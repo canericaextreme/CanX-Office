@@ -144,6 +144,15 @@ export function CompanionDock() {
         voiceNote="Voice Chat receives this actual snapshot once the voice connection is live. It is kept in memory only and disappears if you reload."
       />
     )}
+    {shareError && (
+      <p
+        role="alert"
+        data-testid="canx-companion-share-error"
+        className="fixed bottom-48 left-4 z-40 max-w-64 rounded-lg border border-border bg-card/95 p-2 text-xs text-foreground shadow-lg backdrop-blur"
+      >
+        {shareError}
+      </p>
+    )}
     <section
       ref={ref as React.RefObject<HTMLElement>}
       aria-label="CanX companion"
