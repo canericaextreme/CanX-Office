@@ -25,6 +25,13 @@ export const OBSERVE_MAX_TEXT = 4000;
 /** Bounded picture: long edge and encoded size are both capped. */
 export const OBSERVE_MAX_WIDTH = 1100;
 export const OBSERVE_MAX_IMAGE_BYTES = 1_400_000;
+/**
+ * A realtime data-channel message has to stay small, so the same picture is
+ * shrunk further before it can be shared into a live voice conversation.
+ */
+export const REALTIME_MAX_IMAGE_CHARS = 180_000;
+/** Below this the text stops being readable, so we give up instead. */
+const REALTIME_MIN_WIDTH = 520;
 
 const SENSITIVE_WORDS = /pass|pwd|token|key|secret|credential|otp|mfa|cvv|card/i;
 const FIELD_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT", "OPTION", "FORM"]);
