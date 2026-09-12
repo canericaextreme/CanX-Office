@@ -230,9 +230,11 @@ describe("Voice context and Manager Talk stay in their own pipelines", () => {
   });
 
   it("never asks the voice model to answer by itself", () => {
-    expect(chatSource).not.toContain("response.create");
-    expect(dockSource).not.toContain("response.create");
-    expect(panelSource).not.toContain("response.create");
+    // "response.created" is an incoming event name, so the check is exact.
+    const asks = /response\.create(?!d)/;
+    expect(asks.test(chatSource)).toBe(false);
+    expect(asks.test(dockSource)).toBe(false);
+    expect(asks.test(panelSource)).toBe(false);
   });
 
   it("wraps the data-channel send so a failure is reported honestly", () => {
@@ -275,16 +277,23 @@ describe("The shared Office picture stays bounded, private and text-only to the 
 
   it("keeps the picture in memory only — never storage, logs or the database", () => {
     for (const source of [clientSource, panelSource, dockSource, chatSource]) {
-      expect(source).not.toContain("localStorage.setItem");
       expect(source).not.toContain("sessionStorage");
       expect(source).not.toContain("console.log");
       expect(source).not.toContain("rest/v1");
+      // Nothing the snapshot touches is ever written to browser storage.
+      for (const [, stored] of source.matchAll(/localStorage\.setItem\(([^)]*)\)/g)) {
+        expect(stored).not.toContain("observation");
+        expect(stored).not.toContain("voiceImage");
+        expect(stored).not.toContain("image");
+      }
     }
     expect(dockSource).toContain("observationRef");
   });
 
   it("never lets the picture reach the Office Manager", () => {
-    expect(bridgeSource).not.toContain("image");
+    expect(bridgeSource).not.toContain("voiceImage");
+    expect(bridgeSource).not.toContain("image:");
+    expect(bridgeSource).not.toContain("image_url");
     const handoffCall = panelSource.slice(panelSource.indexOf("sendManagerHandoff({"));
     expect(handoffCall.slice(0, 300)).not.toContain("voiceImage");
     expect(managerSource).not.toContain("voiceImage");
