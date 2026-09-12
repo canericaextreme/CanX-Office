@@ -40,7 +40,13 @@ function AssistantFace({ active }: { active: boolean }) {
  * Chat runs its own conversational voice session — never the Office Manager's
  * browser speech voice, and never a transcript panel. Work opens the
  * companion's own written ChatGPT Work panel inside the office page and never
- * reaches the Office Manager.
+ * reaches the Office Manager; the Manager opens only from its own control, or
+ * from the deliberate review-before-send text draft John chooses to hand over.
+ *
+ * The one Office snapshot John takes with "See Office Screen" lives here in
+ * memory only, alongside its room and path, so it can be handed to a voice
+ * session once that connection is actually live. It is never stored and it is
+ * gone on reload.
  */
 export function CompanionDock() {
   const [hidden, setHidden] = useState(false);
