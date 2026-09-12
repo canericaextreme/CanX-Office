@@ -42,6 +42,18 @@ export interface OfficeObservationInput {
   text: string;
   /** data:image/jpeg;base64,… of the Office view only. */
   image: string;
+  /**
+   * The same picture, shrunk enough to travel over the live voice connection.
+   * Memory only — it is never stored, logged or sent to the Office Manager.
+   */
+  voiceImage: string;
+}
+
+/** Strict client-side check before anything is put on the voice connection. */
+export function validRealtimeImage(image: unknown): image is string {
+  if (typeof image !== "string") return false;
+  if (!/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(image)) return false;
+  return image.length <= REALTIME_MAX_IMAGE_CHARS;
 }
 
 /** A human room/page name for the path currently shown. */
