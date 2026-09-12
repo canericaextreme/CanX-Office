@@ -79,6 +79,7 @@ export function CompanionDock() {
 
   const closeCompanion = () => {
     chat.stop();
+    setWorkOpen(false);
     window.localStorage.setItem(HIDDEN_KEY, "1");
     setHidden(true);
   };

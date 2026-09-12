@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { COMPANION_WORK_EVENT } from "./companion-bridge";
+import * as bridge from "./companion-bridge";
 import { clampCompanionPosition, readStoredPosition, COMPANION_POSITION_KEY } from "./companion-position";
 import { CHAT_PHASE_LABEL, isChatActive, realtimeEventPhase } from "./use-realtime-chat";
 import {
