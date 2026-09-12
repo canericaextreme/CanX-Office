@@ -147,8 +147,46 @@ export async function captureOfficeView(path: string): Promise<CaptureResult> {
 
   return {
     ok: true,
-    observation: { path, room: officeRoomLabel(path), text: collectOfficeText(root), image },
+    observation: {
+      path,
+      room: officeRoomLabel(path),
+      text: collectOfficeText(root),
+      image,
+      voiceImage: shrinkForVoice(canvas, image),
+    },
   };
+}
+
+/** Draws a canvas into a narrower one, keeping the aspect ratio. */
+function scaledCanvas(source: HTMLCanvasElement, width: number): HTMLCanvasElement | null {
+  const target = document.createElement("canvas");
+  target.width = Math.max(1, Math.round(width));
+  target.height = Math.max(1, Math.round((source.height / Math.max(source.width, 1)) * width));
+  const ctx = target.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, target.width, target.height);
+  ctx.drawImage(source, 0, 0, target.width, target.height);
+  return target;
+}
+
+/**
+ * Steps the picture down in width and quality until it is small enough for one
+ * realtime data-channel message, while staying wide enough to read. Returns an
+ * empty string when no readable size fits — the voice share is then skipped.
+ */
+export function shrinkForVoice(canvas: HTMLCanvasElement, full: string): string {
+  if (validRealtimeImage(full)) return full;
+  for (const width of [1024, 880, 760, 640, REALTIME_MIN_WIDTH]) {
+    if (width > canvas.width) continue;
+    const smaller = scaledCanvas(canvas, width);
+    if (!smaller) return "";
+    for (const quality of [0.6, 0.45, 0.35]) {
+      const candidate = smaller.toDataURL("image/jpeg", quality);
+      if (validRealtimeImage(candidate)) return candidate;
+    }
+  }
+  return "";
 }
 
 /** The plain draft handed to the Office Manager — text only, never the picture. */
