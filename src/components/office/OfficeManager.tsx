@@ -302,6 +302,7 @@ export function OfficeManager() {
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || busy) return;
+    setHandoffNotice(null);
 
     // A plain yes or no answers "shall I read the rest?" without going to the
     // provider at all — nothing is spent and nothing is approved by it.
