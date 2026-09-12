@@ -56,12 +56,22 @@ export interface RealtimeChat {
   stop: () => void;
   toggle: () => void;
   /**
-   * Narrow, opt-in context hand-in: the sanitized TEXT of an office observation
-   * John has already asked for, plus the room and path. No picture is ever sent
-   * to the voice provider, and this never asks for a spoken reply by itself.
-   * Returns false when no live session is available.
+   * Narrow, opt-in context hand-in for a snapshot John explicitly asked to
+   * share with "See Office Screen": the sanitized observation text plus the
+   * actual bounded, already-redacted Office picture, added once to the live
+   * conversation. It never asks for a spoken reply by itself — Chat uses the
+   * picture on John's next question. Returns false when there is no live
+   * session or the message could not be put on the connection.
    */
-  shareOfficeContext: (observation: { text: string; room: string; path: string }) => boolean;
+  shareOfficeContext: (observation: OfficeSnapshot) => boolean;
+}
+
+export interface OfficeSnapshot {
+  text: string;
+  room: string;
+  path: string;
+  /** data:image/jpeg;base64,… — memory only, never stored or logged. */
+  voiceImage?: string;
 }
 
 export function useRealtimeChat(): RealtimeChat {
