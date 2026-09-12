@@ -132,7 +132,14 @@ export function CompanionWorkPanel({
       setError(reply?.detail ?? "The office view could not be observed just now.");
       return;
     }
-    const result = { text: reply.text, room: reply.room, path: reply.path };
+    const result: Observation = {
+      text: reply.text,
+      room: reply.room,
+      path: reply.path,
+      // The picture itself stays in memory here and travels only to the live
+      // voice conversation. It is never stored and never given to the Manager.
+      voiceImage: captured.observation.voiceImage,
+    };
     setObservation(result);
     onObservation?.(result);
     setWork("Completed");
