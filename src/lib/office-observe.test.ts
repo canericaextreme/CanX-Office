@@ -245,3 +245,70 @@ describe("Voice context and Manager Talk stay in their own pipelines", () => {
     expect(managerSource).toContain("useDictation");
   });
 });
+
+describe("The shared Office picture stays bounded, private and text-only to the Manager", () => {
+  it("accepts only a small JPEG or PNG data URL for the voice connection", () => {
+    expect(validRealtimeImage("data:image/jpeg;base64,AAAA")).toBe(true);
+    expect(validRealtimeImage("data:image/png;base64,AAAA")).toBe(true);
+    expect(validRealtimeImage("data:image/svg+xml;base64,AAAA")).toBe(false);
+    expect(validRealtimeImage("https://example.com/x.jpg")).toBe(false);
+    expect(validRealtimeImage(undefined)).toBe(false);
+    expect(validRealtimeImage(`data:image/jpeg;base64,${"A".repeat(REALTIME_MAX_IMAGE_CHARS)}`)).toBe(false);
+    expect(REALTIME_MAX_IMAGE_CHARS).toBeLessThanOrEqual(200_000);
+  });
+
+  it("steps the picture down in size and quality rather than sending something huge", () => {
+    expect(clientSource).toContain("shrinkForVoice");
+    expect(clientSource).toContain("[1024, 880, 760, 640, REALTIME_MIN_WIDTH]");
+    expect(clientSource).toContain("[0.6, 0.45, 0.35]");
+    // Lazy loading of the renderer is preserved.
+    expect(clientSource).toContain('await import("html2canvas-pro")');
+  });
+
+  it("keeps the picture in memory only — never storage, logs or the database", () => {
+    for (const source of [clientSource, panelSource, dockSource, chatSource]) {
+      expect(source).not.toContain("localStorage.setItem");
+      expect(source).not.toContain("sessionStorage");
+      expect(source).not.toContain("console.log");
+      expect(source).not.toContain("rest/v1");
+    }
+    expect(dockSource).toContain("observationRef");
+  });
+
+  it("never lets the picture reach the Office Manager", () => {
+    expect(bridgeSource).not.toContain("image");
+    const handoffCall = panelSource.slice(panelSource.indexOf("sendManagerHandoff({"));
+    expect(handoffCall.slice(0, 300)).not.toContain("voiceImage");
+    expect(managerSource).not.toContain("voiceImage");
+    expect(managerSource).not.toContain("input_image");
+  });
+
+  it("clears a stale observation before a fresh attempt", () => {
+    const observe = clientPanelObserve();
+    expect(observe).toContain("setObservation(null)");
+    expect(observe).toContain("onObservation?.(null)");
+    expect(observe.indexOf("setObservation(null)")).toBeLessThan(observe.indexOf("captureOfficeView"));
+  });
+
+  it("offers a talk-about-this-screen control that never touches the Manager", () => {
+    expect(panelSource).toContain('data-testid="canx-talk-about-screen"');
+    expect(panelSource).toContain("Talk with ChatGPT about this screen");
+    expect(dockSource).toContain("onTalkAboutScreen");
+    expect(dockSource).toContain("setWorkOpen(false)");
+    expect(dockSource).toContain("chat.start()");
+    expect(dockSource).not.toContain("OfficeManager");
+  });
+
+  it("tells the voice model honestly what it can and cannot see", () => {
+    expect(CHAT_SYSTEM_PROMPT).toContain("See Office Screen");
+    expect(CHAT_SYSTEM_PROMPT).toContain("not a live feed");
+    expect(CHAT_SYSTEM_PROMPT).toContain("You are not the Office Manager");
+    expect(CHAT_SYSTEM_PROMPT).toContain("does NOT open the Office Manager");
+    expect(CHAT_SYSTEM_PROMPT).not.toContain("Work button to open the Office Manager");
+  });
+});
+
+function clientPanelObserve(): string {
+  const start = panelSource.indexOf("const runObserve");
+  return panelSource.slice(start, panelSource.indexOf("const stateTone"));
+}
