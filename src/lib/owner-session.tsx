@@ -67,7 +67,7 @@ const DEVICE_ONLY = "No CanX-owned database is connected, so the office is savin
  * new link"; policy rejections and reuse must say so; anything unknown must
  * not falsely declare the link expired. No secrets, no account details.
  */
-export function mapUpdatePasswordError(error: { message?: string; code?: string | null | undefined; status?: number }): string {
+export function mapUpdatePasswordError(error: { message?: string; code?: string | null; status?: number | null }): string {
   const code = (error.code ?? "").toLowerCase();
   const message = (error.message ?? "").toLowerCase();
   if (
