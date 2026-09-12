@@ -186,6 +186,10 @@ export function useRealtimeChat(): RealtimeChat {
     const channel = channelRef.current;
     if (!channel || channel.readyState !== "open") return false;
 
+    // Truthfulness: Chat must never be told it "saw the screen" on text alone.
+    // Without a valid bounded picture the handoff fails honestly instead.
+    if (!validRealtimeImage(observation.voiceImage)) return false;
+
     const room = String(observation.room ?? "").slice(0, 120);
     const path = String(observation.path ?? "").slice(0, 200);
     const text = String(observation.text ?? "").slice(0, 4000);
