@@ -124,6 +124,32 @@ describe("update-password error mapping", () => {
   });
 });
 
+describe("mapUpdatePasswordError behavior", () => {
+  it("tells the user to request a fresh link only for genuine session/expiry failures", () => {
+    expect(mapUpdatePasswordError({ code: "session_not_found", message: "Session not found" })).toContain("fresh link");
+    expect(mapUpdatePasswordError({ code: "otp_expired" })).toContain("fresh link");
+    expect(mapUpdatePasswordError({ status: 401, message: "invalid JWT" })).toContain("fresh link");
+  });
+
+  it("explains password policy rejections without blaming the link", () => {
+    const result = mapUpdatePasswordError({ code: "weak_password", message: "Password should contain at least 10 characters" });
+    expect(result).toContain("password rules");
+    expect(result).not.toContain("no longer valid");
+  });
+
+  it("asks for a different password when the same one is reused", () => {
+    const result = mapUpdatePasswordError({ code: "same_password", message: "New password should be different from the old password" });
+    expect(result).toContain("different password");
+    expect(result).not.toContain("no longer valid");
+  });
+
+  it("gives an honest unknown-error message that does not declare expiry", () => {
+    const result = mapUpdatePasswordError({ message: "unexpected server error" });
+    expect(result).toContain("could not be saved just now");
+    expect(result).not.toContain("no longer valid");
+  });
+});
+
 describe("recovery does not weaken the office gates", () => {
   it("grants no role and skips no authenticator step-up", () => {
     expect(page).not.toContain("verifyOwner");
