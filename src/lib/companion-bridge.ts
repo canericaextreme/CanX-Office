@@ -1,20 +1,13 @@
 /**
- * Small event bridge between the compact companion and the Office Manager.
+ * Small event bridge for the compact companion.
  *
- * Two clearly separate modes:
- *   CHAT — the companion's own conversational voice session (see
- *          use-realtime-chat.ts). It does not run through the Office Manager's
- *          browser speech engine.
- *   WORK — asks the existing Office Manager to show its work/progress panel.
+ * The companion is self-contained: Chat is its own voice session and Work is
+ * its own written panel. Neither reaches the Office Manager, which opens only
+ * from its own control. The single remaining event simply re-shows the
+ * companion after it has been collapsed to the edge tab.
  */
 
-export const COMPANION_WORK_EVENT = "canx:companion-work";
-/** Kept so any remaining shortcut can re-show the companion. */
 export const COMPANION_OPEN_EVENT = "canx:open-companion";
-
-export function requestCompanionWork() {
-  if (typeof window !== "undefined") window.dispatchEvent(new Event(COMPANION_WORK_EVENT));
-}
 
 export function openCompanion() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(COMPANION_OPEN_EVENT));
