@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { mapUpdatePasswordError } from "@/lib/owner-session";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
