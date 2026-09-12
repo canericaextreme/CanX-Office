@@ -82,7 +82,21 @@ export function CompanionDock() {
     setHidden(true);
   };
 
+  // Chat and Work never run together: voice stops when the Work window opens,
+  // and the Work window closes when a voice conversation starts.
+  const toggleWork = () => {
+    if (!workOpen) chat.stop();
+    setWorkOpen((open) => !open);
+  };
+
+  const toggleChat = () => {
+    if (!chat.on) setWorkOpen(false);
+    chat.toggle();
+  };
+
   return (
+    <>
+    {workOpen && <CompanionWorkPanel onClose={() => setWorkOpen(false)} />}
     <section
       ref={ref as React.RefObject<HTMLElement>}
       aria-label="CanX companion"
