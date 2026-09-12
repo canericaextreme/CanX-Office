@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, Minus, Send as SendIcon, X } from "lucide-react";
+import { Eye, Mic, Minus, Send as SendIcon, X } from "lucide-react";
 import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
