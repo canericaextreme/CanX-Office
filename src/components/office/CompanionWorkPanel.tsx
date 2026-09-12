@@ -201,14 +201,15 @@ export function CompanionWorkPanel({
               data-testid="canx-observe-button"
               onClick={() => void runObserve()}
               disabled={busy}
-              aria-label="Observe Office — take one look at the office page you are on"
+              aria-label="See Office Screen — take one protected snapshot of this CanX Office page"
               className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Eye className="h-4 w-4" aria-hidden="true" />
-              Observe Office
+              See Office Screen
             </button>
             <p className="text-[11px] leading-tight text-muted-foreground">
-              One look at this office page only — no camera, no screen sharing, nothing saved.
+              One snapshot of this office page — not a live feed. Press it again when the screen changes. No camera, no
+              screen sharing, nothing saved.
             </p>
           </div>
 
