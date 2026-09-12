@@ -52,7 +52,7 @@ import {
 import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
-import { COMPANION_WORK_EVENT } from "@/lib/companion-bridge";
+
 
 interface ChatMessage {
   id: string;

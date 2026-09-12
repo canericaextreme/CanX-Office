@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { COMPANION_OPEN_EVENT, requestCompanionWork } from "@/lib/companion-bridge";
+import { COMPANION_OPEN_EVENT } from "@/lib/companion-bridge";
+import { CompanionWorkPanel } from "@/components/office/CompanionWorkPanel";
 import { useCompanionPosition } from "@/lib/companion-position";
 import { CHAT_PHASE_LABEL, useRealtimeChat } from "@/lib/use-realtime-chat";
 
