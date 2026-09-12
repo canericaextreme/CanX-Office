@@ -48,7 +48,7 @@ export function CompanionWorkPanel({
 }: {
   onClose: () => void;
   /** Hands the latest sanitized observation up to the companion (memory only). */
-  onObservation?: (observation: Observation) => void;
+  onObservation?: (observation: Observation | null) => void;
   /** Closes Work and starts the separate voice Chat with this snapshot ready. */
   onTalkAboutScreen?: (observation: Observation) => void;
   /** Honest one-line note about voice context, shown under the card. */
