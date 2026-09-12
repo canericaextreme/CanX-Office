@@ -157,6 +157,26 @@ export function OfficeManager() {
     return () => window.removeEventListener("canx:workbench-changed", onChanged);
   }, [refreshMemory]);
 
+  /**
+   * Handoff from the separate ChatGPT companion, and only when John pressed
+   * "Send to Manager". It opens this panel and PREFILLS the box — it never
+   * sends, saves, approves, runs a tool or spends anything.
+   */
+  useEffect(() => {
+    const onHandoff = (event: Event) => {
+      const detail = (event as CustomEvent<ManagerHandoff>).detail;
+      if (!detail || typeof detail.text !== "string") return;
+      setOpen(true);
+      setMinimized(false);
+      setTab("manager");
+      setDraft(detail.text.slice(0, 4000));
+      setHandoffNotice(`Draft from a ChatGPT observation of ${detail.room}. Nothing has been sent or saved.`);
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+    };
+    window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
+    return () => window.removeEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
+  }, []);
+
   useEffect(() => {
     const previous = lastPendingRef.current;
     lastPendingRef.current = pendingApprovals;
