@@ -77,8 +77,8 @@ export function mapUpdatePasswordError(error: unknown): string {
     code.includes("otp_expired") ||
     message.includes("session") && message.includes("not") && message.includes("found") ||
     message.includes("jwt") && message.includes("expired") ||
-    error.status === 401 ||
-    error.status === 403
+    status === 401 ||
+    status === 403
   ) {
     return "This reset link is no longer valid. Go back to sign-in and request a fresh link — links can only be used once and stop working after a short time.";
   }
