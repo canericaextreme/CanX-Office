@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { COMPANION_OPEN_EVENT } from "@/lib/companion-bridge";
-import { CompanionWorkPanel } from "@/components/office/CompanionWorkPanel";
+import { CompanionWorkPanel, type Observation } from "@/components/office/CompanionWorkPanel";
 import { useCompanionPosition } from "@/lib/companion-position";
 import { CHAT_PHASE_LABEL, useRealtimeChat } from "@/lib/use-realtime-chat";
 
@@ -47,6 +47,22 @@ export function CompanionDock() {
   const [workOpen, setWorkOpen] = useState(false);
   const { ref, pos, dragging, onPointerDown, nudge } = useCompanionPosition();
   const chat = useRealtimeChat();
+  /**
+   * The latest office observation, in memory at this shared level only — never
+   * storage, never a record — so it can be handed to a voice session that John
+   * starts afterwards. It is gone on reload.
+   */
+  const observationRef = useRef<Observation | null>(null);
+  const sharedRef = useRef<Observation | null>(null);
+
+  // Chat and Work do not run at the same time, so the observation is injected
+  // once the voice session is actually live.
+  useEffect(() => {
+    if (chat.phase !== "listening") return;
+    const pending = observationRef.current;
+    if (!pending || sharedRef.current === pending) return;
+    if (chat.shareOfficeContext(pending)) sharedRef.current = pending;
+  }, [chat]);
 
   useEffect(() => {
     setHidden(window.localStorage.getItem(HIDDEN_KEY) === "1");
@@ -99,10 +115,20 @@ export function CompanionDock() {
 
   return (
     <>
-    {workOpen && <CompanionWorkPanel onClose={() => setWorkOpen(false)} />}
+    {workOpen && (
+      <CompanionWorkPanel
+        onClose={() => setWorkOpen(false)}
+        onObservation={(observation) => {
+          observationRef.current = observation;
+          sharedRef.current = null;
+        }}
+        voiceNote="Voice Chat picks this observation up the next time you start Chat. It is kept in memory only and disappears if you reload."
+      />
+    )}
     <section
       ref={ref as React.RefObject<HTMLElement>}
       aria-label="CanX companion"
+      data-canx-no-capture="true"
       data-testid="canx-companion-dock"
       onPointerDown={onPointerDown}
       onKeyDown={(event) => {

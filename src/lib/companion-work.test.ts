@@ -74,7 +74,7 @@ describe("Work is fully independent of the Office Manager", () => {
 
   it("leaves no companion Work listener in the Office Manager or the bridge", () => {
     expect(managerSource).not.toContain("COMPANION_WORK_EVENT");
-    expect(managerSource).not.toContain("companion-bridge");
+    expect(managerSource).not.toContain("requestCompanionWork");
     expect(bridgeSource).not.toContain("COMPANION_WORK_EVENT");
     expect(bridgeSource).not.toContain("requestCompanionWork");
   });

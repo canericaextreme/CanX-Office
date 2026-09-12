@@ -55,6 +55,13 @@ export interface RealtimeChat {
   start: () => void;
   stop: () => void;
   toggle: () => void;
+  /**
+   * Narrow, opt-in context hand-in: the sanitized TEXT of an office observation
+   * John has already asked for, plus the room and path. No picture is ever sent
+   * to the voice provider, and this never asks for a spoken reply by itself.
+   * Returns false when no live session is available.
+   */
+  shareOfficeContext: (observation: { text: string; room: string; path: string }) => boolean;
 }
 
 export function useRealtimeChat(): RealtimeChat {
@@ -164,5 +171,39 @@ export function useRealtimeChat(): RealtimeChat {
     else void start();
   }, [on, start, stop]);
 
-  return { phase, active: isChatActive(phase), on, error, missingSetting, start: () => void start(), stop, toggle };
+  const shareOfficeContext = useCallback(
+    (observation: { text: string; room: string; path: string }) => {
+      const channel = channelRef.current;
+      if (!channel || channel.readyState !== "open") return false;
+      channel.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: `Context only, do not reply yet. John asked for an observation of his CanX Office page "${observation.room}" (${observation.path}):\n${observation.text.slice(0, 4000)}`,
+              },
+            ],
+          },
+        }),
+      );
+      return true;
+    },
+    [],
+  );
+
+  return {
+    phase,
+    active: isChatActive(phase),
+    on,
+    error,
+    missingSetting,
+    start: () => void start(),
+    stop,
+    toggle,
+    shareOfficeContext,
+  };
 }

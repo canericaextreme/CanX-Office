@@ -6,15 +6,23 @@
  * It lives inside the CanX Office page (never an external tab or an embedded page) and is
  * completely separate from the Office Manager: no Manager events, tasks,
  * workbench state or spending guard. It cannot change office records.
+ *
+ * "Observe Office" takes one picture of the CanX Office view John is looking
+ * at — never a camera, never the screen, never another tab — only when he
+ * presses the button. The picture is held in memory for that request alone.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Minus, X } from "lucide-react";
+import { Eye, Minus, Send as SendIcon, X } from "lucide-react";
+import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
 import { askCompanionWork } from "@/lib/companion-work.functions";
+import { observeOfficeView } from "@/lib/office-observe.functions";
+import { captureOfficeView, managerDraft } from "@/lib/office-observe";
+import { sendManagerHandoff } from "@/lib/companion-bridge";
 
-export type WorkState = "Ready" | "Working" | "Completed" | "Error";
+export type WorkState = "Ready" | "Working" | "Observing" | "Completed" | "Error";
 
 interface WorkTurn {
   id: string;
@@ -22,29 +30,54 @@ interface WorkTurn {
   content: string;
 }
 
-export function CompanionWorkPanel({ onClose }: { onClose: () => void }) {
+export interface Observation {
+  text: string;
+  room: string;
+  path: string;
+}
+
+export function CompanionWorkPanel({
+  onClose,
+  onObservation,
+  voiceNote,
+}: {
+  onClose: () => void;
+  /** Hands the latest sanitized observation up to the companion (memory only). */
+  onObservation?: (observation: Observation) => void;
+  /** Honest one-line note about voice context, shown under the card. */
+  voiceNote?: string;
+}) {
   const { state: ownerState, accessToken } = useOwnerSession();
   const ask = useServerFn(askCompanionWork);
+  const observe = useServerFn(observeOfficeView);
+  const path = useRouterState({ select: (s) => s.location.pathname });
 
   const [minimized, setMinimized] = useState(false);
   const [turns, setTurns] = useState<WorkTurn[]>([]);
   const [input, setInput] = useState("");
   const [work, setWork] = useState<WorkState>("Ready");
   const [error, setError] = useState<string | null>(null);
+  const [observation, setObservation] = useState<Observation | null>(null);
+  const [handedOff, setHandedOff] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [turns, work]);
+  }, [turns, work, observation]);
 
-  const send = async () => {
-    const text = input.trim();
-    if (!text || work === "Working") return;
+  const requireSession = () => {
     if (ownerState === "signed_out" || !accessToken) {
       setWork("Error");
       setError("Sign in to the CanX Office to use ChatGPT Work.");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || work === "Working" || work === "Observing") return;
+    if (!requireSession()) return;
     const next = [...turns, { id: `u-${Date.now()}`, role: "user" as const, content: text }];
     setTurns(next);
     setInput("");
@@ -52,7 +85,7 @@ export function CompanionWorkPanel({ onClose }: { onClose: () => void }) {
     setWork("Working");
 
     const reply = await ask({
-      data: { accessToken, messages: next.map(({ role, content }) => ({ role, content })) },
+      data: { accessToken: accessToken!, messages: next.map(({ role, content }) => ({ role, content })) },
     }).catch(() => null);
 
     if (!reply || !reply.ok || !reply.text) {
@@ -64,16 +97,49 @@ export function CompanionWorkPanel({ onClose }: { onClose: () => void }) {
     setWork("Completed");
   };
 
+  /** Runs only from John's explicit press. One look, then it stops. */
+  const runObserve = async () => {
+    if (work === "Working" || work === "Observing") return;
+    if (!requireSession()) return;
+    setError(null);
+    setHandedOff(false);
+    setWork("Observing");
+
+    const captured = await captureOfficeView(path);
+    if (!captured.ok) {
+      setWork("Error");
+      setError(captured.message);
+      return;
+    }
+
+    const reply = await observe({
+      data: { accessToken: accessToken!, ...captured.observation },
+    }).catch(() => null);
+
+    if (!reply || !reply.ok || !reply.text) {
+      setWork("Error");
+      setError(reply?.detail ?? "The office view could not be observed just now.");
+      return;
+    }
+    const result = { text: reply.text, room: reply.room, path: reply.path };
+    setObservation(result);
+    onObservation?.(result);
+    setWork("Completed");
+  };
+
   const stateTone =
     work === "Error"
       ? "bg-canx-red/15 text-canx-red"
-      : work === "Working"
+      : work === "Working" || work === "Observing"
         ? "bg-canx-yellow/20 text-foreground"
         : "bg-canx-blue/15 text-foreground";
+
+  const busy = work === "Working" || work === "Observing";
 
   return (
     <section
       data-testid="canx-work-panel"
+      data-canx-no-capture="true"
       aria-label="ChatGPT Work"
       className={`fixed bottom-4 right-4 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl ${
         minimized ? "" : "max-h-[min(34rem,calc(100vh-6rem))]"
@@ -111,8 +177,25 @@ export function CompanionWorkPanel({ onClose }: { onClose: () => void }) {
 
       {!minimized && (
         <>
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+            <button
+              type="button"
+              data-testid="canx-observe-button"
+              onClick={() => void runObserve()}
+              disabled={busy}
+              aria-label="Observe Office — take one look at the office page you are on"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Eye className="h-4 w-4" aria-hidden="true" />
+              Observe Office
+            </button>
+            <p className="text-[11px] leading-tight text-muted-foreground">
+              One look at this office page only — no camera, no screen sharing, nothing saved.
+            </p>
+          </div>
+
           <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
-            {turns.length === 0 && (
+            {turns.length === 0 && !observation && (
               <p className="text-sm text-muted-foreground">
                 Ask for thinking, drafting, analysis or wording. This window cannot read or change office records.
               </p>
@@ -130,9 +213,45 @@ export function CompanionWorkPanel({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
             ))}
-            {work === "Working" && (
+
+            {observation && (
+              <article
+                data-testid="canx-observation-card"
+                aria-label="Office observation"
+                className="rounded-lg border border-canx-blue/40 bg-canx-blue/5 p-3"
+              >
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Office observation — {observation.room}
+                </h3>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{observation.text}</p>
+                <button
+                  type="button"
+                  data-testid="canx-send-to-manager"
+                  onClick={() => {
+                    sendManagerHandoff({
+                      text: managerDraft(observation.room, observation.path, observation.text),
+                      room: observation.room,
+                      path: observation.path,
+                    });
+                    setHandedOff(true);
+                  }}
+                  className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <SendIcon className="h-4 w-4" aria-hidden="true" />
+                  Send to Manager
+                </button>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {handedOff
+                    ? "Draft placed in the Office Manager for you to review. Nothing was sent or saved."
+                    : "This look is held in memory only. Sending puts a draft in the Office Manager for you to review — nothing is sent or saved."}
+                </p>
+                {voiceNote && <p className="mt-1 text-[11px] text-muted-foreground">{voiceNote}</p>}
+              </article>
+            )}
+
+            {busy && (
               <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-                Working…
+                {work === "Observing" ? "Observing this office page…" : "Working…"}
               </p>
             )}
             {error && (
@@ -170,7 +289,7 @@ export function CompanionWorkPanel({ onClose }: { onClose: () => void }) {
             />
             <button
               type="submit"
-              disabled={work === "Working" || input.trim().length === 0}
+              disabled={busy || input.trim().length === 0}
               className="min-h-[44px] rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Send

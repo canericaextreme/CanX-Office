@@ -59,7 +59,8 @@ describe("compact CanX companion", () => {
     expect(bridge).not.toHaveProperty("COMPANION_WORK_EVENT");
     expect(bridge).not.toHaveProperty("requestCompanionWork");
     expect(managerSource).not.toContain("COMPANION_WORK_EVENT");
-    expect(managerSource).not.toContain("companion-bridge");
+    // The Manager only listens for John's explicit observation handoff.
+    expect(managerSource).not.toContain("requestCompanionWork");
     expect(managerSource).not.toContain("CompanionWorkPanel");
   });
 

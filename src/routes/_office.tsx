@@ -21,12 +21,18 @@ function OfficeInterior() {
         viewMode={hydrated ? mode : "3d"}
         onToggleView={() => setMode(mode === "3d" ? "simple" : "3d")}
       />
-      <div className="flex-1 pb-20">
+      {/* The only element an office observation may look at. */}
+      <div className="flex-1 pb-20" data-canx-office-view="true">
         <Outlet />
       </div>
-      <ApprovalAlert />
+      {/* Overlays are excluded from every observation. */}
+      <div data-canx-no-capture="true">
+        <ApprovalAlert />
+      </div>
       <CompanionDock />
-      <OfficeManager />
+      <div data-canx-no-capture="true">
+        <OfficeManager />
+      </div>
     </div>
   );
 }
