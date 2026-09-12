@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { Slider } from "@/components/ui/slider";
 import { loadTeam, teamForManager } from "@/lib/office-team";
 import { getManagerStatus, managerChat, type ManagerStatus, type ManagerToolCall } from "@/lib/manager.functions";
@@ -76,6 +77,8 @@ export function OfficeManager() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Honest note shown when a ChatGPT observation draft has just been prefilled. */
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [notes, setNotes] = useState<OfficeNote[]>([]);
