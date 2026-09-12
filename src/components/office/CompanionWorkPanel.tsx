@@ -3,7 +3,7 @@
 /**
  * ChatGPT Work — the companion's OWN written work window.
  *
- * It lives inside the CanX Office page (no external tab, no iframe) and is
+ * It lives inside the CanX Office page (never an external tab or an embedded page) and is
  * completely separate from the Office Manager: no Manager events, tasks,
  * workbench state or spending guard. It cannot change office records.
  */

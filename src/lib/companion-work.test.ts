@@ -39,7 +39,7 @@ describe("ChatGPT Work panel belongs to the companion", () => {
     expect(panelSource).toContain("Close the ChatGPT Work window");
     expect(panelSource).toContain("Minimize the ChatGPT Work window");
     expect(panelSource).toContain("canx-work-input");
-    expect(panelSource).toContain(">Send<");
+    expect(panelSource).toContain("Send\n            </button>");
     for (const state of ["Ready", "Working", "Completed", "Error"]) {
       expect(panelSource).toContain(`"${state}"`);
     }
