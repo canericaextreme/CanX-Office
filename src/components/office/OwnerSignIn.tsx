@@ -66,13 +66,26 @@ export function OwnerSignIn() {
               aria-label="Owner email"
               onChange={(event) => setEmail(event.target.value)}
             />
-            <Input
-              type="password"
-              value={password}
-              placeholder="Password"
-              aria-label="Password"
-              onChange={(event) => setPassword(event.target.value)}
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                placeholder="Password"
+                aria-label="Password"
+                autoComplete="current-password"
+                className="pr-12"
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+              </button>
+            </div>
             <Button disabled={busy || !email || !password} onClick={() => void run(() => session.signIn(email, password))}>
               <LogIn className="mr-1.5 h-4 w-4" /> Sign in
             </Button>

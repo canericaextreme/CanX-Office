@@ -200,7 +200,7 @@ export function useRealtimeChat(): RealtimeChat {
       },
     ];
     // Always one item carrying BOTH the written observation and the picture.
-    content.push({ type: "input_image", image_url: observation.voiceImage ?? "" });
+    content.push({ type: "input_image", image_url: observation.voiceImage });
 
     try {
       // One conversation item only. Deliberately no response-create event is
