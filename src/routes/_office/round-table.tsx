@@ -23,6 +23,20 @@ import { FEASIBILITY_ITEMS } from "@/lib/feasibility-queue";
 import { CLAUDE_ASSIGNMENTS } from "@/lib/claude-assignments";
 import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
 import { IDEA_LAB_KNOWLEDGE } from "@/lib/office-knowledge";
+import { getManagerStatus, type ManagerStatus } from "@/lib/manager.functions";
+import { getClaudeStatus, type ClaudeStatus } from "@/lib/claude-review.functions";
+import { runRoundTableRehearsal } from "@/lib/round-table-rehearsal.functions";
+import {
+  CONNECTION_CHECKLIST,
+  MONDAY_AGENDA,
+  MONDAY_AGENDA_MINUTES,
+  PREPARED_MARK,
+  REHEARSAL_COST_NOTICE,
+  preparedNotesText,
+  type RehearsalResult,
+  type RoleBrief,
+} from "@/lib/round-table-rehearsal";
+
 
 export const Route = createFileRoute("/_office/round-table")({
   head: () => ({
