@@ -1,0 +1,225 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import {
+  allowObserveRequest,
+  observeWith,
+  OBSERVE_REQUEST_LIMIT,
+  OBSERVE_SYSTEM_PROMPT,
+  sanitizeObserveInput,
+  sanitizedObserveDetail,
+  validImage,
+  type ObserveDeps,
+  type ObservePayload,
+} from "./office-observe.functions";
+import { managerDraft, officeRoomLabel, OFFICE_VIEW_ATTR, NO_CAPTURE_ATTR } from "./office-observe";
+
+const clientSource = readFileSync("src/lib/office-observe.ts", "utf8");
+const serverSource = readFileSync("src/lib/office-observe.functions.ts", "utf8");
+const panelSource = readFileSync("src/components/office/CompanionWorkPanel.tsx", "utf8");
+const dockSource = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
+const managerSource = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
+const layoutSource = readFileSync("src/routes/_office.tsx", "utf8");
+const bridgeSource = readFileSync("src/lib/companion-bridge.ts", "utf8");
+const chatSource = readFileSync("src/lib/use-realtime-chat.ts", "utf8");
+
+const validPng = "data:image/png;base64,AAAABBBB";
+
+const payload = (over: Partial<ObservePayload> = {}): ObservePayload => ({
+  accessToken: "t",
+  path: "/finance",
+  room: "Finance",
+  text: "Receipts 12",
+  image: validPng,
+  ...over,
+});
+
+const baseDeps = (over: Partial<ObserveDeps> = {}): ObserveDeps => ({
+  verifySignedIn: async () => ({ ok: true, aal: "aal1", userId: "u1", email: "j@x" }) as never,
+  allowRequest: () => true,
+  fetchImpl: (async () =>
+    new Response(JSON.stringify({ output_text: "Office observation: Finance." }), {
+      status: 200,
+    })) as unknown as typeof fetch,
+  openaiKey: "sk-test",
+  model: "gpt-test",
+  ...over,
+});
+
+describe("Office observation is opt-in and scoped to the marked office view", () => {
+  it("only looks at the marked office root, which the layout provides", () => {
+    expect(layoutSource).toContain('data-canx-office-view="true"');
+    expect(clientSource).toContain(`[${OFFICE_VIEW_ATTR}]`);
+    expect(OFFICE_VIEW_ATTR).toBe("data-canx-office-view");
+  });
+
+  it("runs only from John's explicit Observe Office press", () => {
+    expect(panelSource).toContain("Observe Office");
+    expect(panelSource).toContain("onClick={() => void runObserve()}");
+    // No timers, intervals or automatic observation anywhere in the path.
+    for (const source of [clientSource, panelSource]) {
+      expect(source).not.toContain("setInterval");
+      expect(source).not.toContain("requestAnimationFrame");
+    }
+    expect(clientSource).not.toContain("useEffect");
+  });
+
+  it("never uses a camera, screen sharing or any capture API", () => {
+    for (const source of [clientSource, panelSource, dockSource, serverSource]) {
+      expect(source).not.toContain("getDisplayMedia");
+      expect(source).not.toContain("getUserMedia({ video");
+      expect(source).not.toContain("MediaDevices");
+      expect(source).not.toContain("captureStream");
+      expect(source).not.toContain("ImageCapture");
+      expect(source).not.toContain("video:");
+    }
+    // The office view renders itself from the DOM; there is no wider fallback.
+    expect(clientSource).toContain("html2canvas-pro");
+    expect(clientSource).not.toContain("document.body");
+  });
+
+  it("excludes overlays and sensitive fields from the picture and the text", () => {
+    expect(NO_CAPTURE_ATTR).toBe("data-canx-no-capture");
+    expect(layoutSource).toContain('data-canx-no-capture="true"');
+    expect(panelSource).toContain('data-canx-no-capture="true"');
+    expect(dockSource).toContain('data-canx-no-capture="true"');
+    expect(clientSource).toContain("ignoreElements");
+    expect(clientSource).toContain("isExcludedElement");
+    expect(clientSource).toMatch(/pass\|pwd\|token\|key\|secret/);
+    expect(clientSource).toContain('"INPUT", "TEXTAREA", "SELECT"');
+    expect(clientSource).toContain("isContentEditable");
+  });
+
+  it("keeps the observation in memory only — never storage, records or logs", () => {
+    for (const source of [clientSource, panelSource, dockSource]) {
+      expect(source).not.toContain("localStorage.setItem");
+      expect(source).not.toContain("sessionStorage");
+      expect(source).not.toContain("rest/v1");
+    }
+    expect(dockSource).toContain("observationRef");
+    expect(serverSource).not.toContain("insert");
+    expect(serverSource).not.toContain("rest/v1");
+  });
+
+  it("names the current path and room", () => {
+    expect(officeRoomLabel("/")).toBe("Reception");
+    expect(officeRoomLabel("/nowhere-room")).toBe("Nowhere Room");
+    expect(panelSource).toContain("useRouterState");
+    expect(serverSource).toContain("Room or page:");
+    expect(serverSource).toContain("Path:");
+  });
+});
+
+describe("Observe server function safety", () => {
+  it("verifies the signed-in owner before anything else", async () => {
+    const denied = await observeWith(
+      baseDeps({ verifySignedIn: async () => ({ ok: false, message: "Please sign in." }) as never }),
+      payload(),
+    );
+    expect(denied.code).toBe("auth_not_ready");
+    expect(denied.text).toBe("");
+  });
+
+  it("enforces strict image type and size bounds", async () => {
+    expect(validImage(validPng)).toBe(true);
+    expect(validImage("data:image/svg+xml;base64,AAAA")).toBe(false);
+    expect(validImage("https://example.com/x.png")).toBe(false);
+    expect(validImage(`data:image/jpeg;base64,${"A".repeat(2_000_000)}`)).toBe(false);
+    const bad = await observeWith(baseDeps(), payload({ image: "not-an-image" }));
+    expect(bad.code).toBe("bad_input");
+  });
+
+  it("bounds the incoming text and path", () => {
+    const cleaned = sanitizeObserveInput({ accessToken: 1, path: "/x".padEnd(500, "y"), text: "a".repeat(99999) });
+    expect(cleaned.accessToken).toBe("");
+    expect(cleaned.path.length).toBe(200);
+    expect(cleaned.text.length).toBe(6000);
+    expect(cleaned.image).toBe("");
+  });
+
+  it("uses its own conservative rate limit", async () => {
+    for (let i = 0; i < OBSERVE_REQUEST_LIMIT; i += 1) expect(allowObserveRequest("obs-user")).toBe(true);
+    expect(allowObserveRequest("obs-user")).toBe(false);
+    const limited = await observeWith(baseDeps({ allowRequest: () => false }), payload());
+    expect(limited.code).toBe("too_many_requests");
+    expect(limited.detail).not.toContain("spending limit");
+  });
+
+  it("keeps the key on the server and sanitizes provider failures", async () => {
+    expect(panelSource).not.toContain("OPENAI_API_KEY");
+    expect(serverSource).toContain('process.env["OPENAI_API_KEY"]');
+    expect(serverSource).toContain('process.env["OPENAI_WORK_MODEL"]');
+    expect(serverSource).toContain('process.env["OPENAI_MODEL"]');
+    const refused = await observeWith(
+      baseDeps({ fetchImpl: (async () => new Response("secret body", { status: 403 })) as unknown as typeof fetch }),
+      payload(),
+    );
+    expect(refused.code).toBe("provider_error");
+    expect(refused.detail).toBe("The AI provider connection needs attention.");
+    for (const status of [undefined, 401, 404, 429, 500]) {
+      expect(sanitizedObserveDetail(status)).not.toContain("Bearer");
+      expect(sanitizedObserveDetail(status)).not.toContain("spending limit");
+    }
+  });
+
+  it("declares no tools and answers as a short factual observation", async () => {
+    expect(serverSource).not.toContain("tools:");
+    expect(serverSource).not.toContain('"tools"');
+    expect(OBSERVE_SYSTEM_PROMPT).toContain("Office observation");
+    expect(OBSERVE_SYSTEM_PROMPT).toContain("NOT the Office Manager");
+    const reply = await observeWith(baseDeps(), payload());
+    expect(reply.ok).toBe(true);
+    expect(reply.room).toBe("Finance");
+    expect(reply.path).toBe("/finance");
+  });
+});
+
+describe("Send to Manager is a deliberate, harmless handoff", () => {
+  it("only prefills a labelled draft and never sends or saves", () => {
+    expect(managerDraft("Finance", "/finance", "Twelve receipts")).toContain(
+      "ChatGPT observation for review — Finance (/finance)",
+    );
+    expect(panelSource).toContain('data-testid="canx-send-to-manager"');
+    expect(panelSource).toContain("sendManagerHandoff");
+    expect(panelSource).toContain("Nothing was sent or saved");
+    expect(bridgeSource).toContain('MANAGER_HANDOFF_EVENT = "canx:manager-handoff"');
+    expect(managerSource).toContain("MANAGER_HANDOFF_EVENT");
+    expect(managerSource).toContain("setDraft(detail.text.slice(0, 4000))");
+    // The Manager must not auto-send, approve or create anything on receipt.
+    const handoff = managerSource.slice(
+      managerSource.indexOf("const onHandoff"),
+      managerSource.indexOf("window.addEventListener(MANAGER_HANDOFF_EVENT"),
+    );
+    expect(handoff).not.toContain("send(");
+    expect(handoff).not.toContain("approve");
+    expect(handoff).not.toContain("saveTask");
+    expect(handoff).toContain('setTab("manager")');
+    expect(handoff).toContain("setMinimized(false)");
+  });
+
+  it("does not restore the old Work-opens-Manager bridge", () => {
+    expect(bridgeSource).not.toContain("COMPANION_WORK_EVENT");
+    expect(dockSource).not.toContain("MANAGER_HANDOFF_EVENT");
+    expect(panelSource).not.toContain("OfficeManager");
+  });
+});
+
+describe("Voice context and Manager Talk stay in their own pipelines", () => {
+  it("shares only sanitized text with a live Chat session, never the picture", () => {
+    expect(chatSource).toContain("shareOfficeContext");
+    expect(chatSource).toContain("Context only, do not reply yet");
+    expect(chatSource).not.toContain("input_image");
+    expect(chatSource).not.toContain("response.create");
+    expect(dockSource).toContain("chat.shareOfficeContext(pending)");
+  });
+
+  it("gives the Manager its own plainly labelled Talk control", () => {
+    expect(managerSource).toContain("Talk — start Voice Mode and speak with the Office Manager");
+    expect(managerSource.match(/> Talk/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(managerSource).toContain("startVoiceMode");
+    expect(managerSource).toContain("Stop listening");
+    // Manager voice is its own dictation engine, not the companion's Chat/Work.
+    expect(managerSource).not.toContain("use-realtime-chat");
+    expect(managerSource).not.toContain("companion-work");
+    expect(managerSource).toContain("useDictation");
+  });
+});
