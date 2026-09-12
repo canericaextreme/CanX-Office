@@ -210,12 +210,28 @@ describe("Send to Manager is a deliberate, harmless handoff", () => {
 });
 
 describe("Voice context and Manager Talk stay in their own pipelines", () => {
-  it("shares only sanitized text with a live Chat session, never the picture", () => {
+  it("shares the actual bounded picture and text with a live Chat session", () => {
     expect(chatSource).toContain("shareOfficeContext");
     expect(chatSource).toContain("Context only, do not reply yet");
-    expect(chatSource).not.toContain("input_image");
-    expect(chatSource).not.toContain('"response.create"');
+    expect(chatSource).toContain('type: "input_text"');
+    expect(chatSource).toContain('type: "input_image"');
+    expect(chatSource).toContain("image_url: observation.voiceImage");
+    expect(chatSource).toContain("validRealtimeImage(observation.voiceImage)");
+    expect(chatSource).toContain('type: "conversation.item.create"');
     expect(dockSource).toContain("chat.shareOfficeContext(pending)");
+  });
+
+  it("never asks the voice model to answer by itself", () => {
+    expect(chatSource).not.toContain("response.create");
+    expect(dockSource).not.toContain("response.create");
+    expect(panelSource).not.toContain("response.create");
+  });
+
+  it("wraps the data-channel send so a failure is reported honestly", () => {
+    const share = chatSource.slice(chatSource.indexOf("const shareOfficeContext"));
+    expect(share).toContain("try {");
+    expect(share).toContain("} catch {");
+    expect(share).toContain("return false;");
   });
 
   it("gives the Manager its own plainly labelled Talk control", () => {
