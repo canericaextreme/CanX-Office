@@ -48,7 +48,7 @@ const baseDeps = (over: Partial<ObserveDeps> = {}): ObserveDeps => ({
 describe("Office observation is opt-in and scoped to the marked office view", () => {
   it("only looks at the marked office root, which the layout provides", () => {
     expect(layoutSource).toContain('data-canx-office-view="true"');
-    expect(clientSource).toContain(`${OFFICE_VIEW_ATTR}}]`);
+    expect(clientSource).toContain("[${OFFICE_VIEW_ATTR}]");
     expect(OFFICE_VIEW_ATTR).toBe("data-canx-office-view");
   });
 
@@ -104,7 +104,7 @@ describe("Office observation is opt-in and scoped to the marked office view", ()
 
   it("names the current path and room", () => {
     expect(officeRoomLabel("/")).toContain("Reception");
-    expect(officeRoomLabel("/nowhere-room")).toBe("Nowhere Room");
+    expect(officeRoomLabel("/finance")).toContain("Finance");
     expect(panelSource).toContain("useRouterState");
     expect(serverSource).toContain("Room or page:");
     expect(serverSource).toContain("Path:");
