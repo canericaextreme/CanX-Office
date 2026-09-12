@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { mapUpdatePasswordError } from "@/lib/owner-session";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -74,10 +75,78 @@ describe("password update page", () => {
     expect(page).toContain('navigate({ to: "/" })');
   });
 
-  it("uses new-password autocomplete and accessible labels", () => {
+  it("has eye/eye-off controls on both password fields with clear labels", () => {
+    expect(page).toContain("PasswordField");
+    expect(page).toContain('type={shown ? "text" : "password"}');
+    expect(page).toContain("EyeOff");
+    expect(page).toContain('toggleName="new password"');
+    expect(page).toContain('toggleName="confirmation password"');
+    expect(page).toContain("`Hide ${toggleName}`");
+    expect(page).toContain("`Show ${toggleName}`");
+    expect(page).toContain("aria-pressed={shown}");
+  });
+
+  it("keeps new-password autocomplete and accessible field labels", () => {
     expect(page).toContain('autoComplete="new-password"');
-    expect(page).toContain('aria-label="New password"');
-    expect(page).toContain('aria-label="Confirm new password"');
+    expect(page).toContain('label="New password"');
+    expect(page).toContain('label="Confirm new password"');
+    expect(page).toContain("aria-label={label}");
+  });
+
+  it("only trusts genuine recovery tokens, not an unrelated session", () => {
+    expect(page).toContain('params.get("type") === "recovery"');
+    expect(page).toContain('params.has("access_token")');
+    expect(page).toContain('"PASSWORD_RECOVERY"');
+    expect(page).toContain('params.get("error")');
+  });
+});
+
+describe("update-password error mapping", () => {
+  it("maps expired/missing recovery sessions to a fresh-link request", () => {
+    expect(provider).toContain("session_not_found");
+    expect(provider).toContain("request a fresh link");
+  });
+
+  it("maps password-policy rejections to a plain requirement explanation", () => {
+    expect(provider).toContain("weak_password");
+    expect(provider).toContain("not accepted by the password rules");
+  });
+
+  it("maps a reused password to a different-password request", () => {
+    expect(provider).toContain("same_password");
+    expect(provider).toContain("choose a different password");
+  });
+
+  it("never declares an unknown error to be an expired link", () => {
+    expect(provider).toContain("could not be saved just now");
+    const fallback = provider.slice(provider.indexOf("could not be saved just now"));
+    expect(fallback).not.toContain("may have expired");
+  });
+});
+
+describe("mapUpdatePasswordError behavior", () => {
+  it("tells the user to request a fresh link only for genuine session/expiry failures", () => {
+    expect(mapUpdatePasswordError({ code: "session_not_found", message: "Session not found" })).toContain("fresh link");
+    expect(mapUpdatePasswordError({ code: "otp_expired" })).toContain("fresh link");
+    expect(mapUpdatePasswordError({ status: 401, message: "invalid JWT" })).toContain("fresh link");
+  });
+
+  it("explains password policy rejections without blaming the link", () => {
+    const result = mapUpdatePasswordError({ code: "weak_password", message: "Password should contain at least 10 characters" });
+    expect(result).toContain("password rules");
+    expect(result).not.toContain("no longer valid");
+  });
+
+  it("asks for a different password when the same one is reused", () => {
+    const result = mapUpdatePasswordError({ code: "same_password", message: "New password should be different from the old password" });
+    expect(result).toContain("different password");
+    expect(result).not.toContain("no longer valid");
+  });
+
+  it("gives an honest unknown-error message that does not declare expiry", () => {
+    const result = mapUpdatePasswordError({ message: "unexpected server error" });
+    expect(result).toContain("could not be saved just now");
+    expect(result).not.toContain("no longer valid");
   });
 });
 

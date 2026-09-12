@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Building2 } from "lucide-react";
+import { Building2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OwnerSessionProvider, useOwnerSession } from "@/lib/owner-session";
@@ -56,12 +56,53 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function PasswordField({
+  value,
+  onChange,
+  label,
+  toggleName,
+  shown,
+  onToggle,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  label: string;
+  toggleName: string;
+  shown: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        type={shown ? "text" : "password"}
+        autoComplete="new-password"
+        value={value}
+        placeholder={label}
+        aria-label={label}
+        className="pr-11"
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <button
+        type="button"
+        aria-label={shown ? `Hide ${toggleName}` : `Show ${toggleName}`}
+        aria-pressed={shown}
+        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onToggle}
+      >
+        {shown ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
+
 function ResetPasswordCard() {
   const session = useOwnerSession();
   const navigate = useNavigate();
   const [linkState, setLinkState] = useState<"checking" | "ready" | "expired">("checking");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -70,24 +111,38 @@ function ResetPasswordCard() {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
     void (async () => {
+      // A failed recovery link lands here with an error in the URL fragment
+      // (e.g. error=access_denied&error_code=otp_expired). That is a real
+      // expired/invalid link — distinct from a later password rejection.
+      const fragment = typeof window === "undefined" ? "" : window.location.hash.replace(/^#/, "");
+      const params = new URLSearchParams(fragment);
+      if (params.get("error")) {
+        if (!cancelled) setLinkState("expired");
+        return;
+      }
+      // Only a genuine recovery link is proof the page may set a password.
+      // An unrelated signed-in session (opened in another tab, for example)
+      // is not proof this link is valid.
+      const hasRecoveryTokens = params.has("access_token") && params.get("type") === "recovery";
       const supabase = await loadCanxSupabase();
       if (!supabase) {
         if (!cancelled) setLinkState("expired");
         return;
       }
-      // The client picks the recovery tokens out of the URL on load.
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
-      if (data.session) {
+      if (hasRecoveryTokens && data.session) {
         setLinkState("ready");
         return;
       }
-      const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-        if (next) setLinkState("ready");
+      // The client may still be exchanging the tokens; listen for the
+      // recovery event before giving up.
+      const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+        if (event === "PASSWORD_RECOVERY" && next) setLinkState("ready");
       });
       const timer = setTimeout(() => {
         if (!cancelled) setLinkState((current) => (current === "ready" ? current : "expired"));
-      }, 2500);
+      }, 4000);
       cleanup = () => {
         clearTimeout(timer);
         sub.subscription.unsubscribe();
@@ -170,21 +225,21 @@ function ResetPasswordCard() {
           if (!busy) void submit();
         }}
       >
-        <Input
-          type="password"
-          autoComplete="new-password"
+        <PasswordField
           value={password}
-          placeholder="New password"
-          aria-label="New password"
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={setPassword}
+          label="New password"
+          toggleName="new password"
+          shown={showPassword}
+          onToggle={() => setShowPassword((current) => !current)}
         />
-        <Input
-          type="password"
-          autoComplete="new-password"
+        <PasswordField
           value={confirm}
-          placeholder="Confirm new password"
-          aria-label="Confirm new password"
-          onChange={(event) => setConfirm(event.target.value)}
+          onChange={setConfirm}
+          label="Confirm new password"
+          toggleName="confirmation password"
+          shown={showConfirm}
+          onToggle={() => setShowConfirm((current) => !current)}
         />
         <Button type="submit" size="lg" className="w-full" disabled={busy || !password || !confirm}>
           {busy ? "Saving…" : "Save new password"}
