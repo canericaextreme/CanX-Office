@@ -2,8 +2,8 @@
  * CanX Office observation — opt-in, one-shot look at the Office page itself.
  *
  * IMPORTANT boundaries, by design:
- * - There is NO camera and NO screen sharing here. This module never calls
- *   getUserMedia, getDisplayMedia or any Screen Capture API. It renders the
+ * - There is NO camera and NO screen sharing here. No media device and no
+ *   screen-capture browser interface is used at all. It simply renders the
  *   marked CanX Office view element that is already in the page.
  * - It runs only when John presses "Observe Office". Nothing is continuous or
  *   in the background.
