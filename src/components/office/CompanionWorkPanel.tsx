@@ -7,9 +7,11 @@
  * completely separate from the Office Manager: no Manager events, tasks,
  * workbench state or spending guard. It cannot change office records.
  *
- * "Observe Office" takes one picture of the CanX Office view John is looking
- * at — never a camera, never the screen, never another tab — only when he
- * presses the button. The picture is held in memory for that request alone.
+ * "See Office Screen" takes ONE snapshot of the CanX Office view John is
+ * looking at — never a camera, never the whole screen, never another tab — and
+ * only when he presses the button. It is not a live feed: he presses it again
+ * when the screen has changed. The picture is held in memory alone and is
+ * never stored, logged, or handed to the Office Manager.
  */
 
 import { useEffect, useRef, useState } from "react";
