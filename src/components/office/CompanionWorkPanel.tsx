@@ -243,26 +243,42 @@ export function CompanionWorkPanel({
                   Office observation — {observation.room}
                 </h3>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{observation.text}</p>
-                <button
-                  type="button"
-                  data-testid="canx-send-to-manager"
-                  onClick={() => {
-                    sendManagerHandoff({
-                      text: managerDraft(observation.room, observation.path, observation.text),
-                      room: observation.room,
-                      path: observation.path,
-                    });
-                    setHandedOff(true);
-                  }}
-                  className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <SendIcon className="h-4 w-4" aria-hidden="true" />
-                  Send to Manager
-                </button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="canx-talk-about-screen"
+                    onClick={() => onTalkAboutScreen?.(observation)}
+                    aria-label="Talk with ChatGPT about this screen — closes this window and starts voice Chat"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Mic className="h-4 w-4" aria-hidden="true" />
+                    Talk with ChatGPT about this screen
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="canx-send-to-manager"
+                    onClick={() => {
+                      sendManagerHandoff({
+                        text: managerDraft(observation.room, observation.path, observation.text),
+                        room: observation.room,
+                        path: observation.path,
+                      });
+                      setHandedOff(true);
+                    }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <SendIcon className="h-4 w-4" aria-hidden="true" />
+                    Send to Manager
+                  </button>
+                </div>
                 <p className="mt-2 text-[11px] text-muted-foreground">
+                  Talking closes this window and starts voice Chat, then hands this one snapshot to it. The Office
+                  Manager is never involved in that.
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
                   {handedOff
                     ? "Draft placed in the Office Manager for you to review. Nothing was sent or saved."
-                    : "This look is held in memory only. Sending puts a draft in the Office Manager for you to review — nothing is sent or saved."}
+                    : "This snapshot is held in memory only and disappears if you reload. Sending puts a text-only draft in the Office Manager for you to review — nothing is sent or saved, and the picture never goes to the Manager."}
                 </p>
                 {voiceNote && <p className="mt-1 text-[11px] text-muted-foreground">{voiceNote}</p>}
               </article>
