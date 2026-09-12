@@ -128,6 +128,7 @@ export function CompanionDock() {
     <section
       ref={ref as React.RefObject<HTMLElement>}
       aria-label="CanX companion"
+      data-canx-no-capture="true"
       data-testid="canx-companion-dock"
       onPointerDown={onPointerDown}
       onKeyDown={(event) => {
