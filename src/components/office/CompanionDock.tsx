@@ -128,7 +128,13 @@ export function CompanionDock() {
           observationRef.current = observation;
           sharedRef.current = null;
         }}
-        voiceNote="Voice Chat picks this observation up the next time you start Chat. It is kept in memory only and disappears if you reload."
+        onTalkAboutScreen={(observation) => {
+          observationRef.current = observation;
+          sharedRef.current = null;
+          setWorkOpen(false);
+          if (!chat.on) chat.start();
+        }}
+        voiceNote="Voice Chat receives this actual snapshot once the voice connection is live. It is kept in memory only and disappears if you reload."
       />
     )}
     <section
