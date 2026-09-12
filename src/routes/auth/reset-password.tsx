@@ -223,21 +223,19 @@ function ResetPasswordCard() {
           if (!busy) void submit();
         }}
       >
-        <Input
-          type="password"
-          autoComplete="new-password"
+        <PasswordField
           value={password}
-          placeholder="New password"
-          aria-label="New password"
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={setPassword}
+          label="New password"
+          shown={showPassword}
+          onToggle={() => setShowPassword((current) => !current)}
         />
-        <Input
-          type="password"
-          autoComplete="new-password"
+        <PasswordField
           value={confirm}
-          placeholder="Confirm new password"
-          aria-label="Confirm new password"
-          onChange={(event) => setConfirm(event.target.value)}
+          onChange={setConfirm}
+          label="Confirm new password"
+          shown={showConfirm}
+          onToggle={() => setShowConfirm((current) => !current)}
         />
         <Button type="submit" size="lg" className="w-full" disabled={busy || !password || !confirm}>
           {busy ? "Saving…" : "Save new password"}
