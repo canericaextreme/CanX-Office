@@ -377,6 +377,7 @@ function denyReply(
   return {
     ok: false,
     code,
+    structuredComplete: false,
     provider: "none",
     state,
     model,
