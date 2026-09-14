@@ -32,7 +32,6 @@ function Reception() {
               <h1 className="font-reception-heading text-3xl font-extrabold text-foreground">
                  <span className="text-reception-red">CANX</span> <span className="text-reception-charcoal">Office</span>
               </h1>
-              <SampleBadge />
             </div>
             <p className="max-w-2xl text-sm text-muted-foreground">
               John's visual command centre. What is happening? What needs me? What is blocked?
@@ -103,30 +102,5 @@ function Reception() {
         </div>
       </div>
     </main>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "green" | "blue" | "yellow" | "red" | "grey";
-}) {
-  const colors = {
-    green: "border-l-canx-green bg-canx-green/5",
-    blue: "border-l-canx-blue bg-canx-blue/5",
-    yellow: "border-l-canx-yellow bg-canx-yellow/5",
-    red: "border-l-canx-red bg-canx-red/5",
-    grey: "border-l-canx-grey bg-canx-grey/5",
-  };
-
-  return (
-    <div className={`rounded-lg border-l-4 p-3 ${colors[tone]}`}>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold text-foreground">{value}</div>
-    </div>
   );
 }
