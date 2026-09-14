@@ -145,7 +145,32 @@ export interface ManagerDeps {
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   model: string | undefined;
+  /**
+   * Bounded room-worker consultation. Defaults to the real worker path built
+   * from these same dependencies; tests inject their own.
+   */
+  consultWorker?: (input: ConsultInput) => Promise<ConsultReply>;
+  now?: () => Date;
 }
+
+/** The real worker path, built from the Manager's own verified dependencies. */
+function workerConsultation(deps: ManagerDeps, input: ConsultInput): Promise<ConsultReply> {
+  if (deps.consultWorker) return deps.consultWorker(input);
+  return consultRoomWorkerWith(
+    {
+      verifySignedIn: deps.verifySignedIn ?? deps.verifyOwner,
+      reserve: deps.reserve,
+      settle: deps.settle,
+      buildContext: (token, verification) => deps.buildContext(token, verification, false),
+      fetchImpl: deps.fetchImpl,
+      openaiKey: deps.openaiKey,
+      model: deps.model,
+      ...(deps.now ? { now: deps.now } : {}),
+    },
+    input,
+  );
+}
+
 
 /**
  * Trim a server setting at read time; an empty or whitespace-only value is
