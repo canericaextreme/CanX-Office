@@ -345,28 +345,36 @@ export function useReadAloud(): ReadAloudState {
       // own, which is what keeps the voice smooth — starting pieces one at a
       // time from timers is what made the voice cut in and out.
       let remaining = chunks.length;
-      const pieceDone = () => {
-        remaining -= 1;
-        if (remaining <= 0) finish();
-      };
-      for (const piece of chunks) {
-        const utterance = new SpeechSynthesisUtterance(piece);
-        if (voiceRef.current) {
-          utterance.voice = voiceRef.current;
-          utterance.lang = voiceRef.current.lang;
+      let run = 0;
+      const queueAll = () => {
+        run += 1;
+        const myRun = run;
+        remaining = chunks.length;
+        for (const piece of chunks) {
+          const utterance = new SpeechSynthesisUtterance(piece);
+          if (voiceRef.current) {
+            utterance.voice = voiceRef.current;
+            utterance.lang = voiceRef.current.lang;
+          }
+          // Relaxed, conversational delivery rather than the flat default.
+          utterance.rate = 1.02;
+          utterance.pitch = 1.02;
+          utterance.volume = 1;
+          utterance.onstart = () => {
+            spokeRef.current = true;
+          };
+          const pieceDone = () => {
+            if (myRun !== run) return; // an old, cancelled queue
+            remaining -= 1;
+            if (remaining <= 0) finish();
+          };
+          utterance.onend = pieceDone;
+          // If a piece is dropped by the browser, carry on instead of stopping.
+          utterance.onerror = pieceDone;
+          window.speechSynthesis.speak(utterance);
         }
-        // Relaxed, conversational delivery rather than the flat default.
-        utterance.rate = 1.02;
-        utterance.pitch = 1.02;
-        utterance.volume = 1;
-        utterance.onstart = () => {
-          spokeRef.current = true;
-        };
-        utterance.onend = pieceDone;
-        // If a piece is dropped by the browser, carry on instead of stopping.
-        utterance.onerror = pieceDone;
-        window.speechSynthesis.speak(utterance);
-      }
+      };
+      queueAll();
 
       // Phones only allow speech that starts inside the button press itself,
       // so the answer is queued immediately. Chrome sometimes drops an
