@@ -22,6 +22,13 @@ import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server"
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 import { protectedCategoryOf } from "@/lib/protected-actions";
+import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
+import {
+  consultRoomWorkerWith,
+  type ConsultInput,
+  type ConsultReply,
+} from "@/lib/manager-workers.functions";
+
 import {
   assignManagerTaskWith,
   classifyManagerRisk,
