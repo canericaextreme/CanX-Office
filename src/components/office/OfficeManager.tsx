@@ -342,8 +342,8 @@ export function OfficeManager() {
             const shaped = spokenSummary(answer);
             pendingFullRef.current = shaped.truncated ? { id: answerId, text: shaped.full } : null;
             setAwaitingReadMore(shaped.truncated);
-            // The microphone stays closed while it speaks — on Android Chrome a
-            // live microphone silences the reading voice — and reopens after.
+            // The microphone stays closed while the attached audio player speaks,
+            // then a fresh recording starts only after playback has finished.
 
             if (approvalLine) suppressBannerSpeechRef.current = true;
             const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
@@ -836,8 +836,8 @@ export function OfficeManager() {
                       <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
                     </Button>
                     <p className="mt-2 text-[11px]">
-                      If you hear this test but not the answers, the microphone and the speaking voice are clashing on
-                      this phone. Nothing here is saved or sent anywhere.
+                      This tests the same attached audio player used for Manager answers. Voice audio is temporary and
+                      is not added to office records.
                     </p>
                   </div>
                 )}
