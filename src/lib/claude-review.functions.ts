@@ -354,6 +354,18 @@ export function parseReview(text: string): ClaudeReview | null {
   const recommendation = RECOMMENDATIONS.find((option) => option === raw["recommendation"]);
   const confidence = CONFIDENCES.find((option) => option === raw["confidence"]);
   if (!recommendation || !confidence) return null;
+  const findings: ClaudeAreaFinding[] = Array.isArray(raw["areaFindings"])
+    ? (raw["areaFindings"] as unknown[])
+        .slice(0, 12)
+        .map((item) => {
+          const entry = item as { area?: unknown; finding?: unknown } | null;
+          const area = REVIEW_AREAS.find((option) => option === entry?.area);
+          const finding = typeof entry?.finding === "string" ? entry.finding.slice(0, 800) : "";
+          return area && finding ? { area, finding } : null;
+        })
+        .filter((item): item is ClaudeAreaFinding => item !== null)
+    : [];
+
   return {
     recommendation,
     confidence,
@@ -361,6 +373,7 @@ export function parseReview(text: string): ClaudeReview | null {
     risks: list(raw["risks"]),
     missingEvidence: list(raw["missingEvidence"]),
     nextStep: typeof raw["nextStep"] === "string" ? raw["nextStep"].slice(0, 800) : "",
+    ...(findings.length ? { areaFindings: findings } : {}),
   };
 }
 
