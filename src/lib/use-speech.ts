@@ -384,23 +384,7 @@ export function useReadAloud(): ReadAloudState {
         if (cancelledRef.current || finished || spokeRef.current) return;
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
         window.speechSynthesis.cancel();
-        remaining = chunks.length;
-        for (const piece of chunks) {
-          const utterance = new SpeechSynthesisUtterance(piece);
-          if (voiceRef.current) {
-            utterance.voice = voiceRef.current;
-            utterance.lang = voiceRef.current.lang;
-          }
-          utterance.rate = 1.02;
-          utterance.pitch = 1.02;
-          utterance.volume = 1;
-          utterance.onstart = () => {
-            spokeRef.current = true;
-          };
-          utterance.onend = pieceDone;
-          utterance.onerror = pieceDone;
-          window.speechSynthesis.speak(utterance);
-        }
+        queueAll();
       }, 350);
     },
     [clearKeepAlive],
