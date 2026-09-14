@@ -402,7 +402,10 @@ describe("live office context replaces anything the browser sends", () => {
       "request_approval",
       "log_change",
       "second_eyes_review",
+      // Read-only room-worker consultation; still an exact, closed list.
+      "consult_room_worker",
     ]);
+
   });
 
   it("fails closed before reservation or provider calls when a receipt-detail read fails", async () => {
