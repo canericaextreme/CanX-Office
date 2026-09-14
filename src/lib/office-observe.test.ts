@@ -206,7 +206,10 @@ describe("Send to Manager is a deliberate, harmless handoff", () => {
     expect(handoff).not.toContain("send(");
     expect(handoff).not.toContain("approve");
     expect(handoff).not.toContain("saveTask");
-    expect(handoff).toContain('setTab("manager")');
+    // The Manager console is now Now / Rooms / Team / Settings; a handoff
+    // lands in the Now conversation as a draft only.
+    expect(handoff).toContain('setTab("now")');
+
     expect(handoff).toContain("setMinimized(false)");
   });
 
