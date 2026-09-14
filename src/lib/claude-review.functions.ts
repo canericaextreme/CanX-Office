@@ -287,6 +287,8 @@ Hard rules:
 - Where the material says something is not visible or not verified, repeat that plainly instead of guessing.
 - Be brief and plain. No jargon.
 
+Keep the reply COMPACT so it always finishes inside the output limit: no whitespace or line breaks between JSON tokens, no markdown fences, no prose before or after. Keep every string short — one or two plain sentences, under 300 characters — and at most four items in each list. A complete short review is always better than a long one that gets cut off.
+
 Reply with JSON only, no prose around it, exactly this shape:
 {"recommendation":"agree"|"disagree"|"agree_with_conditions"|"insufficient_evidence","confidence":"low"|"medium"|"high","strongestReasons":["..."],"risks":["..."],"missingEvidence":["..."],"nextStep":"...","areaFindings":[{"area":"Leadership & decisions","finding":"..."}]}
 
