@@ -137,6 +137,17 @@ export const ESTIMATED_CENTS_BY_SCOPE: Record<ClaudeScope, number> = {
   room: 8,
   office: 15,
 };
+/**
+ * Output room per scope. A whole-office review must carry six area findings
+ * and a room review comments on a picture, so a single fixed ceiling cut both
+ * of them off mid-JSON. These are upper limits, not targets: the system
+ * prompt still asks for a compact reply.
+ */
+export const MAX_TOKENS_BY_SCOPE: Record<ClaudeScope, number> = {
+  manual: 1600,
+  room: 2200,
+  office: 3200,
+};
 const ANTHROPIC_VERSION = "2023-06-01";
 
 /* ------------------------- injectable dependencies ------------------------- */
