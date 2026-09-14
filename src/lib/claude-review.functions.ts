@@ -87,13 +87,20 @@ export interface ClaudeReviewReply {
     | "provider_error"
     | "invalid_input"
     | "no_picture"
-    | "context_unavailable";
+    | "context_unavailable"
+    /** Anthropic answered, but the reply was not a complete structured review. */
+    | "incomplete_response";
   provider: ClaudeStatus["provider"];
   state: ClaudeState;
   model: string | null;
   /** Always the literal reviewer label shown in the UI. Claude never speaks as the manager. */
   reviewer: "Claude — independent review";
   review: ClaudeReview | null;
+  /**
+   * True only when Anthropic returned a complete, strictly shaped review. A
+   * malformed or incomplete reply is never recorded as a finished review.
+   */
+  structuredComplete: boolean;
   /** Plain-text fallback when the model did not return the expected shape. */
   text: string;
   detail?: string;
@@ -111,6 +118,8 @@ export const MAX_ROOM_TEXT = 6000;
 /** Same bounded picture rules as the existing office observation. */
 export const MAX_IMAGE_CHARS = 1_400_000;
 const MAX_OFFICE_CONTEXT = 60_000;
+/** Bounded plain text kept when the structured review did not arrive. */
+const MAX_FALLBACK_TEXT = 4000;
 const REQUEST_TIMEOUT_MS = 45_000;
 /**
  * Cold starts and first outbound connections from the server runtime can take
@@ -118,7 +127,16 @@ const REQUEST_TIMEOUT_MS = 45_000;
  * The check is a non-billable models lookup, so a generous ceiling is safe.
  */
 const HEALTH_TIMEOUT_MS = 45_000;
-const ESTIMATED_CENTS_PER_CALL = 3;
+/**
+ * Budget reservation estimates only — never a claim of the exact provider
+ * cost. A room review carries a picture and a whole-office review carries the
+ * full snapshot, so both reserve more than the small manual form review.
+ */
+export const ESTIMATED_CENTS_BY_SCOPE: Record<ClaudeScope, number> = {
+  manual: 3,
+  room: 8,
+  office: 15,
+};
 const ANTHROPIC_VERSION = "2023-06-01";
 
 /* ------------------------- injectable dependencies ------------------------- */
