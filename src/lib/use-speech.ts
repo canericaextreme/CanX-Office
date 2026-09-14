@@ -334,11 +334,14 @@ export function useReadAloud(): ReadAloudState {
       // paused — pausing it ourselves is what used to make the voice drop out.
       // If nothing is speaking or queued at all, the answer is over.
       clearKeepAlive();
+      const startedAt = Date.now();
       keepAlive.current = setInterval(() => {
         if (cancelledRef.current || finished) return;
         const synth = window.speechSynthesis;
         if (synth.paused) synth.resume();
-        else if (spokeRef.current && !synth.speaking && !synth.pending) finish();
+        else if (!synth.speaking && !synth.pending && (spokeRef.current || Date.now() - startedAt > 8000)) {
+          finish();
+        }
       }, 3000);
 
       // Queue every piece up front. The browser plays them back-to-back on its
