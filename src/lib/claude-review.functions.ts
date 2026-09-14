@@ -137,6 +137,17 @@ export const ESTIMATED_CENTS_BY_SCOPE: Record<ClaudeScope, number> = {
   room: 8,
   office: 15,
 };
+/**
+ * Output room per scope. A whole-office review must carry six area findings
+ * and a room review comments on a picture, so a single fixed ceiling cut both
+ * of them off mid-JSON. These are upper limits, not targets: the system
+ * prompt still asks for a compact reply.
+ */
+export const MAX_TOKENS_BY_SCOPE: Record<ClaudeScope, number> = {
+  manual: 1600,
+  room: 2200,
+  office: 3200,
+};
 const ANTHROPIC_VERSION = "2023-06-01";
 
 /* ------------------------- injectable dependencies ------------------------- */
@@ -286,6 +297,8 @@ Hard rules:
 - Never invent evidence, figures, market data, live status, or sources. Say what is missing instead.
 - Where the material says something is not visible or not verified, repeat that plainly instead of guessing.
 - Be brief and plain. No jargon.
+
+Keep the reply COMPACT so it always finishes inside the output limit: no whitespace or line breaks between JSON tokens, no markdown fences, no prose before or after. Keep every string short — one or two plain sentences, under 300 characters — and at most four items in each list. A complete short review is always better than a long one that gets cut off.
 
 Reply with JSON only, no prose around it, exactly this shape:
 {"recommendation":"agree"|"disagree"|"agree_with_conditions"|"insufficient_evidence","confidence":"low"|"medium"|"high","strongestReasons":["..."],"risks":["..."],"missingEvidence":["..."],"nextStep":"...","areaFindings":[{"area":"Leadership & decisions","finding":"..."}]}
@@ -610,7 +623,7 @@ async function callAnthropic(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1600,
+        max_tokens: MAX_TOKENS_BY_SCOPE[scope],
         system: systemPromptFor(scope),
         messages: [{ role: "user", content }],
       }),
@@ -636,18 +649,26 @@ async function callAnthropic(
       };
     }
 
-    const payload = (await response.json()) as { content?: { type?: string; text?: string }[] };
+    const payload = (await response.json()) as {
+      content?: { type?: string; text?: string }[];
+      stop_reason?: string;
+    };
     const text = (payload.content ?? [])
       .filter((part) => part.type === "text")
       .map((part) => part.text ?? "")
       .join("\n")
       .trim();
 
-    const review = parseReview(text);
+    // Anthropic tells us when it stopped because it ran out of output room.
+    // That is a length stop, not a refusal, and it is explained plainly.
+    const lengthStop = payload.stop_reason === "max_tokens";
+
+    const review = lengthStop ? null : parseReview(text);
 
     // Anthropic answered, but not with a complete structured review. That is
     // never recorded as a finished review: the bounded plain text is kept so
-    // John can read it, clearly labelled as incomplete.
+    // John can read it, clearly labelled as incomplete. The request is never
+    // retried automatically, because a retry is another paid call.
     if (!review) {
       return {
         ok: false,
@@ -659,8 +680,9 @@ async function callAnthropic(
         reviewer: "Claude — independent review",
         review: null,
         text: text.slice(0, MAX_FALLBACK_TEXT),
-        detail:
-          "Claude answered, but not with a complete review. Its plain reply is shown as an incomplete review. Nothing was recorded as a finished review.",
+        detail: lengthStop
+          ? "Claude's answer was cut off because it reached the length limit for this review, so the review is incomplete. Nothing was recorded as a finished review, and no repeat call was made. Press the button again to try once more, or use a narrower review."
+          : "Claude answered, but not with a complete review. Its plain reply is shown as an incomplete review. Nothing was recorded as a finished review.",
         scope,
         coverage,
         reviewedAt: new Date().toISOString(),

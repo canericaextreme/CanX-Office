@@ -159,9 +159,9 @@ async function readWorkbench(
       token,
       "manager_approvals?select=id,title,status,risk,cost_cents,created_at&order=created_at.desc&limit=40",
     ).catch(() => null),
-    rest(config, token, "manager_changes?select=action,entity,created_at&order=created_at.desc&limit=15").catch(
-      () => null,
-    ),
+    // The append-only change log stores its timestamp in the schema column
+    // "at", not "created_at". Reading the wrong column returned nothing.
+    rest(config, token, "manager_changes?select=action,entity,at&order=at.desc&limit=15").catch(() => null),
   ]);
 
   const rows = (response: { ok: boolean; body: unknown } | null) =>
@@ -202,7 +202,7 @@ async function readWorkbench(
           "Recent change log [provenance: live database; read-only]:",
           ...changeRows.map(
             (row) =>
-              `- ${line(row["action"], 120) || "action not stated"} on ${line(row["entity"], 120) || "entity not stated"} at ${line(row["created_at"], 40) || "unknown"}`,
+              `- ${line(row["action"], 120) || "action not stated"} on ${line(row["entity"], 120) || "entity not stated"} at ${line(row["at"], 40) || "unknown"}`,
           ),
         ].join("\n");
 
