@@ -52,6 +52,8 @@ import {
 import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
+import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
+
 
 interface ChatMessage {
   id: string;
@@ -427,6 +429,22 @@ export function OfficeManager() {
   // The compact companion drives this same voice conversation and work panel.
   // It never starts a second voice engine and never opens the panel on its own.
   const voiceModeOn = voiceMode;
+
+  // Text-only handoff from the companion's Work window: an explicit click
+  // prefills a draft here for review. Nothing is sent, saved or approved.
+  useEffect(() => {
+    const onHandoff = (event: Event) => {
+      const detail = (event as CustomEvent<ManagerHandoff>).detail;
+      if (!detail || typeof detail.text !== "string" || !detail.text.trim()) return;
+      setOpen(true);
+      setMinimized(false);
+      setTab("manager");
+      setDraft(detail.text.slice(0, 4000));
+    };
+    window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
+    return () => window.removeEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
+  }, []);
+
 
 
 
