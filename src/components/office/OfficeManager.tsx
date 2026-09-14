@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { Slider } from "@/components/ui/slider";
 import { loadTeam, teamForManager } from "@/lib/office-team";
 import { getManagerStatus, managerChat, type ManagerStatus, type ManagerToolCall } from "@/lib/manager.functions";
@@ -53,7 +52,11 @@ import {
 import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
-
+import {
+  COMPANION_CHAT_EVENT,
+  COMPANION_WORK_EVENT,
+  publishManagerVoiceState,
+} from "@/lib/companion-bridge";
 
 interface ChatMessage {
   id: string;
@@ -77,8 +80,6 @@ export function OfficeManager() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Honest note shown when a ChatGPT observation draft has just been prefilled. */
-  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [notes, setNotes] = useState<OfficeNote[]>([]);
@@ -159,26 +160,6 @@ export function OfficeManager() {
     window.addEventListener("canx:workbench-changed", onChanged);
     return () => window.removeEventListener("canx:workbench-changed", onChanged);
   }, [refreshMemory]);
-
-  /**
-   * Handoff from the separate ChatGPT companion, and only when John pressed
-   * "Send to Manager". It opens this panel and PREFILLS the box — it never
-   * sends, saves, approves, runs a tool or spends anything.
-   */
-  useEffect(() => {
-    const onHandoff = (event: Event) => {
-      const detail = (event as CustomEvent<ManagerHandoff>).detail;
-      if (!detail || typeof detail.text !== "string") return;
-      setOpen(true);
-      setMinimized(false);
-      setTab("manager");
-      setDraft(detail.text.slice(0, 4000));
-      setHandoffNotice(`Draft from a ChatGPT observation of ${detail.room}. Nothing has been sent or saved.`);
-      window.setTimeout(() => inputRef.current?.focus(), 0);
-    };
-    window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
-    return () => window.removeEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
-  }, []);
 
   useEffect(() => {
     const previous = lastPendingRef.current;
@@ -302,7 +283,6 @@ export function OfficeManager() {
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || busy) return;
-    setHandoffNotice(null);
 
     // A plain yes or no answers "shall I read the rest?" without going to the
     // provider at all — nothing is spent and nothing is approved by it.
@@ -424,25 +404,19 @@ export function OfficeManager() {
     voiceModeRef.current = true;
     setError(null);
     setSpeechError(null);
-    // Checked live rather than from stored state: the engine is only reliably
-    // available inside the real button press.
-    const engineHere = typeof window !== "undefined" && "speechSynthesis" in window;
-    if (!engineHere) {
+    if (!readAloud.supported) {
       setSpeechError("This browser cannot speak answers aloud. You can still talk and read the reply.");
       dictation.start();
       return;
     }
-    // Wake the engine inside the click gesture, then always try the greeting —
-    // some browsers report no voices until speech has actually begun.
-    readAloud.unlock();
+    const ready = readAloud.unlock();
+    if (!ready && !readAloud.hasVoice) {
+      setSpeechError("No speaking voice is installed in this browser, so replies cannot be spoken aloud.");
+      dictation.start();
+      return;
+    }
     dictation.start();
     speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(0));
-    // Honest fallback: if nothing was ever spoken, say so instead of pulsing silently.
-    window.setTimeout(() => {
-      if (!voiceModeRef.current) return;
-      if (readAloud.didSpeak()) return;
-      setSpeechError("No speaking voice is available in this browser, so replies cannot be spoken aloud.");
-    }, 2500);
   };
 
   const endVoiceMode = () => {
@@ -455,10 +429,45 @@ export function OfficeManager() {
     readAloud.stop();
   };
 
-  // The floating companion is fully separate: its Chat is its own voice
-  // session and its Work is its own written panel. Neither opens the Office
-  // Manager, which opens only from its own control.
+  // The compact companion drives this same voice conversation and work panel.
+  // It never starts a second voice engine and never opens the panel on its own.
+  const voiceModeOn = voiceMode;
+  useEffect(() => {
+    // Compact voice only: chat never opens the large Office Manager panel, and
+    // closes it if a previous session left it on screen.
+    const onChat = () => {
+      if (voiceModeRef.current) {
+        endVoiceMode();
+        return;
+      }
+      setOpen(false);
+      setMinimized(false);
+      startVoiceMode();
+    };
+    const onWork = () => {
+      setOpen(true);
+      setMinimized(false);
+      setTab("manager");
+    };
+    window.addEventListener(COMPANION_CHAT_EVENT, onChat);
+    window.addEventListener(COMPANION_WORK_EVENT, onWork);
+    return () => {
+      window.removeEventListener(COMPANION_CHAT_EVENT, onChat);
+      window.removeEventListener(COMPANION_WORK_EVENT, onWork);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  useEffect(() => {
+    publishManagerVoiceState({
+      voiceMode: voiceModeOn,
+      listening: dictation.listening,
+      speaking: readAloud.speakingId !== null,
+      thinking: busy,
+      supported: dictation.supported,
+      error: dictation.error ?? speechError,
+    });
+  }, [voiceModeOn, dictation.listening, dictation.supported, dictation.error, speechError, readAloud.speakingId, busy]);
 
   const repeatAnswer = () => {
     const last = lastAnswerRef.current;
@@ -516,12 +525,11 @@ export function OfficeManager() {
           <span role="status" aria-live="polite" className="truncate text-sm font-medium text-foreground">
             {liveState}
           </span>
-          {voiceMode ? (
+          {voiceMode && (
             <Button
               variant="outline"
               size="sm"
               className="h-8"
-              aria-label={dictation.listening ? "Stop listening" : "Start listening again"}
               onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
             >
               {dictation.listening ? (
@@ -534,18 +542,6 @@ export function OfficeManager() {
                 </>
               )}
             </Button>
-          ) : (
-            dictation.supported && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                aria-label="Talk — start Voice Mode and speak with the Office Manager"
-                onClick={startVoiceMode}
-              >
-                <Mic className="mr-1.5 h-3.5 w-3.5" /> Talk
-              </Button>
-            )
           )}
           <Button variant="outline" size="sm" className="h-8" onClick={() => setMinimized(false)}>
             <Maximize2 className="mr-1.5 h-3.5 w-3.5" /> Open
@@ -715,14 +711,6 @@ export function OfficeManager() {
               </div>
 
               <div className="shrink-0 border-t border-border p-2">
-                {handoffNotice && (
-                  <p
-                    data-testid="canx-manager-handoff-notice"
-                    className="mb-2 rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground"
-                  >
-                    {handoffNotice} Review or edit it, then press Send yourself.
-                  </p>
-                )}
                 <Textarea
                   ref={inputRef}
                   rows={2}
