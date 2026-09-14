@@ -221,3 +221,200 @@ describe("Manager voice and the chatbot stay untouched", () => {
     expect(panel).not.toContain("use-realtime-chat");
   });
 });
+
+describe("the verdict challenges a real claim", () => {
+  it("a room review asks Claude to challenge the page-reliance claim", () => {
+    expect(panel).toContain(
+      "This page is clear, accurate, complete, truthfully labelled, and safe for John to rely on as shown.",
+    );
+    expect(panel).toContain("Challenge that claim");
+  });
+
+  it("a whole-office review challenges the office-readiness claim", () => {
+    expect(panel).toContain(
+      "The current CanX Office is coherent, truthful, adequately controlled, and ready to guide John\u2019s decisions across all six operating areas.",
+    );
+  });
+
+  it("still asks about risks and gaps", () => {
+    expect(panel).toMatch(/unverified/);
+    expect(panel).toMatch(/missing/i);
+  });
+});
+
+describe("whole-office prompt demands exactly six areas", () => {
+  it("the office system prompt requires one entry per area, never omitted", () => {
+    const prompt = systemPromptFor("office");
+    expect(prompt).toContain("exactly six entries");
+    expect(prompt).toContain("Never omit an area");
+    for (const area of REVIEW_AREAS) expect(prompt).toContain(area);
+  });
+
+  it("a room or manual review keeps the ordinary prompt", () => {
+    expect(systemPromptFor("room")).not.toContain("exactly six entries");
+    expect(systemPromptFor("manual")).not.toContain("exactly six entries");
+  });
+
+  it("sends the office prompt only for a whole-office review", async () => {
+    const bodies: string[] = [];
+    const fetchImpl = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).includes("/models/")) return okResponse("ok");
+      bodies.push(String(init?.body ?? ""));
+      return okResponse('{"recommendation":"agree","confidence":"low"}');
+    });
+    await runClaudeReviewWith(deps({ fetchImpl: fetchImpl as unknown as typeof fetch }), {
+      ...BASE,
+      scope: "office",
+    });
+    expect(bodies[0]).toContain("exactly six entries");
+  });
+});
+
+describe("all six areas are always shown for a whole-office result", () => {
+  it("fills missing areas with an unreviewed note instead of inventing one", () => {
+    const rows = sixAreaFindings([{ area: "Money & records", finding: "Totals only." }]);
+    expect(rows).toHaveLength(6);
+    expect(rows.map((r) => r.area)).toEqual([...REVIEW_AREAS]);
+    expect(rows.find((r) => r.area === "Money & records")?.finding).toBe("Totals only.");
+    expect(rows.filter((r) => !r.reviewed)).toHaveLength(5);
+    for (const row of rows.filter((r) => !r.reviewed)) {
+      expect(row.finding).toBe(UNREVIEWED_AREA_TEXT);
+    }
+  });
+
+  it("keeps only the first finding when an area is duplicated", () => {
+    const rows = sixAreaFindings([
+      { area: "Team/skills", finding: "First" },
+      { area: "Team/skills", finding: "Second" },
+    ]);
+    expect(rows).toHaveLength(6);
+    expect(rows.filter((r) => r.area === "Team/skills")).toHaveLength(1);
+    expect(rows.find((r) => r.area === "Team/skills")?.finding).toBe("First");
+  });
+
+  it("shows all six as unreviewed when nothing came back", () => {
+    const rows = sixAreaFindings(undefined);
+    expect(rows).toHaveLength(6);
+    expect(rows.every((r) => r.reviewed === false)).toBe(true);
+  });
+
+  it("the panel renders the six-area list for an office result", () => {
+    expect(panel).toContain("sixAreaFindings(reply.review.areaFindings)");
+  });
+});
+
+describe("a malformed or incomplete reply is never a finished review", () => {
+  async function replyFor(text: string) {
+    const fetchImpl = vi.fn(async (url: unknown) =>
+      String(url).includes("/models/") ? okResponse("ok") : okResponse(text),
+    );
+    return runClaudeReviewWith(deps({ fetchImpl: fetchImpl as unknown as typeof fetch }), BASE);
+  }
+
+  it("a provider success with unusable JSON is not a completed review", async () => {
+    const reply = await replyFor("I think it's probably fine.");
+    expect(reply.ok).toBe(false);
+    expect(reply.code).toBe("incomplete_response");
+    expect(reply.structuredComplete).toBe(false);
+    expect(reply.review).toBeNull();
+    expect(reply.text).toContain("probably fine");
+  });
+
+  it("an incomplete reply with a missing confidence is refused too", async () => {
+    const reply = await replyFor('{"recommendation":"agree"}');
+    expect(reply.code).toBe("incomplete_response");
+    expect(reply.structuredComplete).toBe(false);
+  });
+
+  it("a complete structured reply is marked complete", async () => {
+    const reply = await replyFor('{"recommendation":"agree","confidence":"high","nextStep":"Go"}');
+    expect(reply.ok).toBe(true);
+    expect(reply.code).toBe("ok");
+    expect(reply.structuredComplete).toBe(true);
+  });
+
+  it("an incomplete reply still settles the reservation as used", async () => {
+    const settle = vi.fn(async () => undefined);
+    const fetchImpl = vi.fn(async (url: unknown) =>
+      String(url).includes("/models/") ? okResponse("ok") : okResponse("not json"),
+    );
+    await runClaudeReviewWith(deps({ settle, fetchImpl: fetchImpl as unknown as typeof fetch }), BASE);
+    expect(settle).toHaveBeenCalledWith("t", "r1", "ok");
+  });
+
+  it("the panel only records a completed structured review", () => {
+    expect(panel).toContain("reply.ok && reply.structuredComplete");
+    expect(panel).toContain('reply.code === "incomplete_response"');
+  });
+});
+
+describe("coverage wording is unambiguous", () => {
+  it("says Claude took no external action rather than sent nothing", async () => {
+    const fetchImpl = vi.fn(async (url: unknown) =>
+      String(url).includes("/models/")
+        ? okResponse("ok")
+        : okResponse('{"recommendation":"agree","confidence":"low"}'),
+    );
+    const reply = await runClaudeReviewWith(deps({ fetchImpl: fetchImpl as unknown as typeof fetch }), BASE);
+    expect(reply.coverage).toContain(
+      "Claude is a reviewer only: it took no external action and changed or saved nothing in the Office.",
+    );
+    expect(reply.coverage.join(" ")).not.toContain("sent nothing");
+  });
+});
+
+describe("budget reservation is conservative and honest", () => {
+  const cases: [ "manual" | "room" | "office", number ][] = [
+    ["manual", 3],
+    ["room", 8],
+    ["office", 15],
+  ];
+
+  it("keeps the published estimates", () => {
+    expect(ESTIMATED_CENTS_BY_SCOPE).toEqual({ manual: 3, room: 8, office: 15 });
+  });
+
+  for (const [scope, cents] of cases) {
+    it(`reserves ${cents} cents for a ${scope} review`, async () => {
+      const reserve = vi.fn(async () => ({ allowed: true as const, reservationId: "r1", remainingToday: 10 }));
+      const fetchImpl = vi.fn(async (url: unknown) =>
+        String(url).includes("/models/")
+          ? okResponse("ok")
+          : okResponse('{"recommendation":"agree","confidence":"low"}'),
+      );
+      await runClaudeReviewWith(deps({ reserve, fetchImpl: fetchImpl as unknown as typeof fetch }), {
+        ...BASE,
+        scope,
+        ...(scope === "room" ? { image: IMAGE } : {}),
+      });
+      expect(reserve).toHaveBeenCalledWith("t", cents);
+    });
+  }
+
+  it("still reserves before the health check and refunds a failed check", async () => {
+    const order: string[] = [];
+    const settle = vi.fn(async () => {
+      order.push("settle");
+    });
+    const reply = await runClaudeReviewWith(
+      deps({
+        reserve: async () => {
+          order.push("reserve");
+          return { allowed: true as const, reservationId: "r1", remainingToday: 10 };
+        },
+        settle,
+        fetchImpl: vi.fn(async () => new Response("no", { status: 500 })) as unknown as typeof fetch,
+      }),
+      BASE,
+    );
+    expect(order).toEqual(["reserve", "settle"]);
+    expect(reply.code).toBe("health_check_failed");
+    expect(settle).toHaveBeenCalledWith("t", "r1", "failed");
+  });
+
+  it("shows the reservation beside the buttons", () => {
+    expect(panel).toContain('reservationLabel("room")');
+    expect(panel).toContain('reservationLabel("office")');
+    expect(panel).toContain("Budget reservation: up to C$");
+  });
+});
