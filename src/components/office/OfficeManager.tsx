@@ -66,6 +66,9 @@ type Tab = "manager" | "appearance" | "notes";
 
 /** Spoken the moment Chat starts, so voice mode is always audibly confirmed. */
 export const VOICE_GREETING = "I'm listening, John.";
+/** One short sentence used by the voice check, spoken with the microphone off. */
+export const VOICE_CHECK_SENTENCE = "Voice check. If you can hear this sentence, the speaking voice works on this device.";
+
 
 export function OfficeManager() {
   const [open, setOpen] = useState(false);
