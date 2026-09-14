@@ -309,6 +309,8 @@ function denyReply(
   state: ClaudeState,
   detail: string,
   model: string | null = null,
+  scope: ClaudeScope = "manual",
+  coverage: string[] = [],
 ): ClaudeReviewReply {
   return {
     ok: false,
@@ -320,6 +322,9 @@ function denyReply(
     review: null,
     text: "",
     detail,
+    scope,
+    coverage: ["Claude did not review anything — the request was refused before it was sent.", ...coverage],
+    reviewedAt: new Date().toISOString(),
   };
 }
 
