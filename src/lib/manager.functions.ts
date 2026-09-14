@@ -385,7 +385,14 @@ const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" 
     evidence: { type: "string", maxLen: 6000 },
     question: { type: "string", maxLen: 2000 },
   },
+  consult_room_worker: {
+    worker_id: { type: "string", maxLen: 60 },
+    room: { type: "string", maxLen: 60 },
+    question: { type: "string", maxLen: 1200 },
+    task_id: { type: "string", maxLen: 100 },
+  },
 };
+
 
 export function sanitizeToolArgs(name: string, raw: string | undefined): ManagerToolArgs | null {
   const rules = TOOL_ARG_RULES[name];
