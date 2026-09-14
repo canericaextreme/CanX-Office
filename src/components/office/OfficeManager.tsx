@@ -429,7 +429,7 @@ export function OfficeManager() {
       if (!detail || typeof detail.text !== "string" || !detail.text.trim()) return;
       setOpen(true);
       setMinimized(false);
-      setTab("manager");
+      setTab("now");
       setDraft(detail.text.slice(0, 4000));
     };
     window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
