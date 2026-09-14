@@ -623,7 +623,7 @@ async function callAnthropic(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1600,
+        max_tokens: MAX_TOKENS_BY_SCOPE[scope],
         system: systemPromptFor(scope),
         messages: [{ role: "user", content }],
       }),
