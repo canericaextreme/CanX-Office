@@ -294,6 +294,20 @@ Use "areaFindings" only for the six office areas exactly as named: ${REVIEW_AREA
   "; ",
 )}. Leave an area out when the material does not support a finding for it.`;
 
+/**
+ * Extra immutable instruction for a whole-office review. Still fixed text: no
+ * browser-supplied value is interpolated into it.
+ */
+const OFFICE_SYSTEM_PROMPT = `${SYSTEM_PROMPT}
+
+This is a WHOLE-OFFICE review. "areaFindings" must contain exactly six entries, one for each of these areas, using each name exactly once and exactly as written: ${REVIEW_AREAS.join(
+  "; ",
+)}. Never omit an area, never repeat one, and never invent a finding. Where the snapshot carries no evidence for an area, the finding for that area must say plainly that it is not visible or not verified.`;
+
+export function systemPromptFor(scope: ClaudeScope): string {
+  return scope === "office" ? OFFICE_SYSTEM_PROMPT : SYSTEM_PROMPT;
+}
+
 function untrustedMaterial(data: ReviewInput, officeContext: string | null, pictureIncluded: boolean): string {
   const fence = (value: string) => value.replace(/>>>/g, "> >>");
   const scope = data.scope ?? "manual";
