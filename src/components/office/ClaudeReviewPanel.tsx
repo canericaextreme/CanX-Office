@@ -153,9 +153,16 @@ export function ClaudeReviewPanel() {
         </Button>
 
         {reply && !reply.ok && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm">
-            {reply.detail ?? "The review could not be completed."}
-          </p>
+          <div className="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm">
+            <p>
+              {reply.code === "incomplete_response"
+                ? "Incomplete review — Claude answered, but not with a finished review, so nothing here is a completed review."
+                : (reply.detail ?? "The review could not be completed.")}
+            </p>
+            {reply.code === "incomplete_response" && reply.text && (
+              <p className="whitespace-pre-wrap text-xs">{reply.text}</p>
+            )}
+          </div>
         )}
 
         {reply?.ok && (

@@ -87,13 +87,20 @@ export interface ClaudeReviewReply {
     | "provider_error"
     | "invalid_input"
     | "no_picture"
-    | "context_unavailable";
+    | "context_unavailable"
+    /** Anthropic answered, but the reply was not a complete structured review. */
+    | "incomplete_response";
   provider: ClaudeStatus["provider"];
   state: ClaudeState;
   model: string | null;
   /** Always the literal reviewer label shown in the UI. Claude never speaks as the manager. */
   reviewer: "Claude — independent review";
   review: ClaudeReview | null;
+  /**
+   * True only when Anthropic returned a complete, strictly shaped review. A
+   * malformed or incomplete reply is never recorded as a finished review.
+   */
+  structuredComplete: boolean;
   /** Plain-text fallback when the model did not return the expected shape. */
   text: string;
   detail?: string;
@@ -111,6 +118,8 @@ export const MAX_ROOM_TEXT = 6000;
 /** Same bounded picture rules as the existing office observation. */
 export const MAX_IMAGE_CHARS = 1_400_000;
 const MAX_OFFICE_CONTEXT = 60_000;
+/** Bounded plain text kept when the structured review did not arrive. */
+const MAX_FALLBACK_TEXT = 4000;
 const REQUEST_TIMEOUT_MS = 45_000;
 /**
  * Cold starts and first outbound connections from the server runtime can take
@@ -118,7 +127,16 @@ const REQUEST_TIMEOUT_MS = 45_000;
  * The check is a non-billable models lookup, so a generous ceiling is safe.
  */
 const HEALTH_TIMEOUT_MS = 45_000;
-const ESTIMATED_CENTS_PER_CALL = 3;
+/**
+ * Budget reservation estimates only — never a claim of the exact provider
+ * cost. A room review carries a picture and a whole-office review carries the
+ * full snapshot, so both reserve more than the small manual form review.
+ */
+export const ESTIMATED_CENTS_BY_SCOPE: Record<ClaudeScope, number> = {
+  manual: 3,
+  room: 8,
+  office: 15,
+};
 const ANTHROPIC_VERSION = "2023-06-01";
 
 /* ------------------------- injectable dependencies ------------------------- */
@@ -276,6 +294,20 @@ Use "areaFindings" only for the six office areas exactly as named: ${REVIEW_AREA
   "; ",
 )}. Leave an area out when the material does not support a finding for it.`;
 
+/**
+ * Extra immutable instruction for a whole-office review. Still fixed text: no
+ * browser-supplied value is interpolated into it.
+ */
+const OFFICE_SYSTEM_PROMPT = `${SYSTEM_PROMPT}
+
+This is a WHOLE-OFFICE review. "areaFindings" must contain exactly six entries, one for each of these areas, using each name exactly once and exactly as written: ${REVIEW_AREAS.join(
+  "; ",
+)}. Never omit an area, never repeat one, and never invent a finding. Where the snapshot carries no evidence for an area, the finding for that area must say plainly that it is not visible or not verified.`;
+
+export function systemPromptFor(scope: ClaudeScope): string {
+  return scope === "office" ? OFFICE_SYSTEM_PROMPT : SYSTEM_PROMPT;
+}
+
 function untrustedMaterial(data: ReviewInput, officeContext: string | null, pictureIncluded: boolean): string {
   const fence = (value: string) => value.replace(/>>>/g, "> >>");
   const scope = data.scope ?? "manual";
@@ -345,6 +377,7 @@ function denyReply(
   return {
     ok: false,
     code,
+    structuredComplete: false,
     provider: "none",
     state,
     model,
@@ -578,7 +611,7 @@ async function callAnthropic(
       body: JSON.stringify({
         model,
         max_tokens: 1600,
-        system: SYSTEM_PROMPT,
+        system: systemPromptFor(scope),
         messages: [{ role: "user", content }],
       }),
     });
@@ -589,6 +622,7 @@ async function callAnthropic(
       return {
         ok: false,
         code: "provider_error",
+        structuredComplete: false,
         provider: "anthropic",
         state: "configured_unverified",
         model,
@@ -609,14 +643,39 @@ async function callAnthropic(
       .join("\n")
       .trim();
 
+    const review = parseReview(text);
+
+    // Anthropic answered, but not with a complete structured review. That is
+    // never recorded as a finished review: the bounded plain text is kept so
+    // John can read it, clearly labelled as incomplete.
+    if (!review) {
+      return {
+        ok: false,
+        code: "incomplete_response",
+        structuredComplete: false,
+        provider: "anthropic",
+        state: "verified",
+        model,
+        reviewer: "Claude — independent review",
+        review: null,
+        text: text.slice(0, MAX_FALLBACK_TEXT),
+        detail:
+          "Claude answered, but not with a complete review. Its plain reply is shown as an incomplete review. Nothing was recorded as a finished review.",
+        scope,
+        coverage,
+        reviewedAt: new Date().toISOString(),
+      };
+    }
+
     return {
       ok: true,
       code: "ok",
+      structuredComplete: true,
       provider: "anthropic",
       state: "verified",
       model,
       reviewer: "Claude — independent review",
-      review: parseReview(text),
+      review,
       text,
       scope,
       coverage,
@@ -673,7 +732,9 @@ function coverageList(
       "Not received: office records, and no picture of any screen.",
     );
   }
-  lines.push("Claude is a reviewer only: it changed nothing, saved nothing and sent nothing.");
+  lines.push(
+    "Claude is a reviewer only: it took no external action and changed or saved nothing in the Office.",
+  );
   return lines;
 }
 
@@ -752,8 +813,10 @@ export async function runClaudeReviewWith(deps: ClaudeDeps, data: ReviewInput): 
     );
   }
 
-  // GATE 3 — the same durable per-owner rate and spending reservation.
-  const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_PER_CALL);
+  // GATE 3 — the same durable per-owner rate and spending reservation. The
+  // estimate is conservative for the larger context and picture calls, so the
+  // guard never understates them. It is a reservation, not an exact cost.
+  const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_BY_SCOPE[scope]);
   if (!reservation.allowed) {
     return denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model, scope);
   }
@@ -769,7 +832,9 @@ export async function runClaudeReviewWith(deps: ClaudeDeps, data: ReviewInput): 
 
   try {
     const reply = await callAnthropic(deps, data, officeContext, image, coverage);
-    await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
+    // An incomplete reply still used the provider call, so it settles as used.
+    const billed = reply.code === "ok" || reply.code === "incomplete_response";
+    await deps.settle(data.accessToken, reservation.reservationId, billed ? "ok" : "failed");
     return reply;
   } catch (error) {
     console.error("[claude-review] provider call threw", error instanceof Error ? error.name : "unknown");

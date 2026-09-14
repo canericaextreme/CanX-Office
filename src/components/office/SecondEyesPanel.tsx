@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useOwnerSession } from "@/lib/owner-session";
 import {
+  ESTIMATED_CENTS_BY_SCOPE,
   getClaudeStatus,
   requestClaudeReview,
   type ClaudeReviewReply,
@@ -34,8 +35,20 @@ import {
   consumePrefill,
   getSecondEyesState,
   rememberReview,
+  sixAreaFindings,
   subscribeSecondEyes,
 } from "@/lib/second-eyes";
+
+/** Plain wording for the reservation shown beside each review button. */
+function reservationLabel(scope: "manual" | "room" | "office"): string {
+  return `Budget reservation: up to C$${(ESTIMATED_CENTS_BY_SCOPE[scope] / 100).toFixed(2)}`;
+}
+
+/** The claim Claude is asked to challenge, so the verdict means something. */
+const ROOM_CLAIM =
+  "This page is clear, accurate, complete, truthfully labelled, and safe for John to rely on as shown.";
+const OFFICE_CLAIM =
+  "The current CanX Office is coherent, truthful, adequately controlled, and ready to guide John’s decisions across all six operating areas.";
 
 type Tone = "green" | "yellow" | "grey" | "checking";
 
@@ -77,6 +90,8 @@ export function SecondEyesPanel() {
   const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState<null | "room" | "office" | "manual">(null);
   const [problem, setProblem] = useState<string | null>(null);
+  /** Anthropic answered without a complete review. Never a finished review. */
+  const [incomplete, setIncomplete] = useState<ClaudeReviewReply | null>(null);
 
   const [subject, setSubject] = useState("");
   const [primary, setPrimary] = useState("");
@@ -132,6 +147,7 @@ export function SecondEyesPanel() {
   ) {
     setBusy(kind);
     setProblem(null);
+    setIncomplete(null);
     // Movement in the office is allowed only while this real request runs.
     const taskId = `claude-review-${Date.now()}`;
     startActivity({ taskId, title: `Claude second eyes — ${input.subject}`, cellId: "systems" });
@@ -145,16 +161,23 @@ export function SecondEyesPanel() {
           ...input,
         },
       });
-      if (reply.ok) {
+      const finished = reply.ok && reply.structuredComplete;
+      if (finished) {
         rememberReview(reply, room);
         setProblem(null);
+      } else if (reply.code === "incomplete_response") {
+        // Kept readable, but never recorded as the latest completed review, and
+        // never allowed to replace an earlier finished one.
+        setIncomplete(reply);
       } else {
         setProblem(reply.detail ?? "The review could not be completed.");
       }
       finishActivity(
         taskId,
-        reply.ok ? "completed" : "failed",
-        reply.ok ? "Claude returned an independent review." : (reply.detail ?? "The review did not complete."),
+        finished ? "completed" : "failed",
+        finished
+          ? "Claude returned an independent review."
+          : (reply.detail ?? "The review did not complete."),
       );
     } catch {
       setProblem("The review request did not complete.");
@@ -186,10 +209,10 @@ export function SecondEyesPanel() {
     }
     await run("room", {
       subject: `Office page review — ${room}`,
-      primaryRecommendation: `Review the CanX Office page "${room}" as John currently sees it, and say what is unclear, risky, missing or wrong.`,
+      primaryRecommendation: `CLAIM TO CHALLENGE about the CanX Office page "${room}" as John currently sees it: ${ROOM_CLAIM}`,
       evidence: "The attached picture and the visible text of this one office page.",
       question:
-        "What on this page is unclear, misleading, unverified or risky? What would you check before relying on it?",
+        `Challenge that claim. Do you agree it holds for this page? What on it is unclear, misleading, unverified, incomplete or risky, and what would you check before relying on it?`,
       image: captured.image,
       roomText: captured.text,
     });
@@ -208,11 +231,10 @@ export function SecondEyesPanel() {
     }
     await run("office", {
       subject: "Whole CanX Office review",
-      primaryRecommendation:
-        "Review the whole CanX Office across leadership and decisions, programmes and projects, operations and the work board, money and records, systems security and connections, and team and skills.",
+      primaryRecommendation: `CLAIM TO CHALLENGE about the whole CanX Office: ${OFFICE_CLAIM}`,
       evidence: "The read-only office snapshot built on the server for this request.",
       question:
-        "Where is this office weakest, and what is unverified or missing? Give findings for each of the six areas you can actually see.",
+        "Challenge that claim. Where is this office weakest, and what is unverified or missing? Give one finding for every one of the six areas, saying plainly when an area is not visible or not verified.",
       ...(picture ? { image: picture.image, roomText: picture.text } : {}),
     });
   }
@@ -307,6 +329,7 @@ export function SecondEyesPanel() {
                 <span className="block text-xs font-normal opacity-80">
                   Takes one picture of {room} now, and sends nothing if that picture fails.
                 </span>
+                <span className="block text-xs font-normal opacity-80">{reservationLabel("room")}</span>
               </span>
             </Button>
             <Button
@@ -322,6 +345,7 @@ export function SecondEyesPanel() {
                 <span className="block text-xs font-normal opacity-80">
                   Server-built read-only snapshot across the six office areas.
                 </span>
+                <span className="block text-xs font-normal opacity-80">{reservationLabel("office")}</span>
               </span>
             </Button>
             <Button
@@ -332,12 +356,27 @@ export function SecondEyesPanel() {
             >
               Review whole office, and include a picture of this page
             </Button>
+            <p className="text-xs text-muted-foreground">
+              A budget reservation is held before a review runs. It is a safety estimate, not the exact provider
+              cost.
+            </p>
           </div>
 
           {problem && (
             <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
               {problem}
             </p>
+          )}
+
+          {incomplete && (
+            <div className="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm">
+              <p className="font-medium">
+                Incomplete review — Claude answered, but not with a finished review. It was not recorded as a
+                completed review
+                {shared.lastReview ? ", and your last completed review below is unchanged." : "."}
+              </p>
+              {incomplete.text && <p className="whitespace-pre-wrap text-xs">{incomplete.text}</p>}
+            </div>
           )}
 
           {shared.lastReview?.ok && <ReviewResult reply={shared.lastReview} room={shared.lastRoom} />}
@@ -417,7 +456,18 @@ function ReviewResult({ reply, room }: { reply: ClaudeReviewReply; room: string 
             <strong>Verdict:</strong> {reply.review.recommendation.replace(/_/g, " ")} ({reply.review.confidence}{" "}
             confidence)
           </div>
-          {reply.review.areaFindings?.length ? (
+          {reply.scope === "office" ? (
+            <div>
+              <strong>By area — all six:</strong>
+              <ul className="ml-4 list-disc">
+                {sixAreaFindings(reply.review.areaFindings).map((item) => (
+                  <li key={item.area} className={item.reviewed ? undefined : "text-muted-foreground"}>
+                    <span className="font-medium">{item.area}:</span> {item.finding}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : reply.review.areaFindings?.length ? (
             <div>
               <strong>By area:</strong>
               <ul className="ml-4 list-disc">
