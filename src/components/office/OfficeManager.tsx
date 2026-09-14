@@ -22,7 +22,9 @@ import {
   Volume2,
   VolumeX,
   X,
+  Eye,
 } from "lucide-react";
+import { managerRecommendationPrefill, openSecondEyes } from "@/lib/second-eyes";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
