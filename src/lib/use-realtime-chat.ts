@@ -135,11 +135,23 @@ export function useRealtimeChat(): RealtimeChat {
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
+      // The assistant's voice needs a real, attached, playing audio element:
+      // a detached element is silently ignored by mobile browsers, and
+      // autoplay alone is not enough — play() must be called on the track.
       const audio = document.createElement("audio");
       audio.autoplay = true;
+      audio.muted = false;
+      audio.volume = 1;
+      audio.setAttribute("playsinline", "true");
+      audio.style.display = "none";
+      document.body.appendChild(audio);
       audioRef.current = audio;
       pc.ontrack = (event) => {
-        audio.srcObject = event.streams[0] ?? null;
+        const stream = event.streams[0] ?? new MediaStream([event.track]);
+        audio.srcObject = stream;
+        void audio.play().catch(() => {
+          setError("Chat is connected but your browser blocked the sound. Tap Chat again, or check the silent switch and volume.");
+        });
       };
 
       const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
