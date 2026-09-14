@@ -8,7 +8,42 @@
  * because John pressed a button.
  */
 
-import type { ClaudeReviewReply } from "@/lib/claude-review.functions";
+import {
+  REVIEW_AREAS,
+  type ClaudeAreaFinding,
+  type ClaudeReviewReply,
+  type ReviewArea,
+} from "@/lib/claude-review.functions";
+
+/** Shown when Claude returned no usable finding for one of the six areas. */
+export const UNREVIEWED_AREA_TEXT =
+  "No completed Claude finding was returned for this area; treat it as unreviewed.";
+
+/**
+ * A whole-office result always shows all six areas, in the fixed order, using
+ * the first finding Claude gave for each. A missing or duplicated area is
+ * reported as unreviewed — never filled in with an invented finding.
+ */
+export function sixAreaFindings(findings: ClaudeAreaFinding[] | undefined): {
+  area: ReviewArea;
+  finding: string;
+  reviewed: boolean;
+}[] {
+  const first = new Map<ReviewArea, string>();
+  for (const item of findings ?? []) {
+    const text = typeof item?.finding === "string" ? item.finding.trim() : "";
+    if (!text) continue;
+    const area = REVIEW_AREAS.find((option) => option === item.area);
+    if (!area || first.has(area)) continue;
+    first.set(area, text);
+  }
+  return REVIEW_AREAS.map((area) => {
+    const finding = first.get(area);
+    return finding
+      ? { area, finding, reviewed: true }
+      : { area, finding: UNREVIEWED_AREA_TEXT, reviewed: false };
+  });
+}
 
 export interface SecondEyesPrefill {
   subject: string;
