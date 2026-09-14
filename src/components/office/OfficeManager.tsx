@@ -977,7 +977,47 @@ export function OfficeManager() {
   );
 }
 
+/**
+ * The visible proof behind an answer: what was read, when, what was missing,
+ * and the exact model. Built on the server from the context actually used.
+ */
+function CheckedReceipt({ receipt }: { receipt: VerificationReceipt }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-1.5 text-left">
+      <button
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="min-h-8 rounded-md px-2 py-1 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        {open ? "Hide what was checked" : `Checked ${receipt.sources.length} source${receipt.sources.length === 1 ? "" : "s"}`}
+      </button>
+      {open && (
+        <div className="mt-1 rounded-md border border-border bg-secondary/40 p-2 text-[11px] text-muted-foreground">
+          <p className="font-semibold text-foreground">Read at {new Date(receipt.checkedAt).toLocaleString()}</p>
+          <p className="mt-1">Provider: {receipt.provider} · Model: {receipt.model}</p>
+          <p className="mt-1 font-semibold text-foreground">Sources read</p>
+          <ul className="list-disc pl-4">
+            {receipt.sources.length === 0 && <li>No labelled office records were readable for this answer.</li>}
+            {receipt.sources.map((source) => (
+              <li key={source}>{source}</li>
+            ))}
+          </ul>
+          <p className="mt-1 font-semibold text-foreground">Gaps and failed reads</p>
+          <ul className="list-disc pl-4">
+            {receipt.gaps.length === 0 && <li>None reported by the office records this time.</li>}
+            {receipt.gaps.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProposalCard({
+
   call,
   onSaveNote,
   onOpenAppearance,
