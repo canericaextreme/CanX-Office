@@ -252,7 +252,8 @@ describe("Voice context and Manager Talk stay in their own pipelines", () => {
     // Manager voice is its own recorded-audio engine, not the companion's Chat/Work.
     expect(managerSource).not.toContain("use-realtime-chat");
     expect(managerSource).not.toContain("companion-work");
-    expect(managerSource).toContain("useDictation");
+    expect(managerSource).toContain("useManagerVoice");
+    expect(managerSource).not.toContain("useDictation");
   });
 });
 
