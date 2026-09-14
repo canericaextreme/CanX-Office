@@ -732,7 +732,9 @@ function coverageList(
       "Not received: office records, and no picture of any screen.",
     );
   }
-  lines.push("Claude is a reviewer only: it changed nothing, saved nothing and sent nothing.");
+  lines.push(
+    "Claude is a reviewer only: it took no external action and changed or saved nothing in the Office.",
+  );
   return lines;
 }
 
@@ -811,8 +813,10 @@ export async function runClaudeReviewWith(deps: ClaudeDeps, data: ReviewInput): 
     );
   }
 
-  // GATE 3 — the same durable per-owner rate and spending reservation.
-  const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_PER_CALL);
+  // GATE 3 — the same durable per-owner rate and spending reservation. The
+  // estimate is conservative for the larger context and picture calls, so the
+  // guard never understates them. It is a reservation, not an exact cost.
+  const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_BY_SCOPE[scope]);
   if (!reservation.allowed) {
     return denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model, scope);
   }
@@ -828,7 +832,9 @@ export async function runClaudeReviewWith(deps: ClaudeDeps, data: ReviewInput): 
 
   try {
     const reply = await callAnthropic(deps, data, officeContext, image, coverage);
-    await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
+    // An incomplete reply still used the provider call, so it settles as used.
+    const billed = reply.code === "ok" || reply.code === "incomplete_response";
+    await deps.settle(data.accessToken, reservation.reservationId, billed ? "ok" : "failed");
     return reply;
   } catch (error) {
     console.error("[claude-review] provider call threw", error instanceof Error ? error.name : "unknown");
