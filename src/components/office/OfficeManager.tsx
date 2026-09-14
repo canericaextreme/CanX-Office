@@ -198,7 +198,12 @@ export function OfficeManager() {
   useEffect(() => {
     if (!open || status) return;
     void fetchStatus({ data: { accessToken: token } })
-      .then(setStatus)
+      .then((result) => {
+        setStatus(result);
+        // Only a check that actually passed is allowed to set a time.
+        setLastCheckLabel(result.connected ? new Date().toLocaleString() : null);
+      })
+
       .catch(() =>
         setStatus({
           provider: "none",
