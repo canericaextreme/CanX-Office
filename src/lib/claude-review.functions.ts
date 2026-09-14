@@ -649,18 +649,26 @@ async function callAnthropic(
       };
     }
 
-    const payload = (await response.json()) as { content?: { type?: string; text?: string }[] };
+    const payload = (await response.json()) as {
+      content?: { type?: string; text?: string }[];
+      stop_reason?: string;
+    };
     const text = (payload.content ?? [])
       .filter((part) => part.type === "text")
       .map((part) => part.text ?? "")
       .join("\n")
       .trim();
 
-    const review = parseReview(text);
+    // Anthropic tells us when it stopped because it ran out of output room.
+    // That is a length stop, not a refusal, and it is explained plainly.
+    const lengthStop = payload.stop_reason === "max_tokens";
+
+    const review = lengthStop ? null : parseReview(text);
 
     // Anthropic answered, but not with a complete structured review. That is
     // never recorded as a finished review: the bounded plain text is kept so
-    // John can read it, clearly labelled as incomplete.
+    // John can read it, clearly labelled as incomplete. The request is never
+    // retried automatically, because a retry is another paid call.
     if (!review) {
       return {
         ok: false,
@@ -672,8 +680,9 @@ async function callAnthropic(
         reviewer: "Claude — independent review",
         review: null,
         text: text.slice(0, MAX_FALLBACK_TEXT),
-        detail:
-          "Claude answered, but not with a complete review. Its plain reply is shown as an incomplete review. Nothing was recorded as a finished review.",
+        detail: lengthStop
+          ? "Claude's answer was cut off because it reached the length limit for this review, so the review is incomplete. Nothing was recorded as a finished review, and no repeat call was made. Press the button again to try once more, or use a narrower review."
+          : "Claude answered, but not with a complete review. Its plain reply is shown as an incomplete review. Nothing was recorded as a finished review.",
         scope,
         coverage,
         reviewedAt: new Date().toISOString(),
