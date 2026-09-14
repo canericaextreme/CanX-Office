@@ -56,6 +56,10 @@ import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
+import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
+import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
+import { CONSOLE_VIEWS, type ConsoleView, type RoomReview } from "@/lib/manager-console";
+import { budgetScopeLines, modelStatusLine, type VerificationReceipt } from "@/lib/manager-verification";
 
 
 interface ChatMessage {
@@ -63,9 +67,11 @@ interface ChatMessage {
   role: "user" | "assistant" | "office";
   content: string;
   toolCalls?: ManagerToolCall[];
+  /** What was actually read for this answer. Shown, never assumed. */
+  checked?: VerificationReceipt;
 }
 
-type Tab = "manager" | "appearance" | "notes";
+type Tab = ConsoleView;
 
 /** One short sentence used by the voice check with the microphone off. */
 export const VOICE_CHECK_SENTENCE = "Voice check. If you can hear this sentence, the speaking voice works on this device.";
@@ -75,7 +81,8 @@ export function OfficeManager() {
   const [open, setOpen] = useState(false);
   /** Shrinks the window to a small floating control; the conversation stays live. */
   const [minimized, setMinimized] = useState(false);
-  const [tab, setTab] = useState<Tab>("manager");
+  const [tab, setTab] = useState<Tab>("now");
+
   const [status, setStatus] = useState<ManagerStatus | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
