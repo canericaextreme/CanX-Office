@@ -519,11 +519,24 @@ export async function computeClaudeStatusWith(deps: ClaudeDeps, accessToken: str
 
 /* --------------------------------- review --------------------------------- */
 
-async function callAnthropic(deps: ClaudeDeps, data: ReviewInput): Promise<ClaudeReviewReply> {
+async function callAnthropic(
+  deps: ClaudeDeps,
+  data: ReviewInput,
+  officeContext: string | null,
+  image: string | null,
+  coverage: string[],
+): Promise<ClaudeReviewReply> {
   const model = deps.model!;
+  const scope = data.scope ?? "manual";
+  const imageSource = image ? anthropicImageSource(image) : null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
+    const content: unknown[] = [
+      { type: "text", text: untrustedMaterial(data, officeContext, Boolean(imageSource)) },
+    ];
+    if (imageSource) content.push({ type: "image", source: imageSource });
+
     const response = await deps.fetchImpl("https://api.anthropic.com/v1/messages", {
       method: "POST",
       signal: controller.signal,
@@ -534,9 +547,9 @@ async function callAnthropic(deps: ClaudeDeps, data: ReviewInput): Promise<Claud
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1200,
+        max_tokens: 1600,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: untrustedMaterial(data) }],
+        messages: [{ role: "user", content }],
       }),
     });
 
@@ -553,6 +566,9 @@ async function callAnthropic(deps: ClaudeDeps, data: ReviewInput): Promise<Claud
         review: null,
         text: "",
         detail: sanitizedProviderDetail(response.status),
+        scope,
+        coverage: ["Claude did not complete this review, so it reviewed nothing."],
+        reviewedAt: new Date().toISOString(),
       };
     }
 
@@ -572,22 +588,125 @@ async function callAnthropic(deps: ClaudeDeps, data: ReviewInput): Promise<Claud
       reviewer: "Claude — independent review",
       review: parseReview(text),
       text,
+      scope,
+      coverage,
+      reviewedAt: new Date().toISOString(),
     };
   } finally {
     clearTimeout(timer);
   }
 }
 
+/**
+ * What Claude actually received, in plain English. Written from the material
+ * that was really assembled, never from what was intended.
+ */
+function coverageList(
+  scope: ClaudeScope,
+  data: ReviewInput,
+  officeContext: string | null,
+  image: string | null,
+): string[] {
+  const lines: string[] = [];
+  if (scope === "office") {
+    lines.push(
+      officeContext
+        ? "Received: a fresh read-only snapshot of the office records this app can read, built on the server just now."
+        : "Not received: the whole-office snapshot.",
+      `Covered areas: ${REVIEW_AREAS.join("; ")}.`,
+      "Not received: anything kept only on John's own device, external projects and services this app cannot read, and any source that could not be read.",
+    );
+  }
+  if (scope === "room") {
+    lines.push(`Received: the office page "${data.roomLabel || "unknown"}" (${data.path || "unknown"}).`);
+  }
+  if (scope !== "manual") {
+    lines.push(
+      image
+        ? "Received: one picture of the office page as it was when the button was pressed, with form fields, secret-like items, the companion, the Work window, the Office Manager, alerts and overlays excluded."
+        : "Not received: any picture of the screen.",
+    );
+    if (scope === "office") {
+      lines.push(
+        image
+          ? "This is one visible page only — not simultaneous pictures of every room."
+          : "No page picture was attached to this whole-office review.",
+      );
+    }
+    lines.push(
+      data.roomText ? "Received: the visible text of that page, with form fields removed." : "Not received: page text.",
+    );
+  }
+  if (scope === "manual") {
+    lines.push(
+      "Received: only the subject, recommendation, evidence and question shown in the form.",
+      "Not received: office records, and no picture of any screen.",
+    );
+  }
+  lines.push("Claude is a reviewer only: it changed nothing, saved nothing and sent nothing.");
+  return lines;
+}
+
 /** Testable implementation. The server function is a thin wrapper. */
 export async function runClaudeReviewWith(deps: ClaudeDeps, data: ReviewInput): Promise<ClaudeReviewReply> {
+  const scope = data.scope ?? "manual";
+
   // GATE 1 — server-verified owner identity, role and MFA, before anything else.
   const verification = await deps.verifyOwner(data.accessToken);
   if (!verification.ok) {
-    return denyReply("auth_not_ready", "auth_unavailable", authDetail(verification, Boolean(deps.anthropicKey)));
+    return denyReply(
+      "auth_not_ready",
+      "auth_unavailable",
+      authDetail(verification, Boolean(deps.anthropicKey)),
+      null,
+      scope,
+    );
   }
 
   if (!data.subject || !data.primaryRecommendation) {
-    return denyReply("invalid_input", "not_configured", "A subject and the recommendation being reviewed are both required.");
+    return denyReply(
+      "invalid_input",
+      "not_configured",
+      "A subject and the recommendation being reviewed are both required.",
+      null,
+      scope,
+    );
+  }
+
+  // A room review exists to show Claude the screen. Without a valid bounded
+  // picture nothing is sent at all — there is no quiet text-only fallback.
+  let image: string | null = null;
+  if (data.image) {
+    image = validClaudeImage(data.image) ? data.image : null;
+  }
+  if (scope === "room" && !image) {
+    return denyReply(
+      "no_picture",
+      "configured_unverified",
+      "Claude was not shown the screen: the picture of this page was missing, unreadable or too large, so nothing was sent. Try again from this page.",
+      null,
+      scope,
+    );
+  }
+
+  // The whole-office snapshot is always built on the server, as the verified
+  // owner. A client-supplied office description is never trusted or used.
+  let officeContext: string | null = null;
+  if (scope === "office") {
+    if (!deps.buildOfficeContext) {
+      return denyReply(
+        "context_unavailable",
+        "configured_unverified",
+        "The office records could not be read on the server, so no whole-office review was requested.",
+        null,
+        scope,
+      );
+    }
+    const built = await deps.buildOfficeContext(data.accessToken, verification);
+    if (!built.ok) {
+      return denyReply("context_unavailable", "configured_unverified", built.message, null, scope);
+    }
+    officeContext = built.text;
   }
 
   // GATE 2 — key and explicit model must both be configured.
@@ -598,30 +717,34 @@ export async function runClaudeReviewWith(deps: ClaudeDeps, data: ReviewInput): 
       !deps.anthropicKey
         ? "No CanX-owned Anthropic key is configured on the server."
         : "No Anthropic model is configured on the server.",
+      null,
+      scope,
     );
   }
 
   // GATE 3 — the same durable per-owner rate and spending reservation.
   const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_PER_CALL);
   if (!reservation.allowed) {
-    return denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model);
+    return denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model, scope);
   }
 
   // GATE 4 — a real authenticated health check, every time.
   const health = await healthCheck(deps);
   if (!health.ok) {
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
-    return denyReply("health_check_failed", "configured_unverified", health.detail, deps.model);
+    return denyReply("health_check_failed", "configured_unverified", health.detail, deps.model, scope);
   }
 
+  const coverage = coverageList(scope, data, officeContext, image);
+
   try {
-    const reply = await callAnthropic(deps, data);
+    const reply = await callAnthropic(deps, data, officeContext, image, coverage);
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
     return reply;
   } catch (error) {
     console.error("[claude-review] provider call threw", error instanceof Error ? error.name : "unknown");
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
-    return denyReply("provider_error", "configured_unverified", sanitizedProviderDetail(), deps.model);
+    return denyReply("provider_error", "configured_unverified", sanitizedProviderDetail(), deps.model, scope);
   }
 }
 
