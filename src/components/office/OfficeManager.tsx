@@ -40,7 +40,8 @@ import {
 } from "@/lib/office-theme";
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
-import { useDictation, useReadAloud } from "@/lib/use-speech";
+import { speakManagerText, transcribeManagerAudio } from "@/lib/manager-voice.functions";
+import { useManagerVoice } from "@/lib/use-manager-voice";
 import {
   approvalSubmissionNotice,
   forSpeech,
@@ -64,9 +65,7 @@ interface ChatMessage {
 
 type Tab = "manager" | "appearance" | "notes";
 
-/** Spoken the moment Chat starts, so voice mode is always audibly confirmed. */
-export const VOICE_GREETING = "I'm listening, John.";
-/** One short sentence used by the voice check, spoken with the microphone off. */
+/** One short sentence used by the voice check with the microphone off. */
 export const VOICE_CHECK_SENTENCE = "Voice check. If you can hear this sentence, the speaking voice works on this device.";
 
 
@@ -93,6 +92,7 @@ export function OfficeManager() {
   const voiceModeRef = useRef(false);
   const mutedRef = useRef(false);
   const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
+  const voiceTurnRef = useRef<(audioBase64: string, mimeType: string) => Promise<void>>(async () => undefined);
   const lastAnswerRef = useRef<{ id: string; text: string } | null>(null);
   /** The full Manager panel can be dragged by its handle so it never blocks top buttons. */
   const panel = useDraggablePanel({ initial: { right: 16, bottom: 80 } });
@@ -102,63 +102,22 @@ export function OfficeManager() {
   /** Full text of an answer that was summarised aloud, waiting for a yes. */
   const pendingFullRef = useRef<{ id: string; text: string } | null>(null);
   const [awaitingReadMore, setAwaitingReadMore] = useState(false);
-  const speakingRef = useRef(false);
-  const listeningRef = useRef(false);
-  const bargeInRef = useRef<((heard: string) => void) | null>(null);
-  /** What the Manager is saying, so its own voice is not mistaken for John's. */
-  const spokenTextRef = useRef("");
+  const requestTranscription = useServerFn(transcribeManagerAudio);
+  const requestSpeech = useServerFn(speakManagerText);
+  const managerVoice = useManagerVoice((audioBase64, mimeType) => voiceTurnRef.current(audioBase64, mimeType));
 
-  const dictation = useDictation({
-    onFinal: (heard: string) =>
-      setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard)),
-    onPause: () => {
-      if (voiceModeRef.current) void sendRef.current();
-    },
-    // Barge-in: as soon as John speaks, the Manager stops talking and listens.
-    onSpeechStart: (heard: string) => bargeInRef.current?.(heard),
-  });
-  const readAloud = useReadAloud();
-  speakingRef.current = readAloud.speakingId !== null;
-  listeningRef.current = dictation.listening;
-  bargeInRef.current = (heard: string) => {
-    if (!speakingRef.current) return;
-    const clean = heard.trim().toLowerCase().replace(/\s+/g, " ");
-    const words = clean.split(" ").filter(Boolean);
-    // Ignore stray words, and ignore the Manager's own words coming back
-    // through the microphone — otherwise it cuts itself off mid-sentence.
-    if (words.length < 4) return;
-    const echo = spokenTextRef.current;
-    if (echo) {
-      if (echo.includes(clean)) return;
-      // Any run of three words that the Manager just said is treated as echo.
-      for (let i = 0; i + 2 < words.length; i += 1) {
-        if (echo.includes(words.slice(i, i + 3).join(" "))) return;
-      }
-    }
-    readAloud.stop();
-  };
-
-  /**
-   * Speak an answer. The microphone is always closed first: on Android Chrome a
-   * live microphone and the browser's reading voice fight over the same audio
-   * channel, which leaves the Manager listening but silent. Listening starts
-   * again as soon as the answer has been spoken.
-   */
-  const speakAnswer = (id: string, text: string, onDone?: () => void) => {
-    dictation.stop();
-    listeningRef.current = false;
-    spokenTextRef.current = text.toLowerCase().replace(/\s+/g, " ");
+  const speakAnswer = async (_id: string, text: string, onDone?: () => void) => {
+    managerVoice.stopListening();
     setSpeechError(null);
-    readAloud.speak(id, text, () => {
-      spokenTextRef.current = "";
-      onDone?.();
-    });
-    // Honest failure: if nothing actually started, say so instead of silence.
-    window.setTimeout(() => {
-      if (!readAloud.didSpeak()) {
-        setSpeechError("Your phone did not play the answer aloud — the reply is written below. Open Voice check for details.");
-      }
-    }, 2200);
+    managerVoice.setPhase("preparing");
+    const result = await requestSpeech({ data: { accessToken: token, text } }).catch(() => null);
+    if (!result?.ok || !result.audioBase64) {
+      managerVoice.setPhase("error");
+      setSpeechError(result?.detail ?? "The Manager voice could not prepare that answer. The written answer is still available.");
+      return;
+    }
+    const played = await managerVoice.playAudio(result.audioBase64, result.contentType, onDone);
+    if (!played) setSpeechError("Your phone could not play the Manager's voice. Press Play answer to try again.");
   };
 
 
@@ -189,7 +148,7 @@ export function OfficeManager() {
     }
     if (!voiceModeRef.current || mutedRef.current) return;
     const line = pendingApprovalNotice(pendingApprovals);
-    if (line) speakAnswer(`approvals-${pendingApprovals}`, line);
+    if (line) void speakAnswer(`approvals-${pendingApprovals}`, line);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingApprovals]);
 
@@ -253,8 +212,8 @@ export function OfficeManager() {
     voiceModeRef.current = false;
     setVoiceMode(false);
     setMuted(false);
-    dictation.stop();
-    readAloud.stop();
+    managerVoice.stopListening();
+    managerVoice.stopPlayback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -310,8 +269,8 @@ export function OfficeManager() {
         pendingFullRef.current = null;
         setAwaitingReadMore(false);
         setDraft("");
-        dictation.stop();
-        speakAnswer(pending.id, pending.text, resumeListening);
+        managerVoice.stopListening();
+        void speakAnswer(pending.id, pending.text, resumeListening);
         return;
       }
       if (isNegative(text)) {
@@ -326,7 +285,7 @@ export function OfficeManager() {
     }
 
     // In Voice Mode the microphone pauses while the Manager thinks.
-    if (voiceModeRef.current) dictation.stop();
+    if (voiceModeRef.current) managerVoice.stopListening();
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
     const history = [...messages, userMessage];
@@ -388,7 +347,7 @@ export function OfficeManager() {
 
             if (approvalLine) suppressBannerSpeechRef.current = true;
             const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
-            speakAnswer(answerId, spoken, resumeListening);
+            void speakAnswer(answerId, spoken, resumeListening);
           }
         }
       }
@@ -402,6 +361,18 @@ export function OfficeManager() {
   };
   sendRef.current = send;
 
+  voiceTurnRef.current = async (audioBase64: string, mimeType: string) => {
+    setSpeechError(null);
+    const result = await requestTranscription({ data: { accessToken: token, audioBase64, mimeType } }).catch(() => null);
+    if (!result?.ok || !result.text) {
+      managerVoice.setPhase("error");
+      setSpeechError(result?.detail ?? "The Manager could not understand that recording. Please press Talk and try again.");
+      return;
+    }
+    setDraft(result.text);
+    await sendRef.current(result.text);
+  };
+
   /**
    * Voice Mode keeps the microphone open. It is started alongside the spoken
    * answer (delay 0) so John can interrupt, and again once speaking ends.
@@ -409,7 +380,7 @@ export function OfficeManager() {
   function resumeListening(delay = 300) {
     if (!voiceModeRef.current) return;
     setTimeout(() => {
-      if (voiceModeRef.current && !listeningRef.current) dictation.start();
+      if (voiceModeRef.current && managerVoice.phase !== "listening") void managerVoice.startListening();
     }, delay);
   }
 
@@ -423,21 +394,8 @@ export function OfficeManager() {
     voiceModeRef.current = true;
     setError(null);
     setSpeechError(null);
-    if (!readAloud.supported) {
-      setSpeechError("This browser cannot speak answers aloud. You can still talk and read the reply.");
-      dictation.start();
-      return;
-    }
-    const ready = readAloud.unlock();
-    if (!ready && !readAloud.hasVoice) {
-      setSpeechError("No speaking voice is installed in this browser, so replies cannot be spoken aloud.");
-      dictation.start();
-      return;
-    }
-    // Speak first with the microphone closed, then listen once the greeting
-    // has finished. Listening and speaking together is what kept it silent.
-    speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(200));
-
+    managerVoice.unlockPlayback();
+    void managerVoice.startListening();
   };
 
   const endVoiceMode = () => {
@@ -446,8 +404,8 @@ export function OfficeManager() {
     pendingFullRef.current = null;
     setAwaitingReadMore(false);
     setSpeechError(null);
-    dictation.stop();
-    readAloud.stop();
+    managerVoice.stopListening();
+    managerVoice.stopPlayback();
   };
 
   // The compact companion drives this same voice conversation and work panel.
@@ -475,8 +433,8 @@ export function OfficeManager() {
   const repeatAnswer = () => {
     const last = lastAnswerRef.current;
     if (!last) return;
-    dictation.stop();
-    speakAnswer(last.id, forSpeech(last.text), resumeListening);
+    managerVoice.stopListening();
+    void speakAnswer(last.id, forSpeech(last.text), resumeListening);
   };
 
 
@@ -497,9 +455,13 @@ export function OfficeManager() {
   // Plain words for the small floating control, so the state is never a colour alone.
   const liveState = busy
     ? "Thinking…"
-    : readAloud.speakingId !== null
+    : managerVoice.phase === "preparing"
+      ? "Preparing voice…"
+      : managerVoice.phase === "speaking"
       ? "Speaking…"
-      : dictation.listening
+      : managerVoice.phase === "transcribing"
+        ? "Understanding…"
+      : managerVoice.phase === "listening"
         ? "Listening…"
         : voiceMode
           ? "Voice Mode on — paused"
@@ -533,9 +495,9 @@ export function OfficeManager() {
               variant="outline"
               size="sm"
               className="h-8"
-              onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+              onClick={() => (managerVoice.phase === "listening" ? managerVoice.stopListening() : void managerVoice.startListening())}
             >
-              {dictation.listening ? (
+              {managerVoice.phase === "listening" ? (
                 <>
                   <Square className="mr-1.5 h-3.5 w-3.5" /> Stop
                 </>
@@ -658,21 +620,21 @@ export function OfficeManager() {
                     >
                       {message.content}
                     </div>
-                    {message.role !== "user" && readAloud.supported && (
+                    {message.role !== "user" && (
                       <Button
                         size="sm"
                         variant="ghost"
                         className="mt-1 h-7 px-2 text-xs"
                         aria-label={
-                          readAloud.speakingId === message.id ? "Stop reading this answer aloud" : "Read this answer aloud"
+                          managerVoice.phase === "speaking" ? "Stop reading this answer aloud" : "Read this answer aloud"
                         }
                         onClick={() =>
-                          readAloud.speakingId === message.id
-                            ? readAloud.stop()
-                            : speakAnswer(message.id, forSpeech(message.content))
+                          managerVoice.phase === "speaking"
+                            ? managerVoice.stopPlayback()
+                            : void speakAnswer(message.id, forSpeech(message.content))
                         }
                       >
-                        {readAloud.speakingId === message.id ? (
+                        {managerVoice.phase === "speaking" ? (
                           <>
                             <Square className="mr-1.5 h-3.5 w-3.5" /> Stop reading
                           </>
@@ -732,11 +694,7 @@ export function OfficeManager() {
                   <Button size="sm" onClick={() => void send()} disabled={busy || !draft.trim()}>
                     <Send className="mr-1.5 h-4 w-4" /> Send
                   </Button>
-                  {!dictation.supported ? (
-                    <Button size="sm" variant="outline" disabled aria-label="Voice Mode is not available in this browser">
-                      <MicOff className="mr-1.5 h-4 w-4" /> Talk
-                    </Button>
-                  ) : !voiceMode ? (
+                  {!voiceMode ? (
                     <Button
                       size="sm"
                       variant="outline"
@@ -763,22 +721,25 @@ export function OfficeManager() {
                     <p role="status" aria-live="polite" className="flex items-center gap-2 text-xs font-semibold text-foreground">
                       <span
                         className={`inline-block h-2 w-2 rounded-full ${
-                          busy ? "bg-amber-500" : readAloud.speakingId ? "bg-sky-500" : dictation.listening ? "bg-red-500" : "bg-muted-foreground"
+                          busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing" ? "bg-amber-500" : managerVoice.phase === "speaking" ? "bg-sky-500" : managerVoice.phase === "listening" ? "bg-red-500" : "bg-muted-foreground"
                         }`}
                         aria-hidden="true"
                       />
                       {busy
                         ? "Thinking… the Manager is working on your answer."
-                        : readAloud.speakingId
+                        : managerVoice.phase === "preparing"
+                          ? "Preparing voice… creating the spoken answer."
+                        : managerVoice.phase === "speaking"
                           ? "Speaking… reading the answer aloud."
-                          : dictation.listening
-                            ? "Listening… speak now, then pause and it will be sent."
-                            : "Voice Mode is on, but the microphone is stopped. Press Start listening."}
+                          : managerVoice.phase === "transcribing"
+                            ? "Understanding… turning your voice into words."
+                          : managerVoice.phase === "listening"
+                            ? "Listening… speak now, then pause."
+                            : "Voice Mode is on. Press Start listening."}
                     </p>
-                    {(dictation.interim || draft) && (
+                    {draft && (
                       <p className="mt-1.5 text-xs text-muted-foreground">
-                        Heard so far: {draft}
-                        {dictation.interim ? ` ${dictation.interim}` : ""}
+                        Heard: {draft}
                       </p>
                     )}
                     {awaitingReadMore && (
@@ -788,12 +749,12 @@ export function OfficeManager() {
                       </p>
                     )}
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {dictation.listening ? (
-                        <Button size="sm" variant="outline" aria-label="Stop listening" onClick={dictation.stop}>
+                      {managerVoice.phase === "listening" ? (
+                        <Button size="sm" variant="outline" aria-label="Stop listening and send voice turn" onClick={managerVoice.stopListening}>
                           <Square className="mr-1.5 h-4 w-4" /> Stop listening
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" aria-label="Start listening again" onClick={dictation.start}>
+                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing"} onClick={() => void managerVoice.startListening()}>
                           <Mic className="mr-1.5 h-4 w-4" /> Start listening
                         </Button>
                       )}
@@ -806,7 +767,7 @@ export function OfficeManager() {
                           const next = !muted;
                           setMuted(next);
                           mutedRef.current = next;
-                          if (next) readAloud.stop();
+                          if (next) managerVoice.stopPlayback();
                         }}
                       >
                         {muted ? <VolumeX className="mr-1.5 h-4 w-4" /> : <Volume2 className="mr-1.5 h-4 w-4" />}
@@ -829,9 +790,9 @@ export function OfficeManager() {
                   </div>
                 )}
 
-                {speechError && (
+                {(speechError || managerVoice.error) && (
                   <p role="alert" className="mt-2 text-xs text-destructive">
-                    {speechError}
+                    {speechError ?? managerVoice.error}
                   </p>
                 )}
 
@@ -852,23 +813,13 @@ export function OfficeManager() {
                     aria-label="Voice check"
                     className="mt-2 rounded-lg border border-border bg-secondary/40 p-2.5 text-xs text-muted-foreground"
                   >
-                    <p className="font-semibold text-foreground">What this device's speaking voice did</p>
+                     <p className="font-semibold text-foreground">What the Manager's audio player did</p>
                     <ul className="mt-1.5 space-y-1">
-                      <li>Reading voice available: {readAloud.supported ? "yes" : "no"}</li>
-                      <li>
-                        Voices found: {readAloud.report.at ? readAloud.report.voiceCount : readAloud.hasVoice ? "some" : "none yet"}
-                        {readAloud.report.voiceName ? ` — using ${readAloud.report.voiceName}` : ""}
-                      </li>
-                      <li>
-                        Last attempt:{" "}
-                        {readAloud.report.at
-                          ? `${new Date(readAloud.report.at).toLocaleTimeString()}, ${readAloud.report.chunks} piece(s)`
-                          : "none yet"}
-                      </li>
-                      <li>Phone reported speaking started: {readAloud.report.started ? "yes" : "no"}</li>
-                      <li>Phone reported speaking finished: {readAloud.report.ended ? "yes" : "no"}</li>
-                      <li>Problem reported by the phone: {readAloud.report.errorCode ?? "none"}</li>
-                      <li>Microphone open right now: {dictation.listening ? "yes" : "no"}</li>
+                       <li>Voice turn recorded: {managerVoice.report.recorded ? "yes" : "no"}</li>
+                       <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
+                       <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
+                       <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
+                       <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
                     </ul>
                     <Button
                       size="sm"
@@ -876,11 +827,10 @@ export function OfficeManager() {
                       className="mt-2"
                       aria-label="Test the voice with the microphone off"
                       onClick={() => {
-                        dictation.stop();
-                        listeningRef.current = false;
+                        managerVoice.stopListening();
                         setSpeechError(null);
-                        readAloud.unlock();
-                        readAloud.speak(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
+                        managerVoice.unlockPlayback();
+                        void speakAnswer(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
                       }}
                     >
                       <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
@@ -892,18 +842,6 @@ export function OfficeManager() {
                   </div>
                 )}
 
-                {dictation.error && (
-                  <p role="alert" className="mt-2 text-xs text-destructive">
-                    {dictation.error}
-                  </p>
-                )}
-
-                {!dictation.supported && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Voice Mode is not available in this browser, so please type your message and use Send. Chrome, Edge
-                    and Safari support it.
-                  </p>
-                )}
               </div>
             </>
           )}
