@@ -374,6 +374,7 @@ export function useReadAloud(): ReadAloudState {
       const finish = () => {
         clearKeepAlive();
         setSpeakingId(null);
+        setReport((current) => ({ ...current, ended: true }));
         onDone?.();
       };
 
@@ -407,10 +408,15 @@ export function useReadAloud(): ReadAloudState {
         };
         utterance.onstart = () => {
           spokeRef.current = true;
+          setReport((current) => ({ ...current, started: true }));
         };
         utterance.onend = next;
         // If a piece is dropped by the browser, carry on instead of stopping.
-        utterance.onerror = next;
+        utterance.onerror = (event: any) => {
+          const code = typeof event?.error === "string" ? event.error : "unknown";
+          setReport((current) => ({ ...current, errorCode: current.errorCode ?? code }));
+          next();
+        };
         window.speechSynthesis.speak(utterance);
         // Safety net: if the browser never reports the piece as finished,
         // carry on anyway so the rest of the answer is still spoken.
@@ -427,12 +433,19 @@ export function useReadAloud(): ReadAloudState {
         );
       };
 
-      // Chrome drops the first utterance when it is queued in the same tick as
-      // cancel(), so give it a moment before starting.
-      setTimeout(() => speakChunk(0), 90);
+      // Start inside the same press that asked for it: Chrome refuses speech
+      // that is queued later, which is one cause of a completely silent answer.
+      speakChunk(0);
+      // If the browser swallowed that first piece, ask once more shortly after.
+      setTimeout(() => {
+        if (cancelledRef.current || spokeRef.current) return;
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
+        speakChunk(0);
+      }, 900);
     },
     [clearKeepAlive],
   );
 
-  return { supported, hasVoice, speakingId, speak, stop, unlock, didSpeak };
+  return { supported, hasVoice, speakingId, speak, stop, unlock, didSpeak, report };
+
 }
