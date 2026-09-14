@@ -611,7 +611,7 @@ async function callAnthropic(
       body: JSON.stringify({
         model,
         max_tokens: 1600,
-        system: SYSTEM_PROMPT,
+        system: systemPromptFor(scope),
         messages: [{ role: "user", content }],
       }),
     });
@@ -622,6 +622,7 @@ async function callAnthropic(
       return {
         ok: false,
         code: "provider_error",
+        structuredComplete: false,
         provider: "anthropic",
         state: "configured_unverified",
         model,
@@ -642,9 +643,34 @@ async function callAnthropic(
       .join("\n")
       .trim();
 
+    const review = parseReview(text);
+
+    // Anthropic answered, but not with a complete structured review. That is
+    // never recorded as a finished review: the bounded plain text is kept so
+    // John can read it, clearly labelled as incomplete.
+    if (!review) {
+      return {
+        ok: false,
+        code: "incomplete_response",
+        structuredComplete: false,
+        provider: "anthropic",
+        state: "verified",
+        model,
+        reviewer: "Claude — independent review",
+        review: null,
+        text: text.slice(0, MAX_FALLBACK_TEXT),
+        detail:
+          "Claude answered, but not with a complete review. Its plain reply is shown as an incomplete review. Nothing was recorded as a finished review.",
+        scope,
+        coverage,
+        reviewedAt: new Date().toISOString(),
+      };
+    }
+
     return {
       ok: true,
       code: "ok",
+      structuredComplete: true,
       provider: "anthropic",
       state: "verified",
       model,
