@@ -278,6 +278,20 @@ export function OfficeManager() {
     const text = (override ?? draft).trim();
     if (!text || busy) return;
 
+    // Asking the Manager to look at the screen opens the Rooms view, where the
+    // one-shot look is an explicit button press. Nothing is looked at silently.
+    if (requestsRoomLook(text)) {
+      setDraft("");
+      setTab("rooms");
+      setMessages((current) => [
+        ...current,
+        { id: `look-${Date.now()}`, role: "office", content: LOOK_NOTICE },
+      ]);
+      return;
+    }
+
+
+
     // A plain yes or no answers "shall I read the rest?" without going to the
     // provider at all — nothing is spent and nothing is approved by it.
     const pending = pendingFullRef.current;
