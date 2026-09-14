@@ -1,7 +1,21 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { runClaudeReviewWith, REVIEW_AREAS, parseReview, type ClaudeDeps } from "./claude-review.functions";
-import { managerRecommendationPrefill, openSecondEyes, consumePrefill, getSecondEyesState } from "./second-eyes";
+import {
+  runClaudeReviewWith,
+  REVIEW_AREAS,
+  ESTIMATED_CENTS_BY_SCOPE,
+  systemPromptFor,
+  parseReview,
+  type ClaudeDeps,
+} from "./claude-review.functions";
+import {
+  managerRecommendationPrefill,
+  openSecondEyes,
+  consumePrefill,
+  getSecondEyesState,
+  sixAreaFindings,
+  UNREVIEWED_AREA_TEXT,
+} from "./second-eyes";
 import type { OwnerVerification } from "./canx-backend.server";
 
 const OWNER: OwnerVerification = { ok: true, userId: "u1", email: "owner@example.com", aal: "aal2" };
