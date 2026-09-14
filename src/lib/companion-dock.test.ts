@@ -47,8 +47,9 @@ describe("compact CanX companion", () => {
     expect(dockSource).not.toContain("requestCompanionChat");
     expect(chatSource).not.toContain("speechSynthesis");
     expect(chatSource).not.toContain("SpeechSynthesisUtterance");
-    // The Office Manager panel keeps its own separate voice controls.
-    expect(managerSource).toContain("useReadAloud");
+    // The Office Manager keeps a separate recorded-audio path.
+    expect(managerSource).toContain("useManagerVoice");
+    expect(managerSource).not.toContain("useRealtimeChat");
     expect(managerSource).not.toContain("COMPANION_CHAT_EVENT");
   });
 
