@@ -377,8 +377,9 @@ export function OfficeManager() {
             const shaped = spokenSummary(answer);
             pendingFullRef.current = shaped.truncated ? { id: answerId, text: shaped.full } : null;
             setAwaitingReadMore(shaped.truncated);
-            // Listening stays on while it speaks, so John can interrupt.
-            resumeListening(0);
+            // The microphone stays closed while it speaks — on Android Chrome a
+            // live microphone silences the reading voice — and reopens after.
+
             if (approvalLine) suppressBannerSpeechRef.current = true;
             const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
             speakAnswer(answerId, spoken, resumeListening);
