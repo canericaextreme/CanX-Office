@@ -3,58 +3,77 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const manager = readFileSync(resolve(process.cwd(), "src/components/office/OfficeManager.tsx"), "utf8");
-const speech = readFileSync(resolve(process.cwd(), "src/lib/use-speech.ts"), "utf8");
+const voice = readFileSync(resolve(process.cwd(), "src/lib/use-manager-voice.ts"), "utf8");
+const endpoints = readFileSync(resolve(process.cwd(), "src/lib/manager-voice.functions.ts"), "utf8");
 
-describe("Office Manager voice audit — evidence panel", () => {
+describe("Office Manager voice — portable recording and playback", () => {
   it("offers a voice check with a microphone-off test sentence", () => {
     expect(manager).toContain("Voice check");
     expect(manager).toContain("VOICE_CHECK_SENTENCE");
     expect(manager).toContain("Test voice (microphone off)");
   });
 
-  it("reports what the device's speech engine actually did", () => {
-    expect(manager).toContain("readAloud.report.started");
-    expect(manager).toContain("readAloud.report.ended");
-    expect(manager).toContain("readAloud.report.errorCode");
-    expect(manager).toContain("readAloud.report.voiceCount");
+  it("reports actual recording and audio playback events", () => {
+    expect(manager).toContain("managerVoice.report.recorded");
+    expect(manager).toContain("managerVoice.report.playbackStarted");
+    expect(manager).toContain("managerVoice.report.playbackEnded");
+    expect(voice).toContain("audio.onplay");
+    expect(voice).toContain("audio.onended");
   });
 
-  it("the speech helper records start, finish and error evidence", () => {
-    expect(speech).toContain("SpeechReport");
-    expect(speech).toContain("started: true");
-    expect(speech).toContain("ended: true");
-    expect(speech).toContain("errorCode");
-    expect(speech).toMatch(/report\s*}/);
-  });
-});
-
-describe("Office Manager voice audit — listening and speaking never overlap", () => {
-  it("closes the microphone before speaking", () => {
-    const speakAnswer = manager.slice(manager.indexOf("const speakAnswer"));
-    const body = speakAnswer.slice(0, speakAnswer.indexOf("readAloud.speak("));
-    expect(body).toContain("dictation.stop()");
-  });
-
-  it("does not reopen the microphone at the moment an answer is spoken", () => {
-    expect(manager).not.toContain("resumeListening(0);\n            if (approvalLine)");
-    expect(manager).not.toMatch(/dictation\.start\(\);\s*\n\s*speakAnswer\(`greeting/);
-  });
-
-  it("speaks the greeting first and listens once it has finished", () => {
-    expect(manager).toMatch(/speakAnswer\(`greeting-\$\{Date\.now\(\)\}`, VOICE_GREETING, \(\) => resumeListening\(200\)\)/);
+  it("uses MediaRecorder rather than browser recognition or speech synthesis", () => {
+    expect(voice).toContain("new MediaRecorder");
+    expect(voice).toContain('document.createElement("audio")');
+    expect(manager).not.toContain("useDictation");
+    expect(manager).not.toContain("useReadAloud");
+    expect(manager).not.toContain("speechSynthesis");
   });
 });
 
-describe("Office Manager voice audit — honest silence", () => {
-  it("tells John when the phone played nothing instead of staying silent", () => {
-    expect(manager).toContain("readAloud.didSpeak()");
-    expect(manager).toContain("Your phone did not play the answer aloud");
-    expect(manager).toContain("{speechError}");
+describe("Office Manager voice — serialized turn lifecycle", () => {
+  it("releases microphone tracks before audio playback", () => {
+    const playback = voice.slice(voice.indexOf("const playAudio"));
+    expect(playback.indexOf("releaseRecording()")) .toBeLessThan(playback.indexOf("audio.play()"));
+    expect(voice).toContain("getTracks().forEach((track) => track.stop())");
   });
 
-  it("starts the first piece inside the button press rather than on a timer", () => {
-    expect(speech).not.toContain("setTimeout(() => speakChunk(0), 90)");
-    expect(speech).toMatch(/\n\s*speakChunk\(0\);/);
+  it("records a complete file and stops after bounded silence or time", () => {
+    expect(voice).toContain("recorder.start()");
+    expect(voice).not.toMatch(/recorder\.start\(\s*\d/);
+    expect(voice).toContain("Date.now() - quietSince > 1400");
+    expect(voice).toContain("MAX_RECORDING_MS");
+  });
+
+  it("transcribes, sends the existing Manager request, speaks, then listens again", () => {
+    expect(manager).toContain("requestTranscription");
+    expect(manager).toContain("await sendRef.current(result.text)");
+    expect(manager).toContain("requestSpeech");
+    expect(manager).toContain("managerVoice.playAudio");
+    expect(manager).toContain("void speakAnswer(answerId, spoken, resumeListening)");
+  });
+});
+
+describe("Office Manager voice — bounded, ephemeral server audio", () => {
+  it("requires owner sign-in and uses the existing server-only OpenAI key", () => {
+    expect(endpoints).toContain("verifySignedInWith");
+    expect(endpoints).toContain('process.env["OPENAI_API_KEY"]');
+    expect(endpoints).toContain("reserveAiCallWith");
+    expect(endpoints).toContain("settleAiCallWith");
+  });
+
+  it("bounds recordings and spoken text without saving audio", () => {
+    expect(endpoints).toContain("MAX_AUDIO_BYTES");
+    expect(endpoints).toContain("MAX_SPEECH_CHARS");
+    expect(voice).toContain("URL.revokeObjectURL");
+    expect(endpoints).not.toContain("supabaseAdmin");
+    expect(endpoints).not.toContain("storage.from");
+  });
+
+  it("surfaces recording, provider and playback failures", () => {
+    expect(manager).toContain("The Manager could not understand that recording");
+    expect(manager).toContain("The Manager voice could not prepare that answer");
+    expect(voice).toContain("Your phone blocked the Manager's voice");
+    expect(voice).toContain("Microphone access is needed");
   });
 });
 
