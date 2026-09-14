@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AccountMenu } from "@/components/office/AccountMenu";
+import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
 import type { OfficeViewMode } from "@/hooks/use-office-view";
 
@@ -109,6 +110,8 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
             {ROOMS.map((room) => <DropdownMenuItem key={room.id} asChild><Link to={room.route} className="flex cursor-pointer items-center gap-2"><room.icon className="h-4 w-4 text-primary" /><span className="truncate">{room.shortLabel}</span></Link></DropdownMenuItem>)}
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* Reachable from every room, without adding a destination. */}
+        <SecondEyesPanel />
         <AccountMenu />
       </div>
     </header>

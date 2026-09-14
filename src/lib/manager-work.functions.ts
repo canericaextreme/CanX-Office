@@ -677,6 +677,9 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
       review: null,
       text: "",
       detail: v.message,
+      scope: "manual",
+      coverage: ["Claude did not review anything — the request was refused before it was sent."],
+      reviewedAt: new Date().toISOString(),
     };
   }
 
@@ -710,6 +713,9 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
       review: null,
       text: "",
       detail: error instanceof Error ? error.message : "Claude review failed.",
+      scope: "manual",
+      coverage: ["Claude did not complete this review, so it reviewed nothing."],
+      reviewedAt: new Date().toISOString(),
     };
   }
 }
