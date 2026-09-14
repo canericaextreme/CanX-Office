@@ -818,6 +818,7 @@ interface ToolExecution {
   textAdditions: string[];
   actionResults: ManagerActionResult[];
   remainingToolCalls: ManagerToolCall[];
+  consultations: ConsultReply[];
 }
 
 /**
@@ -830,6 +831,8 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
   const textAdditions: string[] = [];
   const actionResults: ManagerActionResult[] = [];
   const remainingToolCalls: ManagerToolCall[] = [];
+  const consultations: ConsultReply[] = [];
+
 
   // The authenticator (AAL2) is checked once, lazily, and only when a protected
   // action is actually attempted. Ordinary talking never reaches this.
