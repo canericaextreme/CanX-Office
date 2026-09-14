@@ -553,18 +553,19 @@ export function OfficeManager() {
             >
               <GripVertical className="h-4 w-4" aria-hidden="true" />
             </div>
-            {(["manager", "appearance", "notes"] as Tab[]).map((name) => (
+            {CONSOLE_VIEWS.map((view) => (
               <button
-                key={name}
-                onClick={() => setTab(name)}
-                aria-current={tab === name}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize ${
-                  tab === name ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-background"
+                key={view.id}
+                onClick={() => setTab(view.id)}
+                aria-current={tab === view.id}
+                className={`min-h-9 rounded-md px-3 py-1.5 text-sm font-medium ${
+                  tab === view.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-background"
                 }`}
               >
-                {name === "notes" ? `Saved (${notes.length})` : name}
+                {view.label}
               </button>
             ))}
+
             <Button
               variant="ghost"
               size="sm"
