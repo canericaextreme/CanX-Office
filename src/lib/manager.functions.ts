@@ -1018,6 +1018,36 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           status: result.ok ? "done" : "stopped",
           detail: result.ok ? "Second-eyes review completed." : (result.detail ?? "Claude review failed."),
         });
+      } else if (call.name === "consult_room_worker") {
+        // A worker is a read-only adviser: no tools, no approvals, no writes.
+        const result = await workerConsultation(deps, {
+          accessToken,
+          workerId: String(call.arguments["worker_id"] ?? ""),
+          room: String(call.arguments["room"] ?? ""),
+          question: String(call.arguments["question"] ?? ""),
+          taskId: String(call.arguments["task_id"] ?? "") || null,
+          thread: [],
+        });
+        consultations.push(result);
+        if (result.ok && result.answer) {
+          textAdditions.push(
+            `${result.workerName} (${result.room} room) says: ${result.answer.conclusion}`,
+            `Evidence they used: ${result.answer.evidenceUsed.join("; ") || "none stated"}`,
+            `Confidence: ${result.answer.confidence}. Missing evidence: ${result.answer.missingEvidence.join("; ") || "none stated"}`,
+            `Their suggested next step: ${result.answer.nextStep}`,
+          );
+        } else {
+          // A failed or incomplete worker reply is never a verified result.
+          textAdditions.push(`Worker consultation: ${result.detail || "no usable answer was returned."}`);
+        }
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: result.ok ? "done" : "stopped",
+          detail: result.ok
+            ? `Consulted ${result.workerName} in the ${result.room} room.`
+            : result.detail || "The consultation did not complete.",
+        });
       } else if (call.name === "preview_appearance" || call.name === "propose_task") {
         remainingToolCalls.push(call);
       } else {
@@ -1038,8 +1068,9 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
     }
   }
 
-  return { textAdditions, actionResults, remainingToolCalls };
+  return { textAdditions, actionResults, remainingToolCalls, consultations };
 }
+
 
 /** Testable chat implementation. The server function is a thin wrapper. */
 export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
