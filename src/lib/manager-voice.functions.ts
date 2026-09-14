@@ -63,7 +63,7 @@ export const transcribeManagerAudio = createServerFn({ method: "POST" })
     return {
       accessToken: typeof value?.accessToken === "string" ? value.accessToken.slice(0, 4000) : "",
       audioBase64: typeof value?.audioBase64 === "string" ? value.audioBase64 : "",
-      mimeType: typeof value?.mimeType === "string" ? value.mimeType.split(";")[0].slice(0, 40) : "",
+      mimeType: typeof value?.mimeType === "string" ? (value.mimeType.split(";")[0] ?? "").slice(0, 40) : "",
     };
   })
   .handler(async ({ data }): Promise<ManagerTranscriptionResult> => {
@@ -80,7 +80,8 @@ export const transcribeManagerAudio = createServerFn({ method: "POST" })
     const extension = data.mimeType === "audio/mp4" ? "mp4" : data.mimeType === "audio/mpeg" ? "mp3" : data.mimeType === "audio/wav" ? "wav" : data.mimeType === "audio/ogg" ? "ogg" : "webm";
     const body = new FormData();
     body.append("model", readSetting(process.env["OPENAI_TRANSCRIBE_MODEL"]) ?? "gpt-4o-mini-transcribe");
-    body.append("file", new Blob([bytes], { type: data.mimeType }), `manager-turn.${extension}`);
+    const audioBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    body.append("file", new Blob([audioBuffer], { type: data.mimeType }), `manager-turn.${extension}`);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), VOICE_TIMEOUT_MS);
     try {

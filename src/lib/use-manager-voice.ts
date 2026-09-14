@@ -38,6 +38,9 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationRef = useRef<number | null>(null);
 
   const releaseRecording = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -45,6 +48,10 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recorderRef.current = null;
+    if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
+    animationRef.current = null;
+    analyserRef.current?.disconnect();
+    analyserRef.current = null;
   }, []);
 
   const stopPlayback = useCallback(() => {
@@ -78,6 +85,15 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
+      const AudioContextCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      const context = AudioContextCtor ? new AudioContextCtor() : null;
+      audioContextRef.current = context;
+      const analyser = context?.createAnalyser() ?? null;
+      if (context && analyser) {
+        analyser.fftSize = 512;
+        context.createMediaStreamSource(stream).connect(analyser);
+        analyserRef.current = analyser;
+      }
       const mimeType = preferredMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       recorderRef.current = recorder;
@@ -116,6 +132,30 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       };
       recorder.start();
       setPhase("listening");
+      if (analyser) {
+        const levels = new Uint8Array(analyser.fftSize);
+        let heardSpeech = false;
+        let quietSince = Date.now();
+        const watchSilence = () => {
+          if (recorder.state !== "recording") return;
+          analyser.getByteTimeDomainData(levels);
+          let sum = 0;
+          for (const value of levels) {
+            const normalized = (value - 128) / 128;
+            sum += normalized * normalized;
+          }
+          const volume = Math.sqrt(sum / levels.length);
+          if (volume > 0.025) {
+            heardSpeech = true;
+            quietSince = Date.now();
+          } else if (heardSpeech && Date.now() - quietSince > 1400) {
+            recorder.stop();
+            return;
+          }
+          animationRef.current = requestAnimationFrame(watchSilence);
+        };
+        animationRef.current = requestAnimationFrame(watchSilence);
+      }
       timerRef.current = setTimeout(() => stopListening(), MAX_RECORDING_MS);
     } catch {
       releaseRecording();
@@ -126,7 +166,20 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     }
   }, [onTurn, releaseRecording, stopListening, stopPlayback]);
 
-  const playAudio = useCallback(async (audioBase64: string, contentType = "audio/mpeg") => {
+  const unlockPlayback = useCallback(() => {
+    let audio = audioRef.current;
+    if (!audio) {
+      audio = document.createElement("audio");
+      audio.setAttribute("playsinline", "true");
+      audio.style.display = "none";
+      document.body.appendChild(audio);
+      audioRef.current = audio;
+    }
+    const context = audioContextRef.current;
+    if (context?.state === "suspended") void context.resume().catch(() => undefined);
+  }, []);
+
+  const playAudio = useCallback(async (audioBase64: string, contentType = "audio/mpeg", onEnded?: () => void) => {
     releaseRecording();
     stopPlayback();
     setError(null);
@@ -138,12 +191,10 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       objectUrlRef.current = url;
       let audio = audioRef.current;
       if (!audio) {
-        audio = document.createElement("audio");
-        audio.setAttribute("playsinline", "true");
-        audio.style.display = "none";
-        document.body.appendChild(audio);
-        audioRef.current = audio;
+        unlockPlayback();
+        audio = audioRef.current;
       }
+      if (!audio) throw new Error("audio");
       audio.onplay = () => {
         setReport((current) => ({ ...current, playbackStarted: true }));
         setPhase("speaking");
@@ -151,6 +202,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       audio.onended = () => {
         setReport((current) => ({ ...current, playbackEnded: true }));
         setPhase("idle");
+        onEnded?.();
       };
       audio.onerror = () => {
         const message = "Your phone could not play the Manager's voice. The written answer is still available.";
@@ -168,7 +220,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       setPhase("error");
       return false;
     }
-  }, [releaseRecording, stopPlayback]);
+  }, [releaseRecording, stopPlayback, unlockPlayback]);
 
   useEffect(() => () => {
     releaseRecording();
@@ -178,7 +230,8 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       audio.remove();
     }
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    void audioContextRef.current?.close();
   }, [releaseRecording]);
 
-  return { phase, error, report, startListening, stopListening, playAudio, stopPlayback, setPhase };
+  return { phase, error, report, startListening, stopListening, playAudio, stopPlayback, unlockPlayback, setPhase };
 }
