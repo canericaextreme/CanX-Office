@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AccountMenu } from "@/components/office/AccountMenu";
+import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
 import type { OfficeViewMode } from "@/hooks/use-office-view";
 
