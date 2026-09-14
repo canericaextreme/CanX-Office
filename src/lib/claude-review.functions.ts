@@ -675,7 +675,7 @@ async function callAnthropic(
       state: "verified",
       model,
       reviewer: "Claude — independent review",
-      review: parseReview(text),
+      review,
       text,
       scope,
       coverage,
