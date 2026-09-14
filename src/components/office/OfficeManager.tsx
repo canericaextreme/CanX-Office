@@ -868,11 +868,84 @@ export function OfficeManager() {
             </>
           )}
 
-          {tab === "appearance" && <AppearancePanel />}
+          {tab === "rooms" && (
+            <ManagerRoomsPanel
+              accessToken={token}
+              recordsReadable={workbenchMemory.memory !== null}
+              reviews={roomReviews}
+              onReviewed={(review) => setRoomReviews((current) => ({ ...current, [review.roomId]: review }))}
+            />
+          )}
 
-          {tab === "notes" && (
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-              <div className="space-y-2">
+          {tab === "team" && <ManagerTeamPanel accessToken={token} connected={status?.connected === true} />}
+
+          {tab === "settings" && (
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+              <div className="rounded-lg border border-border p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Connection and model
+                </p>
+                <p className="mt-1 text-xs text-foreground">
+                  {modelStatusLine(status?.model ?? null, status?.connected ? lastCheckLabel : null)}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  This is the model configured on the CanX server. It is never described as the newest available.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Money limits</p>
+                {budgetScopeLines(workbenchMemory.memory !== null).map((line) => (
+                  <div key={line.id} className="mt-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {line.label} — {line.amount}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{line.scope}</p>
+                    <p className="text-[11px] text-muted-foreground">{line.enforcement}</p>
+                  </div>
+                ))}
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  These are two separate limits. They are never added together and neither is a spend total.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Voice check</p>
+                <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
+                  <li>Voice turn recorded: {managerVoice.report.recorded ? "yes" : "no"}</li>
+                  <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
+                  <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
+                  <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
+                  <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
+                </ul>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-9"
+                  aria-label="Test the voice with the microphone off"
+                  onClick={() => {
+                    managerVoice.stopListening();
+                    setSpeechError(null);
+                    managerVoice.unlockPlayback();
+                    void speakAnswer(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
+                  }}
+                >
+                  <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
+                </Button>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Voice audio is temporary and is never added to office records.
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appearance</p>
+                <AppearancePanel />
+              </div>
+
+              <div className="space-y-2 border-t border-border pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Saved ({notes.length})
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {shared
                     ? "Saved to your CanX account, so these appear on any device you sign in on."
@@ -883,26 +956,27 @@ export function OfficeManager() {
                     Copy this device's records into the CanX account
                   </Button>
                 )}
-              </div>
-              {notes.length === 0 && <p className="text-sm text-muted-foreground">Nothing saved yet.</p>}
-              {notes.map((note) => (
-                <div key={note.id} className="rounded-lg border border-border p-2.5">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-foreground">{note.title}</p>
-                      {note.detail && <p className="mt-1 text-sm text-muted-foreground">{note.detail}</p>}
-                      <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {note.kind} · {note.owner || "no owner"} · {PROVENANCE_LABELS[note.provenance]}
-                      </p>
+                {notes.length === 0 && <p className="text-sm text-muted-foreground">Nothing saved yet.</p>}
+                {notes.map((note) => (
+                  <div key={note.id} className="rounded-lg border border-border p-2.5">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-foreground">{note.title}</p>
+                        {note.detail && <p className="mt-1 text-sm text-muted-foreground">{note.detail}</p>}
+                        <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {note.kind} · {note.owner || "no owner"} · {PROVENANCE_LABELS[note.provenance]}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon" aria-label={`Remove ${note.title}`} onClick={() => removeNote(note.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="icon" aria-label={`Remove ${note.title}`} onClick={() => removeNote(note.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
+
         </aside>
       )}
     </>
