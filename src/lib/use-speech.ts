@@ -226,6 +226,24 @@ export function speechChunks(text: string, maxLength = 220): string[] {
   return chunks;
 }
 
+/** Plain evidence about the last attempt to speak, for the voice check panel. */
+export interface SpeechReport {
+  /** How many voices the browser offered when speaking was last attempted. */
+  voiceCount: number;
+  /** Name of the voice that was used, or null when the browser default was used. */
+  voiceName: string | null;
+  /** True once the browser reported that speaking actually began. */
+  started: boolean;
+  /** True once the browser reported that speaking finished. */
+  ended: boolean;
+  /** Error code the browser reported, if any. */
+  errorCode: string | null;
+  /** How many pieces the answer was split into. */
+  chunks: number;
+  /** When this attempt was made. */
+  at: number | null;
+}
+
 export interface ReadAloudState {
   supported: boolean;
   /** True once the browser actually offers at least one usable voice. */
@@ -241,7 +259,10 @@ export interface ReadAloudState {
   unlock: () => boolean;
   /** True once the browser has actually started speaking the latest request. */
   didSpeak: () => boolean;
+  /** Evidence from the last attempt, shown in the Manager's voice check. */
+  report: SpeechReport;
 }
+
 
 /** Speaks only when asked to — by a button press, or by Voice Mode being on. */
 export function useReadAloud(): ReadAloudState {
@@ -252,6 +273,16 @@ export function useReadAloud(): ReadAloudState {
   const cancelledRef = useRef(false);
   const spokeRef = useRef(false);
   const didSpeak = useCallback(() => spokeRef.current, []);
+  const [report, setReport] = useState<SpeechReport>({
+    voiceCount: 0,
+    voiceName: null,
+    started: false,
+    ended: false,
+    errorCode: null,
+    chunks: 0,
+    at: null,
+  });
+
 
   useEffect(() => {
     const has = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -315,11 +346,22 @@ export function useReadAloud(): ReadAloudState {
       spokeRef.current = false;
       // Shorter pieces: some browsers silently stop long utterances part-way.
       const chunks = speechChunks(text.slice(0, 4000), 150);
+      const voices = window.speechSynthesis.getVoices();
+      setReport({
+        voiceCount: voices.length,
+        voiceName: voiceRef.current?.name ?? null,
+        started: false,
+        ended: false,
+        errorCode: null,
+        chunks: chunks.length,
+        at: Date.now(),
+      });
       if (!chunks.length) {
         onDone?.();
         return;
       }
       setSpeakingId(id);
+
 
       // Chrome quietly pauses long speech. Only resume when it is actually
       // paused — pausing it ourselves is what used to make the voice drop out.
@@ -332,6 +374,7 @@ export function useReadAloud(): ReadAloudState {
       const finish = () => {
         clearKeepAlive();
         setSpeakingId(null);
+        setReport((current) => ({ ...current, ended: true }));
         onDone?.();
       };
 
@@ -365,10 +408,15 @@ export function useReadAloud(): ReadAloudState {
         };
         utterance.onstart = () => {
           spokeRef.current = true;
+          setReport((current) => ({ ...current, started: true }));
         };
         utterance.onend = next;
         // If a piece is dropped by the browser, carry on instead of stopping.
-        utterance.onerror = next;
+        utterance.onerror = (event: any) => {
+          const code = typeof event?.error === "string" ? event.error : "unknown";
+          setReport((current) => ({ ...current, errorCode: current.errorCode ?? code }));
+          next();
+        };
         window.speechSynthesis.speak(utterance);
         // Safety net: if the browser never reports the piece as finished,
         // carry on anyway so the rest of the answer is still spoken.
@@ -385,12 +433,19 @@ export function useReadAloud(): ReadAloudState {
         );
       };
 
-      // Chrome drops the first utterance when it is queued in the same tick as
-      // cancel(), so give it a moment before starting.
-      setTimeout(() => speakChunk(0), 90);
+      // Start inside the same press that asked for it: Chrome refuses speech
+      // that is queued later, which is one cause of a completely silent answer.
+      speakChunk(0);
+      // If the browser swallowed that first piece, ask once more shortly after.
+      setTimeout(() => {
+        if (cancelledRef.current || spokeRef.current) return;
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
+        speakChunk(0);
+      }, 900);
     },
     [clearKeepAlive],
   );
 
-  return { supported, hasVoice, speakingId, speak, stop, unlock, didSpeak };
+  return { supported, hasVoice, speakingId, speak, stop, unlock, didSpeak, report };
+
 }

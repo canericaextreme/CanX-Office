@@ -66,6 +66,9 @@ type Tab = "manager" | "appearance" | "notes";
 
 /** Spoken the moment Chat starts, so voice mode is always audibly confirmed. */
 export const VOICE_GREETING = "I'm listening, John.";
+/** One short sentence used by the voice check, spoken with the microphone off. */
+export const VOICE_CHECK_SENTENCE = "Voice check. If you can hear this sentence, the speaking voice works on this device.";
+
 
 export function OfficeManager() {
   const [open, setOpen] = useState(false);
@@ -79,6 +82,9 @@ export function OfficeManager() {
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
+  /** Shows the plain evidence panel about this device's speaking voice. */
+  const [showVoiceCheck, setShowVoiceCheck] = useState(false);
+
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -132,14 +138,29 @@ export function OfficeManager() {
     readAloud.stop();
   };
 
-  /** Speak an answer, remembering the words so echo does not trigger barge-in. */
+  /**
+   * Speak an answer. The microphone is always closed first: on Android Chrome a
+   * live microphone and the browser's reading voice fight over the same audio
+   * channel, which leaves the Manager listening but silent. Listening starts
+   * again as soon as the answer has been spoken.
+   */
   const speakAnswer = (id: string, text: string, onDone?: () => void) => {
+    dictation.stop();
+    listeningRef.current = false;
     spokenTextRef.current = text.toLowerCase().replace(/\s+/g, " ");
+    setSpeechError(null);
     readAloud.speak(id, text, () => {
       spokenTextRef.current = "";
       onDone?.();
     });
+    // Honest failure: if nothing actually started, say so instead of silence.
+    window.setTimeout(() => {
+      if (!readAloud.didSpeak()) {
+        setSpeechError("Your phone did not play the answer aloud — the reply is written below. Open Voice check for details.");
+      }
+    }, 2200);
   };
+
 
   /**
    * The real approval box. Voice Mode reads the pending banner aloud when it
@@ -362,8 +383,9 @@ export function OfficeManager() {
             const shaped = spokenSummary(answer);
             pendingFullRef.current = shaped.truncated ? { id: answerId, text: shaped.full } : null;
             setAwaitingReadMore(shaped.truncated);
-            // Listening stays on while it speaks, so John can interrupt.
-            resumeListening(0);
+            // The microphone stays closed while it speaks — on Android Chrome a
+            // live microphone silences the reading voice — and reopens after.
+
             if (approvalLine) suppressBannerSpeechRef.current = true;
             const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
             speakAnswer(answerId, spoken, resumeListening);
@@ -412,8 +434,10 @@ export function OfficeManager() {
       dictation.start();
       return;
     }
-    dictation.start();
-    speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(0));
+    // Speak first with the microphone closed, then listen once the greeting
+    // has finished. Listening and speaking together is what kept it silent.
+    speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(200));
+
   };
 
   const endVoiceMode = () => {
@@ -805,11 +829,75 @@ export function OfficeManager() {
                   </div>
                 )}
 
+                {speechError && (
+                  <p role="alert" className="mt-2 text-xs text-destructive">
+                    {speechError}
+                  </p>
+                )}
+
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    aria-expanded={showVoiceCheck}
+                    onClick={() => setShowVoiceCheck((value) => !value)}
+                  >
+                    {showVoiceCheck ? "Hide voice check" : "Voice check"}
+                  </Button>
+                </div>
+
+                {showVoiceCheck && (
+                  <div
+                    aria-label="Voice check"
+                    className="mt-2 rounded-lg border border-border bg-secondary/40 p-2.5 text-xs text-muted-foreground"
+                  >
+                    <p className="font-semibold text-foreground">What this device's speaking voice did</p>
+                    <ul className="mt-1.5 space-y-1">
+                      <li>Reading voice available: {readAloud.supported ? "yes" : "no"}</li>
+                      <li>
+                        Voices found: {readAloud.report.at ? readAloud.report.voiceCount : readAloud.hasVoice ? "some" : "none yet"}
+                        {readAloud.report.voiceName ? ` — using ${readAloud.report.voiceName}` : ""}
+                      </li>
+                      <li>
+                        Last attempt:{" "}
+                        {readAloud.report.at
+                          ? `${new Date(readAloud.report.at).toLocaleTimeString()}, ${readAloud.report.chunks} piece(s)`
+                          : "none yet"}
+                      </li>
+                      <li>Phone reported speaking started: {readAloud.report.started ? "yes" : "no"}</li>
+                      <li>Phone reported speaking finished: {readAloud.report.ended ? "yes" : "no"}</li>
+                      <li>Problem reported by the phone: {readAloud.report.errorCode ?? "none"}</li>
+                      <li>Microphone open right now: {dictation.listening ? "yes" : "no"}</li>
+                    </ul>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2"
+                      aria-label="Test the voice with the microphone off"
+                      onClick={() => {
+                        dictation.stop();
+                        listeningRef.current = false;
+                        setSpeechError(null);
+                        readAloud.unlock();
+                        readAloud.speak(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
+                      }}
+                    >
+                      <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
+                    </Button>
+                    <p className="mt-2 text-[11px]">
+                      If you hear this test but not the answers, the microphone and the speaking voice are clashing on
+                      this phone. Nothing here is saved or sent anywhere.
+                    </p>
+                  </div>
+                )}
+
                 {dictation.error && (
                   <p role="alert" className="mt-2 text-xs text-destructive">
                     {dictation.error}
                   </p>
                 )}
+
                 {!dictation.supported && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     Voice Mode is not available in this browser, so please type your message and use Send. Chrome, Edge
