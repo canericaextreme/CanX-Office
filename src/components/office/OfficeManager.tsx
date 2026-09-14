@@ -645,6 +645,18 @@ export function OfficeManager() {
                         )}
                       </Button>
                     )}
+                    {message.role === "assistant" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-1 h-7 px-2 text-xs"
+                        aria-label="Review this recommendation with Claude"
+                        /* Opens the shared Second Eyes panel only. No paid call. */
+                        onClick={() => openSecondEyes(managerRecommendationPrefill(message.content))}
+                      >
+                        <Eye className="mr-1.5 h-3.5 w-3.5" /> Review with Claude
+                      </Button>
+                    )}
                     {message.toolCalls?.map((call, index) => (
                       <ProposalCard
                         key={`${message.id}-${index}`}
