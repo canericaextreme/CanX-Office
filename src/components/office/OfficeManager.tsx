@@ -428,8 +428,10 @@ export function OfficeManager() {
       dictation.start();
       return;
     }
-    dictation.start();
-    speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(0));
+    // Speak first with the microphone closed, then listen once the greeting
+    // has finished. Listening and speaking together is what kept it silent.
+    speakAnswer(`greeting-${Date.now()}`, VOICE_GREETING, () => resumeListening(200));
+
   };
 
   const endVoiceMode = () => {
