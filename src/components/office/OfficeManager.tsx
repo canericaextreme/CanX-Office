@@ -79,6 +79,9 @@ export function OfficeManager() {
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
+  /** Shows the plain evidence panel about this device's speaking voice. */
+  const [showVoiceCheck, setShowVoiceCheck] = useState(false);
+
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
