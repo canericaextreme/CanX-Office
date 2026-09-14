@@ -578,7 +578,7 @@ export function OfficeManager() {
           </div>
 
 
-          {tab === "manager" && (
+          {tab === "now" && (
             <>
               <div className="shrink-0 border-b border-border px-3 py-2 text-xs">
                 {status === null ? (
@@ -672,7 +672,7 @@ export function OfficeManager() {
                         key={`${message.id}-${index}`}
                         call={call}
                         onSaveNote={addNote}
-                        onOpenAppearance={() => setTab("appearance")}
+                        onOpenAppearance={() => setTab("settings")}
                       />
                     ))}
                   </div>
