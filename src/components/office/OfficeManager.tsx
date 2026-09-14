@@ -700,6 +700,8 @@ export function OfficeManager() {
                         <Eye className="mr-1.5 h-3.5 w-3.5" /> Review with Claude
                       </Button>
                     )}
+                    {message.checked && <CheckedReceipt receipt={message.checked} />}
+
                     {message.toolCalls?.map((call, index) => (
                       <ProposalCard
                         key={`${message.id}-${index}`}
