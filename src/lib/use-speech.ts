@@ -338,7 +338,7 @@ export function useReadAloud(): ReadAloudState {
         if (cancelledRef.current || finished) return;
         const synth = window.speechSynthesis;
         if (synth.paused) synth.resume();
-        else if (!synth.speaking && !synth.pending) finish();
+        else if (spokeRef.current && !synth.speaking && !synth.pending) finish();
       }, 3000);
 
       // Queue every piece up front. The browser plays them back-to-back on its
