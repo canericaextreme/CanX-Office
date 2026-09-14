@@ -346,11 +346,22 @@ export function useReadAloud(): ReadAloudState {
       spokeRef.current = false;
       // Shorter pieces: some browsers silently stop long utterances part-way.
       const chunks = speechChunks(text.slice(0, 4000), 150);
+      const voices = window.speechSynthesis.getVoices();
+      setReport({
+        voiceCount: voices.length,
+        voiceName: voiceRef.current?.name ?? null,
+        started: false,
+        ended: false,
+        errorCode: null,
+        chunks: chunks.length,
+        at: Date.now(),
+      });
       if (!chunks.length) {
         onDone?.();
         return;
       }
       setSpeakingId(id);
+
 
       // Chrome quietly pauses long speech. Only resume when it is actually
       // paused — pausing it ourselves is what used to make the voice drop out.
