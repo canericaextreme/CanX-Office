@@ -329,6 +329,7 @@ export function SecondEyesPanel() {
                 <span className="block text-xs font-normal opacity-80">
                   Takes one picture of {room} now, and sends nothing if that picture fails.
                 </span>
+                <span className="block text-xs font-normal opacity-80">{reservationLabel("room")}</span>
               </span>
             </Button>
             <Button
@@ -344,6 +345,7 @@ export function SecondEyesPanel() {
                 <span className="block text-xs font-normal opacity-80">
                   Server-built read-only snapshot across the six office areas.
                 </span>
+                <span className="block text-xs font-normal opacity-80">{reservationLabel("office")}</span>
               </span>
             </Button>
             <Button
@@ -354,12 +356,27 @@ export function SecondEyesPanel() {
             >
               Review whole office, and include a picture of this page
             </Button>
+            <p className="text-xs text-muted-foreground">
+              A budget reservation is held before a review runs. It is a safety estimate, not the exact provider
+              cost.
+            </p>
           </div>
 
           {problem && (
             <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
               {problem}
             </p>
+          )}
+
+          {incomplete && (
+            <div className="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm">
+              <p className="font-medium">
+                Incomplete review — Claude answered, but not with a finished review. It was not recorded as a
+                completed review
+                {shared.lastReview ? ", and your last completed review below is unchanged." : "."}
+              </p>
+              {incomplete.text && <p className="whitespace-pre-wrap text-xs">{incomplete.text}</p>}
+            </div>
           )}
 
           {shared.lastReview?.ok && <ReviewResult reply={shared.lastReview} room={shared.lastRoom} />}
