@@ -147,6 +147,7 @@ export function SecondEyesPanel() {
   ) {
     setBusy(kind);
     setProblem(null);
+    setIncomplete(null);
     // Movement in the office is allowed only while this real request runs.
     const taskId = `claude-review-${Date.now()}`;
     startActivity({ taskId, title: `Claude second eyes — ${input.subject}`, cellId: "systems" });
@@ -160,16 +161,23 @@ export function SecondEyesPanel() {
           ...input,
         },
       });
-      if (reply.ok) {
+      const finished = reply.ok && reply.structuredComplete;
+      if (finished) {
         rememberReview(reply, room);
         setProblem(null);
+      } else if (reply.code === "incomplete_response") {
+        // Kept readable, but never recorded as the latest completed review, and
+        // never allowed to replace an earlier finished one.
+        setIncomplete(reply);
       } else {
         setProblem(reply.detail ?? "The review could not be completed.");
       }
       finishActivity(
         taskId,
-        reply.ok ? "completed" : "failed",
-        reply.ok ? "Claude returned an independent review." : (reply.detail ?? "The review did not complete."),
+        finished ? "completed" : "failed",
+        finished
+          ? "Claude returned an independent review."
+          : (reply.detail ?? "The review did not complete."),
       );
     } catch {
       setProblem("The review request did not complete.");
@@ -201,10 +209,10 @@ export function SecondEyesPanel() {
     }
     await run("room", {
       subject: `Office page review — ${room}`,
-      primaryRecommendation: `Review the CanX Office page "${room}" as John currently sees it, and say what is unclear, risky, missing or wrong.`,
+      primaryRecommendation: `CLAIM TO CHALLENGE about the CanX Office page "${room}" as John currently sees it: ${ROOM_CLAIM}`,
       evidence: "The attached picture and the visible text of this one office page.",
       question:
-        "What on this page is unclear, misleading, unverified or risky? What would you check before relying on it?",
+        `Challenge that claim. Do you agree it holds for this page? What on it is unclear, misleading, unverified, incomplete or risky, and what would you check before relying on it?`,
       image: captured.image,
       roomText: captured.text,
     });
@@ -223,11 +231,10 @@ export function SecondEyesPanel() {
     }
     await run("office", {
       subject: "Whole CanX Office review",
-      primaryRecommendation:
-        "Review the whole CanX Office across leadership and decisions, programmes and projects, operations and the work board, money and records, systems security and connections, and team and skills.",
+      primaryRecommendation: `CLAIM TO CHALLENGE about the whole CanX Office: ${OFFICE_CLAIM}`,
       evidence: "The read-only office snapshot built on the server for this request.",
       question:
-        "Where is this office weakest, and what is unverified or missing? Give findings for each of the six areas you can actually see.",
+        "Challenge that claim. Where is this office weakest, and what is unverified or missing? Give one finding for every one of the six areas, saying plainly when an area is not visible or not verified.",
       ...(picture ? { image: picture.image, roomText: picture.text } : {}),
     });
   }
