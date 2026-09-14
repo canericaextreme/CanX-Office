@@ -71,26 +71,33 @@ function Reception() {
 
         <div className="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
-
-
             <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Quick answers
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Metric label="Open work" value="4" tone="blue" />
-                <Metric label="Need me" value="2" tone="yellow" />
-                <Metric label="Red stops" value="1" tone="red" />
-                <Metric label="Cost guardrail" value="CAD $300/mo" tone="grey" />
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                These numbers are synthetic examples for demonstration only.
+              <p className="text-sm text-foreground">
+                Reception does not count open work, items needing you, or stops yet. No counter is connected to the
+                live records, so nothing is shown rather than a made-up number.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Open the Work Board for tasks and the Approvals room for anything waiting on you. Those rooms read the
+                real records.
               </p>
             </div>
           </div>
 
           <div className="space-y-6">
-            <StatusPanel items={SAMPLE_STATUS} />
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Office cost ceiling
+              </h2>
+              <p className="text-lg font-semibold text-foreground">C$500 per month (CAD)</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Provenance: set by John on 9 September 2026 as the total running-cost ceiling for the office, separate
+                from build credits. This is the recorded decision only — it is not automatically enforced here, and no
+                live spending total is shown on this page.
+              </p>
+            </div>
           </div>
         </div>
 
