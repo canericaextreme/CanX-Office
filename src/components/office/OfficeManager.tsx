@@ -823,11 +823,75 @@ export function OfficeManager() {
                   </div>
                 )}
 
+                {speechError && (
+                  <p role="alert" className="mt-2 text-xs text-destructive">
+                    {speechError}
+                  </p>
+                )}
+
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    aria-expanded={showVoiceCheck}
+                    onClick={() => setShowVoiceCheck((value) => !value)}
+                  >
+                    {showVoiceCheck ? "Hide voice check" : "Voice check"}
+                  </Button>
+                </div>
+
+                {showVoiceCheck && (
+                  <div
+                    aria-label="Voice check"
+                    className="mt-2 rounded-lg border border-border bg-secondary/40 p-2.5 text-xs text-muted-foreground"
+                  >
+                    <p className="font-semibold text-foreground">What this device's speaking voice did</p>
+                    <ul className="mt-1.5 space-y-1">
+                      <li>Reading voice available: {readAloud.supported ? "yes" : "no"}</li>
+                      <li>
+                        Voices found: {readAloud.report.at ? readAloud.report.voiceCount : readAloud.hasVoice ? "some" : "none yet"}
+                        {readAloud.report.voiceName ? ` — using ${readAloud.report.voiceName}` : ""}
+                      </li>
+                      <li>
+                        Last attempt:{" "}
+                        {readAloud.report.at
+                          ? `${new Date(readAloud.report.at).toLocaleTimeString()}, ${readAloud.report.chunks} piece(s)`
+                          : "none yet"}
+                      </li>
+                      <li>Phone reported speaking started: {readAloud.report.started ? "yes" : "no"}</li>
+                      <li>Phone reported speaking finished: {readAloud.report.ended ? "yes" : "no"}</li>
+                      <li>Problem reported by the phone: {readAloud.report.errorCode ?? "none"}</li>
+                      <li>Microphone open right now: {dictation.listening ? "yes" : "no"}</li>
+                    </ul>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2"
+                      aria-label="Test the voice with the microphone off"
+                      onClick={() => {
+                        dictation.stop();
+                        listeningRef.current = false;
+                        setSpeechError(null);
+                        readAloud.unlock();
+                        readAloud.speak(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
+                      }}
+                    >
+                      <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
+                    </Button>
+                    <p className="mt-2 text-[11px]">
+                      If you hear this test but not the answers, the microphone and the speaking voice are clashing on
+                      this phone. Nothing here is saved or sent anywhere.
+                    </p>
+                  </div>
+                )}
+
                 {dictation.error && (
                   <p role="alert" className="mt-2 text-xs text-destructive">
                     {dictation.error}
                   </p>
                 )}
+
                 {!dictation.supported && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     Voice Mode is not available in this browser, so please type your message and use Send. Chrome, Edge
