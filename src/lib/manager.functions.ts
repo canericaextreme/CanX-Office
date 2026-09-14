@@ -315,7 +315,25 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    name: "consult_room_worker",
+    description:
+      "Ask one office worker in their own room a bounded question. Use it when the answer belongs to that room's records, or when John asks you to consult someone. The worker is a read-only adviser: it cannot approve, spend, send, deploy or change anything. Their answer comes back to you as labelled evidence and you may disagree with it. Valid worker_id values: w-manager-office, w-quality-security, w-finance-records, w-operations, w-projects, w-ideas.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["worker_id", "room", "question"],
+      properties: {
+        worker_id: { type: "string" },
+        room: { type: "string" },
+        question: { type: "string" },
+        task_id: { type: "string" },
+      },
+    },
+  },
 ];
+
 
 /** Strict allowlist for tool arguments returned by the model. */
 const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" | "boolean"; enum?: string[]; min?: number; max?: number; maxLen?: number }>> = {
