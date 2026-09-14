@@ -58,7 +58,11 @@ import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
 import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
-import { CONSOLE_VIEWS, type ConsoleView, type RoomReview } from "@/lib/manager-console";
+import { CONSOLE_VIEWS, OBSERVE_SCOPE_NOTICE, requestsRoomLook, type ConsoleView, type RoomReview } from "@/lib/manager-console";
+
+/** Written by this app, not by AI, when John asks the Manager to look. */
+const LOOK_NOTICE = `I can look at the room you have open, once, when you press "See this room" in the Rooms view. ${OBSERVE_SCOPE_NOTICE} I have opened Rooms for you.`;
+
 import { budgetScopeLines, modelStatusLine, type VerificationReceipt } from "@/lib/manager-verification";
 
 
