@@ -94,8 +94,16 @@ export interface ManagerReply {
   text: string;
   toolCalls: ManagerToolCall[];
   actionResults: ManagerActionResult[];
+  /**
+   * Visible proof of what was actually checked for this answer: sources read,
+   * the time they were read, gaps and failed reads, and the exact model.
+   */
+  checked?: VerificationReceipt;
+  /** Labelled worker answers returned during this turn, with their evidence. */
+  consultations?: ConsultReply[];
   detail?: string;
 }
+
 
 const MAX_MESSAGES = 20;
 const MAX_CHARS = 6000;
