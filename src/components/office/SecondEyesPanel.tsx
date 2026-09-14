@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useOwnerSession } from "@/lib/owner-session";
 import {
+  ESTIMATED_CENTS_BY_SCOPE,
   getClaudeStatus,
   requestClaudeReview,
   type ClaudeReviewReply,
@@ -34,8 +35,20 @@ import {
   consumePrefill,
   getSecondEyesState,
   rememberReview,
+  sixAreaFindings,
   subscribeSecondEyes,
 } from "@/lib/second-eyes";
+
+/** Plain wording for the reservation shown beside each review button. */
+function reservationLabel(scope: "manual" | "room" | "office"): string {
+  return `Budget reservation: up to C$${(ESTIMATED_CENTS_BY_SCOPE[scope] / 100).toFixed(2)}`;
+}
+
+/** The claim Claude is asked to challenge, so the verdict means something. */
+const ROOM_CLAIM =
+  "This page is clear, accurate, complete, truthfully labelled, and safe for John to rely on as shown.";
+const OFFICE_CLAIM =
+  "The current CanX Office is coherent, truthful, adequately controlled, and ready to guide John’s decisions across all six operating areas.";
 
 type Tone = "green" | "yellow" | "grey" | "checking";
 
