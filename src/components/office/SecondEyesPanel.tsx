@@ -90,6 +90,8 @@ export function SecondEyesPanel() {
   const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState<null | "room" | "office" | "manual">(null);
   const [problem, setProblem] = useState<string | null>(null);
+  /** Anthropic answered without a complete review. Never a finished review. */
+  const [incomplete, setIncomplete] = useState<ClaudeReviewReply | null>(null);
 
   const [subject, setSubject] = useState("");
   const [primary, setPrimary] = useState("");
