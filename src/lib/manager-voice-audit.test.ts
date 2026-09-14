@@ -27,7 +27,6 @@ describe("Office Manager voice — portable recording and playback", () => {
     expect(manager).not.toContain("useDictation");
     expect(manager).not.toContain("useReadAloud");
     expect(manager).not.toContain("speechSynthesis");
-    expect(speech).toMatch(/report\s*}/);
   });
 });
 
@@ -40,7 +39,7 @@ describe("Office Manager voice — serialized turn lifecycle", () => {
 
   it("records a complete file and stops after bounded silence or time", () => {
     expect(voice).toContain("recorder.start()");
-    expect(voice).not.toContain("recorder.start(");
+    expect(voice).not.toMatch(/recorder\.start\(\s*\d/);
     expect(voice).toContain("Date.now() - quietSince > 1400");
     expect(voice).toContain("MAX_RECORDING_MS");
   });

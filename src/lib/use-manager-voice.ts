@@ -52,6 +52,9 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     animationRef.current = null;
     analyserRef.current?.disconnect();
     analyserRef.current = null;
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+    if (context && context.state !== "closed") void context.close().catch(() => undefined);
   }, []);
 
   const stopPlayback = useCallback(() => {
@@ -230,7 +233,6 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       audio.remove();
     }
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    void audioContextRef.current?.close();
   }, [releaseRecording]);
 
   return { phase, error, report, startListening, stopListening, playAudio, stopPlayback, unlockPlayback, setPhase };
