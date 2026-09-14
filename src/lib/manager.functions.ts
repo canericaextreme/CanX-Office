@@ -1126,16 +1126,28 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
 
   try {
     const contextWithTeam = [context.text, "", ...teamContextLines(sanitizeTeam(data.team))].join("\n");
+    // The receipt describes the exact context this answer was built from, so
+    // it can never claim a source that was not read.
+    const checked = buildVerificationReceipt(contextWithTeam, {
+      provider: "OpenAI",
+      model: deps.model,
+      checkedAt: (deps.now?.() ?? new Date()).toISOString(),
+    });
     const reply = await callOpenAI(deps, data, contextWithTeam);
     if (reply.ok && reply.toolCalls.length > 0) {
-      const { textAdditions, actionResults, remainingToolCalls } = await executeToolCalls(deps, data.accessToken, reply.toolCalls);
+      const { textAdditions, actionResults, remainingToolCalls, consultations } = await executeToolCalls(
+        deps,
+        data.accessToken,
+        reply.toolCalls,
+      );
       const combinedText = [reply.text, ...textAdditions].filter(Boolean).join("\n\n");
       await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-      return { ...reply, text: combinedText, toolCalls: remainingToolCalls, actionResults };
+      return { ...reply, text: combinedText, toolCalls: remainingToolCalls, actionResults, checked, consultations };
     }
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-    return reply;
+    return reply.ok ? { ...reply, checked } : reply;
   } catch (error) {
+
     console.error("[office-manager] provider call threw", error instanceof Error ? error.name : "unknown");
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
     return {
