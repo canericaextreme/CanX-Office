@@ -385,9 +385,16 @@ export function useReadAloud(): ReadAloudState {
         );
       };
 
-      // Chrome drops the first utterance when it is queued in the same tick as
-      // cancel(), so give it a moment before starting.
-      setTimeout(() => speakChunk(0), 90);
+      // Phones only allow speech that starts inside the button press itself,
+      // so the first piece is queued immediately. Chrome sometimes drops an
+      // utterance queued right after cancel(), so if nothing has actually
+      // started shortly afterwards the same piece is queued again.
+      speakChunk(0);
+      setTimeout(() => {
+        if (cancelledRef.current || spokeRef.current) return;
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
+        speakChunk(0);
+      }, 250);
     },
     [clearKeepAlive],
   );
