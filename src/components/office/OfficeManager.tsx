@@ -358,7 +358,14 @@ export function OfficeManager() {
         lastAnswerRef.current = { id: answerId, text: answer };
         setMessages((current) => [
           ...current,
-          { id: answerId, role: "assistant", content: answer, toolCalls: reply.toolCalls },
+          {
+            id: answerId,
+            role: "assistant",
+            content: answer,
+            toolCalls: reply.toolCalls,
+            ...(reply.checked ? { checked: reply.checked } : {}),
+          },
+
         ]);
         // A real task change — typed or spoken — reloads the Work Board.
         const changedWork = (reply.toolCalls ?? []).some((call) =>
