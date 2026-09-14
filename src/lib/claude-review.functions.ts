@@ -123,6 +123,8 @@ const ANTHROPIC_VERSION = "2023-06-01";
 
 /* ------------------------- injectable dependencies ------------------------- */
 
+export type OfficeContextResult = { ok: true; text: string } | { ok: false; message: string };
+
 export interface ClaudeDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
   reserve: (token: string, cents: number) => Promise<BudgetResult>;
@@ -130,6 +132,14 @@ export interface ClaudeDeps {
   fetchImpl: typeof fetch;
   anthropicKey: string | undefined;
   model: string | undefined;
+  /**
+   * Server-built, owner-scoped, read-only snapshot of the office. Only used for
+   * a whole-office review, and never replaced by anything the browser sends.
+   */
+  buildOfficeContext?: (
+    token: string,
+    verification: Extract<OwnerVerification, { ok: true }>,
+  ) => Promise<OfficeContextResult>;
 }
 
 /**
@@ -156,6 +166,26 @@ async function realDeps(): Promise<ClaudeDeps> {
     anthropicKey: readSetting(process.env["ANTHROPIC_API_KEY"]),
     // Deliberate choice only. The office never guesses an Anthropic model.
     model: readSetting(process.env["ANTHROPIC_MODEL"]),
+    buildOfficeContext: async (token, verification) => {
+      if (!config) {
+        return {
+          ok: false as const,
+          message: "No CanX-owned database is configured, so no office facts could be read.",
+        };
+      }
+      const live = await import("@/lib/office-live-context.server");
+      return live.buildLiveOfficeContext({
+        config,
+        token,
+        // The owner's email address is never sent to any provider.
+        aal: verification.aal,
+        provider: "Anthropic",
+        model: readSetting(process.env["ANTHROPIC_MODEL"]) ?? "",
+        // Finance stays minimal: counts and per-currency totals only.
+        includeReceiptDetails: false,
+        rest: backend.restRequest,
+      });
+    },
   };
 }
 
