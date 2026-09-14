@@ -202,7 +202,7 @@ async function readWorkbench(
           "Recent change log [provenance: live database; read-only]:",
           ...changeRows.map(
             (row) =>
-              `- ${line(row["action"], 120) || "action not stated"} on ${line(row["entity"], 120) || "entity not stated"} at ${line(row["created_at"], 40) || "unknown"}`,
+              `- ${line(row["action"], 120) || "action not stated"} on ${line(row["entity"], 120) || "entity not stated"} at ${line(row["at"], 40) || "unknown"}`,
           ),
         ].join("\n");
 
