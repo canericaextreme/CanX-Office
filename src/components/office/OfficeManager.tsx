@@ -821,51 +821,10 @@ export function OfficeManager() {
                   </p>
                 )}
 
-                <div className="mt-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-xs"
-                    aria-expanded={showVoiceCheck}
-                    onClick={() => setShowVoiceCheck((value) => !value)}
-                  >
-                    {showVoiceCheck ? "Hide voice check" : "Voice check"}
-                  </Button>
-                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Voice check and the spoken-voice test are in Settings.
+                </p>
 
-                {showVoiceCheck && (
-                  <div
-                    aria-label="Voice check"
-                    className="mt-2 rounded-lg border border-border bg-secondary/40 p-2.5 text-xs text-muted-foreground"
-                  >
-                     <p className="font-semibold text-foreground">What the Manager's audio player did</p>
-                    <ul className="mt-1.5 space-y-1">
-                       <li>Voice turn recorded: {managerVoice.report.recorded ? "yes" : "no"}</li>
-                       <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
-                       <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
-                       <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
-                       <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
-                    </ul>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-2"
-                      aria-label="Test the voice with the microphone off"
-                      onClick={() => {
-                        managerVoice.stopListening();
-                        setSpeechError(null);
-                        managerVoice.unlockPlayback();
-                        void speakAnswer(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
-                      }}
-                    >
-                      <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
-                    </Button>
-                    <p className="mt-2 text-[11px]">
-                      This tests the same attached audio player used for Manager answers. Voice audio is temporary and
-                      is not added to office records.
-                    </p>
-                  </div>
-                )}
 
               </div>
             </>
