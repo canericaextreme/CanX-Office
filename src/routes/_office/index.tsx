@@ -2,12 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { BrainMap } from "@/components/office/BrainMap";
 import { Office3D } from "@/components/office/Office3D";
 import { SimpleOffice } from "@/components/office/SimpleOffice";
-import { StatusPanel } from "@/components/office/StatusPanel";
 import { TourGuide } from "@/components/office/TourGuide";
-import { SAMPLE_STATUS } from "@/lib/office-data";
 import { useOfficeViewMode } from "@/hooks/use-office-view";
 import { Card, CardContent } from "@/components/ui/card";
-import { SampleBadge } from "@/components/office/SampleBadge";
 
 export const Route = createFileRoute("/_office/")({
   head: () => ({
