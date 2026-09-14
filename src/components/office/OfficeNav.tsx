@@ -110,6 +110,8 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
             {ROOMS.map((room) => <DropdownMenuItem key={room.id} asChild><Link to={room.route} className="flex cursor-pointer items-center gap-2"><room.icon className="h-4 w-4 text-primary" /><span className="truncate">{room.shortLabel}</span></Link></DropdownMenuItem>)}
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* Reachable from every room, without adding a destination. */}
+        <SecondEyesPanel />
         <AccountMenu />
       </div>
     </header>
