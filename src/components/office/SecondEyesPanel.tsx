@@ -456,7 +456,18 @@ function ReviewResult({ reply, room }: { reply: ClaudeReviewReply; room: string 
             <strong>Verdict:</strong> {reply.review.recommendation.replace(/_/g, " ")} ({reply.review.confidence}{" "}
             confidence)
           </div>
-          {reply.review.areaFindings?.length ? (
+          {reply.scope === "office" ? (
+            <div>
+              <strong>By area — all six:</strong>
+              <ul className="ml-4 list-disc">
+                {sixAreaFindings(reply.review.areaFindings).map((item) => (
+                  <li key={item.area} className={item.reviewed ? undefined : "text-muted-foreground"}>
+                    <span className="font-medium">{item.area}:</span> {item.finding}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : reply.review.areaFindings?.length ? (
             <div>
               <strong>By area:</strong>
               <ul className="ml-4 list-disc">
