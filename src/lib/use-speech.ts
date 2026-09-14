@@ -226,6 +226,24 @@ export function speechChunks(text: string, maxLength = 220): string[] {
   return chunks;
 }
 
+/** Plain evidence about the last attempt to speak, for the voice check panel. */
+export interface SpeechReport {
+  /** How many voices the browser offered when speaking was last attempted. */
+  voiceCount: number;
+  /** Name of the voice that was used, or null when the browser default was used. */
+  voiceName: string | null;
+  /** True once the browser reported that speaking actually began. */
+  started: boolean;
+  /** True once the browser reported that speaking finished. */
+  ended: boolean;
+  /** Error code the browser reported, if any. */
+  errorCode: string | null;
+  /** How many pieces the answer was split into. */
+  chunks: number;
+  /** When this attempt was made. */
+  at: number | null;
+}
+
 export interface ReadAloudState {
   supported: boolean;
   /** True once the browser actually offers at least one usable voice. */
@@ -241,7 +259,10 @@ export interface ReadAloudState {
   unlock: () => boolean;
   /** True once the browser has actually started speaking the latest request. */
   didSpeak: () => boolean;
+  /** Evidence from the last attempt, shown in the Manager's voice check. */
+  report: SpeechReport;
 }
+
 
 /** Speaks only when asked to — by a button press, or by Voice Mode being on. */
 export function useReadAloud(): ReadAloudState {
