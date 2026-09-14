@@ -132,14 +132,29 @@ export function OfficeManager() {
     readAloud.stop();
   };
 
-  /** Speak an answer, remembering the words so echo does not trigger barge-in. */
+  /**
+   * Speak an answer. The microphone is always closed first: on Android Chrome a
+   * live microphone and the browser's reading voice fight over the same audio
+   * channel, which leaves the Manager listening but silent. Listening starts
+   * again as soon as the answer has been spoken.
+   */
   const speakAnswer = (id: string, text: string, onDone?: () => void) => {
+    dictation.stop();
+    listeningRef.current = false;
     spokenTextRef.current = text.toLowerCase().replace(/\s+/g, " ");
+    setSpeechError(null);
     readAloud.speak(id, text, () => {
       spokenTextRef.current = "";
       onDone?.();
     });
+    // Honest failure: if nothing actually started, say so instead of silence.
+    window.setTimeout(() => {
+      if (!readAloud.didSpeak()) {
+        setSpeechError("Your phone did not play the answer aloud — the reply is written below. Open Voice check for details.");
+      }
+    }, 2200);
   };
+
 
   /**
    * The real approval box. Voice Mode reads the pending banner aloud when it
