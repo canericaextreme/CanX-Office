@@ -321,80 +321,74 @@ export function useReadAloud(): ReadAloudState {
       }
       setSpeakingId(id);
 
-      // Chrome quietly pauses long speech. Only resume when it is actually
-      // paused — pausing it ourselves is what used to make the voice drop out.
-      clearKeepAlive();
-      keepAlive.current = setInterval(() => {
-        if (cancelledRef.current) return;
-        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-      }, 4000);
-
+      let finished = false;
       const finish = () => {
+        if (finished) return;
+        finished = true;
         clearKeepAlive();
         setSpeakingId(null);
         onDone?.();
       };
 
-      const speakChunk = (index: number) => {
-        if (cancelledRef.current) {
-          clearKeepAlive();
-          return;
-        }
-        if (index >= chunks.length) {
+      // Chrome quietly pauses long speech. Only resume when it is actually
+      // paused — pausing it ourselves is what used to make the voice drop out.
+      // If nothing is speaking or queued at all, the answer is over.
+      clearKeepAlive();
+      const startedAt = Date.now();
+      keepAlive.current = setInterval(() => {
+        if (cancelledRef.current || finished) return;
+        const synth = window.speechSynthesis;
+        if (synth.paused) synth.resume();
+        else if (!synth.speaking && !synth.pending && (spokeRef.current || Date.now() - startedAt > 8000)) {
           finish();
-          return;
         }
-        const piece = chunks[index]!;
-        const utterance = new SpeechSynthesisUtterance(piece);
-        if (voiceRef.current) {
-          utterance.voice = voiceRef.current;
-          utterance.lang = voiceRef.current.lang;
+      }, 3000);
+
+      // Queue every piece up front. The browser plays them back-to-back on its
+      // own, which is what keeps the voice smooth — starting pieces one at a
+      // time from timers is what made the voice cut in and out.
+      let remaining = chunks.length;
+      let run = 0;
+      const queueAll = () => {
+        run += 1;
+        const myRun = run;
+        remaining = chunks.length;
+        for (const piece of chunks) {
+          const utterance = new SpeechSynthesisUtterance(piece);
+          if (voiceRef.current) {
+            utterance.voice = voiceRef.current;
+            utterance.lang = voiceRef.current.lang;
+          }
+          // Relaxed, conversational delivery rather than the flat default.
+          utterance.rate = 1.02;
+          utterance.pitch = 1.02;
+          utterance.volume = 1;
+          utterance.onstart = () => {
+            spokeRef.current = true;
+          };
+          const pieceDone = () => {
+            if (myRun !== run) return; // an old, cancelled queue
+            remaining -= 1;
+            if (remaining <= 0) finish();
+          };
+          utterance.onend = pieceDone;
+          // If a piece is dropped by the browser, carry on instead of stopping.
+          utterance.onerror = pieceDone;
+          window.speechSynthesis.speak(utterance);
         }
-        // Relaxed, conversational delivery rather than the flat default.
-        utterance.rate = 1.02;
-        utterance.pitch = 1.02;
-        utterance.volume = 1;
-        let moved = false;
-        let guard: ReturnType<typeof setTimeout> | null = null;
-        const next = () => {
-          if (guard) clearTimeout(guard);
-          guard = null;
-          if (moved || cancelledRef.current) return;
-          moved = true;
-          speakChunk(index + 1);
-        };
-        utterance.onstart = () => {
-          spokeRef.current = true;
-        };
-        utterance.onend = next;
-        // If a piece is dropped by the browser, carry on instead of stopping.
-        utterance.onerror = next;
-        window.speechSynthesis.speak(utterance);
-        // Safety net: if the browser never reports the piece as finished,
-        // carry on anyway so the rest of the answer is still spoken.
-        guard = setTimeout(
-          () => {
-            if (cancelledRef.current || moved) return;
-            if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-              guard = setTimeout(() => next(), 4000);
-              return;
-            }
-            next();
-          },
-          Math.round(piece.length * 90) + 4000,
-        );
       };
+      queueAll();
 
       // Phones only allow speech that starts inside the button press itself,
-      // so the first piece is queued immediately. Chrome sometimes drops an
+      // so the answer is queued immediately. Chrome sometimes drops an
       // utterance queued right after cancel(), so if nothing has actually
-      // started shortly afterwards the same piece is queued again.
-      speakChunk(0);
+      // started shortly afterwards the whole answer is queued again once.
       setTimeout(() => {
-        if (cancelledRef.current || spokeRef.current) return;
+        if (cancelledRef.current || finished || spokeRef.current) return;
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
-        speakChunk(0);
-      }, 250);
+        window.speechSynthesis.cancel();
+        queueAll();
+      }, 350);
     },
     [clearKeepAlive],
   );
