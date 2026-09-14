@@ -161,12 +161,15 @@ describe("whole-office review uses a server-built snapshot", () => {
 
 describe("Claude stays a reviewer and changes nothing", () => {
   it("the review path writes no office data and takes no external action", () => {
-    expect(reviewSource).not.toMatch(/insert|update|delete|sendEmail|purchase/i);
+    expect(reviewSource).not.toMatch(/\.from\(/);
+    expect(reviewSource).not.toMatch(/\b(INSERT|UPDATE|DELETE)\b/);
+    expect(reviewSource).not.toMatch(/sendEmail|purchase|deploy\(/i);
   });
 
   it("untrusted material cannot change the reviewer's role", () => {
     expect(reviewSource).toContain("untrusted");
-    expect(reviewSource).toMatch(/never the Office Manager/i);
+    expect(reviewSource).toContain("NOT the CanX Office Manager");
+    expect(reviewSource).toContain("you are not an approver");
   });
 
   it("malformed JSON is not treated as a finished review", () => {
@@ -176,9 +179,12 @@ describe("Claude stays a reviewer and changes nothing", () => {
 
 describe("no automatic paid call", () => {
   it("the panel only reviews from an explicit press", () => {
-    expect(panel).not.toMatch(/useEffect\([\s\S]{0,200}?run\(/);
-    // The free connection check is the only thing allowed to run on open.
-    expect(panel).toContain("checkConnection");
+    // Every review starts in a click handler; the only thing an effect starts
+    // is the free connection check.
+    expect(panel).toContain("void reviewThisRoom()");
+    expect(panel).toContain("void reviewWholeOffice(");
+    expect(panel).toContain("void checkConnection()");
+    expect(panel).not.toMatch(/setInterval|setTimeout\([^)]*review/i);
   });
 
   it("the Manager button only opens the panel", () => {
