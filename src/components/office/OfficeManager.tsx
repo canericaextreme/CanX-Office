@@ -56,6 +56,14 @@ import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
+import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
+import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
+import { CONSOLE_VIEWS, OBSERVE_SCOPE_NOTICE, requestsRoomLook, type ConsoleView, type RoomReview } from "@/lib/manager-console";
+
+/** Written by this app, not by AI, when John asks the Manager to look. */
+const LOOK_NOTICE = `I can look at the room you have open, once, when you press "See this room" in the Rooms view. ${OBSERVE_SCOPE_NOTICE} I have opened Rooms for you.`;
+
+import { budgetScopeLines, modelStatusLine, type VerificationReceipt } from "@/lib/manager-verification";
 
 
 interface ChatMessage {
@@ -63,9 +71,11 @@ interface ChatMessage {
   role: "user" | "assistant" | "office";
   content: string;
   toolCalls?: ManagerToolCall[];
+  /** What was actually read for this answer. Shown, never assumed. */
+  checked?: VerificationReceipt;
 }
 
-type Tab = "manager" | "appearance" | "notes";
+type Tab = ConsoleView;
 
 /** One short sentence used by the voice check with the microphone off. */
 export const VOICE_CHECK_SENTENCE = "Voice check. If you can hear this sentence, the speaking voice works on this device.";
@@ -75,16 +85,20 @@ export function OfficeManager() {
   const [open, setOpen] = useState(false);
   /** Shrinks the window to a small floating control; the conversation stays live. */
   const [minimized, setMinimized] = useState(false);
-  const [tab, setTab] = useState<Tab>("manager");
+  const [tab, setTab] = useState<Tab>("now");
+
   const [status, setStatus] = useState<ManagerStatus | null>(null);
+  /** Exact time of the last successful connection check, in this session only. */
+  const [lastCheckLabel, setLastCheckLabel] = useState<string | null>(null);
+  /** Room reviews held in memory for this visit. Never stored anywhere. */
+  const [roomReviews, setRoomReviews] = useState<Record<string, RoomReview | undefined>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
-  /** Shows the plain evidence panel about this device's speaking voice. */
-  const [showVoiceCheck, setShowVoiceCheck] = useState(false);
+
 
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -188,7 +202,12 @@ export function OfficeManager() {
   useEffect(() => {
     if (!open || status) return;
     void fetchStatus({ data: { accessToken: token } })
-      .then(setStatus)
+      .then((result) => {
+        setStatus(result);
+        // Only a check that actually passed is allowed to set a time.
+        setLastCheckLabel(result.connected ? new Date().toLocaleString() : null);
+      })
+
       .catch(() =>
         setStatus({
           provider: "none",
@@ -263,6 +282,20 @@ export function OfficeManager() {
     const text = (override ?? draft).trim();
     if (!text || busy) return;
 
+    // Asking the Manager to look at the screen opens the Rooms view, where the
+    // one-shot look is an explicit button press. Nothing is looked at silently.
+    if (requestsRoomLook(text)) {
+      setDraft("");
+      setTab("rooms");
+      setMessages((current) => [
+        ...current,
+        { id: `look-${Date.now()}`, role: "office", content: LOOK_NOTICE },
+      ]);
+      return;
+    }
+
+
+
     // A plain yes or no answers "shall I read the rest?" without going to the
     // provider at all — nothing is spent and nothing is approved by it.
     const pending = pendingFullRef.current;
@@ -325,7 +358,14 @@ export function OfficeManager() {
         lastAnswerRef.current = { id: answerId, text: answer };
         setMessages((current) => [
           ...current,
-          { id: answerId, role: "assistant", content: answer, toolCalls: reply.toolCalls },
+          {
+            id: answerId,
+            role: "assistant",
+            content: answer,
+            toolCalls: reply.toolCalls,
+            ...(reply.checked ? { checked: reply.checked } : {}),
+          },
+
         ]);
         // A real task change — typed or spoken — reloads the Work Board.
         const changedWork = (reply.toolCalls ?? []).some((call) =>
@@ -422,7 +462,7 @@ export function OfficeManager() {
       if (!detail || typeof detail.text !== "string" || !detail.text.trim()) return;
       setOpen(true);
       setMinimized(false);
-      setTab("manager");
+      setTab("now");
       setDraft(detail.text.slice(0, 4000));
     };
     window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
@@ -546,18 +586,19 @@ export function OfficeManager() {
             >
               <GripVertical className="h-4 w-4" aria-hidden="true" />
             </div>
-            {(["manager", "appearance", "notes"] as Tab[]).map((name) => (
+            {CONSOLE_VIEWS.map((view) => (
               <button
-                key={name}
-                onClick={() => setTab(name)}
-                aria-current={tab === name}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize ${
-                  tab === name ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-background"
+                key={view.id}
+                onClick={() => setTab(view.id)}
+                aria-current={tab === view.id}
+                className={`min-h-9 rounded-md px-3 py-1.5 text-sm font-medium ${
+                  tab === view.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-background"
                 }`}
               >
-                {name === "notes" ? `Saved (${notes.length})` : name}
+                {view.label}
               </button>
             ))}
+
             <Button
               variant="ghost"
               size="sm"
@@ -570,7 +611,7 @@ export function OfficeManager() {
           </div>
 
 
-          {tab === "manager" && (
+          {tab === "now" && (
             <>
               <div className="shrink-0 border-b border-border px-3 py-2 text-xs">
                 {status === null ? (
@@ -659,12 +700,14 @@ export function OfficeManager() {
                         <Eye className="mr-1.5 h-3.5 w-3.5" /> Review with Claude
                       </Button>
                     )}
+                    {message.checked && <CheckedReceipt receipt={message.checked} />}
+
                     {message.toolCalls?.map((call, index) => (
                       <ProposalCard
                         key={`${message.id}-${index}`}
                         call={call}
                         onSaveNote={addNote}
-                        onOpenAppearance={() => setTab("appearance")}
+                        onOpenAppearance={() => setTab("settings")}
                       />
                     ))}
                   </div>
@@ -810,61 +853,93 @@ export function OfficeManager() {
                   </p>
                 )}
 
-                <div className="mt-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-xs"
-                    aria-expanded={showVoiceCheck}
-                    onClick={() => setShowVoiceCheck((value) => !value)}
-                  >
-                    {showVoiceCheck ? "Hide voice check" : "Voice check"}
-                  </Button>
-                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Voice check and the spoken-voice test are in Settings.
+                </p>
 
-                {showVoiceCheck && (
-                  <div
-                    aria-label="Voice check"
-                    className="mt-2 rounded-lg border border-border bg-secondary/40 p-2.5 text-xs text-muted-foreground"
-                  >
-                     <p className="font-semibold text-foreground">What the Manager's audio player did</p>
-                    <ul className="mt-1.5 space-y-1">
-                       <li>Voice turn recorded: {managerVoice.report.recorded ? "yes" : "no"}</li>
-                       <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
-                       <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
-                       <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
-                       <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
-                    </ul>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-2"
-                      aria-label="Test the voice with the microphone off"
-                      onClick={() => {
-                        managerVoice.stopListening();
-                        setSpeechError(null);
-                        managerVoice.unlockPlayback();
-                        void speakAnswer(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
-                      }}
-                    >
-                      <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
-                    </Button>
-                    <p className="mt-2 text-[11px]">
-                      This tests the same attached audio player used for Manager answers. Voice audio is temporary and
-                      is not added to office records.
-                    </p>
-                  </div>
-                )}
 
               </div>
             </>
           )}
 
-          {tab === "appearance" && <AppearancePanel />}
+          {tab === "rooms" && (
+            <ManagerRoomsPanel
+              accessToken={token}
+              recordsReadable={workbenchMemory.memory !== null}
+              reviews={roomReviews}
+              onReviewed={(review) => setRoomReviews((current) => ({ ...current, [review.roomId]: review }))}
+            />
+          )}
 
-          {tab === "notes" && (
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-              <div className="space-y-2">
+          {tab === "team" && <ManagerTeamPanel accessToken={token} connected={status?.connected === true} />}
+
+          {tab === "settings" && (
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+              <div className="rounded-lg border border-border p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Connection and model
+                </p>
+                <p className="mt-1 text-xs text-foreground">
+                  {modelStatusLine(status?.model ?? null, status?.connected ? lastCheckLabel : null)}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  This is the model configured on the CanX server. It is never described as the newest available.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Money limits</p>
+                {budgetScopeLines(workbenchMemory.memory !== null).map((line) => (
+                  <div key={line.id} className="mt-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {line.label} — {line.amount}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{line.scope}</p>
+                    <p className="text-[11px] text-muted-foreground">{line.enforcement}</p>
+                  </div>
+                ))}
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  These are two separate limits. They are never added together and neither is a spend total.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Voice check</p>
+                <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
+                  <li>Voice turn recorded: {managerVoice.report.recorded ? "yes" : "no"}</li>
+                  <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
+                  <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
+                  <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
+                  <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
+                </ul>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-9"
+                  aria-label="Test the voice with the microphone off"
+                  onClick={() => {
+                    managerVoice.stopListening();
+                    setSpeechError(null);
+                    managerVoice.unlockPlayback();
+                    void speakAnswer(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);
+                  }}
+                >
+                  <Volume2 className="mr-1.5 h-4 w-4" /> Test voice (microphone off)
+                </Button>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Voice audio is temporary and is never added to office records.
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appearance</p>
+                <AppearancePanel />
+              </div>
+
+              <div className="space-y-2 border-t border-border pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Saved ({notes.length})
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {shared
                     ? "Saved to your CanX account, so these appear on any device you sign in on."
@@ -875,33 +950,74 @@ export function OfficeManager() {
                     Copy this device's records into the CanX account
                   </Button>
                 )}
-              </div>
-              {notes.length === 0 && <p className="text-sm text-muted-foreground">Nothing saved yet.</p>}
-              {notes.map((note) => (
-                <div key={note.id} className="rounded-lg border border-border p-2.5">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-foreground">{note.title}</p>
-                      {note.detail && <p className="mt-1 text-sm text-muted-foreground">{note.detail}</p>}
-                      <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {note.kind} · {note.owner || "no owner"} · {PROVENANCE_LABELS[note.provenance]}
-                      </p>
+                {notes.length === 0 && <p className="text-sm text-muted-foreground">Nothing saved yet.</p>}
+                {notes.map((note) => (
+                  <div key={note.id} className="rounded-lg border border-border p-2.5">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-foreground">{note.title}</p>
+                        {note.detail && <p className="mt-1 text-sm text-muted-foreground">{note.detail}</p>}
+                        <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {note.kind} · {note.owner || "no owner"} · {PROVENANCE_LABELS[note.provenance]}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon" aria-label={`Remove ${note.title}`} onClick={() => removeNote(note.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="icon" aria-label={`Remove ${note.title}`} onClick={() => removeNote(note.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
+
         </aside>
       )}
     </>
   );
 }
 
+/**
+ * The visible proof behind an answer: what was read, when, what was missing,
+ * and the exact model. Built on the server from the context actually used.
+ */
+function CheckedReceipt({ receipt }: { receipt: VerificationReceipt }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-1.5 text-left">
+      <button
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="min-h-8 rounded-md px-2 py-1 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        {open ? "Hide what was checked" : `Checked ${receipt.sources.length} source${receipt.sources.length === 1 ? "" : "s"}`}
+      </button>
+      {open && (
+        <div className="mt-1 rounded-md border border-border bg-secondary/40 p-2 text-[11px] text-muted-foreground">
+          <p className="font-semibold text-foreground">Read at {new Date(receipt.checkedAt).toLocaleString()}</p>
+          <p className="mt-1">Provider: {receipt.provider} · Model: {receipt.model}</p>
+          <p className="mt-1 font-semibold text-foreground">Sources read</p>
+          <ul className="list-disc pl-4">
+            {receipt.sources.length === 0 && <li>No labelled office records were readable for this answer.</li>}
+            {receipt.sources.map((source) => (
+              <li key={source}>{source}</li>
+            ))}
+          </ul>
+          <p className="mt-1 font-semibold text-foreground">Gaps and failed reads</p>
+          <ul className="list-disc pl-4">
+            {receipt.gaps.length === 0 && <li>None reported by the office records this time.</li>}
+            {receipt.gaps.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProposalCard({
+
   call,
   onSaveNote,
   onOpenAppearance,

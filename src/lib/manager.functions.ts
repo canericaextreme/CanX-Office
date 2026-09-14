@@ -22,6 +22,13 @@ import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server"
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 import { protectedCategoryOf } from "@/lib/protected-actions";
+import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
+import {
+  consultRoomWorkerWith,
+  type ConsultInput,
+  type ConsultReply,
+} from "@/lib/manager-workers.functions";
+
 import {
   assignManagerTaskWith,
   classifyManagerRisk,
@@ -94,8 +101,16 @@ export interface ManagerReply {
   text: string;
   toolCalls: ManagerToolCall[];
   actionResults: ManagerActionResult[];
+  /**
+   * Visible proof of what was actually checked for this answer: sources read,
+   * the time they were read, gaps and failed reads, and the exact model.
+   */
+  checked?: VerificationReceipt;
+  /** Labelled worker answers returned during this turn, with their evidence. */
+  consultations?: ConsultReply[];
   detail?: string;
 }
+
 
 const MAX_MESSAGES = 20;
 const MAX_CHARS = 6000;
@@ -130,7 +145,32 @@ export interface ManagerDeps {
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   model: string | undefined;
+  /**
+   * Bounded room-worker consultation. Defaults to the real worker path built
+   * from these same dependencies; tests inject their own.
+   */
+  consultWorker?: (input: ConsultInput) => Promise<ConsultReply>;
+  now?: () => Date;
 }
+
+/** The real worker path, built from the Manager's own verified dependencies. */
+function workerConsultation(deps: ManagerDeps, input: ConsultInput): Promise<ConsultReply> {
+  if (deps.consultWorker) return deps.consultWorker(input);
+  return consultRoomWorkerWith(
+    {
+      verifySignedIn: deps.verifySignedIn ?? deps.verifyOwner,
+      reserve: deps.reserve,
+      settle: deps.settle,
+      buildContext: (token, verification) => deps.buildContext(token, verification, false),
+      fetchImpl: deps.fetchImpl,
+      openaiKey: deps.openaiKey,
+      model: deps.model,
+      ...(deps.now ? { now: deps.now } : {}),
+    },
+    input,
+  );
+}
+
 
 /**
  * Trim a server setting at read time; an empty or whitespace-only value is
@@ -315,7 +355,25 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    name: "consult_room_worker",
+    description:
+      "Ask one office worker in their own room a bounded question. Use it when the answer belongs to that room's records, or when John asks you to consult someone. The worker is a read-only adviser: it cannot approve, spend, send, deploy or change anything. Their answer comes back to you as labelled evidence and you may disagree with it. Valid worker_id values: w-manager-office, w-quality-security, w-finance-records, w-operations, w-projects, w-ideas.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["worker_id", "room", "question"],
+      properties: {
+        worker_id: { type: "string" },
+        room: { type: "string" },
+        question: { type: "string" },
+        task_id: { type: "string" },
+      },
+    },
+  },
 ];
+
 
 /** Strict allowlist for tool arguments returned by the model. */
 const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" | "boolean"; enum?: string[]; min?: number; max?: number; maxLen?: number }>> = {
@@ -367,7 +425,14 @@ const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" 
     evidence: { type: "string", maxLen: 6000 },
     question: { type: "string", maxLen: 2000 },
   },
+  consult_room_worker: {
+    worker_id: { type: "string", maxLen: 60 },
+    room: { type: "string", maxLen: 60 },
+    question: { type: "string", maxLen: 1200 },
+    task_id: { type: "string", maxLen: 100 },
+  },
 };
+
 
 export function sanitizeToolArgs(name: string, raw: string | undefined): ManagerToolArgs | null {
   const rules = TOOL_ARG_RULES[name];
@@ -500,8 +565,30 @@ Operating rules:
 - Green actions include: creating/assigning/verifying internal tasks, logging changes, previewing allowlisted appearance settings, proposing tasks/decisions for John to save, routine read-only cross-project coordination, and reading/sorting/drafting emails.
 - Yellow actions include: major or risky cross-project changes, sending emails, schema/migration changes, and any external spend.
 - Red actions include: production deployment, safety-critical AI authority changes, destructive data changes, purchases/subscriptions, and anything that would spend beyond the approved budget.
-- The pre-authorized AI operating budget is C$100 per month. You warn John at C$75 and pause paid AI calls at C$100. Within that budget you may send a recommendation to Claude for second-eyes review without asking each time.
+- Two separate money limits exist and you never add them together and never call either one current spend. The office running-cost ceiling is C$500 per month, covering every CanX Office running cost; it is John's recorded policy and is not automatically enforced here. Your own AI sub-limit is C$100 per month, sitting inside that ceiling; you warn John at C$75 and pause paid AI calls at C$100. Within your sub-limit you may send a recommendation to Claude for second-eyes review without asking each time.
 - Verify before rebuilding. Nothing gets rebuilt just because of uncertainty.
+
+Checking and rechecking, every time, before a factual answer or a recommendation:
+- Read the live context block attached to this request, and any room observation attached to this turn. That is your evidence.
+- Match the question to the records that actually answer it. Where a second source exists, cross-check it and say which two you used.
+- Keep facts and recommendations apart in your wording. "That's what the records show" is a fact; "I'd hold it until Monday" is your opinion.
+- Say plainly when something is missing, stale, device-only, or failed to read. Never fill a gap by inference.
+- If two records conflict, say so and name both. Never pick the more convenient number.
+- If you cannot verify a claim, the answer is "Unknown", followed by the exact next check that would settle it.
+- You may sound like you know this office well, because you do. You may never sound like you know a fact the records did not give you. Never call a planned worker live, a prepared item complete, or a single-source claim independently verified.
+- When a second check would cost money or change data, say so and wait for the budget rule or John's approval.
+- Correct John plainly when the records prove him wrong — show the evidence, keep the tone respectful.
+
+Consulting the workers:
+- Each room has a worker seat. Use consult_room_worker when the answer belongs to that room, or when John asks you to consult someone. Valid ids: w-manager-office (reception), w-quality-security (systems), w-finance-records (finance), w-operations (work-board), w-projects (project-rooms), w-ideas (idea-garage).
+- A worker is a read-only adviser with no tools. It cannot approve, spend, send, deploy or change a record, and it never speaks for you or for John.
+- Always name the worker when you report their answer, and give their missing evidence as well as their conclusion. You may disagree with them; say so plainly when you do.
+- A failed or incomplete worker reply is not a result. Report it as not answered.
+
+Looking at the office screen:
+- You can look at ONE CanX Office room — the one John has open — and only when he asks or presses the button. Not his phone, not another tab, not a camera, not a room that is off screen.
+- To review another room, tell him to open it first, then look there. A room directory entry or an old picture is never a current visual inspection.
+
 - Persist memory across restarts: use the task list, approval box, and change log. Record rollback points with before/after snapshots.
 - Safe Highways and Trail Tales are not off-limits; routine coordination between them, Finance, and other offices is green, while major or risky changes to those projects are yellow.
 
@@ -753,6 +840,7 @@ interface ToolExecution {
   textAdditions: string[];
   actionResults: ManagerActionResult[];
   remainingToolCalls: ManagerToolCall[];
+  consultations: ConsultReply[];
 }
 
 /**
@@ -765,6 +853,8 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
   const textAdditions: string[] = [];
   const actionResults: ManagerActionResult[] = [];
   const remainingToolCalls: ManagerToolCall[] = [];
+  const consultations: ConsultReply[] = [];
+
 
   // The authenticator (AAL2) is checked once, lazily, and only when a protected
   // action is actually attempted. Ordinary talking never reaches this.
@@ -950,6 +1040,36 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           status: result.ok ? "done" : "stopped",
           detail: result.ok ? "Second-eyes review completed." : (result.detail ?? "Claude review failed."),
         });
+      } else if (call.name === "consult_room_worker") {
+        // A worker is a read-only adviser: no tools, no approvals, no writes.
+        const result = await workerConsultation(deps, {
+          accessToken,
+          workerId: String(call.arguments["worker_id"] ?? ""),
+          room: String(call.arguments["room"] ?? ""),
+          question: String(call.arguments["question"] ?? ""),
+          taskId: String(call.arguments["task_id"] ?? "") || null,
+          thread: [],
+        });
+        consultations.push(result);
+        if (result.ok && result.answer) {
+          textAdditions.push(
+            `${result.workerName} (${result.room} room) says: ${result.answer.conclusion}`,
+            `Evidence they used: ${result.answer.evidenceUsed.join("; ") || "none stated"}`,
+            `Confidence: ${result.answer.confidence}. Missing evidence: ${result.answer.missingEvidence.join("; ") || "none stated"}`,
+            `Their suggested next step: ${result.answer.nextStep}`,
+          );
+        } else {
+          // A failed or incomplete worker reply is never a verified result.
+          textAdditions.push(`Worker consultation: ${result.detail || "no usable answer was returned."}`);
+        }
+        actionResults.push({
+          name: call.name,
+          risk,
+          status: result.ok ? "done" : "stopped",
+          detail: result.ok
+            ? `Consulted ${result.workerName} in the ${result.room} room.`
+            : result.detail || "The consultation did not complete.",
+        });
       } else if (call.name === "preview_appearance" || call.name === "propose_task") {
         remainingToolCalls.push(call);
       } else {
@@ -970,8 +1090,9 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
     }
   }
 
-  return { textAdditions, actionResults, remainingToolCalls };
+  return { textAdditions, actionResults, remainingToolCalls, consultations };
 }
+
 
 /** Testable chat implementation. The server function is a thin wrapper. */
 export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
@@ -1027,16 +1148,28 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
 
   try {
     const contextWithTeam = [context.text, "", ...teamContextLines(sanitizeTeam(data.team))].join("\n");
+    // The receipt describes the exact context this answer was built from, so
+    // it can never claim a source that was not read.
+    const checked = buildVerificationReceipt(contextWithTeam, {
+      provider: "OpenAI",
+      model: deps.model,
+      checkedAt: (deps.now?.() ?? new Date()).toISOString(),
+    });
     const reply = await callOpenAI(deps, data, contextWithTeam);
     if (reply.ok && reply.toolCalls.length > 0) {
-      const { textAdditions, actionResults, remainingToolCalls } = await executeToolCalls(deps, data.accessToken, reply.toolCalls);
+      const { textAdditions, actionResults, remainingToolCalls, consultations } = await executeToolCalls(
+        deps,
+        data.accessToken,
+        reply.toolCalls,
+      );
       const combinedText = [reply.text, ...textAdditions].filter(Boolean).join("\n\n");
       await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-      return { ...reply, text: combinedText, toolCalls: remainingToolCalls, actionResults };
+      return { ...reply, text: combinedText, toolCalls: remainingToolCalls, actionResults, checked, consultations };
     }
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-    return reply;
+    return reply.ok ? { ...reply, checked } : reply;
   } catch (error) {
+
     console.error("[office-manager] provider call threw", error instanceof Error ? error.name : "unknown");
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
     return {
