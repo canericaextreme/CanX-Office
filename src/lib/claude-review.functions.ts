@@ -45,6 +45,26 @@ export interface ClaudeStatus {
   detail: string;
 }
 
+/** What Claude was asked to look at. Chosen by John, never inferred. */
+export type ClaudeScope = "manual" | "room" | "office";
+
+/** The six operating areas of the office a whole-office review must cover. */
+export const REVIEW_AREAS = [
+  "Leadership & decisions",
+  "Programmes/projects",
+  "Operations/work board",
+  "Money & records",
+  "Systems/security/connections",
+  "Team/skills",
+] as const;
+
+export type ReviewArea = (typeof REVIEW_AREAS)[number];
+
+export interface ClaudeAreaFinding {
+  area: ReviewArea;
+  finding: string;
+}
+
 export interface ClaudeReview {
   recommendation: "agree" | "disagree" | "agree_with_conditions" | "insufficient_evidence";
   confidence: "low" | "medium" | "high";
@@ -52,6 +72,8 @@ export interface ClaudeReview {
   risks: string[];
   missingEvidence: string[];
   nextStep: string;
+  /** Optional, bounded per-area findings. Absent on older/manual replies. */
+  areaFindings?: ClaudeAreaFinding[];
 }
 
 export interface ClaudeReviewReply {
@@ -63,7 +85,9 @@ export interface ClaudeReviewReply {
     | "limit_blocked"
     | "health_check_failed"
     | "provider_error"
-    | "invalid_input";
+    | "invalid_input"
+    | "no_picture"
+    | "context_unavailable";
   provider: ClaudeStatus["provider"];
   state: ClaudeState;
   model: string | null;
@@ -73,9 +97,20 @@ export interface ClaudeReviewReply {
   /** Plain-text fallback when the model did not return the expected shape. */
   text: string;
   detail?: string;
+  /** What John asked Claude to look at. */
+  scope: ClaudeScope;
+  /** Plain statements of what Claude did and did not actually receive. */
+  coverage: string[];
+  /** ISO time the review actually completed, or the attempt was refused. */
+  reviewedAt: string;
 }
 
 const MAX_CHARS = 6000;
+/** Bounded visible text of one office page. */
+export const MAX_ROOM_TEXT = 6000;
+/** Same bounded picture rules as the existing office observation. */
+export const MAX_IMAGE_CHARS = 1_400_000;
+const MAX_OFFICE_CONTEXT = 60_000;
 const REQUEST_TIMEOUT_MS = 45_000;
 /**
  * Cold starts and first outbound connections from the server runtime can take
