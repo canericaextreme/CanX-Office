@@ -84,14 +84,17 @@ export function OfficeManager() {
   const [tab, setTab] = useState<Tab>("now");
 
   const [status, setStatus] = useState<ManagerStatus | null>(null);
+  /** Exact time of the last successful connection check, in this session only. */
+  const [lastCheckLabel, setLastCheckLabel] = useState<string | null>(null);
+  /** Room reviews held in memory for this visit. Never stored anywhere. */
+  const [roomReviews, setRoomReviews] = useState<Record<string, RoomReview | undefined>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
-  /** Shows the plain evidence panel about this device's speaking voice. */
-  const [showVoiceCheck, setShowVoiceCheck] = useState(false);
+
 
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
