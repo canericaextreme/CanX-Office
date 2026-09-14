@@ -670,6 +670,7 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
     return {
       ok: false,
       code: "auth_not_ready",
+      structuredComplete: false,
       provider: "none",
       state: "auth_unavailable",
       model: null,
@@ -706,6 +707,7 @@ export async function runManagerSecondEyesWith(deps: WorkbenchDeps, input: Secon
     return {
       ok: false,
       code: "provider_error",
+      structuredComplete: false,
       provider: "none",
       state: "configured_unverified",
       model: null,
