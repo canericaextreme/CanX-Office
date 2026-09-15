@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export const Route = createFileRoute("/_office/health")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Health & Wellbeing" },
-      { name: "description", content: "Personal health, energy, and wellbeing tracking in CanX Office." },
-      { property: "og:title", content: "CanX Office — Health & Wellbeing" },
-      { property: "og:description", content: "Personal health, energy, and wellbeing tracking in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

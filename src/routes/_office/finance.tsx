@@ -31,10 +31,10 @@ import {
 export const Route = createFileRoute("/_office/finance")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Finance Office" },
-      { name: "description", content: "Private receipt import, review, and reconciliation in CanX Office." },
-      { property: "og:title", content: "CanX Office — Finance Office" },
-      { property: "og:description", content: "Private receipt import, review, and reconciliation in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

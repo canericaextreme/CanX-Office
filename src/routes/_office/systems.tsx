@@ -23,16 +23,10 @@ import {
 export const Route = createFileRoute("/_office/systems")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Systems & Connections" },
-      {
-        name: "description",
-        content: "What the CanX Office is actually connected to, what it still needs, and what is only planned.",
-      },
-      { property: "og:title", content: "CanX Office — Systems & Connections" },
-      {
-        property: "og:description",
-        content: "Honest connection status for the CanX Office: nothing is shown as connected unless it really is.",
-      },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

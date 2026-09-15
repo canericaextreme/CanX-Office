@@ -48,10 +48,10 @@ function IdeaCardView({ idea }: { idea: IdeaCard }) {
 export const Route = createFileRoute("/_office/idea-garage")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Idea Garage" },
-      { name: "description", content: "Evaluate ideas and income experiments in CanX Office." },
-      { property: "og:title", content: "CanX Office — Idea Garage" },
-      { property: "og:description", content: "Evaluate ideas and income experiments in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

@@ -9,10 +9,10 @@ import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
 export const Route = createFileRoute("/_office/owner-desk")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Owner's Desk" },
-      { name: "description", content: "John's daily overview in CanX Office." },
-      { property: "og:title", content: "CanX Office — Owner's Desk" },
-      { property: "og:description", content: "John's daily overview in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
