@@ -132,8 +132,9 @@ export function OfficeManager() {
       setSpeechError(result?.detail ?? "The Manager voice could not prepare that answer. The written answer is still available.");
       return;
     }
-    const played = await managerVoice.playAudio(result.audioBase64, result.contentType, onDone);
-    if (!played) setSpeechError("Your phone could not play the Manager's voice. Press Play answer to try again.");
+    // If the browser refuses, the hook keeps the already-paid-for audio and
+    // reports the real refusal; the Play answer button replays that same audio.
+    await managerVoice.playAudio(result.audioBase64, result.contentType, onDone);
   };
 
 
