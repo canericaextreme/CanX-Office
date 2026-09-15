@@ -477,6 +477,8 @@ export function OfficeManager() {
     const last = lastAnswerRef.current;
     if (!last) return;
     managerVoice.stopListening();
+    // Unlocked inside this tap so the phone allows the answer that follows.
+    managerVoice.unlockPlayback();
     void speakAnswer(last.id, forSpeech(last.text), resumeListening);
   };
 
