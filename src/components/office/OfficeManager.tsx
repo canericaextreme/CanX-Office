@@ -860,6 +860,22 @@ export function OfficeManager() {
                   </p>
                 )}
 
+                {managerVoice.hasPendingAudio && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 h-9"
+                    aria-label="Play the answer that is already prepared"
+                    /* Replays the audio already generated. No new voice request, no extra cost. */
+                    onClick={() => {
+                      setSpeechError(null);
+                      void managerVoice.playPendingAudio();
+                    }}
+                  >
+                    <Volume2 className="mr-1.5 h-4 w-4" /> Play answer
+                  </Button>
+                )}
+
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   Voice check and the spoken-voice test are in Settings.
                 </p>
