@@ -132,8 +132,9 @@ export function OfficeManager() {
       setSpeechError(result?.detail ?? "The Manager voice could not prepare that answer. The written answer is still available.");
       return;
     }
-    const played = await managerVoice.playAudio(result.audioBase64, result.contentType, onDone);
-    if (!played) setSpeechError("Your phone could not play the Manager's voice. Press Play answer to try again.");
+    // If the browser refuses, the hook keeps the already-paid-for audio and
+    // reports the real refusal; the Play answer button replays that same audio.
+    await managerVoice.playAudio(result.audioBase64, result.contentType, onDone);
   };
 
 
@@ -476,6 +477,8 @@ export function OfficeManager() {
     const last = lastAnswerRef.current;
     if (!last) return;
     managerVoice.stopListening();
+    // Unlocked inside this tap so the phone allows the answer that follows.
+    managerVoice.unlockPlayback();
     void speakAnswer(last.id, forSpeech(last.text), resumeListening);
   };
 
@@ -671,11 +674,15 @@ export function OfficeManager() {
                         aria-label={
                           managerVoice.phase === "speaking" ? "Stop reading this answer aloud" : "Read this answer aloud"
                         }
-                        onClick={() =>
-                          managerVoice.phase === "speaking"
-                            ? managerVoice.stopPlayback()
-                            : void speakAnswer(message.id, forSpeech(message.content))
-                        }
+                        onClick={() => {
+                          if (managerVoice.phase === "speaking") {
+                            managerVoice.stopPlayback();
+                            return;
+                          }
+                          // Unlocking inside this tap is what lets Android play the answer.
+                          managerVoice.unlockPlayback();
+                          void speakAnswer(message.id, forSpeech(message.content));
+                        }}
                       >
                         {managerVoice.phase === "speaking" ? (
                           <>
@@ -811,7 +818,7 @@ export function OfficeManager() {
                           <Square className="mr-1.5 h-4 w-4" /> Stop listening
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing"} onClick={() => void managerVoice.startListening()}>
+                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing"} onClick={() => { managerVoice.unlockPlayback(); void managerVoice.startListening(); }}>
                           <Mic className="mr-1.5 h-4 w-4" /> Start listening
                         </Button>
                       )}
@@ -851,6 +858,22 @@ export function OfficeManager() {
                   <p role="alert" className="mt-2 text-xs text-destructive">
                     {speechError ?? managerVoice.error}
                   </p>
+                )}
+
+                {managerVoice.hasPendingAudio && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 h-9"
+                    aria-label="Play the answer that is already prepared"
+                    /* Replays the audio already generated. No new voice request, no extra cost. */
+                    onClick={() => {
+                      setSpeechError(null);
+                      void managerVoice.playPendingAudio();
+                    }}
+                  >
+                    <Volume2 className="mr-1.5 h-4 w-4" /> Play answer
+                  </Button>
                 )}
 
                 <p className="mt-2 text-[11px] text-muted-foreground">
@@ -910,6 +933,12 @@ export function OfficeManager() {
                   <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
                   <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
                   <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
+                  <li>
+                    Browser refusal reported:{" "}
+                    {managerVoice.report.blockedReason
+                      ? `${managerVoice.report.blockedReason} — the browser would not start sound without a tap`
+                      : "none"}
+                  </li>
                   <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
                 </ul>
                 <Button
