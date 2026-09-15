@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { decideManagerApprovalWith, toJsonObject, type WorkbenchDeps } from "./manager-work.functions";
+import {
+  decideManagerApprovalWith,
+  toJsonObject,
+  type WorkbenchDeps,
+} from "./manager-work.functions";
 
 type Call = { method: string; path: string };
 
 function deps(calls: Call[]): WorkbenchDeps {
   return {
-    verifyOwner: async () => ({ ok: true, userId: "owner-1", email: "owner@example.com", aal: "aal2" }) as never,
+    verifyOwner: async () =>
+      ({ ok: true, userId: "owner-1", email: "owner@example.com", aal: "aal2" }) as never,
     reserve: async () => ({ allowed: true, reservationId: "r1" }) as never,
     settle: async () => undefined,
-    rest: async <T,>(_token: string, method: string, path: string) => {
+    rest: async <T>(_token: string, method: string, path: string) => {
       calls.push({ method, path });
       return { ok: true, data: [] as unknown as T };
     },
@@ -62,7 +67,9 @@ describe("toJsonObject", () => {
   });
 
   it("keeps objects and nested arrays inside arrays", () => {
-    expect(toJsonObject({ rows: [{ id: "x" }, ["y", 1]] })).toEqual({ rows: [{ id: "x" }, ["y", 1]] });
+    expect(toJsonObject({ rows: [{ id: "x" }, ["y", 1]] })).toEqual({
+      rows: [{ id: "x" }, ["y", 1]],
+    });
   });
 
   it("drops undefined keys and replaces undefined array items with null", () => {

@@ -32,14 +32,18 @@ describe("parseReview whole-office coverage", () => {
   });
 
   it("rejects extra or invalid area names", () => {
-    expect(parseReview(payload([...complete, { area: "Snacks", finding: "n/a" }]), "office")).toBeNull();
+    expect(
+      parseReview(payload([...complete, { area: "Snacks", finding: "n/a" }]), "office"),
+    ).toBeNull();
     expect(
       parseReview(payload([...complete.slice(0, 5), { area: "Snacks", finding: "n/a" }]), "office"),
     ).toBeNull();
   });
 
   it("rejects an area with an empty finding", () => {
-    const partial = complete.map((item, index) => (index === 2 ? { area: item.area, finding: "" } : item));
+    const partial = complete.map((item, index) =>
+      index === 2 ? { area: item.area, finding: "" } : item,
+    );
     expect(parseReview(payload(partial), "office")).toBeNull();
   });
 
