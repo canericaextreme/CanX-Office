@@ -7,6 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   MAX_TOKENS_BY_SCOPE,
+  REVIEW_AREAS,
   runClaudeReviewWith,
   systemPromptFor,
   type ClaudeDeps,
