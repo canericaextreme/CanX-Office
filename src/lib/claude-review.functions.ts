@@ -448,6 +448,17 @@ export function parseReview(text: string, scope: ClaudeScope = "manual"): Claude
         .filter((item): item is ClaudeAreaFinding => item !== null)
     : [];
 
+  if (scope === "office") {
+    const rawEntries = Array.isArray(raw["areaFindings"]) ? (raw["areaFindings"] as unknown[]) : [];
+    // Extra, invalid, duplicate or incomplete entries all mean the whole-office
+    // coverage cannot be trusted, so the review is not treated as complete.
+    if (rawEntries.length !== REVIEW_AREAS.length) return null;
+    if (findings.length !== REVIEW_AREAS.length) return null;
+    const names = new Set(findings.map((item) => item.area));
+    if (names.size !== REVIEW_AREAS.length) return null;
+    if (!REVIEW_AREAS.every((area) => names.has(area))) return null;
+  }
+
   return {
     recommendation,
     confidence,
@@ -669,7 +680,7 @@ async function callAnthropic(
     // That is a length stop, not a refusal, and it is explained plainly.
     const lengthStop = payload.stop_reason === "max_tokens";
 
-    const review = lengthStop ? null : parseReview(text);
+    const review = lengthStop ? null : parseReview(text, scope);
 
     // Anthropic answered, but not with a complete structured review. That is
     // never recorded as a finished review: the bounded plain text is kept so
