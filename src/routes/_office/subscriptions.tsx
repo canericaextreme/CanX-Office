@@ -31,17 +31,24 @@ export const Route = createFileRoute("/_office/subscriptions")({
 
 const SUBS = [
   { name: "Lovable", cost: "Credits", status: "green" as const, note: "Development platform" },
-  { name: "Supabase (proposed)", cost: "TBD", status: "grey" as const, note: "Backend not selected" },
-  { name: "Email sending", cost: "TBD", status: "grey" as const, note: "Not connected" },
+  { name: "Supabase", cost: "Unverified", status: "yellow" as const, note: "CanX-owned database and sign-in. Billing not verified here." },
+  { name: "Email sending", cost: "Unknown", status: "grey" as const, note: "Not connected" },
 ];
 
+/**
+ * A dated historical snapshot, kept for the record. It is NOT current spend:
+ * the office does not read provider billing, so current cost is unknown.
+ */
 export const AI_WORKERS_VERIFICATION = {
-  spend: "$0.20",
-  monthlyLimit: "$25.00",
+  spend: "$0.20 USD",
+  monthlyLimit: "$25.00 USD",
   usage: "0.8%",
-  status: "Partially verified",
+  status: "Historical snapshot — not current",
   lastVerified: "September 11, 2026",
-  evidence: "OpenAI Platform Usage and API key activity checked September 11, 2026.",
+  snapshotLabel: "Historical snapshot from September 11, 2026. Current spend is unknown.",
+  managerAiPolicyLimit: "C$100 / month",
+  evidence:
+    "OpenAI Platform Usage and API key activity checked September 11, 2026. Not re-checked since, so current billing is unknown.",
 } as const;
 
 function Subscriptions() {
