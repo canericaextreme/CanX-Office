@@ -32,7 +32,7 @@ describe("Office Manager voice — portable recording and playback", () => {
 
 describe("Office Manager voice — serialized turn lifecycle", () => {
   it("releases microphone tracks before audio playback", () => {
-    const playback = voice.slice(voice.indexOf("const playAudio"));
+    const playback = voice.slice(voice.indexOf("const attemptPlayback"));
     expect(playback.indexOf("releaseRecording()")) .toBeLessThan(playback.indexOf("audio.play()"));
     expect(voice).toContain("getTracks().forEach((track) => track.stop())");
   });
