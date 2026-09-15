@@ -23,6 +23,17 @@ const COMPACT_REVIEW =
   '{"recommendation":"agree","confidence":"medium","strongestReasons":["Evidence is stated."],' +
   '"risks":["Unverified sources."],"missingEvidence":["No customer interviews."],"nextStep":"Hold."}';
 
+/** A whole-office review must cover all six areas before it counts as complete. */
+const COMPACT_OFFICE_REVIEW = JSON.stringify({
+  recommendation: "agree",
+  confidence: "medium",
+  strongestReasons: ["Evidence is stated."],
+  risks: ["Unverified sources."],
+  missingEvidence: ["No customer interviews."],
+  nextStep: "Hold.",
+  areaFindings: REVIEW_AREAS.map((area) => ({ area, finding: `Finding for ${area}.` })),
+});
+
 interface Recorded {
   url: string;
   body: Record<string, unknown> | null;
