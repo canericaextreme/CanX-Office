@@ -154,11 +154,12 @@ function AiWorkersDetails() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="claude-provider" className="font-semibold">Claude API</h2>
             <span className="max-w-full whitespace-normal text-right">
-              <StatusBadge tone="grey" label="Connected, billing not yet verified" />
+              <StatusBadge tone="grey" label="Billing not verified" />
             </span>
           </div>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            <Detail label="Cost" value="Unknown" />
+            <Detail label="Cost" value="Unknown — not verified" />
+            <Detail label="Connection" value="See live check in Systems & Connections" />
             <Detail label="Action" value="Verify Anthropic billing/usage" />
           </dl>
         </section>
@@ -169,7 +170,7 @@ function AiWorkersDetails() {
             <h2 id="verification-evidence" className="text-sm font-semibold">Evidence</h2>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            OpenAI usage and limit are verified from the OpenAI Platform check dated September 11, 2026. Claude is connected, but its billing and usage have not been verified.
+            The OpenAI figures above are a historical record of a manual OpenAI Platform check dated September 11, 2026, in US dollars. They are not current spend, and current billing for OpenAI, Claude and Supabase is unknown until checked independently. The C$100 per month Manager AI figure is an internal policy limit set in this office, not a provider bill. Live connection status is checked in Systems &amp; Connections.
           </p>
         </section>
 
