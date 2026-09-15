@@ -57,9 +57,10 @@ describe("office entry gate", () => {
     expect(gate).toContain("session.signIn(");
   });
 
-  it("enters the office directly for a valid session and keeps device-only mode", () => {
+  it("enters the office only for a verified owner session and otherwise fails closed", () => {
     expect(gate).toContain('session.state === "owner"');
-    expect(gate).toContain('session.state === "backend_missing"');
+    expect(gate).not.toContain('session.state === "backend_missing"');
+    expect(gate).toContain("The office stays closed until the");
   });
 
   it("does not ask for the authenticator to open the office", () => {

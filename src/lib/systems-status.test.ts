@@ -18,7 +18,8 @@ describe("databaseRowState", () => {
     const state = databaseRowState(true, true);
     expect(state.tone).toBe("green");
     expect(state.note).toContain("owner role");
-    expect(state.note).toContain("two-step verification");
+    expect(state.note).toContain("Two-step verification is checked separately");
+    expect(state.note).not.toContain("two-step verification were confirmed");
   });
 
   it("never goes green without configuration, even if a session claims owner", () => {

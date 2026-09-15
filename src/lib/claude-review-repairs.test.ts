@@ -87,16 +87,21 @@ describe("scope output limits", () => {
     expect(MAX_TOKENS_BY_SCOPE).toEqual({ manual: 1600, room: 2200, office: 3200 });
   });
 
-  const cases: { scope: "manual" | "room" | "office"; extra: Record<string, unknown>; expected: number }[] = [
-    { scope: "manual", extra: {}, expected: 1600 },
-    { scope: "room", extra: { image: PICTURE, roomLabel: "Finance", path: "/finance" }, expected: 2200 },
-    { scope: "office", extra: {}, expected: 3200 },
+  const cases: {
+    scope: "manual" | "room" | "office";
+    extra: Record<string, unknown>;
+    expected: number;
+    text: string;
+  }[] = [
+    { scope: "manual", extra: {}, expected: 1600, text: COMPACT_REVIEW },
+    { scope: "room", extra: { image: PICTURE, roomLabel: "Finance", path: "/finance" }, expected: 2200, text: COMPACT_REVIEW },
+    { scope: "office", extra: {}, expected: 3200, text: COMPACT_OFFICE_REVIEW },
   ];
 
   for (const testCase of cases) {
     it(`sends max_tokens ${testCase.expected} for a ${testCase.scope} review`, async () => {
       const { deps, calls } = harness(
-        () => new Response(JSON.stringify({ content: [{ type: "text", text: COMPACT_REVIEW }] }), { status: 200 }),
+        () => new Response(JSON.stringify({ content: [{ type: "text", text: testCase.text }] }), { status: 200 }),
       );
       const reply = await runClaudeReviewWith(deps, { ...INPUT, scope: testCase.scope, ...testCase.extra });
       expect(reply.ok).toBe(true);
