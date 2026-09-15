@@ -9,7 +9,7 @@ const manager = readFileSync(resolve(process.cwd(), "src/components/office/Offic
 function block(source: string, start: string): string {
   const from = source.indexOf(start);
   expect(from).toBeGreaterThan(-1);
-  return source.slice(from, from + 1600);
+  return source.slice(from, from + 3200);
 }
 
 describe("Manager playback unlock happens inside the user's tap", () => {
