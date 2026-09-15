@@ -75,8 +75,12 @@ function Systems() {
             </p>
             <Row name="CanX-owned database" note={databaseRow.note} tone={databaseRow.tone} />
             <Row
-              name="Owner sign-in with two-step verification"
-              note={signedIn ? `Signed in as ${session.email}.` : session.message}
+              name="Owner sign-in"
+              note={
+                signedIn
+                  ? `Signed in as ${session.email}. Two-step verification is only checked when a protected action is attempted.`
+                  : session.message
+              }
               tone={signedIn ? "green" : "grey"}
             />
             <Row
@@ -102,9 +106,9 @@ function Systems() {
               tone={claude?.connected ? "green" : claude?.state === "configured_unverified" ? "yellow" : "grey"}
             />
 
-            <Row name="Shared records across devices" note={signedIn ? "Saving to your CanX account." : "Device-only. Records stay in this browser."} tone={signedIn ? "green" : "grey"} />
+            <Row name="Shared records across devices" note={signedIn ? "Sign-in is verified. Each room must show its own saved records before shared saving is proven." : "Device-only. Records stay in this browser."} tone={signedIn ? "yellow" : "grey"} />
             <Row name="Backups and restore" note={backupsRow.note} tone={backupsRow.tone} />
-            <Row name="Published site" note="Not published." tone="grey" />
+            <Row name="Published site" note="Not checked here. This room does not verify publication; check the Lovable project for the current published version." tone="grey" />
           </CardContent>
         </Card>
 
