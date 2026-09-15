@@ -9,10 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 export const Route = createFileRoute("/_office/")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Reception" },
-      { name: "description", content: "CanX Office command centre for John Cantlon." },
-      { property: "og:title", content: "CanX Office — Reception" },
-      { property: "og:description", content: "CanX Office command centre for John Cantlon." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

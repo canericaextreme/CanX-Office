@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export const Route = createFileRoute("/_office/future")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Future Department" },
-      { name: "description", content: "Reserved expansion space in CanX Office." },
-      { property: "og:title", content: "CanX Office — Future Department" },
-      { property: "og:description", content: "Reserved expansion space in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

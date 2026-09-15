@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export const Route = createFileRoute("/_office/blueprint")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Blueprint Room" },
-      { name: "description", content: "Architecture, plans, and decisions in CanX Office." },
-      { property: "og:title", content: "CanX Office — Blueprint Room" },
-      { property: "og:description", content: "Architecture, plans, and decisions in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

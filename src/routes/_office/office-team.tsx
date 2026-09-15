@@ -20,10 +20,10 @@ import {
 export const Route = createFileRoute("/_office/office-team")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Office Team" },
-      { name: "description", content: "Team members, their rooms and their roles in CanX Office." },
-      { property: "og:title", content: "CanX Office — Office Team" },
-      { property: "og:description", content: "Team members, their rooms and their roles in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

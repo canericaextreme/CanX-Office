@@ -15,10 +15,10 @@ import { useEffect, useState } from "react";
 export const Route = createFileRoute("/_office/approvals")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Approvals Vault" },
-      { name: "description", content: "Controlled approvals and authorization in CanX Office." },
-      { property: "og:title", content: "CanX Office — Approvals Vault" },
-      { property: "og:description", content: "Controlled approvals and authorization in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

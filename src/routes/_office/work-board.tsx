@@ -23,10 +23,10 @@ import { DEFAULT_TEAM, loadTeam, type TeamMember } from "@/lib/office-team";
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Work Board" },
-      { name: "description", content: "Canonical work queue for CanX Office." },
-      { property: "og:title", content: "CanX Office — Work Board" },
-      { property: "og:description", content: "Canonical work queue for CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

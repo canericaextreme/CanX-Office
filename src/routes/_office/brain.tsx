@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export const Route = createFileRoute("/_office/brain")({
   head: () => ({
     meta: [
-      { title: "CanX Office — CanX Brain" },
-      { name: "description", content: "Interactive brain map of CanX Office projects, workers, and connections." },
-      { property: "og:title", content: "CanX Office — CanX Brain" },
-      { property: "og:description", content: "Interactive brain map of CanX Office projects, workers, and connections." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

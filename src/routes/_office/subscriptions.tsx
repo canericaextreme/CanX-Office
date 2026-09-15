@@ -18,10 +18,10 @@ import {
 export const Route = createFileRoute("/_office/subscriptions")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Subscriptions" },
-      { name: "description", content: "Track recurring costs and service inventory in CanX Office." },
-      { property: "og:title", content: "CanX Office — Subscriptions" },
-      { property: "og:description", content: "Track recurring costs and service inventory in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

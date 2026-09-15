@@ -25,10 +25,10 @@ export const Route = createFileRoute("/auth/reset-password")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Set a new password — CanX Office" },
-      { name: "description", content: "Set a new password for your CanX Office owner account." },
-      { property: "og:title", content: "Set a new password — CanX Office" },
-      { property: "og:description", content: "Set a new password for your CanX Office owner account." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },

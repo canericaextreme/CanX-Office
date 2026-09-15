@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_office/projects")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Project Rooms" },
-      { name: "description", content: "Separate workstreams for CanX projects." },
-      { property: "og:title", content: "CanX Office — Project Rooms" },
-      { property: "og:description", content: "Separate workstreams for CanX projects." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

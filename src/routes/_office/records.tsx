@@ -8,10 +8,10 @@ import { OFFICE_KNOWLEDGE } from "@/lib/office-knowledge";
 export const Route = createFileRoute("/_office/records")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Records Room" },
-      { name: "description", content: "Permanent, append-only records in CanX Office." },
-      { property: "og:title", content: "CanX Office — Records Room" },
-      { property: "og:description", content: "Permanent, append-only records in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

@@ -41,17 +41,10 @@ import {
 export const Route = createFileRoute("/_office/round-table")({
   head: () => ({
     meta: [
-      { title: "Monday round table draft — CanX Office" },
-      {
-        name: "description",
-        content:
-          "Draft agenda, roles, notes, decisions, and actions for the CanX Office round table on Monday 14 September 2026.",
-      },
-      { property: "og:title", content: "Monday round table draft — CanX Office" },
-      {
-        property: "og:description",
-        content: "Editable draft agenda and decision log for the CanX Office Monday round table.",
-      },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

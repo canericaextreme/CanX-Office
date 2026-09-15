@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_office/skills")({
   head: () => ({
     meta: [
-      { title: "CanX Office — Skills Library" },
-      { name: "description", content: "Approved skills and capability inventory in CanX Office." },
-      { property: "og:title", content: "CanX Office — Skills Library" },
-      { property: "og:description", content: "Approved skills and capability inventory in CanX Office." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
