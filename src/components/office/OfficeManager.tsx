@@ -672,11 +672,15 @@ export function OfficeManager() {
                         aria-label={
                           managerVoice.phase === "speaking" ? "Stop reading this answer aloud" : "Read this answer aloud"
                         }
-                        onClick={() =>
-                          managerVoice.phase === "speaking"
-                            ? managerVoice.stopPlayback()
-                            : void speakAnswer(message.id, forSpeech(message.content))
-                        }
+                        onClick={() => {
+                          if (managerVoice.phase === "speaking") {
+                            managerVoice.stopPlayback();
+                            return;
+                          }
+                          // Unlocking inside this tap is what lets Android play the answer.
+                          managerVoice.unlockPlayback();
+                          void speakAnswer(message.id, forSpeech(message.content));
+                        }}
                       >
                         {managerVoice.phase === "speaking" ? (
                           <>
