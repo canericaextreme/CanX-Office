@@ -412,8 +412,14 @@ const RECOMMENDATIONS: ClaudeReview["recommendation"][] = [
 ];
 const CONFIDENCES: ClaudeReview["confidence"][] = ["low", "medium", "high"];
 
-/** Strictly shape whatever the model returned. Never trust it verbatim. */
-export function parseReview(text: string): ClaudeReview | null {
+/**
+ * Strictly shape whatever the model returned. Never trust it verbatim.
+ *
+ * A whole-office review is only complete when all six areas are present, each
+ * named exactly once, each with a real finding. Anything else returns null and
+ * is reported through the existing incomplete path — never retried.
+ */
+export function parseReview(text: string, scope: ClaudeScope = "manual"): ClaudeReview | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
