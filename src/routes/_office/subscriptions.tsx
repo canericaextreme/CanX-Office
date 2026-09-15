@@ -92,10 +92,10 @@ function AiWorkersDetails() {
             <span className="min-w-0">
               <span className="block font-medium text-foreground">AI Workers</span>
               <span className="mt-1 block text-xs text-muted-foreground">
-                Current verified spend {AI_WORKERS_VERIFICATION.spend} of {AI_WORKERS_VERIFICATION.monthlyLimit} OpenAI monthly project limit
+                {AI_WORKERS_VERIFICATION.snapshotLabel}
               </span>
               <span className="mt-1 block text-xs text-muted-foreground">
-                Usage {AI_WORKERS_VERIFICATION.usage} · Last verified {AI_WORKERS_VERIFICATION.lastVerified}
+                Spend at that check {AI_WORKERS_VERIFICATION.spend} of {AI_WORKERS_VERIFICATION.monthlyLimit} OpenAI project limit · Usage {AI_WORKERS_VERIFICATION.usage}
               </span>
             </span>
           </span>
@@ -113,7 +113,7 @@ function AiWorkersDetails() {
             <DialogTitle>AI Workers subscription details</DialogTitle>
           </div>
           <DialogDescription>
-            Verified provider evidence is shown separately from billing that still needs checking. No API keys or secrets are displayed.
+            Dated historical records are shown separately from billing that has never been verified. Live connection status is shown in Systems &amp; Connections. No API keys or secrets are displayed.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,24 +123,26 @@ function AiWorkersDetails() {
             <StatusBadge tone="yellow" label={AI_WORKERS_VERIFICATION.status} />
           </div>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            <Detail label="Current verified spend" value={AI_WORKERS_VERIFICATION.spend} />
-            <Detail label="OpenAI monthly project limit" value={AI_WORKERS_VERIFICATION.monthlyLimit} />
-            <Detail label="Usage" value={AI_WORKERS_VERIFICATION.usage} />
-            <Detail label="Last verified" value={AI_WORKERS_VERIFICATION.lastVerified} />
+            <Detail label="Spend at last check (historical)" value={AI_WORKERS_VERIFICATION.spend} />
+            <Detail label="OpenAI project limit at last check (historical)" value={AI_WORKERS_VERIFICATION.monthlyLimit} />
+            <Detail label="Usage at last check (historical)" value={AI_WORKERS_VERIFICATION.usage} />
+            <Detail label="Date of that check" value={AI_WORKERS_VERIFICATION.lastVerified} />
+            <Detail label="Current spend" value="Unknown — not verified" />
+            <Detail label="Manager AI internal policy limit" value={AI_WORKERS_VERIFICATION.managerAiPolicyLimit} />
           </dl>
         </section>
 
         <section aria-labelledby="openai-provider" className="rounded-md border border-canx-blue/60 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="openai-provider" className="font-semibold">OpenAI API</h2>
-            <StatusBadge tone="blue" label="Verified" />
+            <StatusBadge tone="grey" label="Billing not verified" />
           </div>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
             <Detail label="Project" value="CanX Office" />
             <Detail label="Key name" value="CanX Office Manager" />
-            <Detail label="Spend" value={AI_WORKERS_VERIFICATION.spend} />
-            <Detail label="Monthly limit" value={AI_WORKERS_VERIFICATION.monthlyLimit} />
-            <Detail label="Last used" value={AI_WORKERS_VERIFICATION.lastVerified} />
+            <Detail label="Connection" value="See live check in Systems & Connections" />
+            <Detail label="Current billing" value="Unknown — not verified" />
+            <Detail label="Last recorded check" value={AI_WORKERS_VERIFICATION.lastVerified} />
           </dl>
           <div className="mt-4 border-l-4 border-canx-blue pl-3">
             <h3 className="text-xs font-semibold uppercase text-canx-blue">Evidence</h3>
