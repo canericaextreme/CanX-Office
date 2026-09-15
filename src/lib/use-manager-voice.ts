@@ -76,7 +76,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number | null>(null);
   /** The already-generated answer audio, kept so a manual retry never re-runs TTS. */
-  const bufferedRef = useRef<{ audioBase64: string; contentType: string; onEnded?: () => void } | null>(null);
+  const bufferedRef = useRef<{ audioBase64: string; contentType: string; onEnded?: (() => void) | undefined } | null>(null);
 
   const releaseRecording = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
