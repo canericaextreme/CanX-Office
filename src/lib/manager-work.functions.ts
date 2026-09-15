@@ -559,7 +559,12 @@ export async function decideManagerApprovalWith(deps: WorkbenchDeps, input: Deci
   const v = await verify(input.accessToken, deps);
   if (!v.ok) return v;
 
-  const decision = input.decision === "approved" ? "approved" : "declined";
+  // A malformed or missing decision is never coerced into "declined": it is
+  // rejected before any database read or write happens.
+  if (input.decision !== "approved" && input.decision !== "declined") {
+    return fail("invalid_input", "A decision must be exactly 'approved' or 'declined'.");
+  }
+  const decision = input.decision;
 
   const approvalResult = await deps.rest<ManagerApproval[]>(input.accessToken, "GET", `manager_approvals?id=eq.${encodeURIComponent(input.approvalId)}`);
   if (!approvalResult.ok || !approvalResult.data?.[0]) return fail("not_found", "Approval request not found.");
@@ -620,18 +625,29 @@ export interface LogChangeInput {
   after?: JsonObject | Record<string, unknown>;
 }
 
-function toJsonObject(value: unknown): JsonObject {
+/** Keep evidence faithful: primitives, nested objects and nested arrays all survive. */
+function toJsonValue(value: unknown): JsonValue | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value as JsonValue;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      const converted = toJsonValue(item);
+      return converted === undefined ? null : converted;
+    });
+  }
+  if (typeof value === "object") return toJsonObject(value);
+  return undefined;
+}
+
+export function toJsonObject(value: unknown): JsonObject {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const out: JsonObject = {};
     for (const [k, v] of Object.entries(value)) {
-      if (v === undefined) continue;
-      if (v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-        out[k] = v;
-      } else if (Array.isArray(v)) {
-        out[k] = v.map(toJsonObject) as JsonValue[];
-      } else {
-        out[k] = toJsonObject(v);
-      }
+      const converted = toJsonValue(v);
+      if (converted === undefined) continue;
+      out[k] = converted;
     }
     return out;
   }

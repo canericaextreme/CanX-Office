@@ -1,12 +1,11 @@
 /**
  * CanX Office — running-cost ceiling record.
  *
- * This is a written-down decision by John, not an enforced limit. Nothing in
- * the office can charge anything today: no subscription, no provider key and
- * no payment method is configured. The ceiling is deliberately NOT converted
- * into a machine spending limit for any provider, because the amount is a
- * total monthly office running cost, not a per-provider allowance and not a
- * target to spend.
+ * This is a written-down decision by John, not an enforced limit. The ceiling
+ * is deliberately NOT converted into a machine spending limit for any
+ * provider, because the amount is a total monthly office running cost, not a
+ * per-provider allowance and not a target to spend. Actual provider billing is
+ * not read live here, so every unknown cost stays "not verified".
  */
 
 export interface CostLine {
@@ -19,47 +18,48 @@ export interface CostLine {
 
 export const RUNNING_COST_CEILING = 500;
 
-/** Working assumption only. John has not confirmed the currency; ask before relying on it. */
+/** Confirmed by John. The ceiling is recorded in Canadian dollars. */
 export const RUNNING_COST_CURRENCY = "CAD";
-export const RUNNING_COST_CURRENCY_IS_ASSUMED = true;
+export const RUNNING_COST_CURRENCY_IS_ASSUMED = false;
 
 export const RUNNING_COST_APPROVED_ON = "2026-09-09";
 
 export const RUNNING_COST_SCOPE = [
-  "Total for all office running costs added together each month, if any are ever needed.",
+  "Total for all office running costs added together each month.",
   "Not $500 for each provider, and not an amount to be spent.",
   "Lovable build credits are separate and are not counted against this ceiling.",
-  "Nothing is charging anything today. No subscription, key or payment method is set up.",
+  "Actual provider billing is not read here, so amounts stay unknown until they are verified separately.",
 ].join(" ");
 
 /**
- * Known and unknown monthly running costs. Everything is unknown until a real
- * account, invoice or price is recorded — no estimates are invented here.
+ * Known and unknown monthly running costs. A cost is only shown once a real
+ * invoice or price is recorded — no estimates are invented here, and an
+ * unknown cost is never reported as zero.
  */
 export const RUNNING_COST_LINES: CostLine[] = [
   {
     id: "database",
     label: "CanX-owned database and sign-in (Supabase)",
     monthly: null,
-    note: "No account exists yet, so no price is known.",
+    note: "Cost not verified here. Check the Supabase account for the current plan and charges.",
   },
   {
     id: "ai",
     label: "CanX-owned AI (OpenAI)",
     monthly: null,
-    note: "No key, no plan and no usage. Cost cannot be known before real usage exists.",
+    note: "Cost not verified here. Provider billing is not read by the office.",
   },
   {
     id: "hosting",
     label: "Hosting and domain",
     monthly: null,
-    note: "Nothing published from this office. Any existing Lovable plan is not recorded here yet.",
+    note: "Cost not verified here. Any Lovable plan or domain charge is not recorded in this office.",
   },
   {
     id: "review",
     label: "Independent review (Claude)",
     monthly: null,
-    note: "Planned only. Not connected.",
+    note: "Cost not verified here. Anthropic billing has not been checked.",
   },
 ];
 
@@ -99,7 +99,7 @@ export function budgetView(lines: CostLine[] = RUNNING_COST_LINES): BudgetView {
     availableForApis: unknown.length === 0 && knownTotal !== null ? RUNNING_COST_CEILING - knownTotal : null,
     enforcement: "unverified",
     enforcementNote:
-      "Not enforced yet. A spending limit can only be applied and checked once the CanX-owned database and provider account exist.",
+      "Not verified. This ceiling is a recorded decision; the office does not read provider billing and cannot prove a limit is enforced.",
   };
 }
 

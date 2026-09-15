@@ -82,8 +82,8 @@ export function OfficeSignInScreen() {
       <Shell>
         <h1 className="text-base font-semibold">Sign-in is not available yet</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          No CanX-owned database is connected, so there is no account to sign in to. The office is running on this
-          device only.
+          No CanX-owned backend is configured, so there is no account to sign in to. The office stays closed until the
+          CanX-owned backend is configured.
         </p>
         <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm text-primary underline">
           Open the connectors page and choose Supabase
@@ -217,7 +217,8 @@ export function OfficeSignInScreen() {
 
       <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        Your sign-in is checked on the server every time. Nothing is stored in this page.
+        Your sign-in is checked on the server every time. CanX Office does not store your password; Supabase keeps a
+        browser session so you can stay signed in.
       </p>
     </Shell>
   );
@@ -225,13 +226,13 @@ export function OfficeSignInScreen() {
 
 /**
  * Gate: checking → office or sign-in, deterministically.
- * Device-only mode (no CanX database configured) still opens the office, so
- * the existing published behaviour is preserved rather than blocked.
+ * The gate fails closed. With no CanX-owned backend configured there is no way
+ * to verify the owner, so the office is kept closed and the unavailable
+ * sign-in screen is shown instead of any office content.
  */
 export function OfficeGate({ children }: { children: ReactNode }) {
   const session = useOwnerSession();
   if (session.state === "checking") return <OfficeOpeningScreen />;
-  if (session.state === "backend_missing") return <>{children}</>;
   if (session.state === "owner") return <>{children}</>;
   return <OfficeSignInScreen />;
 }

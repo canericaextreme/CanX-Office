@@ -80,6 +80,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "CanX Office" },
       { name: "description", content: "CanX Office visual operations workspace." },
       { name: "author", content: "CanX" },
+      { name: "robots", content: "noindex, nofollow, noarchive" },
+      { name: "googlebot", content: "noindex, nofollow, noarchive" },
       { property: "og:title", content: "CanX Office" },
       { property: "og:description", content: "CanX Office visual operations workspace." },
       { property: "og:type", content: "website" },

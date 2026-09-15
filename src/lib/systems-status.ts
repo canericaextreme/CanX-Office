@@ -17,8 +17,9 @@ export interface StatusRowState {
  * CanX-owned database.
  *
  * Green only when the database is configured AND the browser holds a verified
- * owner session — that session was issued by the database itself after the
- * owner role and two-step verification were confirmed on the server.
+ * owner session. An owner session proves sign-in and the owner role; it does
+ * not prove two-step verification, which is only checked when a protected
+ * action is attempted.
  */
 export function databaseRowState(configured: boolean, isOwner: boolean): StatusRowState {
   if (!configured) {
@@ -27,7 +28,7 @@ export function databaseRowState(configured: boolean, isOwner: boolean): StatusR
   if (isOwner) {
     return {
       tone: "green",
-      note: "Connected. Your owner role and two-step verification were confirmed by the database.",
+      note: "Connected. Your owner role was confirmed by the database. Two-step verification is checked separately, when a protected action is attempted.",
     };
   }
   return { tone: "yellow", note: "Configured. Sign-in still has to succeed." };

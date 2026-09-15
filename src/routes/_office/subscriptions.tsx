@@ -31,17 +31,24 @@ export const Route = createFileRoute("/_office/subscriptions")({
 
 const SUBS = [
   { name: "Lovable", cost: "Credits", status: "green" as const, note: "Development platform" },
-  { name: "Supabase (proposed)", cost: "TBD", status: "grey" as const, note: "Backend not selected" },
-  { name: "Email sending", cost: "TBD", status: "grey" as const, note: "Not connected" },
+  { name: "Supabase", cost: "Unverified", status: "yellow" as const, note: "CanX-owned database and sign-in. Billing not verified here." },
+  { name: "Email sending", cost: "Unknown", status: "grey" as const, note: "Not connected" },
 ];
 
+/**
+ * A dated historical snapshot, kept for the record. It is NOT current spend:
+ * the office does not read provider billing, so current cost is unknown.
+ */
 export const AI_WORKERS_VERIFICATION = {
-  spend: "$0.20",
-  monthlyLimit: "$25.00",
+  spend: "$0.20 USD",
+  monthlyLimit: "$25.00 USD",
   usage: "0.8%",
-  status: "Partially verified",
+  status: "Historical snapshot — not current",
   lastVerified: "September 11, 2026",
-  evidence: "OpenAI Platform Usage and API key activity checked September 11, 2026.",
+  snapshotLabel: "Historical snapshot from September 11, 2026. Current spend is unknown.",
+  managerAiPolicyLimit: "C$100 / month",
+  evidence:
+    "OpenAI Platform Usage and API key activity checked September 11, 2026. Not re-checked since, so current billing is unknown.",
 } as const;
 
 function Subscriptions() {
@@ -85,10 +92,10 @@ function AiWorkersDetails() {
             <span className="min-w-0">
               <span className="block font-medium text-foreground">AI Workers</span>
               <span className="mt-1 block text-xs text-muted-foreground">
-                Current verified spend {AI_WORKERS_VERIFICATION.spend} of {AI_WORKERS_VERIFICATION.monthlyLimit} OpenAI monthly project limit
+                {AI_WORKERS_VERIFICATION.snapshotLabel}
               </span>
               <span className="mt-1 block text-xs text-muted-foreground">
-                Usage {AI_WORKERS_VERIFICATION.usage} · Last verified {AI_WORKERS_VERIFICATION.lastVerified}
+                Spend at that check {AI_WORKERS_VERIFICATION.spend} of {AI_WORKERS_VERIFICATION.monthlyLimit} OpenAI project limit · Usage {AI_WORKERS_VERIFICATION.usage}
               </span>
             </span>
           </span>
@@ -106,7 +113,7 @@ function AiWorkersDetails() {
             <DialogTitle>AI Workers subscription details</DialogTitle>
           </div>
           <DialogDescription>
-            Verified provider evidence is shown separately from billing that still needs checking. No API keys or secrets are displayed.
+            Dated historical records are shown separately from billing that has never been verified. Live connection status is shown in Systems &amp; Connections. No API keys or secrets are displayed.
           </DialogDescription>
         </DialogHeader>
 
@@ -116,24 +123,26 @@ function AiWorkersDetails() {
             <StatusBadge tone="yellow" label={AI_WORKERS_VERIFICATION.status} />
           </div>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            <Detail label="Current verified spend" value={AI_WORKERS_VERIFICATION.spend} />
-            <Detail label="OpenAI monthly project limit" value={AI_WORKERS_VERIFICATION.monthlyLimit} />
-            <Detail label="Usage" value={AI_WORKERS_VERIFICATION.usage} />
-            <Detail label="Last verified" value={AI_WORKERS_VERIFICATION.lastVerified} />
+            <Detail label="Spend at last check (historical)" value={AI_WORKERS_VERIFICATION.spend} />
+            <Detail label="OpenAI project limit at last check (historical)" value={AI_WORKERS_VERIFICATION.monthlyLimit} />
+            <Detail label="Usage at last check (historical)" value={AI_WORKERS_VERIFICATION.usage} />
+            <Detail label="Date of that check" value={AI_WORKERS_VERIFICATION.lastVerified} />
+            <Detail label="Current spend" value="Unknown — not verified" />
+            <Detail label="Manager AI internal policy limit" value={AI_WORKERS_VERIFICATION.managerAiPolicyLimit} />
           </dl>
         </section>
 
         <section aria-labelledby="openai-provider" className="rounded-md border border-canx-blue/60 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="openai-provider" className="font-semibold">OpenAI API</h2>
-            <StatusBadge tone="blue" label="Verified" />
+            <StatusBadge tone="grey" label="Billing not verified" />
           </div>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
             <Detail label="Project" value="CanX Office" />
             <Detail label="Key name" value="CanX Office Manager" />
-            <Detail label="Spend" value={AI_WORKERS_VERIFICATION.spend} />
-            <Detail label="Monthly limit" value={AI_WORKERS_VERIFICATION.monthlyLimit} />
-            <Detail label="Last used" value={AI_WORKERS_VERIFICATION.lastVerified} />
+            <Detail label="Connection" value="See live check in Systems & Connections" />
+            <Detail label="Current billing" value="Unknown — not verified" />
+            <Detail label="Last recorded check" value={AI_WORKERS_VERIFICATION.lastVerified} />
           </dl>
           <div className="mt-4 border-l-4 border-canx-blue pl-3">
             <h3 className="text-xs font-semibold uppercase text-canx-blue">Evidence</h3>
@@ -145,11 +154,12 @@ function AiWorkersDetails() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="claude-provider" className="font-semibold">Claude API</h2>
             <span className="max-w-full whitespace-normal text-right">
-              <StatusBadge tone="grey" label="Connected, billing not yet verified" />
+              <StatusBadge tone="grey" label="Billing not verified" />
             </span>
           </div>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            <Detail label="Cost" value="Unknown" />
+            <Detail label="Cost" value="Unknown — not verified" />
+            <Detail label="Connection" value="See live check in Systems & Connections" />
             <Detail label="Action" value="Verify Anthropic billing/usage" />
           </dl>
         </section>
@@ -160,7 +170,7 @@ function AiWorkersDetails() {
             <h2 id="verification-evidence" className="text-sm font-semibold">Evidence</h2>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            OpenAI usage and limit are verified from the OpenAI Platform check dated September 11, 2026. Claude is connected, but its billing and usage have not been verified.
+            The OpenAI figures above are a historical record of a manual OpenAI Platform check dated September 11, 2026, in US dollars. They are not current spend, and current billing for OpenAI, Claude and Supabase is unknown until checked independently. The C$100 per month Manager AI figure is an internal policy limit set in this office, not a provider bill. Live connection status is checked in Systems &amp; Connections.
           </p>
         </section>
 

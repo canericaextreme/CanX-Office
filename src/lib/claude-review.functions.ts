@@ -412,8 +412,14 @@ const RECOMMENDATIONS: ClaudeReview["recommendation"][] = [
 ];
 const CONFIDENCES: ClaudeReview["confidence"][] = ["low", "medium", "high"];
 
-/** Strictly shape whatever the model returned. Never trust it verbatim. */
-export function parseReview(text: string): ClaudeReview | null {
+/**
+ * Strictly shape whatever the model returned. Never trust it verbatim.
+ *
+ * A whole-office review is only complete when all six areas are present, each
+ * named exactly once, each with a real finding. Anything else returns null and
+ * is reported through the existing incomplete path — never retried.
+ */
+export function parseReview(text: string, scope: ClaudeScope = "manual"): ClaudeReview | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
@@ -441,6 +447,17 @@ export function parseReview(text: string): ClaudeReview | null {
         })
         .filter((item): item is ClaudeAreaFinding => item !== null)
     : [];
+
+  if (scope === "office") {
+    const rawEntries = Array.isArray(raw["areaFindings"]) ? (raw["areaFindings"] as unknown[]) : [];
+    // Extra, invalid, duplicate or incomplete entries all mean the whole-office
+    // coverage cannot be trusted, so the review is not treated as complete.
+    if (rawEntries.length !== REVIEW_AREAS.length) return null;
+    if (findings.length !== REVIEW_AREAS.length) return null;
+    const names = new Set(findings.map((item) => item.area));
+    if (names.size !== REVIEW_AREAS.length) return null;
+    if (!REVIEW_AREAS.every((area) => names.has(area))) return null;
+  }
 
   return {
     recommendation,
@@ -663,7 +680,7 @@ async function callAnthropic(
     // That is a length stop, not a refusal, and it is explained plainly.
     const lengthStop = payload.stop_reason === "max_tokens";
 
-    const review = lengthStop ? null : parseReview(text);
+    const review = lengthStop ? null : parseReview(text, scope);
 
     // Anthropic answered, but not with a complete structured review. That is
     // never recorded as a finished review: the bounded plain text is kept so
