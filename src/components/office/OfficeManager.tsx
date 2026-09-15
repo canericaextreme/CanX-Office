@@ -933,6 +933,12 @@ export function OfficeManager() {
                   <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
                   <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
                   <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
+                  <li>
+                    Browser refusal reported:{" "}
+                    {managerVoice.report.blockedReason
+                      ? `${managerVoice.report.blockedReason} — the browser would not start sound without a tap`
+                      : "none"}
+                  </li>
                   <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
                 </ul>
                 <Button
