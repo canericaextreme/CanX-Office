@@ -818,7 +818,7 @@ export function OfficeManager() {
                           <Square className="mr-1.5 h-4 w-4" /> Stop listening
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing"} onClick={() => void managerVoice.startListening()}>
+                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing"} onClick={() => { managerVoice.unlockPlayback(); void managerVoice.startListening(); }}>
                           <Mic className="mr-1.5 h-4 w-4" /> Start listening
                         </Button>
                       )}
