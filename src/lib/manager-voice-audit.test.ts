@@ -54,8 +54,8 @@ describe("Office Manager voice — serialized turn lifecycle", () => {
 });
 
 describe("Office Manager voice — bounded, ephemeral server audio", () => {
-  it("requires owner sign-in and uses the existing server-only OpenAI key", () => {
-    expect(endpoints).toContain("verifySignedInWith");
+  it("requires owner sign-in with authenticator and uses the existing server-only OpenAI key", () => {
+    expect(endpoints).toContain("verifyOwnerWith");
     expect(endpoints).toContain('process.env["OPENAI_API_KEY"]');
     expect(endpoints).toContain("reserveAiCallWith");
     expect(endpoints).toContain("settleAiCallWith");

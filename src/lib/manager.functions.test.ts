@@ -164,6 +164,22 @@ describe("health check and provider errors", () => {
     expect(status.connected).toBe(true);
     expect(status.state).toBe("verified");
   });
+
+  it("does not report Data connected when ordinary sign-in still needs the authenticator", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    const status = await computeManagerStatusWith(
+      deps({
+        verifyOwner: async () => deny("mfa_required"),
+        verifySignedIn: async () => ({ ...OWNER, aal: "aal1" }),
+        fetchImpl,
+      }),
+      "aal1-token",
+    );
+    expect(status.connected).toBe(false);
+    expect(status.state).toBe("auth_unavailable");
+    expect(status.detail).toContain("Two-step verification");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
 
 describe("tool arguments are strictly allowlisted", () => {

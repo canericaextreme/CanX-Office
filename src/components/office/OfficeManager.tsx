@@ -16,6 +16,7 @@ import {
   PhoneOff,
   Plus,
   Send,
+  ShieldCheck,
   Square,
   Trash2,
   Undo2,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 import { managerRecommendationPrefill, openSecondEyes } from "@/lib/second-eyes";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { loadTeam, teamForManager } from "@/lib/office-team";
@@ -98,6 +100,9 @@ export function OfficeManager() {
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaError, setMfaError] = useState<string | null>(null);
 
 
   const [notes, setNotes] = useState<OfficeNote[]>([]);
@@ -211,7 +216,7 @@ export function OfficeManager() {
   // Re-check the manager whenever the sign-in state changes.
   useEffect(() => {
     setStatus(null);
-  }, [session.state]);
+  }, [session.state, session.aal, token]);
 
   useEffect(() => {
     if (!open || status) return;
@@ -305,6 +310,10 @@ export function OfficeManager() {
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || sendingRef.current) return;
+    if (!session.stepUpComplete) {
+      setError("Enter the six-digit authenticator code below before talking with Data.");
+      return;
+    }
     const voiceSession = voiceSessionRef.current;
 
     // Asking the Manager to look at the screen opens the Rooms view, where the
@@ -482,6 +491,10 @@ export function OfficeManager() {
 
   const startVoiceMode = () => {
     if (sendingRef.current) return;
+    if (!session.stepUpComplete) {
+      setError("Enter the six-digit authenticator code below before talking with Data.");
+      return;
+    }
     cancelVoiceActivity();
     setVoiceMode(true);
     voiceModeRef.current = true;
@@ -789,9 +802,45 @@ export function OfficeManager() {
                       : voiceMode ? "Ready to listen again."
                       : "Talk with Data"}
                   </p>
+                  {session.signedIn && !session.stepUpComplete && (
+                    <div className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
+                      <p className="text-sm font-semibold text-foreground">Confirm your authenticator to talk with Data</p>
+                      <p className="text-xs text-muted-foreground">
+                        Enter the current six-digit code from your authenticator app. This completes the secure owner sign-in for this session.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          value={mfaCode}
+                          placeholder="123456"
+                          aria-label="Six-digit authenticator code for Data"
+                          onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                        />
+                        <Button
+                          disabled={mfaBusy || mfaCode.length !== 6}
+                          onClick={() => {
+                            setMfaBusy(true);
+                            setMfaError(null);
+                            void session.submitMfaCode(mfaCode).then((problem) => {
+                              if (problem) setMfaError(problem);
+                              else {
+                                setMfaCode("");
+                                setError(null);
+                              }
+                              setMfaBusy(false);
+                            });
+                          }}
+                        >
+                          <ShieldCheck className="mr-1.5 h-4 w-4" /> Verify
+                        </Button>
+                      </div>
+                      {mfaError && <p role="alert" className="text-xs text-destructive">{mfaError}</p>}
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-2">
                     {!voiceMode ? (
-                      <Button aria-label="Talk — start Voice Mode and speak with the Office Manager" onClick={startVoiceMode} disabled={busy}>
+                      <Button aria-label="Talk — start Voice Mode and speak with the Office Manager" onClick={startVoiceMode} disabled={busy || !session.stepUpComplete}>
                         <Mic className="mr-1.5 h-4 w-4" /> Talk to Data
                       </Button>
                     ) : (

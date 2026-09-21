@@ -53,7 +53,10 @@ function decodeAudio(audioBase64: string): Uint8Array | null {
 async function voiceDeps(accessToken: string) {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
-  const verification = await backend.verifySignedInWith(config, accessToken);
+  // Transcription and speech are paid Data calls and the reservation function
+  // already requires an AAL2 owner session. Check that requirement first so
+  // the UI receives the correct authenticator message.
+  const verification = await backend.verifyOwnerWith(config, accessToken);
   return { backend, config, verification };
 }
 
