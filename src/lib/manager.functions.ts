@@ -585,6 +585,7 @@ export const MANAGER_SYSTEM_PROMPT = `You are Data, the CanX Office Manager for 
 
 Operating rules:
 - Default is proceed. Small calls do not stop work.
+- If John asks how you would do something, explain it without carrying it out. A request saying do not create/save/change anything is discussion only; never call an action tool for it.
 - Green: you decide and act. Yellow: you queue it in John's approval box and wait. Red: you stop only that operation and say why.
 - Green actions include: creating/assigning/verifying internal tasks, logging changes, previewing allowlisted appearance settings, proposing tasks/decisions for John to save, routine read-only cross-project coordination, and reading/sorting/drafting emails.
 - Yellow actions include: major or risky cross-project changes, sending emails, schema/migration changes, and any external spend.
@@ -816,7 +817,7 @@ async function callOpenAI(
     };
 
     const text =
-      payload.output_text ??
+      payload.output_text?.trim() ||
       (payload.output ?? [])
         .filter((item) => item.type === "message")
         .flatMap((item) => item.content ?? [])
@@ -833,6 +834,15 @@ async function callOpenAI(
         return { name: item.name!, arguments: args, rawArguments: item.arguments };
       })
       .filter((call): call is ManagerToolCall => call !== null);
+
+    if (!text && toolCalls.length === 0) {
+      return denyReply(
+        "provider_error",
+        "configured_unverified",
+        "Data did not receive a usable reply. No office action was carried out. Please try again.",
+        model,
+      );
+    }
 
     return {
       ok: true,
@@ -1255,7 +1265,12 @@ export async function runManagerChatWith(
     if (reply.ok && reply.toolCalls.length > 0) {
       const { textAdditions, actionResults, remainingToolCalls, consultations } =
         await executeToolCalls(deps, data.accessToken, reply.toolCalls);
-      const combinedText = [reply.text, ...textAdditions].filter(Boolean).join("\n\n");
+      // Tool-only responses are normal. Report the actual persisted outcome,
+      // including stopped/pending actions, rather than an empty answer or a
+      // provider's unverified claim that an action succeeded.
+      const outcomes = actionResults.map((result) => result.detail);
+      const combinedText = [...outcomes, ...textAdditions, ...(outcomes.length ? [] : [reply.text])]
+        .filter(Boolean).join("\n\n") || "I prepared a proposal below for you to review. Nothing has been saved.";
       await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
       return {
         ...reply,

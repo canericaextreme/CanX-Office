@@ -280,7 +280,8 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
       if (!title) return null;
       const kind = row["kind"] === "decision" ? "decision" : "task";
       const detail = line(row["detail"], 400);
-      return `- (${kind}, saved by John) ${title}${detail ? ` — ${detail}` : ""}`;
+      const source = line(row["source"], 120);
+      return `- (${kind}, ${source.startsWith("CanX Brain:") ? "conversation summary" : "saved by John"}) ${title}${detail ? ` — ${detail}` : ""}${source ? ` [source: ${source}]` : ""}`;
     })
     .filter((value): value is string => value !== null);
 
