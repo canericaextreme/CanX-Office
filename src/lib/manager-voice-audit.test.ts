@@ -21,12 +21,12 @@ describe("Office Manager voice — portable recording and playback", () => {
     expect(voice).toContain("audio.onended");
   });
 
-  it("uses MediaRecorder rather than browser recognition or speech synthesis", () => {
+  it("uses MediaRecorder for listening and keeps device speech as an output fallback", () => {
     expect(voice).toContain("new MediaRecorder");
     expect(voice).toContain('document.createElement("audio")');
     expect(manager).not.toContain("useDictation");
     expect(manager).not.toContain("useReadAloud");
-    expect(manager).not.toContain("speechSynthesis");
+    expect(voice).toContain("speechSynthesis.speak(utterance)");
   });
 });
 
@@ -60,6 +60,13 @@ describe("Office Manager voice — serialized turn lifecycle", () => {
     expect(manager).toContain("managerVoice.playAudio");
     expect(manager).toContain("void speakAnswer(answerId, spoken, resumeListening)");
   });
+
+  it("speaks with the device voice when hosted speech fails", () => {
+    expect(manager).toContain("managerVoice.speakLocally(text");
+    expect(voice).toContain("const speakLocally");
+    expect(voice).toContain('utterance.lang = "en-CA"');
+    expect(voice).toContain("onEnded?.()");
+  });
 });
 
 describe("Office Manager voice — bounded, ephemeral server audio", () => {
@@ -86,7 +93,7 @@ describe("Office Manager voice — bounded, ephemeral server audio", () => {
 
   it("surfaces recording, provider and playback failures", () => {
     expect(manager).toContain("The Manager could not understand that recording");
-    expect(manager).toContain("The Manager voice could not prepare that answer");
+    expect(manager).toContain("Data could not start a spoken answer");
     expect(voice).toContain("Your phone blocked Data's voice");
     expect(voice).toContain("Microphone access is needed");
   });
