@@ -129,3 +129,27 @@ describe("Data realtime connection lifecycle", () => {
   });
 
 });
+
+describe("Data voice error recovery", () => {
+  it.each(["conversation_already_has_active_response", "response_cancel_not_active", "input_audio_buffer_commit_empty"])("keeps the microphone open for %s", async code => {
+    const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
+    Peer.instances[0]!.channel.onmessage?.({data:JSON.stringify({type:"error",error:{code,message:"private provider details"}})});
+    expect(stopTrack).not.toHaveBeenCalled(); expect(hooks.states[1]).toBe(true);
+    expect(String(hooks.states[2])).not.toContain("private provider details");
+    expect(hooks.mint).toHaveBeenCalledOnce();
+  });
+  it("reports an office-server failure without blaming microphone permission", async () => {
+    hooks.mint.mockRejectedValueOnce(Error("internal"));
+    useRealtimeManager("token", [], vi.fn()).start(); await flush();
+    expect(hooks.states[2]).toContain("office server"); expect(hooks.states[2]).not.toContain("permission");
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+  it("distinguishes real microphone refusal from voice HTTP rejection", async () => {
+    getUserMedia.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError"));
+    const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
+    expect(hooks.states[2]).toContain("Microphone access was denied"); expect(hooks.mint).not.toHaveBeenCalled();
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("private", {status:429}));
+    voice.start(); await flush();
+    expect(hooks.states[2]).toContain("usage or rate limit"); expect(hooks.states[2]).not.toContain("private");
+  });
+});

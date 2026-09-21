@@ -155,6 +155,8 @@ create table public.manager_changes (
 );
 
 grant select, insert on public.manager_changes to authenticated;
+-- INSERT uses nextval for the bigserial id; table INSERT alone is insufficient.
+grant usage on sequence public.manager_changes_id_seq to authenticated;
 grant all on public.manager_changes to service_role;
 
 alter table public.manager_changes enable row level security;

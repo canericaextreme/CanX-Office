@@ -116,11 +116,13 @@ export function useRealtimeManager(
     };
     const timeout = setTimeout(() => fail("Data's voice connection timed out. Please try again."), 30_000);
 
+    let stage = "microphone";
     try {
       const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (!current()) { mic.getTracks().forEach((track) => track.stop()); return; }
       micRef.current = mic;
 
+      stage = "office session";
       const session = await mintSession({ data: { accessToken, team } });
       if (!current()) return;
       if (!session.ok || !session.clientSecret || !session.model) {
@@ -128,6 +130,7 @@ export function useRealtimeManager(
         return;
       }
 
+      stage = "voice connection";
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
       const audio = document.createElement("audio");
@@ -182,11 +185,25 @@ export function useRealtimeManager(
       };
       channel.onmessage = (event) => {
         if (!current()) return;
-        let payload: { type?: string; item_id?: string; transcript?: string; response?: { id?: string; status?: string; output?: { type?: string; name?: string; call_id?: string }[] } };
+        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string }[] } };
         try { payload = JSON.parse(String(event.data)) as typeof payload; }
         catch { return; }
         if (payload.type === "error" || (payload.type === "response.done" && payload.response?.status === "failed")) {
-          fail("The voice service could not continue this conversation. Please try again.");
+          const code = payload.error?.code ?? payload.response?.status_details?.error?.code;
+          // These command/turn errors do not invalidate the connection. Do not
+          // repeat an office action or create a replacement paid session.
+          if (code === "conversation_already_has_active_response" || code === "response_cancel_not_active") return;
+          if (code === "input_audio_buffer_commit_empty") {
+            setPhase("listening");
+            setError("Data did not catch that. Please speak again; the microphone is still on.");
+            return;
+          }
+          const hint = code === "rate_limit_exceeded"
+            ? "The voice service rate limit was reached. Wait a moment before restarting."
+            : code === "insufficient_quota"
+              ? "The voice service has no remaining credit. Check the provider account."
+              : "The voice service could not continue this conversation. Press Start conversation to reconnect.";
+          fail(hint);
           return;
         }
         if (payload.type === "input_audio_buffer.committed" && payload.item_id) currentInputId = payload.item_id;
@@ -198,7 +215,10 @@ export function useRealtimeManager(
           }
         }
         const next = realtimeEventPhase(payload.type ?? "");
-        if (next) setPhase(next);
+        if (next) {
+          setPhase(next);
+          if (payload.type === "input_audio_buffer.speech_started") setError(null);
+        }
         const text = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
         if (!text) return;
         if (payload.type === "conversation.item.input_audio_transcription.completed") {
@@ -221,13 +241,33 @@ export function useRealtimeManager(
         },
       );
       if (!current()) return;
-      if (!answer.ok) throw new Error("sdp");
+      if (!answer.ok) {
+        const detail = answer.status === 401 || answer.status === 403
+          ? "The live voice service rejected the session. Press Start conversation for a fresh connection."
+          : answer.status === 429
+            ? "The live voice service reached its usage or rate limit. Check the provider account before retrying."
+            : `The live voice service could not connect (HTTP ${answer.status}). Please try again.`;
+        fail(detail);
+        return;
+      }
       const sdp = await answer.text();
       if (!current()) return;
       await pc.setRemoteDescription({ type: "answer", sdp });
       if (current()) setPhase("listening");
-    } catch {
-      fail("Data could not open the microphone or reach the live voice service. Check microphone permission and try again.");
+    } catch (cause) {
+      const name = cause instanceof Error ? cause.name : "";
+      const detail = stage === "microphone"
+        ? name === "NotAllowedError" || name === "SecurityError"
+          ? "Microphone access was denied. Allow microphone access for this office in your browser."
+          : name === "NotFoundError"
+            ? "No microphone was found on this device."
+            : name === "NotReadableError"
+              ? "The device could not open its microphone. Check whether another app is using it."
+              : "The browser could not open the microphone. Check this device's microphone settings."
+        : stage === "office session"
+          ? "Data could not reach the office server to start voice. Check your connection and sign-in, then try again."
+          : "Data opened the microphone but could not connect to live voice. Check your network and try again.";
+      fail(detail);
     } finally {
       clearTimeout(timeout);
     }

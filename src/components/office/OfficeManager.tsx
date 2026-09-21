@@ -1,3 +1,4 @@
+import { ConversationSaveQueue } from "@/lib/conversation-save-queue";
 import { loadConversation, saveConversationMessage, type SavedMessage } from "@/lib/manager-history.functions";
 "use client";
 
@@ -231,31 +232,73 @@ export function OfficeManager() {
   const readConversation = useServerFn(loadConversation);
   const persistMessage = useServerFn(saveConversationMessage);
   const historyQueue = useRef(Promise.resolve());
+  const saveQueue = useRef(new ConversationSaveQueue());
+  const historyOwner = useRef<string | null>(null);
+  const currentToken = useRef(token);
+  currentToken.current = token;
+  const retrySaving = useCallback(() => {
+    if (!session.stepUpComplete || !currentToken.current) return Promise.resolve();
+    if (!saveQueue.current.size) return Promise.resolve();
+    setHistoryStatus("Saving conversation…");
+    historyQueue.current = saveQueue.current.flush(
+      message => persistMessage({ data: { accessToken: currentToken.current, message } }),
+      message => { if (mountedRef.current) setHistoryStatus(message); },
+    );
+    return historyQueue.current;
+  }, [persistMessage, session.stepUpComplete]);
   useEffect(() => {
     let active = true;
-    setHistoryReady(false);
-    setMessages([]);
+    // Token renewal is not a new conversation. Never erase unsaved turns on renewal.
+    const owner = session.signedIn ? session.email : null;
+    if (historyOwner.current !== owner) {
+      historyOwner.current = owner;
+      saveQueue.current.clear();
+      setMessages([]);
+      setHistoryReady(false);
+    }
     if (!session.stepUpComplete || !token) {
+      setHistoryReady(false);
       setHistoryStatus("Sign in with your authenticator to restore conversation memory.");
       return;
     }
-    setHistoryStatus("Loading saved conversation…");
-    void readConversation({ data: { accessToken: token } }).then(result => {
+    void (async () => {
+      // Wait for any older attempt, then flush with the current token.
+      await historyQueue.current;
       if (!active) return;
-      if (result.ok) { setMessages(result.messages); setHistoryReady(true); }
-      setHistoryStatus(result.message);
-    }).catch(() => { if (active) setHistoryStatus("Conversation memory could not be loaded. Reopen the Office to retry."); });
+      await retrySaving();
+      const result = await readConversation({ data: { accessToken: token } });
+      if (!active) return;
+      if (result.ok) {
+        setMessages(current => {
+          const known = new Set(result.messages.map(message => message.id));
+          return [...result.messages, ...current.filter(message => !known.has(message.id))];
+        });
+        setHistoryReady(true);
+      }
+      if (!saveQueue.current.size) setHistoryStatus(result.message);
+    })().catch(() => {
+      if (active) setHistoryStatus("Conversation memory could not be loaded. Keep this window open and check your connection.");
+    });
     return () => { active = false; };
-  }, [token, session.stepUpComplete, readConversation]);
+  }, [token, session.stepUpComplete, session.signedIn, session.email, readConversation, retrySaving]);
+  useEffect(() => {
+    const retry = () => { void retrySaving(); };
+    const protectUnsaved = (event: BeforeUnloadEvent) => {
+      if (saveQueue.current.size) { event.preventDefault(); event.returnValue = ""; }
+    };
+    window.addEventListener("online", retry);
+    window.addEventListener("beforeunload", protectUnsaved);
+    return () => {
+      window.removeEventListener("online", retry);
+      window.removeEventListener("beforeunload", protectUnsaved);
+    };
+  }, [retrySaving]);
   const saveSpokenMessage = useCallback((role: "user" | "assistant", content: string) => {
     const message: SavedMessage = { id: crypto.randomUUID(), role, content };
     setMessages(current => [...current, message]);
-    // Serialize writes so a reload preserves the order of spoken turns.
-    historyQueue.current = historyQueue.current.then(async () => {
-      const saved = await persistMessage({ data: { accessToken: token, message } });
-      if (mountedRef.current) setHistoryStatus(saved.message);
-    }).catch(() => { if (mountedRef.current) setHistoryStatus("Conversation could not be saved. Keep this window open."); });
-  }, [token, persistMessage]);
+    saveQueue.current.add(message);
+    void retrySaving();
+  }, [retrySaving]);
   const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
     useCallback(async (request: string) => {
       await historyQueue.current;
@@ -848,6 +891,11 @@ export function OfficeManager() {
 
               <div className="max-h-[50dvh] shrink-0 overflow-y-auto border-t border-border p-3">
                 <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus}</p>
+                {saveQueue.current.size > 0 && (
+                  <Button size="sm" variant="outline" className="mb-2" onClick={() => void retrySaving()}>
+                    Retry saving conversation
+                  </Button>
+                )}
                 <section aria-label="Talk with Data" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">
                     {realtimeManager.error || error

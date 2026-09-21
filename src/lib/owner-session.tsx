@@ -8,8 +8,8 @@
  * the server's answer. Nothing here grants a role.
  */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { currentCanxSupabase, loadCanxSupabase } from "@/lib/canx-supabase";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { loadCanxSupabase } from "@/lib/canx-supabase";
 import { verifyOwnerSession, type SessionResult } from "@/lib/auth.functions";
 
 export type OwnerState =
@@ -113,8 +113,11 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
     setMessage(result.message);
   }, []);
 
+  const refreshGeneration = useRef(0);
   const refresh = useCallback(async () => {
+    const generation = ++refreshGeneration.current;
     const supabase = await loadCanxSupabase();
+    if (generation !== refreshGeneration.current) return;
     if (!supabase) {
       setConfigured(false);
       setState("backend_missing");
@@ -127,27 +130,47 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
     const token = data.session?.access_token ?? null;
     try {
       const result = await verifyOwnerSession({ data: { accessToken: token ?? "" } });
-      applyResult(token, result);
+      if (generation === refreshGeneration.current) applyResult(token, result);
     } catch {
+      if (generation !== refreshGeneration.current) return;
       setState("error");
       setMessage("The office could not check your sign-in.");
     }
   }, [applyResult]);
 
   useEffect(() => {
+    let active = true;
     let unsubscribe: (() => void) | undefined;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
+      const supabase = await loadCanxSupabase();
+      if (!active) return;
+      if (supabase) {
+        const { data } = supabase.auth.onAuthStateChange((event: string) => {
+          if (event === "SIGNED_OUT") {
+            ++refreshGeneration.current;
+            setAccessToken(null);
+            setEmail(null);
+            setAal(null);
+            setState("signed_out");
+          }
+          // Leave the auth callback before calling getSession (auth holds a lock).
+          // TOKEN_REFRESHED must propagate the new token to Data and its save queue.
+          if (["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT", "TOKEN_REFRESHED", "MFA_CHALLENGE_VERIFIED", "USER_UPDATED"].includes(event)) {
+            clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(() => { if (active) void refresh(); }, 0);
+          }
+        });
+        unsubscribe = () => data.subscription.unsubscribe();
+      }
       await refresh();
-      const supabase = currentCanxSupabase();
-      if (!supabase) return;
-      const { data } = supabase.auth.onAuthStateChange((event: string) => {
-        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "MFA_CHALLENGE_VERIFIED" || event === "USER_UPDATED") {
-          void refresh();
-        }
-      });
-      unsubscribe = () => data.subscription.unsubscribe();
     })();
-    return () => unsubscribe?.();
+    return () => {
+      active = false;
+      ++refreshGeneration.current;
+      clearTimeout(refreshTimer);
+      unsubscribe?.();
+    };
   }, [refresh]);
 
   const signIn = useCallback(
@@ -223,6 +246,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    ++refreshGeneration.current;
     const supabase = await loadCanxSupabase();
     if (supabase) await supabase.auth.signOut();
     setAccessToken(null);
