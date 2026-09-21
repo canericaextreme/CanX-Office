@@ -65,21 +65,22 @@ export function useDraggablePanel(options: DraggablePanelOptions = {}) {
   );
 
   useEffect(() => {
-    if (!draggingRef.current) return;
     const handleMove = (event: PointerEvent) => {
       if (!draggingRef.current) return;
       const dx = startRef.current.x - event.clientX;
       const dy = event.clientY - startRef.current.y;
-      setPos(clamp({ right: startRef.current.right + dx, bottom: startRef.current.bottom + dy }));
+      setPos(clamp({ right: startRef.current.right + dx, bottom: startRef.current.bottom - dy }));
     };
     const handleUp = () => {
       draggingRef.current = false;
     };
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
     return () => {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
     };
   }, [clamp]);
 

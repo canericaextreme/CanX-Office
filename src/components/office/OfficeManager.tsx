@@ -682,7 +682,7 @@ export function OfficeManager() {
             minimized ? "hidden" : "flex"
           } max-h-[85dvh] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
         >
-          <div className="flex shrink-0 items-center gap-1 border-b border-border bg-secondary/60 p-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
               {...panel.handleProps}
               className="mr-1 flex cursor-move touch-none select-none items-center rounded-md p-1.5 text-muted-foreground hover:bg-background active:bg-secondary"
@@ -694,7 +694,7 @@ export function OfficeManager() {
                 key={view.id}
                 onClick={() => setTab(view.id)}
                 aria-current={tab === view.id}
-                className={`min-h-9 rounded-md px-3 py-1.5 text-sm font-medium ${
+                className={`min-h-9 rounded-md px-2 py-1.5 text-sm font-medium ${
                   tab === view.id
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-background"
@@ -707,11 +707,11 @@ export function OfficeManager() {
             <Button
               variant="ghost"
               size="sm"
-              className="ml-auto h-8"
+              className="ml-auto h-8 shrink-0"
               onClick={() => setMinimized(true)}
               aria-label="Minimise the Office Manager to a small floating control"
             >
-              <Minus className="mr-1.5 h-4 w-4" /> Minimise
+              <Minus className="h-4 w-4" />
             </Button>
           </div>
 
@@ -764,7 +764,7 @@ export function OfficeManager() {
                   followMessagesRef.current =
                     pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
                 }}
-                className="min-h-24 flex-1 space-y-3 overflow-y-auto p-3"
+                className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3"
               >
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">
@@ -883,10 +883,15 @@ export function OfficeManager() {
                     <Mic className="mr-2 h-5 w-5" />
                     {voiceButtonLabel}
                   </Button>
+                  {realtimeManager.playbackBlocked && (
+                    <Button variant="outline" className="w-full" onClick={realtimeManager.resumeAudio}>
+                      Enable sound
+                    </Button>
+                  )}
                   {realtimeManager.on && (
                     <button
                       type="button"
-                      className="text-xs text-muted-foreground underline"
+                      className="min-h-11 rounded-md border border-border px-4 text-sm font-medium"
                       onClick={realtimeManager.stop}
                     >
                       <PhoneOff className="mr-1 inline h-3.5 w-3.5" /> End conversation
@@ -907,13 +912,10 @@ export function OfficeManager() {
                     </p>
                   )}
                 </section>
-                <details
-                  className="mt-3 border-t border-border pt-2"
-                  open={draft ? true : undefined}
-                >
-                  <summary className="cursor-pointer text-sm text-muted-foreground">
-                    Type instead
-                  </summary>
+                <div className="mt-3 border-t border-border pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Type a message or task for Data
+                  </p>
                   <Textarea
                     ref={inputRef}
                     rows={2}
@@ -937,7 +939,7 @@ export function OfficeManager() {
                   >
                     <Send className="mr-1.5 h-4 w-4" /> Send message
                   </Button>
-                </details>
+                </div>
               </div>
             </>
           )}
