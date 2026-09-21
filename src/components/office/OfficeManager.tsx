@@ -106,6 +106,11 @@ export function OfficeManager() {
   const [voiceMode, setVoiceMode] = useState(false);
   const [muted, setMuted] = useState(false);
   const voiceModeRef = useRef(false);
+  const voiceSessionRef = useRef(0);
+  const speechRequestRef = useRef(0);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sendingRef = useRef(false);
+  const mountedRef = useRef(true);
   const mutedRef = useRef(false);
   const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
   const voiceTurnRef = useRef<(audioBase64: string, mimeType: string) => Promise<void>>(async () => undefined);
@@ -123,10 +128,15 @@ export function OfficeManager() {
   const managerVoice = useManagerVoice((audioBase64, mimeType) => voiceTurnRef.current(audioBase64, mimeType));
 
   const speakAnswer = async (_id: string, text: string, onDone?: () => void) => {
-    managerVoice.stopListening();
+    const request = ++speechRequestRef.current;
+    const voiceSession = voiceSessionRef.current;
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    managerVoice.cancelListening();
+    managerVoice.stopPlayback();
     setSpeechError(null);
     managerVoice.setPhase("preparing");
     const result = await requestSpeech({ data: { accessToken: token, text } }).catch(() => null);
+    if (!mountedRef.current || request !== speechRequestRef.current || voiceSession !== voiceSessionRef.current) return;
     if (!result?.ok || !result.audioBase64) {
       managerVoice.setPhase("error");
       setSpeechError(result?.detail ?? "The Manager voice could not prepare that answer. The written answer is still available.");
@@ -134,7 +144,9 @@ export function OfficeManager() {
     }
     // If the browser refuses, the hook keeps the already-paid-for audio and
     // reports the real refusal; the Play answer button replays that same audio.
-    await managerVoice.playAudio(result.audioBase64, result.contentType, onDone);
+    await managerVoice.playAudio(result.audioBase64, result.contentType, () => {
+      if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current) onDone?.();
+    });
   };
 
 
@@ -163,7 +175,7 @@ export function OfficeManager() {
       suppressBannerSpeechRef.current = false;
       return;
     }
-    if (!voiceModeRef.current || mutedRef.current) return;
+    if (!voiceModeRef.current || mutedRef.current || sendingRef.current || managerVoice.phase !== "idle") return;
     const line = pendingApprovalNotice(pendingApprovals);
     if (line) void speakAnswer(`approvals-${pendingApprovals}`, line);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,10 +246,19 @@ export function OfficeManager() {
     voiceModeRef.current = false;
     setVoiceMode(false);
     setMuted(false);
-    managerVoice.stopListening();
-    managerVoice.stopPlayback();
+    cancelVoiceActivity();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      voiceSessionRef.current += 1;
+      speechRequestRef.current += 1;
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -281,7 +302,8 @@ export function OfficeManager() {
 
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
-    if (!text || busy) return;
+    if (!text || sendingRef.current) return;
+    const voiceSession = voiceSessionRef.current;
 
     // Asking the Manager to look at the screen opens the Rooms view, where the
     // one-shot look is an explicit button press. Nothing is looked at silently.
@@ -292,6 +314,8 @@ export function OfficeManager() {
         ...current,
         { id: `look-${Date.now()}`, role: "office", content: LOOK_NOTICE },
       ]);
+      if (voiceModeRef.current && !mutedRef.current) void speakAnswer("look", LOOK_NOTICE, resumeListening);
+      else resumeListening();
       return;
     }
 
@@ -305,7 +329,7 @@ export function OfficeManager() {
         pendingFullRef.current = null;
         setAwaitingReadMore(false);
         setDraft("");
-        managerVoice.stopListening();
+        managerVoice.cancelListening();
         void speakAnswer(pending.id, pending.text, resumeListening);
         return;
       }
@@ -321,12 +345,13 @@ export function OfficeManager() {
     }
 
     // In Voice Mode the microphone pauses while the Manager thinks.
-    if (voiceModeRef.current) managerVoice.stopListening();
+    if (voiceModeRef.current) managerVoice.cancelListening();
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
     const history = [...messages, userMessage];
     setMessages(history);
     setDraft("");
+    sendingRef.current = true;
     setBusy(true);
     try {
       const reply = await sendChat({
@@ -338,6 +363,7 @@ export function OfficeManager() {
             .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
         },
       });
+      if (!mountedRef.current) return;
       if (!reply.ok) {
         setError(
           reply.code === "auth_not_ready"
@@ -352,7 +378,7 @@ export function OfficeManager() {
                     ? (reply.detail ?? "The office records could not be read just now, so nothing was asked.")
                   : (reply.detail ?? "The AI request could not be completed."),
         );
-        if (voiceModeRef.current) resumeListening();
+        if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
       } else {
         const answerId = `m-${Date.now()}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
@@ -377,7 +403,7 @@ export function OfficeManager() {
         }
         // Something real was queued in the approval box — say so out loud.
         const approvalLine = approvalSubmissionNotice(reply.actionResults);
-        if (voiceModeRef.current) {
+        if (voiceModeRef.current && voiceSession === voiceSessionRef.current) {
           if (mutedRef.current) {
             resumeListening();
           } else {
@@ -395,9 +421,12 @@ export function OfficeManager() {
         }
       }
     } catch (caught) {
+      if (!mountedRef.current) return;
       setError(caught instanceof Error ? caught.message : "The request could not be completed.");
-      if (voiceModeRef.current) resumeListening();
+      if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
     } finally {
+      sendingRef.current = false;
+      if (!mountedRef.current) return;
       setBusy(false);
       inputRef.current?.focus();
     }
@@ -405,8 +434,11 @@ export function OfficeManager() {
   sendRef.current = send;
 
   voiceTurnRef.current = async (audioBase64: string, mimeType: string) => {
+    const voiceSession = voiceSessionRef.current;
+    if (!voiceModeRef.current) return;
     setSpeechError(null);
     const result = await requestTranscription({ data: { accessToken: token, audioBase64, mimeType } }).catch(() => null);
+    if (!mountedRef.current || !voiceModeRef.current || voiceSession !== voiceSessionRef.current) return;
     if (!result?.ok || !result.text) {
       managerVoice.setPhase("error");
       setSpeechError(result?.detail ?? "The Manager could not understand that recording. Please press Talk and try again.");
@@ -416,23 +448,40 @@ export function OfficeManager() {
     await sendRef.current(result.text);
   };
 
-  /**
-   * Voice Mode keeps the microphone open. It is started alongside the spoken
-   * answer (delay 0) so John can interrupt, and again once speaking ends.
-   */
+  /** Resume only after playback, and never after a later stop or interruption. */
   function resumeListening(delay = 300) {
     if (!voiceModeRef.current) return;
-    setTimeout(() => {
-      if (voiceModeRef.current && managerVoice.phase !== "listening") void managerVoice.startListening();
+    const voiceSession = voiceSessionRef.current;
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      resumeTimerRef.current = null;
+      if (mountedRef.current && voiceModeRef.current && voiceSession === voiceSessionRef.current && !sendingRef.current) {
+        void managerVoice.startListening();
+      }
     }, delay);
   }
 
-  /**
-   * Starts the one shared voice conversation. The greeting is spoken straight
-   * away so pressing Chat is always audibly confirmed, and the speech engine is
-   * woken inside the same button press so the browser allows it.
-   */
+  function cancelVoiceActivity() {
+    voiceSessionRef.current += 1;
+    speechRequestRef.current += 1;
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = null;
+    managerVoice.cancelListening();
+    managerVoice.stopPlayback();
+  }
+
+  const interruptAndListen = () => {
+    cancelVoiceActivity();
+    pendingFullRef.current = null;
+    setAwaitingReadMore(false);
+    setSpeechError(null);
+    managerVoice.unlockPlayback();
+    void managerVoice.startListening();
+  };
+
   const startVoiceMode = () => {
+    if (sendingRef.current) return;
+    cancelVoiceActivity();
     setVoiceMode(true);
     voiceModeRef.current = true;
     setError(null);
@@ -447,8 +496,7 @@ export function OfficeManager() {
     pendingFullRef.current = null;
     setAwaitingReadMore(false);
     setSpeechError(null);
-    managerVoice.stopListening();
-    managerVoice.stopPlayback();
+    cancelVoiceActivity();
   };
 
   // The compact companion drives this same voice conversation and work panel.
@@ -475,8 +523,8 @@ export function OfficeManager() {
 
   const repeatAnswer = () => {
     const last = lastAnswerRef.current;
-    if (!last) return;
-    managerVoice.stopListening();
+    if (!last || sendingRef.current) return;
+    cancelVoiceActivity();
     // Unlocked inside this tap so the phone allows the answer that follows.
     managerVoice.unlockPlayback();
     void speakAnswer(last.id, forSpeech(last.text), resumeListening);
@@ -540,7 +588,8 @@ export function OfficeManager() {
               variant="outline"
               size="sm"
               className="h-8"
-              onClick={() => (managerVoice.phase === "listening" ? managerVoice.stopListening() : void managerVoice.startListening())}
+              disabled={busy || managerVoice.phase === "transcribing"}
+              onClick={() => (managerVoice.phase === "listening" ? managerVoice.stopListening() : interruptAndListen())}
             >
               {managerVoice.phase === "listening" ? (
                 <>
@@ -643,9 +692,8 @@ export function OfficeManager() {
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    Ask about today's priorities, the sample records in the office, or how the rooms fit together. The
-                    manager can also suggest an appearance change or a task for you to save — it cannot run anything,
-                    spend anything, or touch another project.
+                    Talk to Data about today's priorities, your projects, or the next task. Ask Data to create or
+                    assign work, then check the Work Board. Spending and protected actions still need your approval.
                   </p>
                 )}
                 {messages.map((message) => (
@@ -676,9 +724,11 @@ export function OfficeManager() {
                         }
                         onClick={() => {
                           if (managerVoice.phase === "speaking") {
-                            managerVoice.stopPlayback();
+                            cancelVoiceActivity();
+                            resumeListening();
                             return;
                           }
+                          cancelVoiceActivity();
                           // Unlocking inside this tap is what lets Android play the answer.
                           managerVoice.unlockPlayback();
                           void speakAnswer(message.id, forSpeech(message.content));
@@ -818,8 +868,8 @@ export function OfficeManager() {
                           <Square className="mr-1.5 h-4 w-4" /> Stop listening
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing"} onClick={() => { managerVoice.unlockPlayback(); void managerVoice.startListening(); }}>
-                          <Mic className="mr-1.5 h-4 w-4" /> Start listening
+                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing"} onClick={() => { managerVoice.unlockPlayback(); interruptAndListen(); }}>
+                          <Mic className="mr-1.5 h-4 w-4" /> {managerVoice.phase === "speaking" || managerVoice.phase === "preparing" ? "Interrupt and talk" : "Start listening"}
                         </Button>
                       )}
                       <Button
@@ -831,7 +881,11 @@ export function OfficeManager() {
                           const next = !muted;
                           setMuted(next);
                           mutedRef.current = next;
-                          if (next) managerVoice.stopPlayback();
+                          if (next) {
+                            speechRequestRef.current += 1;
+                            managerVoice.stopPlayback();
+                            if (!sendingRef.current && managerVoice.phase !== "transcribing" && managerVoice.phase !== "listening") resumeListening();
+                          }
                         }}
                       >
                         {muted ? <VolumeX className="mr-1.5 h-4 w-4" /> : <Volume2 className="mr-1.5 h-4 w-4" />}
@@ -947,7 +1001,7 @@ export function OfficeManager() {
                   className="mt-2 h-9"
                   aria-label="Test the voice with the microphone off"
                   onClick={() => {
-                    managerVoice.stopListening();
+                    cancelVoiceActivity();
                     setSpeechError(null);
                     managerVoice.unlockPlayback();
                     void speakAnswer(`voice-check-${Date.now()}`, VOICE_CHECK_SENTENCE);

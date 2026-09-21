@@ -22,7 +22,7 @@ const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
  * <audio> element does not count as user-activated playback.
  */
 export const SILENT_AUDIO_DATA_URL =
-  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+  "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 const EMPTY_REPORT: ManagerVoiceReport = {
   recorded: false,
@@ -63,9 +63,11 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
   const [report, setReport] = useState<ManagerVoiceReport>(EMPTY_REPORT);
   /** True when audio is already generated and paid for, but the browser refused to play it. */
   const [hasPendingAudio, setHasPendingAudio] = useState(false);
+  const recordingGenerationRef = useRef(0);
+  const playbackGenerationRef = useRef(0);
+  const startingRef = useRef(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
@@ -79,6 +81,15 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
   const bufferedRef = useRef<{ audioBase64: string; contentType: string; onEnded?: (() => void) | undefined } | null>(null);
 
   const releaseRecording = useCallback(() => {
+    recordingGenerationRef.current += 1;
+    startingRef.current = false;
+    const recorder = recorderRef.current;
+    if (recorder) {
+      recorder.onstop = null;
+      recorder.ondataavailable = null;
+      recorder.onerror = null;
+      if (recorder.state === "recording") recorder.stop();
+    }
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -94,21 +105,33 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
   }, []);
 
   const stopPlayback = useCallback(() => {
+    playbackGenerationRef.current += 1;
     const audio = audioRef.current;
     if (audio) {
+      audio.onplay = null;
+      audio.onended = null;
+      audio.onerror = null;
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
     }
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = null;
-    if (phase === "speaking" || phase === "preparing") setPhase("idle");
-  }, [phase]);
+    bufferedRef.current = null;
+    setHasPendingAudio(false);
+    setPhase((current) => current === "speaking" || current === "preparing" || current === "blocked" ? "idle" : current);
+  }, []);
 
   const stopListening = useCallback(() => {
     const recorder = recorderRef.current;
     if (recorder?.state === "recording") recorder.stop();
   }, []);
+
+  /** Discard a recording; unlike Stop listening this never sends a turn. */
+  const cancelListening = useCallback(() => {
+    releaseRecording();
+    setPhase("idle");
+  }, [releaseRecording]);
 
   /**
    * Must be called synchronously from the click that starts any spoken answer.
@@ -124,17 +147,23 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       document.body.appendChild(audio);
       audioRef.current = audio;
     }
-    if (!audio.src) audio.src = SILENT_AUDIO_DATA_URL;
+    // Never prime an active answer. A pending priming promise must not pause
+    // or mute the real answer when it resolves later.
+    if (audio.src) return;
+    const generation = playbackGenerationRef.current;
+    audio.src = SILENT_AUDIO_DATA_URL;
     audio.muted = true;
     const primed = audio.play();
     if (primed && typeof primed.then === "function") {
       void primed
         .then(() => {
+          if (generation !== playbackGenerationRef.current) return;
           audio.pause();
           audio.currentTime = 0;
           audio.muted = false;
         })
         .catch(() => {
+          if (generation !== playbackGenerationRef.current) return;
           audio.muted = false;
         });
     } else {
@@ -154,6 +183,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
   }, []);
 
   const startListening = useCallback(async () => {
+    if (startingRef.current || recorderRef.current?.state === "recording") return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       const message = "This browser cannot record a Manager voice turn. You can still type your message.";
       setError(message);
@@ -164,8 +194,15 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     releaseRecording();
     setError(null);
     setReport(EMPTY_REPORT);
+    startingRef.current = true;
+    const generation = recordingGenerationRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      if (generation !== recordingGenerationRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      startingRef.current = false;
       streamRef.current = stream;
       const AudioContextCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       const context = AudioContextCtor ? new AudioContextCtor() : null;
@@ -179,11 +216,12 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       const mimeType = preferredMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       recorderRef.current = recorder;
-      chunksRef.current = [];
+      const chunks: Blob[] = [];
       recorder.ondataavailable = (event) => {
-        if (event.data.size) chunksRef.current.push(event.data);
+        if (event.data.size) chunks.push(event.data);
       };
       recorder.onerror = () => {
+        if (generation !== recordingGenerationRef.current) return;
         releaseRecording();
         const message = "The microphone stopped unexpectedly. Please press Talk and try again.";
         setError(message);
@@ -191,9 +229,11 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
         setPhase("error");
       };
       recorder.onstop = async () => {
+        if (generation !== recordingGenerationRef.current) return;
         const actualType = recorder.mimeType.split(";")[0] || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || actualType });
+        const blob = new Blob(chunks, { type: recorder.mimeType || actualType });
         releaseRecording();
+        const stoppedGeneration = recordingGenerationRef.current;
         if (blob.size < 256 || blob.size > MAX_AUDIO_BYTES) {
           const message = blob.size > MAX_AUDIO_BYTES ? "That voice turn was too long. Please try a shorter message." : "No voice was recorded. Please try again.";
           setError(message);
@@ -204,8 +244,11 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
         setReport((current) => ({ ...current, recorded: true }));
         setPhase("transcribing");
         try {
-          await onTurn(await toBase64(blob), actualType);
+          const encoded = await toBase64(blob);
+          if (stoppedGeneration !== recordingGenerationRef.current) return;
+          await onTurn(encoded, actualType);
         } catch {
+          if (stoppedGeneration !== recordingGenerationRef.current) return;
           const message = "The Manager could not process that voice turn. Please try again or type your message.";
           setError(message);
           setReport((current) => ({ ...current, error: message }));
@@ -240,6 +283,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       }
       timerRef.current = setTimeout(() => stopListening(), MAX_RECORDING_MS);
     } catch {
+      if (generation !== recordingGenerationRef.current) return;
       releaseRecording();
       const message = "Microphone access is needed. Allow it in your browser, then press Talk again.";
       setError(message);
@@ -255,6 +299,8 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     // The microphone must be fully released before any audible playback.
     releaseRecording();
     stopPlayback();
+    bufferedRef.current = buffered;
+    const generation = playbackGenerationRef.current;
     setError(null);
     setPhase("preparing");
     try {
@@ -264,16 +310,21 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       objectUrlRef.current = url;
       let audio = audioRef.current;
       if (!audio) {
-        unlockPlayback();
-        audio = audioRef.current;
+        audio = document.createElement("audio");
+        audio.setAttribute("playsinline", "true");
+        audio.style.display = "none";
+        document.body.appendChild(audio);
+        audioRef.current = audio;
       }
       if (!audio) throw new Error("audio");
       audio.muted = false;
       audio.onplay = () => {
+        if (generation !== playbackGenerationRef.current) return;
         setReport((current) => ({ ...current, playbackStarted: true, blockedReason: null }));
         setPhase("speaking");
       };
       audio.onended = () => {
+        if (generation !== playbackGenerationRef.current) return;
         setReport((current) => ({ ...current, playbackEnded: true }));
         bufferedRef.current = null;
         setHasPendingAudio(false);
@@ -282,6 +333,8 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
         buffered.onEnded?.();
       };
       audio.onerror = () => {
+        if (generation !== playbackGenerationRef.current) return;
+        setHasPendingAudio(true);
         const message = "Your phone could not play the Manager's voice. The written answer is still available.";
         setError(message);
         setReport((current) => ({ ...current, error: message }));
@@ -289,9 +342,11 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       };
       audio.src = url;
       await audio.play();
+      if (generation !== playbackGenerationRef.current) return false;
       setHasPendingAudio(false);
       return true;
     } catch (caught) {
+      if (generation !== playbackGenerationRef.current) return false;
       const name = caught instanceof Error && caught.name ? caught.name : null;
       const message = playbackRefusalMessage(name);
       setError(message);
@@ -301,7 +356,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
       setPhase("blocked");
       return false;
     }
-  }, [releaseRecording, stopPlayback, unlockPlayback]);
+  }, [releaseRecording, stopPlayback]);
 
   const playAudio = useCallback(
     async (audioBase64: string, contentType = "audio/mpeg", onEnded?: () => void) => {
@@ -319,6 +374,8 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
 
   useEffect(() => () => {
     releaseRecording();
+    playbackGenerationRef.current += 1;
+    bufferedRef.current = null;
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
@@ -337,6 +394,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     hasPendingAudio,
     startListening,
     stopListening,
+    cancelListening,
     playAudio,
     playPendingAudio,
     stopPlayback,
