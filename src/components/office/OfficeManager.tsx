@@ -1,3 +1,4 @@
+import { loadConversation, saveConversationMessage, type SavedMessage } from "@/lib/manager-history.functions";
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -106,6 +107,8 @@ export function OfficeManager() {
   /** Room reviews held in memory for this visit. Never stored anywhere. */
   const [roomReviews, setRoomReviews] = useState<Record<string, RoomReview | undefined>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
+  const [historyStatus, setHistoryStatus] = useState("Loading saved conversation…");
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,15 +228,44 @@ export function OfficeManager() {
   const shared = session.shared;
   const context = useMemo(() => buildOfficeContext(), []);
   const managerTeam = useMemo(() => teamForManager(loadTeam()), []);
-  const realtimeManager = useRealtimeManager(
-    token,
-    managerTeam,
-    useCallback((role: "user" | "assistant", content: string) => {
-      setMessages((current) => [
-        ...current,
-        { id: `live-${role}-${Date.now()}-${current.length}`, role, content },
-      ]);
-    }, []),
+  const readConversation = useServerFn(loadConversation);
+  const persistMessage = useServerFn(saveConversationMessage);
+  const historyQueue = useRef(Promise.resolve());
+  useEffect(() => {
+    let active = true;
+    setHistoryReady(false);
+    setMessages([]);
+    if (!session.stepUpComplete || !token) {
+      setHistoryStatus("Sign in with your authenticator to restore conversation memory.");
+      return;
+    }
+    setHistoryStatus("Loading saved conversation…");
+    void readConversation({ data: { accessToken: token } }).then(result => {
+      if (!active) return;
+      if (result.ok) { setMessages(result.messages); setHistoryReady(true); }
+      setHistoryStatus(result.message);
+    }).catch(() => { if (active) setHistoryStatus("Conversation memory could not be loaded. Reopen the Office to retry."); });
+    return () => { active = false; };
+  }, [token, session.stepUpComplete, readConversation]);
+  const saveSpokenMessage = useCallback((role: "user" | "assistant", content: string) => {
+    const message: SavedMessage = { id: crypto.randomUUID(), role, content };
+    setMessages(current => [...current, message]);
+    // Serialize writes so a reload preserves the order of spoken turns.
+    historyQueue.current = historyQueue.current.then(async () => {
+      const saved = await persistMessage({ data: { accessToken: token, message } });
+      if (mountedRef.current) setHistoryStatus(saved.message);
+    }).catch(() => { if (mountedRef.current) setHistoryStatus("Conversation could not be saved. Keep this window open."); });
+  }, [token, persistMessage]);
+  const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
+    useCallback(async (request: string) => {
+      await historyQueue.current;
+      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: [{ role: "user", content: request }] } });
+      const result = reply.text || reply.detail || "The office action did not complete.";
+      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result }]);
+      if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))
+        window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
+      return result;
+    }, [token, managerTeam, sendChat]),
   );
 
   useEffect(() => {
@@ -397,6 +429,7 @@ export function OfficeManager() {
     if (voiceModeRef.current) managerVoice.cancelListening();
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
+    if (!historyReady) { setError("Wait for conversation memory to load before sending."); return; }
     const history = [...messages, userMessage];
     setMessages(history);
     setDraft("");
@@ -618,7 +651,7 @@ export function OfficeManager() {
         : "Start conversation";
 
   const primaryVoiceAction = () => {
-    if (realtimeManager.on) return;
+    if (realtimeManager.on || !historyReady) return;
     setError(null);
     setSpeechError(null);
     realtimeManager.start();
@@ -722,6 +755,9 @@ export function OfficeManager() {
             <Button asChild variant="outline" size="sm">
               <Link to="/brain" onClick={() => setMinimized(true)}>Brain</Link>
             </Button>
+            <Button asChild variant="outline" size="sm" className={pendingApprovals ? "border-canx-yellow text-canx-yellow" : ""}>
+              <Link to="/approvals" onClick={() => setMinimized(true)}>Approvals{pendingApprovals ? ` (${pendingApprovals})` : ""}</Link>
+            </Button>
             <Button variant="ghost" size="sm" className="ml-auto" onClick={closeManager}>
               <X className="mr-1 h-4 w-4" /> Close
             </Button>
@@ -811,6 +847,7 @@ export function OfficeManager() {
               </div>
 
               <div className="max-h-[50dvh] shrink-0 overflow-y-auto border-t border-border p-3">
+                <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus}</p>
                 <section aria-label="Talk with Data" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">
                     {realtimeManager.error || error
@@ -876,6 +913,7 @@ export function OfficeManager() {
                     onClick={primaryVoiceAction}
                     disabled={
                       !session.stepUpComplete ||
+                      !historyReady ||
                       realtimeManager.on ||
                       realtimeManager.phase === "connecting"
                     }
@@ -935,7 +973,7 @@ export function OfficeManager() {
                     size="sm"
                     className="mt-2"
                     onClick={() => void send()}
-                    disabled={busy || !draft.trim()}
+                    disabled={busy || !historyReady || !draft.trim()}
                   >
                     <Send className="mr-1.5 h-4 w-4" /> Send message
                   </Button>

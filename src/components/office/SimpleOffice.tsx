@@ -1,5 +1,6 @@
 "use client";
 
+import { ApprovalIndicator } from "./ApprovalIndicator";
 import { Link } from "@tanstack/react-router";
 import { ROOMS } from "@/lib/office-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ export function SimpleOffice() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">{room.purpose}</p>
+                {room.id === "approvals" && <ApprovalIndicator />}
               </CardContent>
             </Card>
           </Link>

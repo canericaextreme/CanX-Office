@@ -512,3 +512,39 @@ describe("Data reply repair", () => {
     expect(reply.detail).toContain("No office action was carried out");
   });
 });
+
+describe("Data action destinations", () => {
+  async function act(name: string, content: string, saveOk = true) {
+    vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("CANX_SUPABASE_PUBLISHABLE_KEY", "test-key");
+    const writes: string[] = [];
+    const fetchImpl = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/v1/models/")) return Response.json({});
+      if (url.includes("/v1/responses")) return Response.json({ output: [{type:"function_call",name,arguments:JSON.stringify({title:"Test work",risk:"green"})}] });
+      if (init?.method === "POST") writes.push(url);
+      if (url.endsWith("/manager_approvals")) return Response.json(saveOk ? [{id:"approval-1",title:"Test work",risk:"yellow",status:"pending"}] : {},{status:saveOk ? 201 : 403});
+      if (url.endsWith("/manager_tasks")) return Response.json([{id:"task-1",title:"Test work",risk:"green",status:"open"}]);
+      return Response.json({});
+    }) as unknown as typeof fetch;
+    try { return {reply:await runManagerChatWith(deps({verifyOwner:async()=>OWNER,fetchImpl}),{accessToken:"t",messages:[{role:"user",content}]}),writes}; }
+    finally { vi.unstubAllEnvs(); }
+  }
+  it("runs directly requested routine work without creating an approval", async () => {
+    const {reply,writes}=await act("create_task","Create a research task");
+    expect(reply.actionResults[0]?.status).toBe("done");
+    expect(writes.some(url=>url.endsWith("/manager_approvals"))).toBe(false);
+  });
+  it("returns a saved approval id and pending result", async () => {
+    const {reply,writes}=await act("request_approval","Put this purchase up for approval");
+    expect(reply.actionResults[0]).toMatchObject({status:"pending",risk:"yellow"});
+    expect(reply.text).toContain("approval-1");
+    expect(writes.some(url=>url.endsWith("/manager_tasks"))).toBe(false);
+  });
+  it("does not claim an approval was queued when the database rejects it", async () => {
+    const {reply}=await act("request_approval","Put this purchase up for approval",false);
+    expect(reply.actionResults[0]?.status).toBe("stopped");
+    expect(reply.text).toContain("Could not queue approval");
+    expect(reply.text).not.toContain("Queued for approval:");
+  });
+});
