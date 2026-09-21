@@ -445,8 +445,8 @@ export function OfficeManager() {
           },
         ]);
         // A real task change — typed or spoken — reloads the Work Board.
-        const changedWork = (reply.toolCalls ?? []).some((call) =>
-          ["create_task", "assign_task", "verify_task", "request_approval"].includes(call.name),
+        const changedWork = (reply.actionResults ?? []).some((action) =>
+          action.status === "done" || action.status === "pending",
         );
         if (changedWork && typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
@@ -558,6 +558,13 @@ export function OfficeManager() {
     cancelVoiceActivity();
   };
 
+  const closeManager = () => {
+    realtimeManager.stop();
+    endVoiceMode();
+    setMinimized(false);
+    setOpen(false);
+  };
+
   // The compact companion drives this same voice conversation and work panel.
   // It never starts a second voice engine and never opens the panel on its own.
   const voiceModeOn = voiceMode;
@@ -621,7 +628,7 @@ export function OfficeManager() {
     <>
       {!(open && minimized) && (
         <Button
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => open ? closeManager() : setOpen(true)}
           aria-expanded={open}
           aria-controls="office-manager-panel"
           className="fixed bottom-4 right-4 z-40 h-12 rounded-full px-5 shadow-lg"
@@ -657,10 +664,7 @@ export function OfficeManager() {
             size="icon"
             className="h-8 w-8"
             aria-label="Close the Office Manager"
-            onClick={() => {
-              setMinimized(false);
-              setOpen(false);
-            }}
+            onClick={closeManager}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -708,6 +712,18 @@ export function OfficeManager() {
               aria-label="Minimise the Office Manager to a small floating control"
             >
               <Minus className="mr-1.5 h-4 w-4" /> Minimise
+            </Button>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/work-board" onClick={() => setMinimized(true)}>Work Board</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/brain" onClick={() => setMinimized(true)}>Brain</Link>
+            </Button>
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={closeManager}>
+              <X className="mr-1 h-4 w-4" /> Close
             </Button>
           </div>
 

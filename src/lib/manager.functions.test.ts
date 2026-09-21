@@ -469,3 +469,46 @@ describe("live office context replaces anything the browser sends", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe("Data reply repair", () => {
+  const taskCall = { type: "function_call", name: "create_task", arguments: JSON.stringify({ title: "Input test" }) };
+  const run = async (payload: unknown, taskStatus = 200, settle = vi.fn(async () => undefined)) => {
+    vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("CANX_SUPABASE_PUBLISHABLE_KEY", "test-key");
+    const fetchImpl = vi.fn(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes("/v1/models/")) return new Response("{}");
+      if (url.includes("/v1/responses")) return Response.json(payload);
+      if (url.endsWith("/manager_tasks")) return Response.json([{ id: "task-1", title: "Input test", status: "open" }], { status: taskStatus });
+      return Response.json({});
+    }) as unknown as typeof fetch;
+    try { return await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, settle }), CHAT); }
+    finally { vi.unstubAllEnvs(); }
+  };
+
+  it("confirms a tool-only saved task rather than showing an empty answer", async () => {
+    const reply = await run({ output: [taskCall] });
+    expect(reply.ok).toBe(true);
+    expect(reply.text).toContain('Created task "Input test"');
+    expect(reply.actionResults).toEqual([expect.objectContaining({ status: "done" })]);
+    expect(reply.toolCalls).toEqual([]);
+  });
+
+  it("reports a failed save even if the model claims success", async () => {
+    const reply = await run({ output_text: "I saved it!", output: [taskCall] }, 403);
+    expect(reply.text).toContain("403");
+    expect(reply.text).not.toContain("I saved it!");
+    expect(reply.actionResults[0]?.status).toBe("stopped");
+  });
+
+  it("uses message text when the top-level output_text is blank", async () => {
+    const reply = await run({ output_text: "  ", output: [{ type: "message", content: [{ type: "output_text", text: "I can explain that." }] }] });
+    expect(reply.text).toBe("I can explain that.");
+  });
+
+  it("does not mark a truly empty reply successful", async () => {
+    const reply = await run({ output: [] });
+    expect(reply.ok).toBe(false);
+    expect(reply.detail).toContain("No office action was carried out");
+  });
+});
