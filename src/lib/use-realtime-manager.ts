@@ -1,5 +1,6 @@
 "use client";
 
+import { voiceProviderFailure } from "./voice-provider-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createManagerRealtimeSession } from "@/lib/manager-realtime.functions";
@@ -242,12 +243,9 @@ export function useRealtimeManager(
       );
       if (!current()) return;
       if (!answer.ok) {
-        const detail = answer.status === 401 || answer.status === 403
-          ? "The live voice service rejected the session. Press Start conversation for a fresh connection."
-          : answer.status === 429
-            ? "The live voice service reached its usage or rate limit. Check the provider account before retrying."
-            : `The live voice service could not connect (HTTP ${answer.status}). Please try again.`;
-        fail(detail);
+        const body: unknown = await answer.json().catch(() => null);
+        if (!current()) return;
+        fail(voiceProviderFailure(answer.status, body, answer.headers.get("retry-after")));
         return;
       }
       const sdp = await answer.text();

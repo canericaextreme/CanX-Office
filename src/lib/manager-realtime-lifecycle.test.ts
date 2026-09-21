@@ -150,6 +150,6 @@ describe("Data voice error recovery", () => {
     expect(hooks.states[2]).toContain("Microphone access was denied"); expect(hooks.mint).not.toHaveBeenCalled();
     vi.mocked(fetch).mockResolvedValueOnce(new Response("private", {status:429}));
     voice.start(); await flush();
-    expect(hooks.states[2]).toContain("usage or rate limit"); expect(hooks.states[2]).not.toContain("private");
+    expect(hooks.states[2]).toContain("HTTP 429"); expect(hooks.states[2]).not.toContain("private");
   });
 });

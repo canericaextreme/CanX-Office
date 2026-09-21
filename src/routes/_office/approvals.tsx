@@ -1,3 +1,4 @@
+import { ClaudeSpendApproval } from "@/components/office/ClaudeSpendApproval";
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,7 +71,6 @@ function Approvals() {
         setTaskId("");
         refresh();
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
-        window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       }
     } catch {
       setProblem("That request could not be saved. Nothing was changed.");
@@ -129,6 +129,8 @@ function Approvals() {
           )}
         </CardContent>
       </Card>
+
+      <ClaudeSpendApproval />
 
       {durable && (
         <Card className="mt-4 border-border bg-card">
