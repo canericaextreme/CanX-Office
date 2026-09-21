@@ -71,6 +71,18 @@ export function useManagerMemory(): ManagerMemoryState {
 
   const refresh = useCallback(() => setTick((n) => n + 1), []);
 
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("canx:workbench-changed", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("canx:workbench-changed", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refresh]);
+
   return {
     memory,
     loading,

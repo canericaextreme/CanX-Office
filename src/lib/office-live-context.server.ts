@@ -161,7 +161,7 @@ async function readWorkbench(
     ).catch(() => null),
     // The append-only change log stores its timestamp in the schema column
     // "at", not "created_at". Reading the wrong column returned nothing.
-    rest(config, token, "manager_changes?select=action,entity,at&order=at.desc&limit=15").catch(() => null),
+    rest(config, token, "manager_changes?select=action,entity,at&entity=neq.manager_conversation&order=at.desc&limit=15").catch(() => null),
   ]);
 
   const rows = (response: { ok: boolean; body: unknown } | null) =>

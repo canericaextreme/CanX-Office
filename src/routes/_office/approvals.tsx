@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SAMPLE_APPROVALS } from "@/lib/office-data";
 import { StatusBadge } from "@/components/office/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
 import { decideManagerApproval, requestManagerApproval, type RiskLevel } from "@/lib/manager-work.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_office/approvals")({
   head: () => ({
@@ -38,13 +37,6 @@ function Approvals() {
   const [cost, setCost] = useState("");
   const [risk, setRisk] = useState<RiskLevel>("yellow");
   const [taskId, setTaskId] = useState("");
-
-  // Keep the box current when the Office Manager files an approval request.
-  useEffect(() => {
-    const onChanged = () => refresh();
-    window.addEventListener("canx:workbench-changed", onChanged);
-    return () => window.removeEventListener("canx:workbench-changed", onChanged);
-  }, [refresh]);
 
   const onSubmit = async () => {
     if (!accessToken) return;
@@ -78,6 +70,7 @@ function Approvals() {
         setTaskId("");
         refresh();
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
+        window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       }
     } catch {
       setProblem("That request could not be saved. Nothing was changed.");
@@ -98,6 +91,7 @@ function Approvals() {
       } else {
         setNotice(decision === "approved" ? "Approved and recorded." : "Declined and recorded.");
         refresh();
+        window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       }
     } catch {
       setNotice("That decision could not be saved.");
@@ -125,7 +119,7 @@ function Approvals() {
             {durable
               ? "Shared approval box — saved in the CanX-owned database."
               : isOwner
-                ? error ?? "Shared approval box unavailable; showing labelled sample items."
+                ? error ?? "Shared approval box unavailable; no live requests can be shown."
                 : sessionMessage}
           </span>
           {isOwner && (
@@ -262,26 +256,9 @@ function Approvals() {
           </div>
         )
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SAMPLE_APPROVALS.map((item) => (
-            <Card key={item.id} className="border-border bg-card">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{item.action}</CardTitle>
-                  <StatusBadge tone={item.status} />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-muted-foreground">
-                <p>Cost: {item.cost}</p>
-                <p>Risk: {item.risk}</p>
-                <p>Requested: {item.requestedAt}</p>
-                <Button className="mt-3" disabled>
-                  Review
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <p role="status" className="mt-6 text-sm text-muted-foreground">
+          {loading ? "Loading your approval requests…" : error || sessionMessage}
+        </p>
       )}
     </RoomShell>
   );

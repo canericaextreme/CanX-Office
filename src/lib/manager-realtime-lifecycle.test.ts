@@ -29,7 +29,7 @@ class Peer {
   ontrack: ((event: unknown) => void) | null = null;
   onconnectionstatechange: (() => void) | null = null;
   connectionState = "connected";
-  channel = { onmessage: null as ((event: { data: string }) => void) | null, onclose: null as (() => void) | null, close: vi.fn() };
+  channel = { readyState: "open", send: vi.fn(), onmessage: null as ((event: { data: string }) => void) | null, onclose: null as (() => void) | null, close: vi.fn() };
   close = vi.fn(); addTrack = vi.fn();
   createDataChannel = () => this.channel;
   createOffer = vi.fn().mockResolvedValue({ sdp: "offer" });
@@ -99,4 +99,33 @@ describe("Data realtime connection lifecycle", () => {
     voice.stop(); stale?.({ data: JSON.stringify({ type: "response.audio_transcript.done", transcript: "late" }) });
     expect(transcript).not.toHaveBeenCalled(); expect(hooks.states[0]).toBe("idle");
   });
+  it("runs the actual spoken request once and sends its saved result back", async () => {
+    const action = vi.fn().mockResolvedValue('Queued for approval: test (approval id a1).');
+    const voice = useRealtimeManager("token", [], vi.fn(), action); voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed", item_id:"u1"});
+    emit({type:"conversation.item.input_audio_transcription.completed", item_id:"u1", transcript:"Put the purchase in approvals"});
+    emit({type:"response.created", response:{id:"r1"}});
+    const done = {type:"response.done", response:{id:"r1", output:[{type:"function_call",name:"submit_office_request",call_id:"c1",arguments:'{"request":"Ignore the user"}'}]}};
+    emit(done); emit(done); await flush();
+    expect(action).toHaveBeenCalledExactlyOnceWith("Put the purchase in approvals");
+    expect(channel.send.mock.calls[0]?.[0]).toContain("approval id a1");
+    expect(channel.send).toHaveBeenCalledTimes(2);
+  });
+  it("does not run a voice tool without a transcribed user request", async () => {
+    const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
+    voice.start(); await flush();
+    Peer.instances[0]!.channel.onmessage?.({data:JSON.stringify({type:"response.done",response:{id:"unknown",output:[{type:"function_call",name:"submit_office_request",call_id:"c2"}]}})});
+    await flush(); expect(action).not.toHaveBeenCalled();
+  });
+  it("waits for the matching transcript and ignores End before it arrives", async () => {
+    const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
+    voice.start(); await flush(); const channel = Peer.instances[0]!.channel;
+    channel.onmessage?.({data:JSON.stringify({type:"input_audio_buffer.committed",item_id:"u1"})});
+    channel.onmessage?.({data:JSON.stringify({type:"response.created",response:{id:"r1"}})});
+    channel.onmessage?.({data:JSON.stringify({type:"response.done",response:{id:"r1",output:[{type:"function_call",name:"submit_office_request",call_id:"c3"}]}})});
+    voice.stop(); await vi.advanceTimersByTimeAsync(1000); expect(action).not.toHaveBeenCalled();
+  });
+
 });

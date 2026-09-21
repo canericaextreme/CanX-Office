@@ -19,6 +19,7 @@ export function useRealtimeManager(
   accessToken: string,
   team: { name: string; role: string; room: string }[],
   onTranscript: (role: "user" | "assistant", text: string) => void,
+  onOfficeRequest?: (request: string) => Promise<string>,
 ): RealtimeManager {
   const mintSession = useServerFn(createManagerRealtimeSession);
   const [phase, setPhase] = useState<ChatPhase>("idle");
@@ -34,6 +35,8 @@ export function useRealtimeManager(
   const abortRef = useRef<AbortController | null>(null);
   const transcriptRef = useRef(onTranscript);
   transcriptRef.current = onTranscript;
+  const requestRef = useRef(onOfficeRequest);
+  requestRef.current = onOfficeRequest;
 
   const teardown = useCallback(() => {
     // Invalidate pending permission, minting, SDP and playback callbacks first.
@@ -149,21 +152,59 @@ export function useRealtimeManager(
       const channel = pc.createDataChannel("oai-events");
       channelRef.current = channel;
       channel.onclose = () => fail("Data's voice connection ended. Press Start conversation to reconnect.");
+      const transcripts = new Map<string, string>();
+      const handledCalls = new Set<string>();
+      const handledInputs = new Set<string>();
+      let currentInputId = "";
+      const responseInputs = new Map<string, string>();
+      const executeRequest = async (callId: string, inputId: string) => {
+        if (handledCalls.has(callId)) return;
+        handledCalls.add(callId);
+        let output = "No action was carried out. Please repeat the request.";
+        if (inputId && !handledInputs.has(inputId)) {
+          handledInputs.add(inputId);
+          // Transcription can arrive after the function-call event.
+          for (let attempt = 0; attempt < 40 && current() && !transcripts.has(inputId); attempt++)
+            await new Promise(resolve => setTimeout(resolve, 200));
+          if (!current()) return;
+          const request = transcripts.get(inputId);
+          if (request && requestRef.current) {
+            setPhase("thinking");
+            try { output = await requestRef.current(request); }
+            catch { output = "The action result is unknown. Check the Work Board or Approvals before repeating it."; }
+          }
+        } else if (handledInputs.has(inputId)) {
+          output = "This spoken request was already submitted. Do not repeat the action.";
+        }
+        if (!current() || channel.readyState !== "open") return;
+        channel.send(JSON.stringify({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify({ result: output }) } }));
+        channel.send(JSON.stringify({ type: "response.create", response: { tool_choice: "none" } }));
+      };
       channel.onmessage = (event) => {
         if (!current()) return;
-        let payload: { type?: string; transcript?: string; response?: { status?: string } };
+        let payload: { type?: string; item_id?: string; transcript?: string; response?: { id?: string; status?: string; output?: { type?: string; name?: string; call_id?: string }[] } };
         try { payload = JSON.parse(String(event.data)) as typeof payload; }
         catch { return; }
         if (payload.type === "error" || (payload.type === "response.done" && payload.response?.status === "failed")) {
           fail("The voice service could not continue this conversation. Please try again.");
           return;
         }
+        if (payload.type === "input_audio_buffer.committed" && payload.item_id) currentInputId = payload.item_id;
+        if (payload.type === "response.created" && payload.response?.id) responseInputs.set(payload.response.id, currentInputId);
+        if (payload.type === "response.done") {
+          for (const item of payload.response?.output ?? []) {
+            if (item.type === "function_call" && item.name === "submit_office_request" && item.call_id)
+              void executeRequest(item.call_id, responseInputs.get(payload.response?.id ?? "") ?? "");
+          }
+        }
         const next = realtimeEventPhase(payload.type ?? "");
         if (next) setPhase(next);
         const text = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
         if (!text) return;
-        if (payload.type === "conversation.item.input_audio_transcription.completed")
+        if (payload.type === "conversation.item.input_audio_transcription.completed") {
+          if (payload.item_id) transcripts.set(payload.item_id, text);
           transcriptRef.current("user", text);
+        }
         if (payload.type === "response.output_audio_transcript.done" || payload.type === "response.audio_transcript.done")
           transcriptRef.current("assistant", text);
       };

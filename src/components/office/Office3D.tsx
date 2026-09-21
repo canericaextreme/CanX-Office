@@ -1,5 +1,6 @@
 "use client";
 
+import { ApprovalIndicator } from "./ApprovalIndicator";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ROOMS, type RoomDef } from "@/lib/office-data";
@@ -97,6 +98,7 @@ function RoomMarker({
       {isHovered && (
         <span className="text-[11px] leading-snug text-foreground/90">{room.purpose}</span>
       )}
+      {room.id === "approvals" && <ApprovalIndicator />}
     </Link>
   );
 }

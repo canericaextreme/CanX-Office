@@ -308,7 +308,7 @@ const TOOLS = [
     type: "function" as const,
     name: "request_approval",
     description:
-      "Queue a yellow-light action in the approval box for John. Use for major/risky cross-project changes, sending emails, schema changes, or any external spend. Never use for red actions.",
+      "Queue a protected action that requires a separate decision: spending, deletion, external commitments or material safety/legal/security risks. Also use when John explicitly asks to queue an approval. Do not queue ordinary internal work that John directly requested; use create_task or assign_task instead. Never approve or execute protected work yourself. Never use for red actions.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -584,6 +584,8 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
 export const MANAGER_SYSTEM_PROMPT = `You are Data, the CanX Office Manager for John Cantlon's CanX Office. You run the office: you turn approved decisions into tasks, assign workers, verify results, and keep one master task list. You talk only to John and act as the single office coordinator.
 
 Operating rules:
+- John's direct spoken or typed instruction authorizes ordinary work. Execute routine internal tasks, assignments, research and recordkeeping without asking him to approve the same instruction again. Discussion and hypothetical questions do not authorize actions.
+- Only queue a separate approval for money, deletion, external commitments or material legal, safety or security risks, or when John explicitly asks to put an item up for approval. Never approve on John's behalf.
 - Default is proceed. Small calls do not stop work.
 - If John asks how you would do something, explain it without carrying it out. A request saying do not create/save/change anything is discussion only; never call an action tool for it.
 - Green: you decide and act. Yellow: you queue it in John's approval box and wait. Red: you stop only that operation and say why.
@@ -633,7 +635,7 @@ Spoken task commands (Work Board):
 - Use assign_task when he names an existing task, verify_task when he says something is done and states the result, and update the project field when he names a project.
 - Say the words back briefly so a misheard command is caught: name the task, the worker and the project you recorded, and stop there.
 - If the work is yellow or red, do not create it as green: use request_approval and tell him it is waiting for his approval.
-- When John says to submit, send, put up or queue something for approval — spoken or typed — call request_approval right then with a short title, the detail and any cost, then say plainly that it is in the approval box and nothing happens until he approves it.
+- When John says to submit, send, put up or queue something for approval — spoken or typed — call request_approval right then with a short title, the detail and any cost, then report only the confirmed saved result. Never say it was queued unless a real approval id was returned. Nothing protected happens until he approves it.
 
 Who you are, out loud:
 - You are John's office manager, not a search box. You have a steady, competent personality: calm, warm, a bit dry, quietly confident. You take ownership of the office and you care whether things actually got done.
@@ -1319,8 +1321,21 @@ export const getManagerStatus = createServerFn({ method: "POST" })
 export const managerChat = createServerFn({ method: "POST" })
   .inputValidator(validate)
   .handler(async ({ data }): Promise<ManagerReply> => {
+    const historyApi = await import("./manager-history.functions");
+    const historyStore = await historyApi.historyDeps();
+    const saved = await historyApi.readHistoryWith(historyStore, data.accessToken);
+    if (!saved.ok) return denyReply("context_unavailable", "configured_unverified", saved.message);
     const latestRequest =
       [...data.messages].reverse().find((message) => message.role === "user")?.content ?? "";
+    const turnId = crypto.randomUUID();
+    const userSaved = await historyApi.saveHistoryWith(historyStore, data.accessToken, { id: turnId, role: "user", content: latestRequest });
+    if (!userSaved.ok) return denyReply("context_unavailable", "configured_unverified", userSaved.message);
+    const remember = async (reply: ManagerReply) => {
+      const stored = await historyApi.saveHistoryWith(historyStore, data.accessToken, { id: `${turnId}-reply`, role: "assistant", content: reply.text || reply.detail || "The request did not complete." });
+      return stored.ok ? reply : { ...reply, text: [reply.text, "Conversation memory could not be saved. Check the Work Board or Approvals before repeating an action."].filter(Boolean).join("\n\n") };
+    };
+    // Recent account history survives closing the window, refresh and device changes.
+    const request = { ...data, messages: [...saved.messages.slice(-20).map(({role,content}) => ({role,content})), ...data.messages.slice(-4)] };
     if (isExplicitReceiptSyncRequest(latestRequest)) {
       const result = await runReceiptSync({
         accessToken: data.accessToken,
@@ -1357,9 +1372,9 @@ export const managerChat = createServerFn({ method: "POST" })
         actionResults: [],
       };
       if (!result.ok) reply.detail = result.message;
-      return reply;
+      return remember(reply);
     }
-    return runManagerChatWith(await realDeps(), data);
+    return remember(await runManagerChatWith(await realDeps(), request));
   });
 
 export const getManagerMemory = createServerFn({ method: "POST" })

@@ -253,7 +253,7 @@ export async function loadManagerMemoryWith(deps: WorkbenchDeps, token: string):
     deps.rest<ManagerTask[]>(token, "GET", `manager_tasks?owner_id=eq.${encodeURIComponent(v.userId)}&order=created_at.desc`),
     deps.rest<ManagerAssignment[]>(token, "GET", "manager_assignments?order=assigned_at.desc"),
     deps.rest<ManagerApproval[]>(token, "GET", `manager_approvals?owner_id=eq.${encodeURIComponent(v.userId)}&order=created_at.desc`),
-    deps.rest<ManagerChange[]>(token, "GET", `manager_changes?owner_id=eq.${encodeURIComponent(v.userId)}&order=at.desc&limit=50`),
+    deps.rest<ManagerChange[]>(token, "GET", `manager_changes?owner_id=eq.${encodeURIComponent(v.userId)}&entity=neq.manager_conversation&order=at.desc&limit=50`),
     getManagerBudgetStatusWith(deps, token),
   ]);
 
@@ -520,8 +520,8 @@ export async function requestManagerApprovalWith(deps: WorkbenchDeps, input: Req
   const title = cleanString(input.title, 300);
   if (!title) return fail("invalid_input", "An approval title is required.");
 
-  const risk = cleanRisk(input.risk);
-  if (risk === "red") return fail("forbidden", "Red-light actions cannot be queued for approval; they are stopped.");
+  if (cleanRisk(input.risk) === "red") return fail("forbidden", "Red-light actions cannot be queued for approval; they are stopped.");
+  const risk = "yellow";
 
   const costCents = cleanCents(input.costCents);
 
