@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const manager = readFileSync(resolve(process.cwd(), "src/components/office/OfficeManager.tsx"), "utf8");
+const manager = readFileSync(
+  resolve(process.cwd(), "src/components/office/OfficeManager.tsx"),
+  "utf8",
+);
 const voice = readFileSync(resolve(process.cwd(), "src/lib/use-manager-voice.ts"), "utf8");
-const endpoints = readFileSync(resolve(process.cwd(), "src/lib/manager-voice.functions.ts"), "utf8");
+const endpoints = readFileSync(
+  resolve(process.cwd(), "src/lib/manager-voice.functions.ts"),
+  "utf8",
+);
 
 describe("Office Manager voice — portable recording and playback", () => {
   it("offers a voice check with a microphone-off test sentence", () => {
@@ -33,7 +39,8 @@ describe("Office Manager voice — portable recording and playback", () => {
 describe("Office Manager voice — serialized turn lifecycle", () => {
   it("presents one primary voice control and hides expert controls", () => {
     expect(manager).toContain("const primaryVoiceAction");
-    expect(manager).toContain('"Talk to Data"');
+    expect(manager).toContain('"Start conversation"');
+    expect(manager).toContain("The microphone stays open");
     expect(manager).not.toContain("Read aloud");
     expect(manager).not.toContain("Repeat answer");
     expect(manager).not.toContain("Voice options");
@@ -42,7 +49,7 @@ describe("Office Manager voice — serialized turn lifecycle", () => {
 
   it("releases microphone tracks before audio playback", () => {
     const playback = voice.slice(voice.indexOf("const attemptPlayback"));
-    expect(playback.indexOf("releaseRecording()")) .toBeLessThan(playback.indexOf("audio.play()"));
+    expect(playback.indexOf("releaseRecording()")).toBeLessThan(playback.indexOf("audio.play()"));
     expect(voice).toContain("getTracks().forEach((track) => track.stop())");
   });
 
@@ -71,7 +78,7 @@ describe("Office Manager voice — serialized turn lifecycle", () => {
 
 describe("Office Manager voice — bounded, ephemeral server audio", () => {
   it("falls back to the documented low-latency speech model on model refusal", () => {
-    expect(endpoints).toContain('response.status === 403 || response.status === 404');
+    expect(endpoints).toContain("response.status === 403 || response.status === 404");
     expect(endpoints).toContain('requestSpeech("tts-1")');
     expect(endpoints).toContain('model === "tts-1" ? {}');
   });
