@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { BrainMap } from "@/components/office/BrainMap";
 import { Office3D } from "@/components/office/Office3D";
 import { SimpleOffice } from "@/components/office/SimpleOffice";
-import { TourGuide } from "@/components/office/TourGuide";
 import { useOfficeViewMode } from "@/hooks/use-office-view";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -37,9 +36,6 @@ function Reception() {
               John's visual command centre. What is happening? What needs me? What is blocked?
               What has been verified? What will it cost?
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <TourGuide />
           </div>
         </div>
 
