@@ -35,12 +35,12 @@ const EMPTY_REPORT: ManagerVoiceReport = {
 /** Turns a DOMException name into words John can act on. */
 export function playbackRefusalMessage(name: string | null): string {
   if (name === "NotAllowedError") {
-    return "Your phone blocked the Manager's voice until you tap. Press Play answer to hear it.";
+    return "Your phone blocked Data's voice until you tap. Press Play Data's answer to hear it.";
   }
   if (name === "NotSupportedError") {
     return "Your browser could not play that voice file. The written answer is still available.";
   }
-  return "Your phone did not play the Manager's voice. Press Play answer to try again.";
+  return "Your phone did not play Data's voice. Press Play Data's answer to try again.";
 }
 
 function preferredMimeType(): string {
@@ -366,7 +366,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     [attemptPlayback],
   );
 
-  /** The manual "Play answer" retry. Runs from John's own tap, with no new TTS call. */
+  /** The manual playback retry. Runs from John's own tap, with no new TTS call. */
   const playPendingAudio = useCallback(async () => {
     unlockPlayback();
     return attemptPlayback();

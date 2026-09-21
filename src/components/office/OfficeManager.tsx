@@ -21,11 +21,8 @@ import {
   Trash2,
   Undo2,
   Volume2,
-  VolumeX,
   X,
-  Eye,
 } from "lucide-react";
-import { managerRecommendationPrefill, openSecondEyes } from "@/lib/second-eyes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,7 +45,6 @@ import { speakManagerText, transcribeManagerAudio } from "@/lib/manager-voice.fu
 import { useManagerVoice } from "@/lib/use-manager-voice";
 import {
   approvalSubmissionNotice,
-  forSpeech,
   isAffirmative,
   isNegative,
   pendingApprovalNotice,
@@ -110,21 +106,17 @@ export function OfficeManager() {
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const followMessagesRef = useRef(true);
   const [voiceMode, setVoiceMode] = useState(false);
-  const [muted, setMuted] = useState(false);
   const voiceModeRef = useRef(false);
   const voiceSessionRef = useRef(0);
   const speechRequestRef = useRef(0);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendingRef = useRef(false);
   const mountedRef = useRef(true);
-  const mutedRef = useRef(false);
   const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
   const voiceTurnRef = useRef<(audioBase64: string, mimeType: string) => Promise<void>>(async () => undefined);
-  const lastAnswerRef = useRef<{ id: string; text: string } | null>(null);
   /** The full Manager panel can be dragged by its handle so it never blocks top buttons. */
   const panel = useDraggablePanel({ initial: { right: 16, bottom: 80 } });
   voiceModeRef.current = voiceMode;
-  mutedRef.current = muted;
 
   /** Full text of an answer that was summarised aloud, waiting for a yes. */
   const pendingFullRef = useRef<{ id: string; text: string } | null>(null);
@@ -149,7 +141,7 @@ export function OfficeManager() {
       return;
     }
     // If the browser refuses, the hook keeps the already-paid-for audio and
-    // reports the real refusal; the Play answer button replays that same audio.
+    // reports the real refusal; the main button replays that same audio.
     await managerVoice.playAudio(result.audioBase64, result.contentType, () => {
       if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current) onDone?.();
     });
@@ -181,7 +173,7 @@ export function OfficeManager() {
       suppressBannerSpeechRef.current = false;
       return;
     }
-    if (!voiceModeRef.current || mutedRef.current || sendingRef.current || managerVoice.phase !== "idle") return;
+    if (!voiceModeRef.current || sendingRef.current || managerVoice.phase !== "idle") return;
     const line = pendingApprovalNotice(pendingApprovals);
     if (line) void speakAnswer(`approvals-${pendingApprovals}`, line);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -251,7 +243,6 @@ export function OfficeManager() {
     if (open) return;
     voiceModeRef.current = false;
     setVoiceMode(false);
-    setMuted(false);
     cancelVoiceActivity();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -325,7 +316,7 @@ export function OfficeManager() {
         ...current,
         { id: `look-${Date.now()}`, role: "office", content: LOOK_NOTICE },
       ]);
-      if (voiceModeRef.current && !mutedRef.current) void speakAnswer("look", LOOK_NOTICE, resumeListening);
+      if (voiceModeRef.current) void speakAnswer("look", LOOK_NOTICE, resumeListening);
       else resumeListening();
       return;
     }
@@ -393,7 +384,6 @@ export function OfficeManager() {
       } else {
         const answerId = `m-${Date.now()}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
-        lastAnswerRef.current = { id: answerId, text: answer };
         setMessages((current) => [
           ...current,
           {
@@ -415,20 +405,15 @@ export function OfficeManager() {
         // Something real was queued in the approval box — say so out loud.
         const approvalLine = approvalSubmissionNotice(reply.actionResults);
         if (voiceModeRef.current && voiceSession === voiceSessionRef.current) {
-          if (mutedRef.current) {
-            resumeListening();
-          } else {
-            // Short spoken summary by default; the full text stays on screen.
-            const shaped = spokenSummary(answer);
-            pendingFullRef.current = shaped.truncated ? { id: answerId, text: shaped.full } : null;
-            setAwaitingReadMore(shaped.truncated);
-            // The microphone stays closed while the attached audio player speaks,
-            // then a fresh recording starts only after playback has finished.
-
-            if (approvalLine) suppressBannerSpeechRef.current = true;
-            const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
-            void speakAnswer(answerId, spoken, resumeListening);
-          }
+          // Short spoken summary by default; the full text stays on screen.
+          const shaped = spokenSummary(answer);
+          pendingFullRef.current = shaped.truncated ? { id: answerId, text: shaped.full } : null;
+          setAwaitingReadMore(shaped.truncated);
+          // The microphone stays closed while the attached audio player speaks,
+          // then a fresh recording starts only after playback has finished.
+          if (approvalLine) suppressBannerSpeechRef.current = true;
+          const spoken = [shaped.spoken || answer, approvalLine].filter(Boolean).join(" ");
+          void speakAnswer(answerId, spoken, resumeListening);
         }
       }
     } catch (caught) {
@@ -535,16 +520,6 @@ export function OfficeManager() {
 
 
 
-  const repeatAnswer = () => {
-    const last = lastAnswerRef.current;
-    if (!last || sendingRef.current) return;
-    cancelVoiceActivity();
-    // Unlocked inside this tap so the phone allows the answer that follows.
-    managerVoice.unlockPlayback();
-    void speakAnswer(last.id, forSpeech(last.text), resumeListening);
-  };
-
-
   const briefing = () => {
     setMessages((current) => [
       ...current,
@@ -573,6 +548,38 @@ export function OfficeManager() {
         : voiceMode
           ? "Voice Mode on — paused"
           : "Office Manager";
+
+  const voiceButtonLabel = managerVoice.hasPendingAudio
+    ? "Play Data's answer"
+    : !voiceMode
+      ? "Talk to Data"
+      : managerVoice.phase === "listening"
+        ? "Listening… tap when finished"
+        : managerVoice.phase === "transcribing"
+          ? "Understanding…"
+          : busy
+            ? "Data is thinking…"
+            : managerVoice.phase === "speaking" || managerVoice.phase === "preparing"
+              ? "Interrupt and talk"
+              : "Talk again";
+
+  const primaryVoiceAction = () => {
+    if (managerVoice.hasPendingAudio) {
+      setSpeechError(null);
+      void managerVoice.playPendingAudio();
+      return;
+    }
+    if (!voiceMode) {
+      startVoiceMode();
+      return;
+    }
+    if (managerVoice.phase === "listening") {
+      managerVoice.stopListening();
+      return;
+    }
+    managerVoice.unlockPlayback();
+    interruptAndListen();
+  };
 
   return (
     <>
@@ -728,49 +735,6 @@ export function OfficeManager() {
                     >
                       {message.content}
                     </div>
-                    {message.role !== "user" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="mt-1 h-7 px-2 text-xs"
-                        aria-label={
-                          managerVoice.phase === "speaking" ? "Stop reading this answer aloud" : "Read this answer aloud"
-                        }
-                        onClick={() => {
-                          if (managerVoice.phase === "speaking") {
-                            cancelVoiceActivity();
-                            resumeListening();
-                            return;
-                          }
-                          cancelVoiceActivity();
-                          // Unlocking inside this tap is what lets Android play the answer.
-                          managerVoice.unlockPlayback();
-                          void speakAnswer(message.id, forSpeech(message.content));
-                        }}
-                      >
-                        {managerVoice.phase === "speaking" ? (
-                          <>
-                            <Square className="mr-1.5 h-3.5 w-3.5" /> Stop reading
-                          </>
-                        ) : (
-                          <>
-                            <Volume2 className="mr-1.5 h-3.5 w-3.5" /> Read aloud
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    {message.role === "assistant" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="mt-1 h-7 px-2 text-xs"
-                        aria-label="Review this recommendation with Claude"
-                        /* Opens the shared Second Eyes panel only. No paid call. */
-                        onClick={() => openSecondEyes(managerRecommendationPrefill(message.content))}
-                      >
-                        <Eye className="mr-1.5 h-3.5 w-3.5" /> Review with Claude
-                      </Button>
-                    )}
                     {message.checked && <CheckedReceipt receipt={message.checked} />}
 
                     {message.toolCalls?.map((call, index) => (
@@ -838,85 +802,32 @@ export function OfficeManager() {
                       {mfaError && <p role="alert" className="text-xs text-destructive">{mfaError}</p>}
                     </div>
                   )}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!voiceMode ? (
-                      <Button aria-label="Talk — start Voice Mode and speak with the Office Manager" onClick={startVoiceMode} disabled={busy || !session.stepUpComplete}>
-                        <Mic className="mr-1.5 h-4 w-4" /> Talk to Data
-                      </Button>
+                  <Button
+                    className="h-14 w-full text-base"
+                    aria-label={voiceButtonLabel}
+                    onClick={primaryVoiceAction}
+                    disabled={!session.stepUpComplete || busy || managerVoice.phase === "transcribing"}
+                  >
+                    {managerVoice.hasPendingAudio ? (
+                      <Volume2 className="mr-2 h-5 w-5" />
+                    ) : managerVoice.phase === "listening" ? (
+                      <Square className="mr-2 h-5 w-5" />
                     ) : (
-                      <>
-                        {managerVoice.phase === "listening" ? (
-                          <Button aria-label="Stop listening and send voice turn" onClick={managerVoice.stopListening}>
-                            <Send className="mr-1.5 h-4 w-4" /> Finish speaking
-                          </Button>
-                        ) : (
-                          <Button aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing"} onClick={() => { managerVoice.unlockPlayback(); interruptAndListen(); }}>
-                            <Mic className="mr-1.5 h-4 w-4" /> {managerVoice.phase === "speaking" || managerVoice.phase === "preparing" ? "Interrupt and talk" : "Start listening"}
-                          </Button>
-                        )}
-                        <Button variant="outline" aria-label="End Voice Mode" onClick={endVoiceMode}>
-                          <PhoneOff className="mr-1.5 h-4 w-4" /> End conversation
-                        </Button>
-                      </>
+                      <Mic className="mr-2 h-5 w-5" />
                     )}
-                  </div>
+                    {voiceButtonLabel}
+                  </Button>
+                  {voiceMode && (
+                    <button type="button" className="text-xs text-muted-foreground underline" onClick={endVoiceMode}>
+                      <PhoneOff className="mr-1 inline h-3.5 w-3.5" /> End conversation
+                    </button>
+                  )}
                   {(speechError || managerVoice.error || error) && (
                     <div role="alert" className="rounded-md border border-destructive/40 p-2 text-sm text-destructive">
                       {speechError ?? managerVoice.error ?? error}
                     </div>
                   )}
-                {managerVoice.hasPendingAudio && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 h-9"
-                    aria-label="Play the answer that is already prepared"
-                    /* Replays the audio already generated. No new voice request, no extra cost. */
-                    onClick={() => {
-                      setSpeechError(null);
-                      void managerVoice.playPendingAudio();
-                    }}
-                  >
-                    <Volume2 className="mr-1.5 h-4 w-4" /> Play answer
-                  </Button>
-                )}
-
                   {awaitingReadMore && <p className="text-xs text-muted-foreground">Say “yes” to hear the rest, or ask your next question.</p>}
-                  <details>
-                    <summary className="cursor-pointer text-xs text-muted-foreground">Voice options</summary>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-pressed={muted}
-                        aria-label={muted ? "Unmute spoken answers" : "Mute spoken answers"}
-                        onClick={() => {
-                          const next = !muted;
-                          setMuted(next);
-                          mutedRef.current = next;
-                          if (next) {
-                            speechRequestRef.current += 1;
-                            managerVoice.stopPlayback();
-                            if (!sendingRef.current && managerVoice.phase !== "transcribing" && managerVoice.phase !== "listening") resumeListening();
-                          }
-                        }}
-                      >
-                        {muted ? <VolumeX className="mr-1.5 h-4 w-4" /> : <Volume2 className="mr-1.5 h-4 w-4" />}
-                        {muted ? "Unmute" : "Mute"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label="Repeat the last answer aloud"
-                        disabled={!lastAnswerRef.current}
-                        onClick={repeatAnswer}
-                      >
-                        <Volume2 className="mr-1.5 h-4 w-4" /> Repeat answer
-                      </Button>
-
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">Voice check and the spoken-voice test are in Settings. Speaking never approves protected actions.</p>
-                  </details>
                 </section>
                 <details className="mt-3 border-t border-border pt-2" open={draft ? true : undefined}>
                   <summary className="cursor-pointer text-sm text-muted-foreground">Type instead</summary>

@@ -201,8 +201,9 @@ describe("no automatic paid call", () => {
     expect(panel).not.toMatch(/setInterval|setTimeout\([^)]*review/i);
   });
 
-  it("the Manager button only opens the panel", () => {
-    expect(manager).toContain("openSecondEyes(managerRecommendationPrefill");
+  it("the Manager conversation does not add a second AI control", () => {
+    expect(manager).not.toContain("openSecondEyes(managerRecommendationPrefill");
+    expect(manager).not.toContain("Review with Claude");
     expect(manager).not.toContain("requestClaudeReview");
   });
 

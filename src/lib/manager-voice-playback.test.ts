@@ -30,14 +30,12 @@ describe("Manager playback unlock happens inside the user's tap", () => {
     expect(release).not.toContain("playbackContextRef");
   });
 
-  it("runs the unlock from every control that leads to a spoken answer", () => {
+  it("runs the unlock from the single conversation control and voice test", () => {
     const startVoice = block(manager, "const startVoiceMode");
     expect(startVoice).toContain("managerVoice.unlockPlayback()");
-    const repeat = block(manager, "const repeatAnswer");
-    expect(repeat).toContain("managerVoice.unlockPlayback()");
-    const readAloud = block(manager, 'aria-label="Start listening again"');
-    expect(readAloud).toContain("managerVoice.unlockPlayback()");
-    expect(block(manager, '? "Stop reading this answer aloud"')).toContain("managerVoice.unlockPlayback()");
+    const primary = block(manager, "const primaryVoiceAction");
+    expect(primary).toContain("managerVoice.unlockPlayback()");
+    expect(primary).toContain("managerVoice.playPendingAudio()");
     expect(block(manager, 'aria-label="Test the voice with the microphone off"')).toContain(
       "managerVoice.unlockPlayback()",
     );
@@ -57,18 +55,18 @@ describe("Android-style refusal becomes a visible manual-play state", () => {
 
   it("explains NotAllowedError in plain words with no provider detail", () => {
     expect(playbackRefusalMessage("NotAllowedError")).toBe(
-      "Your phone blocked the Manager's voice until you tap. Press Play answer to hear it.",
+      "Your phone blocked Data's voice until you tap. Press Play Data's answer to hear it.",
     );
     expect(playbackRefusalMessage("NotSupportedError")).toContain("could not play that voice file");
-    expect(playbackRefusalMessage(null)).toContain("Press Play answer");
+    expect(playbackRefusalMessage(null)).toContain("Press Play Data's answer");
     for (const name of ["NotAllowedError", "NotSupportedError", null]) {
       expect(playbackRefusalMessage(name)).not.toMatch(/openai|api|token|key/i);
     }
   });
 
-  it("shows a Play answer control and the refusal name in the voice check", () => {
+  it("turns the single talk control into a manual play control when needed", () => {
     expect(manager).toContain("managerVoice.hasPendingAudio");
-    expect(manager).toContain("Play answer");
+    expect(manager).toContain("Play Data's answer");
     expect(manager).toContain("managerVoice.report.blockedReason");
   });
 
@@ -79,7 +77,7 @@ describe("Android-style refusal becomes a visible manual-play state", () => {
   });
 });
 
-describe("Manual Play answer reuses the buffered audio", () => {
+describe("Manual playback reuses the buffered audio", () => {
   it("replays the stored audio without another voice request", () => {
     const pending = block(voice, "const playPendingAudio");
     expect(pending).toContain("unlockPlayback()");
@@ -88,7 +86,7 @@ describe("Manual Play answer reuses the buffered audio", () => {
     expect(attempt).toContain("bufferedRef.current");
     expect(attempt).not.toContain("fetch(");
     expect(voice).not.toContain("speakManagerText");
-    const button = block(manager, 'aria-label="Play the answer that is already prepared"');
+    const button = block(manager, "const primaryVoiceAction");
     expect(button).toContain("managerVoice.playPendingAudio()");
     expect(button).not.toContain("speakAnswer");
     expect(button).not.toContain("requestSpeech");

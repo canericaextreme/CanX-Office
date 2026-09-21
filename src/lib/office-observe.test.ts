@@ -248,10 +248,10 @@ describe("Voice context and Manager Talk stay in their own pipelines", () => {
   });
 
   it("gives the Manager its own plainly labelled Talk control", () => {
-    expect(managerSource).toContain("Talk — start Voice Mode and speak with the Office Manager");
-    expect(managerSource.match(/> Talk/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(managerSource).toContain('"Talk to Data"');
+    expect(managerSource).toContain("const primaryVoiceAction");
     expect(managerSource).toContain("startVoiceMode");
-    expect(managerSource).toContain("Stop listening");
+    expect(managerSource).toContain("managerVoice.stopListening()");
     // Manager voice is its own recorded-audio engine, not the companion's Chat/Work.
     expect(managerSource).not.toContain("use-realtime-chat");
     expect(managerSource).not.toContain("companion-work");
