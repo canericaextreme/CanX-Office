@@ -18,7 +18,11 @@ export function ClaudeSpendApproval() {
   const [incomplete, setIncomplete] = useState("");
   const reservation = `C$${(ESTIMATED_CENTS_BY_SCOPE.office / 100).toFixed(2)}`;
   const run = async () => {
-    if (lock.current || !session.stepUpComplete || !session.accessToken) return;
+    if (lock.current || !session.stepUpComplete) return;
+    if (!session.accessToken) {
+      setNotice("Your session isn't ready yet. Try refreshing the page, then approve the review again.");
+      return;
+    }
     lock.current = true;
     setBusy(true); setNotice(null); setIncomplete("");
     try {
