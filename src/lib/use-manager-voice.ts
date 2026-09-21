@@ -77,6 +77,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
   const playbackContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   /** The already-generated answer audio, kept so a manual retry never re-runs TTS. */
   const bufferedRef = useRef<{ audioBase64: string; contentType: string; onEnded?: (() => void) | undefined } | null>(null);
 
@@ -106,6 +107,8 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
 
   const stopPlayback = useCallback(() => {
     playbackGenerationRef.current += 1;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    utteranceRef.current = null;
     const audio = audioRef.current;
     if (audio) {
       audio.onplay = null;
@@ -372,10 +375,60 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     return attemptPlayback();
   }, [attemptPlayback, unlockPlayback]);
 
+  /**
+   * Device voice is the no-cost safety net when the hosted speech provider
+   * refuses a request. It keeps Data audible and preserves the same
+   * speak-then-listen turn order.
+   */
+  const speakLocally = useCallback((text: string, onEnded?: () => void) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
+      return false;
+    }
+    releaseRecording();
+    stopPlayback();
+    const generation = playbackGenerationRef.current;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-CA";
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    utterance.voice = voices.find((voice) =>
+      /^en(-|_)/i.test(voice.lang) && /natural|google|microsoft/i.test(voice.name),
+    ) ?? voices.find((voice) => /^en(-|_)/i.test(voice.lang)) ?? null;
+    utterance.onstart = () => {
+      if (generation !== playbackGenerationRef.current) return;
+      setError(null);
+      setReport((current) => ({ ...current, playbackStarted: true, blockedReason: null, error: null }));
+      setPhase("speaking");
+    };
+    utterance.onend = () => {
+      if (generation !== playbackGenerationRef.current) return;
+      utteranceRef.current = null;
+      setReport((current) => ({ ...current, playbackEnded: true }));
+      setPhase("idle");
+      onEnded?.();
+    };
+    utterance.onerror = () => {
+      if (generation !== playbackGenerationRef.current) return;
+      utteranceRef.current = null;
+      const message = "Your browser could not start Data's voice. The written answer is still available.";
+      setError(message);
+      setReport((current) => ({ ...current, error: message }));
+      setPhase("error");
+    };
+    utteranceRef.current = utterance;
+    setError(null);
+    setPhase("preparing");
+    window.speechSynthesis.speak(utterance);
+    return true;
+  }, [releaseRecording, stopPlayback]);
+
   useEffect(() => () => {
     releaseRecording();
     playbackGenerationRef.current += 1;
     bufferedRef.current = null;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    utteranceRef.current = null;
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
@@ -397,6 +450,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     cancelListening,
     playAudio,
     playPendingAudio,
+    speakLocally,
     stopPlayback,
     unlockPlayback,
     setPhase,

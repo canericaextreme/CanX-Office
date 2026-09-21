@@ -136,8 +136,15 @@ export function OfficeManager() {
     const result = await requestSpeech({ data: { accessToken: token, text } }).catch(() => null);
     if (!mountedRef.current || request !== speechRequestRef.current || voiceSession !== voiceSessionRef.current) return;
     if (!result?.ok || !result.audioBase64) {
-      managerVoice.setPhase("error");
-      setSpeechError(result?.detail ?? "The Manager voice could not prepare that answer. The written answer is still available.");
+      // The hosted voice is preferred, but Data must still talk if that one
+      // provider or model refuses the request. The device voice costs nothing.
+      const started = managerVoice.speakLocally(text, () => {
+        if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current) onDone?.();
+      });
+      if (!started) {
+        managerVoice.setPhase("error");
+        setSpeechError(result?.detail ?? "Data could not start a spoken answer. The written answer is still available.");
+      }
       return;
     }
     // If the browser refuses, the hook keeps the already-paid-for audio and
