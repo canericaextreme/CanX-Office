@@ -102,7 +102,8 @@ export function OfficeManager() {
 
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const followMessagesRef = useRef(true);
   const [voiceMode, setVoiceMode] = useState(false);
   const [muted, setMuted] = useState(false);
   const voiceModeRef = useRef(false);
@@ -237,7 +238,7 @@ export function OfficeManager() {
   }, [open, status, fetchStatus, token]);
 
   useEffect(() => {
-    if (open && !minimized) inputRef.current?.focus();
+    // Voice is the default; do not pull focus into the collapsed text composer.
   }, [open, minimized, tab]);
 
   // Closing the panel always ends Voice Mode: the microphone never stays on.
@@ -261,7 +262,8 @@ export function OfficeManager() {
   }, []);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
+    const pane = messagesScrollRef.current;
+    if (pane && followMessagesRef.current) pane.scrollTop = pane.scrollHeight;
   }, [messages, busy]);
 
   const addNote = useCallback(
@@ -428,7 +430,7 @@ export function OfficeManager() {
       sendingRef.current = false;
       if (!mountedRef.current) return;
       setBusy(false);
-      inputRef.current?.focus();
+      // Keep scroll and focus where the owner left them.
     }
   };
   sendRef.current = send;
@@ -444,7 +446,6 @@ export function OfficeManager() {
       setSpeechError(result?.detail ?? "The Manager could not understand that recording. Please press Talk and try again.");
       return;
     }
-    setDraft(result.text);
     await sendRef.current(result.text);
   };
 
@@ -629,7 +630,7 @@ export function OfficeManager() {
           style={panel.style}
           className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
-          } max-h-[78vh] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
+          } max-h-[85dvh] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
         >
           <div className="flex shrink-0 items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
@@ -689,7 +690,7 @@ export function OfficeManager() {
                 )}
               </div>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+              <div ref={messagesScrollRef} onScroll={(event) => { const pane = event.currentTarget; followMessagesRef.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }} className="min-h-24 flex-1 space-y-3 overflow-y-auto p-3">
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">
                     Talk to Data about today's priorities, your projects, or the next task. Ask Data to create or
@@ -774,104 +775,67 @@ export function OfficeManager() {
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Thinking…
                   </p>
                 )}
-                {error && (
-                  <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
-                    <p className="text-foreground">{error}</p>
-                    {status && !status.connected && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        A provider key on its own will not switch this on. Live AI needs verified owner sign-in with
-                        MFA, plus request-rate and spending limits, and a live connection check that actually passes.
-                        The steps are in <code>docs/office-manager-setup.md</code>.
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div ref={endRef} />
               </div>
 
-              <div className="shrink-0 border-t border-border p-2">
-                <Textarea
-                  ref={inputRef}
-                  rows={2}
-                  value={draft}
-                  placeholder="Ask the Office Manager…"
-                  aria-label="Message the Office Manager"
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      void send();
-                    }
-                  }}
-                />
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Button size="sm" onClick={() => void send()} disabled={busy || !draft.trim()}>
-                    <Send className="mr-1.5 h-4 w-4" /> Send
-                  </Button>
-                  {!voiceMode ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label="Talk — start Voice Mode and speak with the Office Manager"
-                      onClick={startVoiceMode}
-                    >
-                      <Mic className="mr-1.5 h-4 w-4" /> Talk
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="destructive" aria-label="End Voice Mode" onClick={endVoiceMode}>
-                      <PhoneOff className="mr-1.5 h-4 w-4" /> End Voice Mode
-                    </Button>
+              <div className="max-h-[50dvh] shrink-0 overflow-y-auto border-t border-border p-3">
+                <section aria-label="Talk with Data" className="space-y-3">
+                  <p role="status" aria-live="polite" className="text-sm font-semibold">
+                    {speechError || managerVoice.error || error ? "Data needs attention — see the message below."
+                      : busy ? "Data is thinking…"
+                      : managerVoice.phase === "preparing" ? "Preparing voice…"
+                      : managerVoice.phase === "speaking" ? "Data is speaking…"
+                      : managerVoice.phase === "transcribing" ? "Understanding you…"
+                      : managerVoice.phase === "listening" ? "Listening… speak, then pause."
+                      : voiceMode ? "Ready to listen again."
+                      : "Talk with Data"}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!voiceMode ? (
+                      <Button aria-label="Talk — start Voice Mode and speak with the Office Manager" onClick={startVoiceMode} disabled={busy}>
+                        <Mic className="mr-1.5 h-4 w-4" /> Talk to Data
+                      </Button>
+                    ) : (
+                      <>
+                        {managerVoice.phase === "listening" ? (
+                          <Button aria-label="Stop listening and send voice turn" onClick={managerVoice.stopListening}>
+                            <Send className="mr-1.5 h-4 w-4" /> Finish speaking
+                          </Button>
+                        ) : (
+                          <Button aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing"} onClick={() => { managerVoice.unlockPlayback(); interruptAndListen(); }}>
+                            <Mic className="mr-1.5 h-4 w-4" /> {managerVoice.phase === "speaking" || managerVoice.phase === "preparing" ? "Interrupt and talk" : "Start listening"}
+                          </Button>
+                        )}
+                        <Button variant="outline" aria-label="End Voice Mode" onClick={endVoiceMode}>
+                          <PhoneOff className="mr-1.5 h-4 w-4" /> End conversation
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  {(speechError || managerVoice.error || error) && (
+                    <div role="alert" className="rounded-md border border-destructive/40 p-2 text-sm text-destructive">
+                      {speechError ?? managerVoice.error ?? error}
+                    </div>
                   )}
-                  <Button size="sm" variant="outline" onClick={briefing}>
-                    Office briefing
+                {managerVoice.hasPendingAudio && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 h-9"
+                    aria-label="Play the answer that is already prepared"
+                    /* Replays the audio already generated. No new voice request, no extra cost. */
+                    onClick={() => {
+                      setSpeechError(null);
+                      void managerVoice.playPendingAudio();
+                    }}
+                  >
+                    <Volume2 className="mr-1.5 h-4 w-4" /> Play answer
                   </Button>
-                  <Link to="/round-table" className="ml-auto text-xs text-primary underline">
-                    Monday round table
-                  </Link>
-                </div>
+                )}
 
-                {voiceMode && (
-                  <div className="mt-2 rounded-lg border border-border bg-secondary/50 p-2.5">
-                    <p role="status" aria-live="polite" className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                      <span
-                        className={`inline-block h-2 w-2 rounded-full ${
-                          busy || managerVoice.phase === "transcribing" || managerVoice.phase === "preparing" ? "bg-amber-500" : managerVoice.phase === "speaking" ? "bg-sky-500" : managerVoice.phase === "listening" ? "bg-red-500" : "bg-muted-foreground"
-                        }`}
-                        aria-hidden="true"
-                      />
-                      {busy
-                        ? "Thinking… the Manager is working on your answer."
-                        : managerVoice.phase === "preparing"
-                          ? "Preparing voice… creating the spoken answer."
-                        : managerVoice.phase === "speaking"
-                          ? "Speaking… reading the answer aloud."
-                          : managerVoice.phase === "transcribing"
-                            ? "Understanding… turning your voice into words."
-                          : managerVoice.phase === "listening"
-                            ? "Listening… speak now, then pause."
-                            : "Voice Mode is on. Press Start listening."}
-                    </p>
-                    {draft && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        Heard: {draft}
-                      </p>
-                    )}
-                    {awaitingReadMore && (
-                      <p className="mt-1.5 text-xs text-foreground">
-                        Only a short summary was read aloud. Say “yes” to hear the rest, or just ask your next
-                        question. The full answer is written above.
-                      </p>
-                    )}
+                  {awaitingReadMore && <p className="text-xs text-muted-foreground">Say “yes” to hear the rest, or ask your next question.</p>}
+                  <details>
+                    <summary className="cursor-pointer text-xs text-muted-foreground">Voice options</summary>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {managerVoice.phase === "listening" ? (
-                        <Button size="sm" variant="outline" aria-label="Stop listening and send voice turn" onClick={managerVoice.stopListening}>
-                          <Square className="mr-1.5 h-4 w-4" /> Stop listening
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" aria-label="Start listening again" disabled={busy || managerVoice.phase === "transcribing"} onClick={() => { managerVoice.unlockPlayback(); interruptAndListen(); }}>
-                          <Mic className="mr-1.5 h-4 w-4" /> {managerVoice.phase === "speaking" || managerVoice.phase === "preparing" ? "Interrupt and talk" : "Start listening"}
-                        </Button>
-                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -900,41 +864,18 @@ export function OfficeManager() {
                       >
                         <Volume2 className="mr-1.5 h-4 w-4" /> Repeat answer
                       </Button>
+
                     </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      No recording is kept — only the written conversation above. Speaking never approves anything:
-                      yellow actions still wait for your approval and red actions still stop.
-                    </p>
-                  </div>
-                )}
-
-                {(speechError || managerVoice.error) && (
-                  <p role="alert" className="mt-2 text-xs text-destructive">
-                    {speechError ?? managerVoice.error}
-                  </p>
-                )}
-
-                {managerVoice.hasPendingAudio && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 h-9"
-                    aria-label="Play the answer that is already prepared"
-                    /* Replays the audio already generated. No new voice request, no extra cost. */
-                    onClick={() => {
-                      setSpeechError(null);
-                      void managerVoice.playPendingAudio();
-                    }}
-                  >
-                    <Volume2 className="mr-1.5 h-4 w-4" /> Play answer
-                  </Button>
-                )}
-
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  Voice check and the spoken-voice test are in Settings.
-                </p>
-
-
+                    <p className="mt-2 text-xs text-muted-foreground">Voice check and the spoken-voice test are in Settings. Speaking never approves protected actions.</p>
+                  </details>
+                </section>
+                <details className="mt-3 border-t border-border pt-2" open={draft ? true : undefined}>
+                  <summary className="cursor-pointer text-sm text-muted-foreground">Type instead</summary>
+                  <Textarea ref={inputRef} rows={2} value={draft} className="mt-2" placeholder="Message Data…" aria-label="Message the Office Manager"
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} />
+                  <Button size="sm" className="mt-2" onClick={() => void send()} disabled={busy || !draft.trim()}><Send className="mr-1.5 h-4 w-4" /> Send message</Button>
+                </details>
               </div>
             </>
           )}
@@ -952,6 +893,10 @@ export function OfficeManager() {
 
           {tab === "settings" && (
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => { briefing(); setTab("now"); }}>Office briefing</Button>
+                <Link to="/round-table" className="text-xs text-primary underline">Monday round table</Link>
+              </div>
               <div className="rounded-lg border border-border p-2.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Connection and model
