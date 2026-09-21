@@ -34,7 +34,8 @@ function readSetting(value: string | undefined): string | undefined {
 }
 
 function providerDetail(status?: number): string {
-  if (status === 401 || status === 403) return "The Manager voice connection needs attention.";
+  if (status === 401) return "The OpenAI voice key was not accepted.";
+  if (status === 403) return "The OpenAI key can answer in writing but does not have permission to create speech.";
   if (status === 429) return "The Manager voice service is busy. Please try again shortly.";
   if (status && status >= 500) return "The Manager voice service is temporarily unavailable.";
   return "The Manager voice could not complete that audio request.";
@@ -131,18 +132,27 @@ export const speakManagerText = createServerFn({ method: "POST" })
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), VOICE_TIMEOUT_MS);
     try {
-      const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      const preferredModel = readSetting(process.env["OPENAI_TTS_MODEL"]) ?? "gpt-4o-mini-tts";
+      const requestSpeech = (model: string) => fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",
         signal: controller.signal,
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: readSetting(process.env["OPENAI_TTS_MODEL"]) ?? "gpt-4o-mini-tts",
+          model,
           voice: "alloy",
           input: data.text,
-          instructions: "Speak warmly, clearly, and naturally as John's professional CanX Office Manager.",
+          ...(model === "tts-1" ? {} : { instructions: "Speak warmly, clearly, and naturally as John's professional CanX Office Manager." }),
           response_format: "mp3",
         }),
       });
+      let response = await requestSpeech(preferredModel);
+      // Restricted project keys sometimes allow the legacy low-latency speech
+      // model but not the preferred model. A permission/model refusal produces
+      // no audio and no useful charge, so try the documented fallback once.
+      if ((response.status === 403 || response.status === 404) && preferredModel !== "tts-1") {
+        await response.body?.cancel().catch(() => undefined);
+        response = await requestSpeech("tts-1");
+      }
       if (!response.ok) {
         await backend.settleAiCallWith(config, data.accessToken, reservation.reservationId, "failed");
         return { ok: false, code: "provider_error", audioBase64: "", contentType: "audio/mpeg", detail: providerDetail(response.status) };

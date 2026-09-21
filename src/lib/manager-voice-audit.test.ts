@@ -31,6 +31,15 @@ describe("Office Manager voice — portable recording and playback", () => {
 });
 
 describe("Office Manager voice — serialized turn lifecycle", () => {
+  it("presents one primary voice control and hides expert controls", () => {
+    expect(manager).toContain("const primaryVoiceAction");
+    expect(manager).toContain('"Talk to Data"');
+    expect(manager).not.toContain("Read aloud");
+    expect(manager).not.toContain("Repeat answer");
+    expect(manager).not.toContain("Voice options");
+    expect(manager).not.toContain("Review with Claude");
+  });
+
   it("releases microphone tracks before audio playback", () => {
     const playback = voice.slice(voice.indexOf("const attemptPlayback"));
     expect(playback.indexOf("releaseRecording()")) .toBeLessThan(playback.indexOf("audio.play()"));
@@ -54,6 +63,12 @@ describe("Office Manager voice — serialized turn lifecycle", () => {
 });
 
 describe("Office Manager voice — bounded, ephemeral server audio", () => {
+  it("falls back to the documented low-latency speech model on model refusal", () => {
+    expect(endpoints).toContain('response.status === 403 || response.status === 404');
+    expect(endpoints).toContain('requestSpeech("tts-1")');
+    expect(endpoints).toContain('model === "tts-1" ? {}');
+  });
+
   it("requires owner sign-in with authenticator and uses the existing server-only OpenAI key", () => {
     expect(endpoints).toContain("verifyOwnerWith");
     expect(endpoints).toContain('process.env["OPENAI_API_KEY"]');
@@ -72,7 +87,7 @@ describe("Office Manager voice — bounded, ephemeral server audio", () => {
   it("surfaces recording, provider and playback failures", () => {
     expect(manager).toContain("The Manager could not understand that recording");
     expect(manager).toContain("The Manager voice could not prepare that answer");
-    expect(voice).toContain("Your phone blocked the Manager's voice");
+    expect(voice).toContain("Your phone blocked Data's voice");
     expect(voice).toContain("Microphone access is needed");
   });
 });
