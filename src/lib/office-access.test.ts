@@ -1,6 +1,6 @@
 /**
- * Office access rules: ordinary sign-in opens the office and Chat; the
- * authenticator is a step-up for protected actions only.
+ * Office access rules: ordinary sign-in opens the office and read-only tools;
+ * paid Data calls and protected actions require authenticator step-up.
  *
  * Source-level assertions are used where a real session would be required, so
  * the checks stay honest rather than mocking away the security gates.
@@ -89,7 +89,7 @@ describe("account menu", () => {
   });
 });
 
-describe("ordinary sign-in is enough for Chat and read-only manager work", () => {
+describe("ordinary sign-in opens the office; paid Data calls require step-up", () => {
   const realtime = read("src/lib/realtime-voice.functions.ts");
   const manager = read("src/lib/manager.functions.ts");
 
@@ -98,10 +98,10 @@ describe("ordinary sign-in is enough for Chat and read-only manager work", () =>
     expect(realtime).not.toContain("verifyOwnerWith(config, token)");
   });
 
-  it("uses the ordinary check for manager status and chat", () => {
+  it("keeps the ordinary verifier available but uses the strict check for paid Data status and chat", () => {
     expect(manager).toContain("verifySignedIn: (token) => backend.verifySignedInWith(config, token)");
-    expect(manager).toContain("(deps.verifySignedIn ?? deps.verifyOwner)(accessToken)");
-    expect(manager).toContain("(deps.verifySignedIn ?? deps.verifyOwner)(data.accessToken)");
+    expect(manager).toContain("deps.verifyOwner(accessToken)");
+    expect(manager).toContain("deps.verifyOwner(data.accessToken)");
   });
 
   it("still demands the authenticator before any protected tool call runs", () => {

@@ -473,8 +473,10 @@ export async function computeManagerStatusWith(deps: ManagerDeps, accessToken: s
   const keyPresent = Boolean(deps.openaiKey);
   const modelConfigured = Boolean(deps.model);
 
-  // Read-only status: ordinary sign-in is enough.
-  const verification = await (deps.verifySignedIn ?? deps.verifyOwner)(accessToken);
+  // "Connected" means Data can actually complete a paid request. Use the
+  // same owner + authenticator gate as chat so an AAL1 session is never shown
+  // as ready while the budget reservation would refuse it.
+  const verification = await deps.verifyOwner(accessToken);
   if (!verification.ok) {
     return {
       provider: "none",
@@ -1096,11 +1098,10 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
 
 /** Testable chat implementation. The server function is a thin wrapper. */
 export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
-  // GATE 1 — server-verified owner identity and role, checked before anything
-  // else, so a present key can never produce an upstream request. Talking is
-  // ordinary work, so the authenticator is not demanded here; protected tool
-  // calls are re-verified with the strict AAL2 check before they run.
-  const verification = await (deps.verifySignedIn ?? deps.verifyOwner)(data.accessToken);
+  // GATE 1 — paid Data calls use the same AAL2 owner requirement as the
+  // database reservation. This reports an authenticator problem accurately
+  // instead of mislabelling it as a spending-limit failure.
+  const verification = await deps.verifyOwner(data.accessToken);
   if (!verification.ok) {
     return denyReply("auth_not_ready", "auth_unavailable", authDetail(verification, Boolean(deps.openaiKey)));
   }
