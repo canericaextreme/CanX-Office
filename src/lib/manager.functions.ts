@@ -111,7 +111,6 @@ export interface ManagerReply {
   detail?: string;
 }
 
-
 const MAX_MESSAGES = 20;
 const MAX_CHARS = 6000;
 const REQUEST_TIMEOUT_MS = 45_000;
@@ -171,7 +170,6 @@ function workerConsultation(deps: ManagerDeps, input: ConsultInput): Promise<Con
   );
 }
 
-
 /**
  * Trim a server setting at read time; an empty or whitespace-only value is
  * treated as absent. Values are never exposed back to the browser.
@@ -192,7 +190,10 @@ async function realDeps(): Promise<ManagerDeps> {
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
     buildContext: async (token, verification, includeReceiptDetails) => {
       if (!config) {
-        return { ok: false as const, message: "No CanX-owned database is configured, so no office facts could be read." };
+        return {
+          ok: false as const,
+          message: "No CanX-owned database is configured, so no office facts could be read.",
+        };
       }
       const live = await import("@/lib/office-live-context.server");
       return live.buildLiveOfficeContext({
@@ -240,7 +241,8 @@ const TOOLS = [
   {
     type: "function" as const,
     name: "propose_task",
-    description: "Propose an internal office task or decision for John to save. Saving is always John's action.",
+    description:
+      "Propose an internal office task or decision for John to save. Saving is always John's action.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -374,9 +376,20 @@ const TOOLS = [
   },
 ];
 
-
 /** Strict allowlist for tool arguments returned by the model. */
-const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" | "boolean"; enum?: string[]; min?: number; max?: number; maxLen?: number }>> = {
+const TOOL_ARG_RULES: Record<
+  string,
+  Record<
+    string,
+    {
+      type: "string" | "number" | "boolean";
+      enum?: string[];
+      min?: number;
+      max?: number;
+      maxLen?: number;
+    }
+  >
+> = {
   preview_appearance: {
     surface: { type: "string", enum: ["graphite", "charcoal", "slate"] },
     transparency: { type: "number", min: 0, max: 80 },
@@ -433,7 +446,6 @@ const TOOL_ARG_RULES: Record<string, Record<string, { type: "string" | "number" 
   },
 };
 
-
 export function sanitizeToolArgs(name: string, raw: string | undefined): ManagerToolArgs | null {
   const rules = TOOL_ARG_RULES[name];
   if (!rules) return null;
@@ -469,7 +481,10 @@ function authDetail(verification: OwnerVerification, keyPresent: boolean): strin
     : base;
 }
 
-export async function computeManagerStatusWith(deps: ManagerDeps, accessToken: string): Promise<ManagerStatus> {
+export async function computeManagerStatusWith(
+  deps: ManagerDeps,
+  accessToken: string,
+): Promise<ManagerStatus> {
   const keyPresent = Boolean(deps.openaiKey);
   const modelConfigured = Boolean(deps.model);
 
@@ -531,7 +546,8 @@ export async function computeManagerStatusWith(deps: ManagerDeps, accessToken: s
     modelConfigured: true,
     verified: true,
     model: deps.model!,
-    detail: "Signed in as the owner with two-step verification, and a live check of the AI connection passed.",
+    detail:
+      "Signed in as the owner with two-step verification, and a live check of the AI connection passed.",
   };
 }
 
@@ -540,14 +556,20 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await deps.fetchImpl(`https://api.openai.com/v1/models/${encodeURIComponent(deps.model!)}`, {
-      signal: controller.signal,
-      headers: { Authorization: `Bearer ${deps.openaiKey}` },
-    });
+    const response = await deps.fetchImpl(
+      `https://api.openai.com/v1/models/${encodeURIComponent(deps.model!)}`,
+      {
+        signal: controller.signal,
+        headers: { Authorization: `Bearer ${deps.openaiKey}` },
+      },
+    );
     if (response.ok) return { ok: true, detail: "" };
     return { ok: false, detail: sanitizedProviderDetail(response.status) };
   } catch {
-    return { ok: false, detail: "The AI connection check did not complete, so the manager stays disconnected." };
+    return {
+      ok: false,
+      detail: "The AI connection check did not complete, so the manager stays disconnected.",
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -559,7 +581,7 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
  * Immutable system instructions. Client-supplied office context is NEVER
  * interpolated here; it is sent separately as labelled untrusted data.
  */
-const SYSTEM_PROMPT = `You are Data, the CanX Office Manager for John Cantlon's CanX Office. You run the office: you turn approved decisions into tasks, assign workers, verify results, and keep one master task list. You talk only to John and act as the single office coordinator.
+export const MANAGER_SYSTEM_PROMPT = `You are Data, the CanX Office Manager for John Cantlon's CanX Office. You run the office: you turn approved decisions into tasks, assign workers, verify results, and keep one master task list. You talk only to John and act as the single office coordinator.
 
 Operating rules:
 - Default is proceed. Small calls do not stop work.
@@ -666,7 +688,10 @@ export function teamContextLines(team: { name: string; role: string; room: strin
   }
   return [
     "Office team roster [provenance: John's device, entered by John; device-only, not shared storage]:",
-    ...team.map((member) => `- ${member.name} — ${member.role || "role not stated"} — works out of ${member.room || "no room stated"}`),
+    ...team.map(
+      (member) =>
+        `- ${member.name} — ${member.role || "role not stated"} — works out of ${member.room || "no room stated"}`,
+    ),
   ];
 }
 
@@ -678,7 +703,9 @@ function validate(input: unknown): ChatInput {
   const raw = input as Partial<ChatInput> | undefined;
   const messages = Array.isArray(raw?.messages) ? raw.messages : [];
   const clean = messages
-    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .filter(
+      (m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string",
+    )
     .slice(-MAX_MESSAGES)
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
   return {
@@ -719,11 +746,30 @@ function sanitizedProviderDetail(status?: number): string {
   return "The AI service could not be reached. Please try again.";
 }
 
-function denyReply(code: ManagerReply["code"], state: ManagerState, detail: string, model: string | null = null): ManagerReply {
-  return { ok: false, code, provider: "none", state, model, text: "", toolCalls: [], actionResults: [], detail };
+function denyReply(
+  code: ManagerReply["code"],
+  state: ManagerState,
+  detail: string,
+  model: string | null = null,
+): ManagerReply {
+  return {
+    ok: false,
+    code,
+    provider: "none",
+    state,
+    model,
+    text: "",
+    toolCalls: [],
+    actionResults: [],
+    detail,
+  };
 }
 
-async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: string): Promise<ManagerReply> {
+async function callOpenAI(
+  deps: ManagerDeps,
+  data: ChatInput,
+  contextText: string,
+): Promise<ManagerReply> {
   const model = deps.model!;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -734,8 +780,11 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${deps.openaiKey}` },
       body: JSON.stringify({
         model,
-        instructions: SYSTEM_PROMPT,
-        input: [liveContextMessage(contextText), ...data.messages.map((m) => ({ role: m.role, content: m.content }))],
+        instructions: MANAGER_SYSTEM_PROMPT,
+        input: [
+          liveContextMessage(contextText),
+          ...data.messages.map((m) => ({ role: m.role, content: m.content })),
+        ],
         tools: TOOLS,
         max_output_tokens: 900,
       }),
@@ -757,7 +806,12 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
     }
 
     const payload = (await response.json()) as {
-      output?: { type: string; name?: string; arguments?: string; content?: { type: string; text?: string }[] }[];
+      output?: {
+        type: string;
+        name?: string;
+        arguments?: string;
+        content?: { type: string; text?: string }[];
+      }[];
       output_text?: string;
     };
 
@@ -780,7 +834,16 @@ async function callOpenAI(deps: ManagerDeps, data: ChatInput, contextText: strin
       })
       .filter((call): call is ManagerToolCall => call !== null);
 
-    return { ok: true, code: "ok", provider: "openai", state: "verified", model, text, toolCalls, actionResults: [] };
+    return {
+      ok: true,
+      code: "ok",
+      provider: "openai",
+      state: "verified",
+      model,
+      text,
+      toolCalls,
+      actionResults: [],
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -824,15 +887,18 @@ function buildWorkbenchDeps(managerDeps: ManagerDeps): WorkbenchDeps {
       const backend = await import("@/lib/canx-backend.server");
       const config = backend.readBackendConfig();
       if (!config) return { ok: false, error: "No CanX-owned database is configured." };
-      const response = await managerDeps.fetchImpl(`${config.url}/rest/v1/rpc/ensure_manager_ai_budget`, {
-        method: "POST",
-        headers: {
-          apikey: config.publishableKey,
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await managerDeps.fetchImpl(
+        `${config.url}/rest/v1/rpc/ensure_manager_ai_budget`,
+        {
+          method: "POST",
+          headers: {
+            apikey: config.publishableKey,
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ _owner_id: ownerId }),
         },
-        body: JSON.stringify({ _owner_id: ownerId }),
-      });
+      );
       return response.ok ? { ok: true } : { ok: false, error: "Budget setup failed." };
     },
   };
@@ -850,13 +916,16 @@ interface ToolExecution {
  * and stop red actions. Appearance previews and task proposals are returned
  * to the UI as before.
  */
-async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCalls: ManagerToolCall[]): Promise<ToolExecution> {
+async function executeToolCalls(
+  deps: ManagerDeps,
+  accessToken: string,
+  toolCalls: ManagerToolCall[],
+): Promise<ToolExecution> {
   const workbench = buildWorkbenchDeps(deps);
   const textAdditions: string[] = [];
   const actionResults: ManagerActionResult[] = [];
   const remainingToolCalls: ManagerToolCall[] = [];
   const consultations: ConsultReply[] = [];
-
 
   // The authenticator (AAL2) is checked once, lazily, and only when a protected
   // action is actually attempted. Ordinary talking never reaches this.
@@ -881,7 +950,6 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
       continue;
     }
 
-
     if (risk === "red") {
       actionResults.push({
         name: call.name,
@@ -893,10 +961,13 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
     }
 
     if (risk === "yellow") {
-      const title = typeof call.arguments["title"] === "string" ? call.arguments["title"] : call.name;
+      const title =
+        typeof call.arguments["title"] === "string" ? call.arguments["title"] : call.name;
       const detail = typeof call.arguments["detail"] === "string" ? call.arguments["detail"] : "";
-      const costCents = typeof call.arguments["cost_cents"] === "number" ? call.arguments["cost_cents"] : null;
-      const taskId = typeof call.arguments["task_id"] === "string" ? call.arguments["task_id"] : null;
+      const costCents =
+        typeof call.arguments["cost_cents"] === "number" ? call.arguments["cost_cents"] : null;
+      const taskId =
+        typeof call.arguments["task_id"] === "string" ? call.arguments["task_id"] : null;
       const result = await requestManagerApprovalWith(workbench, {
         accessToken,
         title,
@@ -955,7 +1026,11 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
             risk,
             status: "done",
             detail: `Created task "${result.title}" (${result.id}).${
-              assignedTo ? ` Assigned to ${assignedTo}.` : assignFailed ? ` It could not be assigned: ${assignFailed}` : ""
+              assignedTo
+                ? ` Assigned to ${assignedTo}.`
+                : assignFailed
+                  ? ` It could not be assigned: ${assignFailed}`
+                  : ""
             }`,
           });
         }
@@ -998,8 +1073,14 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
         if (call.rawArguments) {
           try {
             const parsed = JSON.parse(call.rawArguments) as Record<string, unknown>;
-            before = typeof parsed["before"] === "object" && parsed["before"] ? (parsed["before"] as Record<string, unknown>) : {};
-            after = typeof parsed["after"] === "object" && parsed["after"] ? (parsed["after"] as Record<string, unknown>) : {};
+            before =
+              typeof parsed["before"] === "object" && parsed["before"]
+                ? (parsed["before"] as Record<string, unknown>)
+                : {};
+            after =
+              typeof parsed["after"] === "object" && parsed["after"]
+                ? (parsed["after"] as Record<string, unknown>)
+                : {};
           } catch {
             /* ignore malformed raw args */
           }
@@ -1040,7 +1121,9 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           name: call.name,
           risk,
           status: result.ok ? "done" : "stopped",
-          detail: result.ok ? "Second-eyes review completed." : (result.detail ?? "Claude review failed."),
+          detail: result.ok
+            ? "Second-eyes review completed."
+            : (result.detail ?? "Claude review failed."),
         });
       } else if (call.name === "consult_room_worker") {
         // A worker is a read-only adviser: no tools, no approvals, no writes.
@@ -1062,7 +1145,9 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
           );
         } else {
           // A failed or incomplete worker reply is never a verified result.
-          textAdditions.push(`Worker consultation: ${result.detail || "no usable answer was returned."}`);
+          textAdditions.push(
+            `Worker consultation: ${result.detail || "no usable answer was returned."}`,
+          );
         }
         actionResults.push({
           name: call.name,
@@ -1095,15 +1180,21 @@ async function executeToolCalls(deps: ManagerDeps, accessToken: string, toolCall
   return { textAdditions, actionResults, remainingToolCalls, consultations };
 }
 
-
 /** Testable chat implementation. The server function is a thin wrapper. */
-export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Promise<ManagerReply> {
+export async function runManagerChatWith(
+  deps: ManagerDeps,
+  data: ChatInput,
+): Promise<ManagerReply> {
   // GATE 1 — paid Data calls use the same AAL2 owner requirement as the
   // database reservation. This reports an authenticator problem accurately
   // instead of mislabelling it as a spending-limit failure.
   const verification = await deps.verifyOwner(data.accessToken);
   if (!verification.ok) {
-    return denyReply("auth_not_ready", "auth_unavailable", authDetail(verification, Boolean(deps.openaiKey)));
+    return denyReply(
+      "auth_not_ready",
+      "auth_unavailable",
+      authDetail(verification, Boolean(deps.openaiKey)),
+    );
   }
 
   if (!data.messages.length) {
@@ -1125,10 +1216,12 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
   // A failed read fails closed: no paid call, and never a fall back to the
   // early demonstration records.
   const includeReceiptDetails = latestUserMessageRequestsReceiptReview(data.messages);
-  const context = await deps.buildContext(data.accessToken, verification, includeReceiptDetails).catch(() => ({
-    ok: false as const,
-    message: "The office records could not be read just now, so no answer was requested.",
-  }));
+  const context = await deps
+    .buildContext(data.accessToken, verification, includeReceiptDetails)
+    .catch(() => ({
+      ok: false as const,
+      message: "The office records could not be read just now, so no answer was requested.",
+    }));
   if (!context.ok) {
     return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
   }
@@ -1148,7 +1241,9 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
   }
 
   try {
-    const contextWithTeam = [context.text, "", ...teamContextLines(sanitizeTeam(data.team))].join("\n");
+    const contextWithTeam = [context.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
+      "\n",
+    );
     // The receipt describes the exact context this answer was built from, so
     // it can never claim a source that was not read.
     const checked = buildVerificationReceipt(contextWithTeam, {
@@ -1158,20 +1253,26 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
     });
     const reply = await callOpenAI(deps, data, contextWithTeam);
     if (reply.ok && reply.toolCalls.length > 0) {
-      const { textAdditions, actionResults, remainingToolCalls, consultations } = await executeToolCalls(
-        deps,
-        data.accessToken,
-        reply.toolCalls,
-      );
+      const { textAdditions, actionResults, remainingToolCalls, consultations } =
+        await executeToolCalls(deps, data.accessToken, reply.toolCalls);
       const combinedText = [reply.text, ...textAdditions].filter(Boolean).join("\n\n");
       await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-      return { ...reply, text: combinedText, toolCalls: remainingToolCalls, actionResults, checked, consultations };
+      return {
+        ...reply,
+        text: combinedText,
+        toolCalls: remainingToolCalls,
+        actionResults,
+        checked,
+        consultations,
+      };
     }
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
     return reply.ok ? { ...reply, checked } : reply;
   } catch (error) {
-
-    console.error("[office-manager] provider call threw", error instanceof Error ? error.name : "unknown");
+    console.error(
+      "[office-manager] provider call threw",
+      error instanceof Error ? error.name : "unknown",
+    );
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
     return {
       ok: false,
@@ -1192,29 +1293,49 @@ export async function runManagerChatWith(deps: ManagerDeps, data: ChatInput): Pr
 export const getManagerStatus = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => {
     const raw = input as { accessToken?: unknown } | undefined;
-    return { accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "" };
+    return {
+      accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
+    };
   })
-  .handler(async ({ data }): Promise<ManagerStatus> => computeManagerStatusWith(await realDeps(), data.accessToken));
+  .handler(async ({ data }): Promise<ManagerStatus> =>
+    computeManagerStatusWith(await realDeps(), data.accessToken),
+  );
 
 export const managerChat = createServerFn({ method: "POST" })
   .inputValidator(validate)
   .handler(async ({ data }): Promise<ManagerReply> => {
-    const latestRequest = [...data.messages].reverse().find((message) => message.role === "user")?.content ?? "";
+    const latestRequest =
+      [...data.messages].reverse().find((message) => message.role === "user")?.content ?? "";
     if (isExplicitReceiptSyncRequest(latestRequest)) {
-      const result = await runReceiptSync({ accessToken: data.accessToken, request: latestRequest });
+      const result = await runReceiptSync({
+        accessToken: data.accessToken,
+        request: latestRequest,
+      });
       const reply: ManagerReply = {
         ok: result.ok,
-        code: result.ok ? "ok" : result.code === "auth_not_ready" ? "auth_not_ready" : "context_unavailable",
+        code: result.ok
+          ? "ok"
+          : result.code === "auth_not_ready"
+            ? "auth_not_ready"
+            : "context_unavailable",
         provider: "none",
-        state: result.ok ? "verified" : result.code === "auth_not_ready" ? "auth_unavailable" : "configured_unverified",
+        state: result.ok
+          ? "verified"
+          : result.code === "auth_not_ready"
+            ? "auth_unavailable"
+            : "configured_unverified",
         model: null,
         text: result.ok
           ? [
               result.message,
-              ...result.receipts.map((receipt) =>
-                `${receipt.vendor}: ${receipt.total ?? "total unknown"} ${receipt.currency ?? "currency not stated"}; ${receipt.paymentStatus}; ${receipt.dueDate ? `due ${receipt.dueDate}` : receipt.expectedRenewalDate ? `expected renewal ${receipt.expectedRenewalDate} (${receipt.expectedRenewalBasis})` : "no due date stated"}.`,
+              ...result.receipts.map(
+                (receipt) =>
+                  `${receipt.vendor}: ${receipt.total ?? "total unknown"} ${receipt.currency ?? "currency not stated"}; ${receipt.paymentStatus}; ${receipt.dueDate ? `due ${receipt.dueDate}` : receipt.expectedRenewalDate ? `expected renewal ${receipt.expectedRenewalDate} (${receipt.expectedRenewalBasis})` : "no due date stated"}.`,
               ),
-              ...result.totalsByCurrency.map((total) => `${total.currency}: ${total.count} receipt(s), ${total.total ?? "total incomplete"}.`),
+              ...result.totalsByCurrency.map(
+                (total) =>
+                  `${total.currency}: ${total.count} receipt(s), ${total.total ?? "total incomplete"}.`,
+              ),
             ].join("\n")
           : "",
         toolCalls: [],
@@ -1229,7 +1350,9 @@ export const managerChat = createServerFn({ method: "POST" })
 export const getManagerMemory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => {
     const raw = input as { accessToken?: unknown } | undefined;
-    return { accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "" };
+    return {
+      accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
+    };
   })
   .handler(async ({ data }): Promise<ManagerMemory | { ok: false; message: string }> => {
     const deps = buildWorkbenchDeps(await realDeps());

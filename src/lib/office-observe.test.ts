@@ -109,7 +109,7 @@ describe("Office observation is opt-in and scoped to the marked office view", ()
     }
     // The dock keeps it in a React ref, never in storage.
     expect(dockSource).toContain("observationRef");
-    expect(dockSource).not.toContain("localStorage.setItem(\"canx.observation");
+    expect(dockSource).not.toContain('localStorage.setItem("canx.observation');
     expect(serverSource).not.toContain("insert");
     expect(serverSource).not.toContain("rest/v1");
   });
@@ -126,7 +126,9 @@ describe("Office observation is opt-in and scoped to the marked office view", ()
 describe("Observe server function safety", () => {
   it("verifies the signed-in owner before anything else", async () => {
     const denied = await observeWith(
-      baseDeps({ verifySignedIn: async () => ({ ok: false, message: "Please sign in." }) as never }),
+      baseDeps({
+        verifySignedIn: async () => ({ ok: false, message: "Please sign in." }) as never,
+      }),
       payload(),
     );
     expect(denied.code).toBe("auth_not_ready");
@@ -143,7 +145,11 @@ describe("Observe server function safety", () => {
   });
 
   it("bounds the incoming text and path", () => {
-    const cleaned = sanitizeObserveInput({ accessToken: 1, path: "/x".padEnd(500, "y"), text: "a".repeat(99999) });
+    const cleaned = sanitizeObserveInput({
+      accessToken: 1,
+      path: "/x".padEnd(500, "y"),
+      text: "a".repeat(99999),
+    });
     expect(cleaned.accessToken).toBe("");
     expect(cleaned.path.length).toBe(200);
     expect(cleaned.text.length).toBe(6000);
@@ -151,7 +157,8 @@ describe("Observe server function safety", () => {
   });
 
   it("uses its own conservative rate limit", async () => {
-    for (let i = 0; i < OBSERVE_REQUEST_LIMIT; i += 1) expect(allowObserveRequest("obs-user")).toBe(true);
+    for (let i = 0; i < OBSERVE_REQUEST_LIMIT; i += 1)
+      expect(allowObserveRequest("obs-user")).toBe(true);
     expect(allowObserveRequest("obs-user")).toBe(false);
     const limited = await observeWith(baseDeps({ allowRequest: () => false }), payload());
     expect(limited.code).toBe("too_many_requests");
@@ -164,7 +171,10 @@ describe("Observe server function safety", () => {
     expect(serverSource).toContain('process.env["OPENAI_WORK_MODEL"]');
     expect(serverSource).toContain('process.env["OPENAI_MODEL"]');
     const refused = await observeWith(
-      baseDeps({ fetchImpl: (async () => new Response("secret body", { status: 403 })) as unknown as typeof fetch }),
+      baseDeps({
+        fetchImpl: (async () =>
+          new Response("secret body", { status: 403 })) as unknown as typeof fetch,
+      }),
       payload(),
     );
     expect(refused.code).toBe("provider_error");
@@ -247,15 +257,14 @@ describe("Voice context and Manager Talk stay in their own pipelines", () => {
     expect(share).toContain("return false;");
   });
 
-  it("gives the Manager its own plainly labelled Talk control", () => {
-    expect(managerSource).toContain('"Talk to Data"');
+  it("gives the Manager its own plainly labelled continuous conversation control", () => {
+    expect(managerSource).toContain('"Start conversation"');
     expect(managerSource).toContain("const primaryVoiceAction");
-    expect(managerSource).toContain("startVoiceMode");
-    expect(managerSource).toContain("managerVoice.stopListening()");
-    // Manager voice is its own recorded-audio engine, not the companion's Chat/Work.
+    expect(managerSource).toContain("useRealtimeManager");
+    expect(managerSource).toContain("realtimeManager.stop");
+    // Manager voice has its own realtime session, not the companion's Chat/Work session.
     expect(managerSource).not.toContain("use-realtime-chat");
     expect(managerSource).not.toContain("companion-work");
-    expect(managerSource).toContain("useManagerVoice");
     expect(managerSource).not.toContain("useDictation");
   });
 });
@@ -267,7 +276,9 @@ describe("The shared Office picture stays bounded, private and text-only to the 
     expect(validRealtimeImage("data:image/svg+xml;base64,AAAA")).toBe(false);
     expect(validRealtimeImage("https://example.com/x.jpg")).toBe(false);
     expect(validRealtimeImage(undefined)).toBe(false);
-    expect(validRealtimeImage(`data:image/jpeg;base64,${"A".repeat(REALTIME_MAX_IMAGE_CHARS)}`)).toBe(false);
+    expect(
+      validRealtimeImage(`data:image/jpeg;base64,${"A".repeat(REALTIME_MAX_IMAGE_CHARS)}`),
+    ).toBe(false);
     expect(REALTIME_MAX_IMAGE_CHARS).toBeLessThanOrEqual(200_000);
   });
 
@@ -308,7 +319,9 @@ describe("The shared Office picture stays bounded, private and text-only to the 
     const observe = clientPanelObserve();
     expect(observe).toContain("setObservation(null)");
     expect(observe).toContain("onObservation?.(null)");
-    expect(observe.indexOf("setObservation(null)")).toBeLessThan(observe.indexOf("captureOfficeView"));
+    expect(observe.indexOf("setObservation(null)")).toBeLessThan(
+      observe.indexOf("captureOfficeView"),
+    );
   });
 
   it("offers a talk-about-this-screen control that never touches the Manager", () => {
@@ -326,18 +339,24 @@ describe("The shared Office picture stays bounded, private and text-only to the 
     expect(share).toContain("if (!validRealtimeImage(observation.voiceImage)) return false;");
     expect(share.indexOf("return false;")).toBeLessThan(share.indexOf("channel.send("));
     // No text-only fallback: the image is always part of the one message sent.
-    expect(share).toContain('content.push({ type: "input_image", image_url: observation.voiceImage });');
+    expect(share).toContain(
+      'content.push({ type: "input_image", image_url: observation.voiceImage });',
+    );
     expect(share).not.toContain("if (validRealtimeImage(observation.voiceImage))");
   });
 
   it("tells John plainly when the picture could not be handed to voice, and clears it after success", () => {
-    expect(dockSource).toContain("The Office picture could not be shared. Press See Office Screen again.");
+    expect(dockSource).toContain(
+      "The Office picture could not be shared. Press See Office Screen again.",
+    );
     expect(dockSource).toContain('data-testid="canx-companion-share-error"');
     expect(dockSource).toContain('role="alert"');
     expect(dockSource).toContain("setShareError(null)");
     const handoff = dockSource.slice(dockSource.indexOf("chat.shareOfficeContext(pending)"));
     expect(handoff).toContain("sharedRef.current = pending;");
-    expect(handoff.indexOf("setShareError(null)")).toBeLessThan(handoff.indexOf("Press See Office Screen again."));
+    expect(handoff.indexOf("setShareError(null)")).toBeLessThan(
+      handoff.indexOf("Press See Office Screen again."),
+    );
   });
 
   it("tells the voice model honestly what it can and cannot see", () => {

@@ -28,7 +28,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { loadTeam, teamForManager } from "@/lib/office-team";
-import { getManagerStatus, managerChat, type ManagerStatus, type ManagerToolCall } from "@/lib/manager.functions";
+import {
+  getManagerStatus,
+  managerChat,
+  type ManagerStatus,
+  type ManagerToolCall,
+} from "@/lib/manager.functions";
 import { buildOfficeContext, localBriefing } from "@/lib/office-context";
 import {
   ACCENT_LABELS,
@@ -43,6 +48,7 @@ import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/
 import { useOwnerSession } from "@/lib/owner-session";
 import { speakManagerText, transcribeManagerAudio } from "@/lib/manager-voice.functions";
 import { useManagerVoice } from "@/lib/use-manager-voice";
+import { useRealtimeManager } from "@/lib/use-realtime-manager";
 import {
   approvalSubmissionNotice,
   isAffirmative,
@@ -56,13 +62,22 @@ import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
 import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
-import { CONSOLE_VIEWS, OBSERVE_SCOPE_NOTICE, requestsRoomLook, type ConsoleView, type RoomReview } from "@/lib/manager-console";
+import {
+  CONSOLE_VIEWS,
+  OBSERVE_SCOPE_NOTICE,
+  requestsRoomLook,
+  type ConsoleView,
+  type RoomReview,
+} from "@/lib/manager-console";
 
 /** Written by this app, not by AI, when John asks the Manager to look. */
 const LOOK_NOTICE = `I can look at the room you have open, once, when you press "See this room" in the Rooms view. ${OBSERVE_SCOPE_NOTICE} I have opened Rooms for you.`;
 
-import { budgetScopeLines, modelStatusLine, type VerificationReceipt } from "@/lib/manager-verification";
-
+import {
+  budgetScopeLines,
+  modelStatusLine,
+  type VerificationReceipt,
+} from "@/lib/manager-verification";
 
 interface ChatMessage {
   id: string;
@@ -76,8 +91,8 @@ interface ChatMessage {
 type Tab = ConsoleView;
 
 /** One short sentence used by the voice check with the microphone off. */
-export const VOICE_CHECK_SENTENCE = "Voice check. If you can hear this sentence, the speaking voice works on this device.";
-
+export const VOICE_CHECK_SENTENCE =
+  "Voice check. If you can hear this sentence, the speaking voice works on this device.";
 
 export function OfficeManager() {
   const [open, setOpen] = useState(false);
@@ -100,7 +115,6 @@ export function OfficeManager() {
   const [mfaBusy, setMfaBusy] = useState(false);
   const [mfaError, setMfaError] = useState<string | null>(null);
 
-
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -113,7 +127,9 @@ export function OfficeManager() {
   const sendingRef = useRef(false);
   const mountedRef = useRef(true);
   const sendRef = useRef<(text?: string) => Promise<void>>(async () => undefined);
-  const voiceTurnRef = useRef<(audioBase64: string, mimeType: string) => Promise<void>>(async () => undefined);
+  const voiceTurnRef = useRef<(audioBase64: string, mimeType: string) => Promise<void>>(
+    async () => undefined,
+  );
   /** The full Manager panel can be dragged by its handle so it never blocks top buttons. */
   const panel = useDraggablePanel({ initial: { right: 16, bottom: 80 } });
   voiceModeRef.current = voiceMode;
@@ -123,7 +139,9 @@ export function OfficeManager() {
   const [awaitingReadMore, setAwaitingReadMore] = useState(false);
   const requestTranscription = useServerFn(transcribeManagerAudio);
   const requestSpeech = useServerFn(speakManagerText);
-  const managerVoice = useManagerVoice((audioBase64, mimeType) => voiceTurnRef.current(audioBase64, mimeType));
+  const managerVoice = useManagerVoice((audioBase64, mimeType) =>
+    voiceTurnRef.current(audioBase64, mimeType),
+  );
 
   const speakAnswer = async (_id: string, text: string, onDone?: () => void) => {
     const request = ++speechRequestRef.current;
@@ -134,26 +152,35 @@ export function OfficeManager() {
     setSpeechError(null);
     managerVoice.setPhase("preparing");
     const result = await requestSpeech({ data: { accessToken: token, text } }).catch(() => null);
-    if (!mountedRef.current || request !== speechRequestRef.current || voiceSession !== voiceSessionRef.current) return;
+    if (
+      !mountedRef.current ||
+      request !== speechRequestRef.current ||
+      voiceSession !== voiceSessionRef.current
+    )
+      return;
     if (!result?.ok || !result.audioBase64) {
       // The hosted voice is preferred, but Data must still talk if that one
       // provider or model refuses the request. The device voice costs nothing.
       const started = managerVoice.speakLocally(text, () => {
-        if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current) onDone?.();
+        if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current)
+          onDone?.();
       });
       if (!started) {
         managerVoice.setPhase("error");
-        setSpeechError(result?.detail ?? "Data could not start a spoken answer. The written answer is still available.");
+        setSpeechError(
+          result?.detail ??
+            "Data could not start a spoken answer. The written answer is still available.",
+        );
       }
       return;
     }
     // If the browser refuses, the hook keeps the already-paid-for audio and
     // reports the real refusal; the main button replays that same audio.
     await managerVoice.playAudio(result.audioBase64, result.contentType, () => {
-      if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current) onDone?.();
+      if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current)
+        onDone?.();
     });
   };
-
 
   /**
    * The real approval box. Voice Mode reads the pending banner aloud when it
@@ -161,7 +188,9 @@ export function OfficeManager() {
    */
   const workbenchMemory = useManagerMemory();
   const refreshMemory = workbenchMemory.refresh;
-  const pendingApprovals = (workbenchMemory.memory?.approvals ?? []).filter((a) => a.status === "pending").length;
+  const pendingApprovals = (workbenchMemory.memory?.approvals ?? []).filter(
+    (a) => a.status === "pending",
+  ).length;
   const lastPendingRef = useRef<number | null>(null);
   /** Set when the Manager has just said the approval line itself. */
   const suppressBannerSpeechRef = useRef(false);
@@ -186,8 +215,6 @@ export function OfficeManager() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingApprovals]);
 
-
-
   const fetchStatus = useServerFn(getManagerStatus);
   const sendChat = useServerFn(managerChat);
   const listShared = useServerFn(listSharedNotes);
@@ -197,6 +224,17 @@ export function OfficeManager() {
   const token = session.accessToken ?? "";
   const shared = session.shared;
   const context = useMemo(() => buildOfficeContext(), []);
+  const managerTeam = useMemo(() => teamForManager(loadTeam()), []);
+  const realtimeManager = useRealtimeManager(
+    token,
+    managerTeam,
+    useCallback((role: "user" | "assistant", content: string) => {
+      setMessages((current) => [
+        ...current,
+        { id: `live-${role}-${Date.now()}-${current.length}`, role, content },
+      ]);
+    }, []),
+  );
 
   useEffect(() => {
     setNotes(loadNotes());
@@ -248,11 +286,12 @@ export function OfficeManager() {
   // Closing the panel always ends Voice Mode: the microphone never stays on.
   useEffect(() => {
     if (open) return;
+    realtimeManager.stop();
     voiceModeRef.current = false;
     setVoiceMode(false);
     cancelVoiceActivity();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, realtimeManager.stop]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -276,7 +315,8 @@ export function OfficeManager() {
         saveNotes(next);
         return next;
       });
-      if (shared) void pushShared({ data: { accessToken: token, notes: [note] } }).catch(() => undefined);
+      if (shared)
+        void pushShared({ data: { accessToken: token, notes: [note] } }).catch(() => undefined);
     },
     [shared, token, pushShared],
   );
@@ -298,7 +338,9 @@ export function OfficeManager() {
     if (!shared) return;
     const deviceNotes = loadNotes();
     if (!deviceNotes.length) return;
-    const result = await pushShared({ data: { accessToken: token, notes: deviceNotes } }).catch(() => null);
+    const result = await pushShared({ data: { accessToken: token, notes: deviceNotes } }).catch(
+      () => null,
+    );
     if (result?.ok) {
       const refreshed = await listShared({ data: { accessToken: token } }).catch(() => null);
       if (refreshed?.ok && refreshed.data) setNotes(refreshed.data);
@@ -327,8 +369,6 @@ export function OfficeManager() {
       else resumeListening();
       return;
     }
-
-
 
     // A plain yes or no answers "shall I read the rest?" without going to the
     // provider at all — nothing is spent and nothing is approved by it.
@@ -380,12 +420,15 @@ export function OfficeManager() {
             : reply.code === "not_configured"
               ? "The manager has no AI connection yet, so there is no answer to give. See the setup note below."
               : reply.code === "limit_blocked"
-                ? (reply.detail ?? "The request was refused by the office's own spending and rate limits.")
+                ? (reply.detail ??
+                  "The request was refused by the office's own spending and rate limits.")
                 : reply.code === "health_check_failed"
-                  ? (reply.detail ?? "The live check of the AI connection did not pass, so nothing was asked.")
+                  ? (reply.detail ??
+                    "The live check of the AI connection did not pass, so nothing was asked.")
                   : reply.code === "context_unavailable"
-                    ? (reply.detail ?? "The office records could not be read just now, so nothing was asked.")
-                  : (reply.detail ?? "The AI request could not be completed."),
+                    ? (reply.detail ??
+                      "The office records could not be read just now, so nothing was asked.")
+                    : (reply.detail ?? "The AI request could not be completed."),
         );
         if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
       } else {
@@ -400,7 +443,6 @@ export function OfficeManager() {
             toolCalls: reply.toolCalls,
             ...(reply.checked ? { checked: reply.checked } : {}),
           },
-
         ]);
         // A real task change — typed or spoken — reloads the Work Board.
         const changedWork = (reply.toolCalls ?? []).some((call) =>
@@ -440,11 +482,17 @@ export function OfficeManager() {
     const voiceSession = voiceSessionRef.current;
     if (!voiceModeRef.current) return;
     setSpeechError(null);
-    const result = await requestTranscription({ data: { accessToken: token, audioBase64, mimeType } }).catch(() => null);
-    if (!mountedRef.current || !voiceModeRef.current || voiceSession !== voiceSessionRef.current) return;
+    const result = await requestTranscription({
+      data: { accessToken: token, audioBase64, mimeType },
+    }).catch(() => null);
+    if (!mountedRef.current || !voiceModeRef.current || voiceSession !== voiceSessionRef.current)
+      return;
     if (!result?.ok || !result.text) {
       managerVoice.setPhase("error");
-      setSpeechError(result?.detail ?? "The Manager could not understand that recording. Please press Talk and try again.");
+      setSpeechError(
+        result?.detail ??
+          "The Manager could not understand that recording. Please press Talk and try again.",
+      );
       return;
     }
     await sendRef.current(result.text);
@@ -457,7 +505,12 @@ export function OfficeManager() {
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     resumeTimerRef.current = setTimeout(() => {
       resumeTimerRef.current = null;
-      if (mountedRef.current && voiceModeRef.current && voiceSession === voiceSessionRef.current && !sendingRef.current) {
+      if (
+        mountedRef.current &&
+        voiceModeRef.current &&
+        voiceSession === voiceSessionRef.current &&
+        !sendingRef.current
+      ) {
         void managerVoice.startListening();
       }
     }, delay);
@@ -524,9 +577,6 @@ export function OfficeManager() {
     return () => window.removeEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
   }, []);
 
-
-
-
   const briefing = () => {
     setMessages((current) => [
       ...current,
@@ -542,50 +592,29 @@ export function OfficeManager() {
   };
 
   // Plain words for the small floating control, so the state is never a colour alone.
-  const liveState = busy
-    ? "Thinking…"
-    : managerVoice.phase === "preparing"
-      ? "Preparing voice…"
-      : managerVoice.phase === "speaking"
-      ? "Speaking…"
-      : managerVoice.phase === "transcribing"
-        ? "Understanding…"
-      : managerVoice.phase === "listening"
-        ? "Listening…"
-        : voiceMode
-          ? "Voice Mode on — paused"
-          : "Office Manager";
+  const liveState =
+    realtimeManager.phase === "connecting"
+      ? "Connecting Data…"
+      : realtimeManager.phase === "speaking"
+        ? "Data is speaking…"
+        : realtimeManager.phase === "thinking"
+          ? "Data is thinking…"
+          : realtimeManager.on
+            ? "Data is listening…"
+            : "Office Manager";
 
-  const voiceButtonLabel = managerVoice.hasPendingAudio
-    ? "Play Data's answer"
-    : !voiceMode
-      ? "Talk to Data"
-      : managerVoice.phase === "listening"
-        ? "Listening… tap when finished"
-        : managerVoice.phase === "transcribing"
-          ? "Understanding…"
-          : busy
-            ? "Data is thinking…"
-            : managerVoice.phase === "speaking" || managerVoice.phase === "preparing"
-              ? "Interrupt and talk"
-              : "Talk again";
+  const voiceButtonLabel =
+    realtimeManager.phase === "connecting"
+      ? "Connecting…"
+      : realtimeManager.on
+        ? "Data is listening"
+        : "Start conversation";
 
   const primaryVoiceAction = () => {
-    if (managerVoice.hasPendingAudio) {
-      setSpeechError(null);
-      void managerVoice.playPendingAudio();
-      return;
-    }
-    if (!voiceMode) {
-      startVoiceMode();
-      return;
-    }
-    if (managerVoice.phase === "listening") {
-      managerVoice.stopListening();
-      return;
-    }
-    managerVoice.unlockPlayback();
-    interruptAndListen();
+    if (realtimeManager.on) return;
+    setError(null);
+    setSpeechError(null);
+    realtimeManager.start();
   };
 
   return (
@@ -608,26 +637,16 @@ export function OfficeManager() {
           className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-border bg-card px-3 py-2 shadow-2xl"
         >
           <Bot className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-          <span role="status" aria-live="polite" className="truncate text-sm font-medium text-foreground">
+          <span
+            role="status"
+            aria-live="polite"
+            className="truncate text-sm font-medium text-foreground"
+          >
             {liveState}
           </span>
-          {voiceMode && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              disabled={busy || managerVoice.phase === "transcribing"}
-              onClick={() => (managerVoice.phase === "listening" ? managerVoice.stopListening() : interruptAndListen())}
-            >
-              {managerVoice.phase === "listening" ? (
-                <>
-                  <Square className="mr-1.5 h-3.5 w-3.5" /> Stop
-                </>
-              ) : (
-                <>
-                  <Mic className="mr-1.5 h-3.5 w-3.5" /> Listen
-                </>
-              )}
+          {realtimeManager.on && (
+            <Button variant="outline" size="sm" className="h-8" onClick={realtimeManager.stop}>
+              <PhoneOff className="mr-1.5 h-3.5 w-3.5" /> End
             </Button>
           )}
           <Button variant="outline" size="sm" className="h-8" onClick={() => setMinimized(false)}>
@@ -672,7 +691,9 @@ export function OfficeManager() {
                 onClick={() => setTab(view.id)}
                 aria-current={tab === view.id}
                 className={`min-h-9 rounded-md px-3 py-1.5 text-sm font-medium ${
-                  tab === view.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-background"
+                  tab === view.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-background"
                 }`}
               >
                 {view.label}
@@ -690,7 +711,6 @@ export function OfficeManager() {
             </Button>
           </div>
 
-
           {tab === "now" && (
             <>
               <div className="shrink-0 border-b border-border px-3 py-2 text-xs">
@@ -700,7 +720,11 @@ export function OfficeManager() {
                   <span className={status.connected ? "text-foreground" : "text-muted-foreground"}>
                     <span
                       className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${
-                        status.connected ? "bg-emerald-500" : status.state === "auth_unavailable" ? "bg-red-500" : "bg-amber-500"
+                        status.connected
+                          ? "bg-emerald-500"
+                          : status.state === "auth_unavailable"
+                            ? "bg-red-500"
+                            : "bg-amber-500"
                       }`}
                       aria-hidden="true"
                     />
@@ -717,11 +741,20 @@ export function OfficeManager() {
                 )}
               </div>
 
-              <div ref={messagesScrollRef} onScroll={(event) => { const pane = event.currentTarget; followMessagesRef.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48; }} className="min-h-24 flex-1 space-y-3 overflow-y-auto p-3">
+              <div
+                ref={messagesScrollRef}
+                onScroll={(event) => {
+                  const pane = event.currentTarget;
+                  followMessagesRef.current =
+                    pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
+                }}
+                className="min-h-24 flex-1 space-y-3 overflow-y-auto p-3"
+              >
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    Talk to Data about today's priorities, your projects, or the next task. Ask Data to create or
-                    assign work, then check the Work Board. Spending and protected actions still need your approval.
+                    Talk to Data about today's priorities, your projects, or the next task. Ask Data
+                    to create or assign work, then check the Work Board. Spending and protected
+                    actions still need your approval.
                   </p>
                 )}
                 {messages.map((message) => (
@@ -764,20 +797,26 @@ export function OfficeManager() {
               <div className="max-h-[50dvh] shrink-0 overflow-y-auto border-t border-border p-3">
                 <section aria-label="Talk with Data" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">
-                    {speechError || managerVoice.error || error ? "Data needs attention — see the message below."
-                      : busy ? "Data is thinking…"
-                      : managerVoice.phase === "preparing" ? "Preparing voice…"
-                      : managerVoice.phase === "speaking" ? "Data is speaking…"
-                      : managerVoice.phase === "transcribing" ? "Understanding you…"
-                      : managerVoice.phase === "listening" ? "Listening… speak, then pause."
-                      : voiceMode ? "Ready to listen again."
-                      : "Talk with Data"}
+                    {realtimeManager.error || error
+                      ? "Data needs attention — see the message below."
+                      : realtimeManager.phase === "connecting"
+                        ? "Connecting Data…"
+                        : realtimeManager.phase === "speaking"
+                          ? "Data is speaking… you can interrupt."
+                          : realtimeManager.phase === "thinking"
+                            ? "Data is thinking…"
+                            : realtimeManager.on
+                              ? "Data is listening — just speak naturally."
+                              : "Talk with Data"}
                   </p>
                   {session.signedIn && !session.stepUpComplete && (
                     <div className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
-                      <p className="text-sm font-semibold text-foreground">Confirm your authenticator to talk with Data</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        Confirm your authenticator to talk with Data
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        Enter the current six-digit code from your authenticator app. This completes the secure owner sign-in for this session.
+                        Enter the current six-digit code from your authenticator app. This completes
+                        the secure owner sign-in for this session.
                       </p>
                       <div className="flex gap-2">
                         <Input
@@ -786,7 +825,9 @@ export function OfficeManager() {
                           value={mfaCode}
                           placeholder="123456"
                           aria-label="Six-digit authenticator code for Data"
-                          onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                          onChange={(event) =>
+                            setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                          }
                         />
                         <Button
                           disabled={mfaBusy || mfaCode.length !== 6}
@@ -806,42 +847,80 @@ export function OfficeManager() {
                           <ShieldCheck className="mr-1.5 h-4 w-4" /> Verify
                         </Button>
                       </div>
-                      {mfaError && <p role="alert" className="text-xs text-destructive">{mfaError}</p>}
+                      {mfaError && (
+                        <p role="alert" className="text-xs text-destructive">
+                          {mfaError}
+                        </p>
+                      )}
                     </div>
                   )}
                   <Button
                     className="h-14 w-full text-base"
                     aria-label={voiceButtonLabel}
                     onClick={primaryVoiceAction}
-                    disabled={!session.stepUpComplete || busy || managerVoice.phase === "transcribing"}
+                    disabled={
+                      !session.stepUpComplete ||
+                      realtimeManager.on ||
+                      realtimeManager.phase === "connecting"
+                    }
                   >
-                    {managerVoice.hasPendingAudio ? (
-                      <Volume2 className="mr-2 h-5 w-5" />
-                    ) : managerVoice.phase === "listening" ? (
-                      <Square className="mr-2 h-5 w-5" />
-                    ) : (
-                      <Mic className="mr-2 h-5 w-5" />
-                    )}
+                    <Mic className="mr-2 h-5 w-5" />
                     {voiceButtonLabel}
                   </Button>
-                  {voiceMode && (
-                    <button type="button" className="text-xs text-muted-foreground underline" onClick={endVoiceMode}>
+                  {realtimeManager.on && (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline"
+                      onClick={realtimeManager.stop}
+                    >
                       <PhoneOff className="mr-1 inline h-3.5 w-3.5" /> End conversation
                     </button>
                   )}
-                  {(speechError || managerVoice.error || error) && (
-                    <div role="alert" className="rounded-md border border-destructive/40 p-2 text-sm text-destructive">
-                      {speechError ?? managerVoice.error ?? error}
+                  {(realtimeManager.error || error) && (
+                    <div
+                      role="alert"
+                      className="rounded-md border border-destructive/40 p-2 text-sm text-destructive"
+                    >
+                      {realtimeManager.error ?? error}
                     </div>
                   )}
-                  {awaitingReadMore && <p className="text-xs text-muted-foreground">Say “yes” to hear the rest, or ask your next question.</p>}
+                  {realtimeManager.on && (
+                    <p className="text-xs text-muted-foreground">
+                      The microphone stays open. Talk back and forth until you press End
+                      conversation.
+                    </p>
+                  )}
                 </section>
-                <details className="mt-3 border-t border-border pt-2" open={draft ? true : undefined}>
-                  <summary className="cursor-pointer text-sm text-muted-foreground">Type instead</summary>
-                  <Textarea ref={inputRef} rows={2} value={draft} className="mt-2" placeholder="Message Data…" aria-label="Message the Office Manager"
+                <details
+                  className="mt-3 border-t border-border pt-2"
+                  open={draft ? true : undefined}
+                >
+                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                    Type instead
+                  </summary>
+                  <Textarea
+                    ref={inputRef}
+                    rows={2}
+                    value={draft}
+                    className="mt-2"
+                    placeholder="Message Data…"
+                    aria-label="Message the Office Manager"
                     onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} />
-                  <Button size="sm" className="mt-2" onClick={() => void send()} disabled={busy || !draft.trim()}><Send className="mr-1.5 h-4 w-4" /> Send message</Button>
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void send();
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void send()}
+                    disabled={busy || !draft.trim()}
+                  >
+                    <Send className="mr-1.5 h-4 w-4" /> Send message
+                  </Button>
                 </details>
               </div>
             </>
@@ -852,32 +931,53 @@ export function OfficeManager() {
               accessToken={token}
               recordsReadable={workbenchMemory.memory !== null}
               reviews={roomReviews}
-              onReviewed={(review) => setRoomReviews((current) => ({ ...current, [review.roomId]: review }))}
+              onReviewed={(review) =>
+                setRoomReviews((current) => ({ ...current, [review.roomId]: review }))
+              }
             />
           )}
 
-          {tab === "team" && <ManagerTeamPanel accessToken={token} connected={status?.connected === true} />}
+          {tab === "team" && (
+            <ManagerTeamPanel accessToken={token} connected={status?.connected === true} />
+          )}
 
           {tab === "settings" && (
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => { briefing(); setTab("now"); }}>Office briefing</Button>
-                <Link to="/round-table" className="text-xs text-primary underline">Monday round table</Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    briefing();
+                    setTab("now");
+                  }}
+                >
+                  Office briefing
+                </Button>
+                <Link to="/round-table" className="text-xs text-primary underline">
+                  Monday round table
+                </Link>
               </div>
               <div className="rounded-lg border border-border p-2.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Connection and model
                 </p>
                 <p className="mt-1 text-xs text-foreground">
-                  {modelStatusLine(status?.model ?? null, status?.connected ? lastCheckLabel : null)}
+                  {modelStatusLine(
+                    status?.model ?? null,
+                    status?.connected ? lastCheckLabel : null,
+                  )}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  This is the model configured on the CanX server. It is never described as the newest available.
+                  This is the model configured on the CanX server. It is never described as the
+                  newest available.
                 </p>
               </div>
 
               <div className="rounded-lg border border-border p-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Money limits</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Money limits
+                </p>
                 {budgetScopeLines(workbenchMemory.memory !== null).map((line) => (
                   <div key={line.id} className="mt-2">
                     <p className="text-sm font-semibold text-foreground">
@@ -888,16 +988,25 @@ export function OfficeManager() {
                   </div>
                 ))}
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  These are two separate limits. They are never added together and neither is a spend total.
+                  These are two separate limits. They are never added together and neither is a
+                  spend total.
                 </p>
               </div>
 
               <div className="rounded-lg border border-border p-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Voice check</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Voice check
+                </p>
                 <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
                   <li>Voice turn recorded: {managerVoice.report.recorded ? "yes" : "no"}</li>
-                  <li>Phone reported playback started: {managerVoice.report.playbackStarted ? "yes" : "no"}</li>
-                  <li>Phone reported playback finished: {managerVoice.report.playbackEnded ? "yes" : "no"}</li>
+                  <li>
+                    Phone reported playback started:{" "}
+                    {managerVoice.report.playbackStarted ? "yes" : "no"}
+                  </li>
+                  <li>
+                    Phone reported playback finished:{" "}
+                    {managerVoice.report.playbackEnded ? "yes" : "no"}
+                  </li>
                   <li>Problem reported: {managerVoice.report.error ?? "none"}</li>
                   <li>
                     Browser refusal reported:{" "}
@@ -905,7 +1014,9 @@ export function OfficeManager() {
                       ? `${managerVoice.report.blockedReason} — the browser would not start sound without a tap`
                       : "none"}
                   </li>
-                  <li>Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}</li>
+                  <li>
+                    Microphone open right now: {managerVoice.phase === "listening" ? "yes" : "no"}
+                  </li>
                 </ul>
                 <Button
                   size="sm"
@@ -927,7 +1038,9 @@ export function OfficeManager() {
               </div>
 
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appearance</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Appearance
+                </p>
                 <AppearancePanel />
               </div>
 
@@ -945,18 +1058,28 @@ export function OfficeManager() {
                     Copy this device's records into the CanX account
                   </Button>
                 )}
-                {notes.length === 0 && <p className="text-sm text-muted-foreground">Nothing saved yet.</p>}
+                {notes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nothing saved yet.</p>
+                )}
                 {notes.map((note) => (
                   <div key={note.id} className="rounded-lg border border-border p-2.5">
                     <div className="flex items-start gap-2">
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-foreground">{note.title}</p>
-                        {note.detail && <p className="mt-1 text-sm text-muted-foreground">{note.detail}</p>}
+                        {note.detail && (
+                          <p className="mt-1 text-sm text-muted-foreground">{note.detail}</p>
+                        )}
                         <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                          {note.kind} · {note.owner || "no owner"} · {PROVENANCE_LABELS[note.provenance]}
+                          {note.kind} · {note.owner || "no owner"} ·{" "}
+                          {PROVENANCE_LABELS[note.provenance]}
                         </p>
                       </div>
-                      <Button variant="ghost" size="icon" aria-label={`Remove ${note.title}`} onClick={() => removeNote(note.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove ${note.title}`}
+                        onClick={() => removeNote(note.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -965,7 +1088,6 @@ export function OfficeManager() {
               </div>
             </div>
           )}
-
         </aside>
       )}
     </>
@@ -985,15 +1107,23 @@ function CheckedReceipt({ receipt }: { receipt: VerificationReceipt }) {
         aria-expanded={open}
         className="min-h-8 rounded-md px-2 py-1 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
       >
-        {open ? "Hide what was checked" : `Checked ${receipt.sources.length} source${receipt.sources.length === 1 ? "" : "s"}`}
+        {open
+          ? "Hide what was checked"
+          : `Checked ${receipt.sources.length} source${receipt.sources.length === 1 ? "" : "s"}`}
       </button>
       {open && (
         <div className="mt-1 rounded-md border border-border bg-secondary/40 p-2 text-[11px] text-muted-foreground">
-          <p className="font-semibold text-foreground">Read at {new Date(receipt.checkedAt).toLocaleString()}</p>
-          <p className="mt-1">Provider: {receipt.provider} · Model: {receipt.model}</p>
+          <p className="font-semibold text-foreground">
+            Read at {new Date(receipt.checkedAt).toLocaleString()}
+          </p>
+          <p className="mt-1">
+            Provider: {receipt.provider} · Model: {receipt.model}
+          </p>
           <p className="mt-1 font-semibold text-foreground">Sources read</p>
           <ul className="list-disc pl-4">
-            {receipt.sources.length === 0 && <li>No labelled office records were readable for this answer.</li>}
+            {receipt.sources.length === 0 && (
+              <li>No labelled office records were readable for this answer.</li>
+            )}
             {receipt.sources.map((source) => (
               <li key={source}>{source}</li>
             ))}
@@ -1012,7 +1142,6 @@ function CheckedReceipt({ receipt }: { receipt: VerificationReceipt }) {
 }
 
 function ProposalCard({
-
   call,
   onSaveNote,
   onOpenAppearance,
@@ -1027,9 +1156,13 @@ function ProposalCard({
   if (call.name === "preview_appearance") {
     return (
       <div className="mt-2 rounded-lg border border-border bg-secondary/50 p-2.5 text-left">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appearance suggestion</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Appearance suggestion
+        </p>
         <p className="mt-1 text-sm text-foreground">
-          {typeof call.arguments["reason"] === "string" ? call.arguments["reason"] : "A look-and-feel change."}
+          {typeof call.arguments["reason"] === "string"
+            ? call.arguments["reason"]
+            : "A look-and-feel change."}
         </p>
         <Button
           size="sm"
@@ -1051,7 +1184,9 @@ function ProposalCard({
     if (!title) return null;
     return (
       <div className="mt-2 rounded-lg border border-border bg-secondary/50 p-2.5 text-left">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Proposed for your list</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Proposed for your list
+        </p>
         <p className="mt-1 text-sm font-semibold text-foreground">{title}</p>
         <Button
           size="sm"
@@ -1088,13 +1223,18 @@ function AppearancePanel() {
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
       <p className="text-xs text-muted-foreground">
-        These are the only appearance settings anything in this office can change, and they stay on this device.
+        These are the only appearance settings anything in this office can change, and they stay on
+        this device.
       </p>
 
       <Group label="Surface">
         <div className="flex flex-wrap gap-2">
           {THEME_FIELDS.surface.options.map((value: SurfaceLevel) => (
-            <Choice key={value} active={theme.surface === value} onClick={() => preview({ surface: value })}>
+            <Choice
+              key={value}
+              active={theme.surface === value}
+              onClick={() => preview({ surface: value })}
+            >
               {value}
             </Choice>
           ))}
@@ -1115,7 +1255,11 @@ function AppearancePanel() {
       <Group label="Accent">
         <div className="flex flex-wrap gap-2">
           {THEME_FIELDS.accent.options.map((value: AccentName) => (
-            <Choice key={value} active={theme.accent === value} onClick={() => preview({ accent: value })}>
+            <Choice
+              key={value}
+              active={theme.accent === value}
+              onClick={() => preview({ accent: value })}
+            >
               {ACCENT_LABELS[value]}
             </Choice>
           ))}
@@ -1125,7 +1269,11 @@ function AppearancePanel() {
       <Group label="Text density">
         <div className="flex flex-wrap gap-2">
           {THEME_FIELDS.density.options.map((value: DensityName) => (
-            <Choice key={value} active={theme.density === value} onClick={() => preview({ density: value })}>
+            <Choice
+              key={value}
+              active={theme.density === value}
+              onClick={() => preview({ density: value })}
+            >
               {value}
             </Choice>
           ))}
@@ -1135,7 +1283,11 @@ function AppearancePanel() {
       <Group label="Movement">
         <div className="flex flex-wrap gap-2">
           {THEME_FIELDS.motion.options.map((value: MotionName) => (
-            <Choice key={value} active={theme.motion === value} onClick={() => preview({ motion: value })}>
+            <Choice
+              key={value}
+              active={theme.motion === value}
+              onClick={() => preview({ motion: value })}
+            >
               {value === "full" ? "Gentle movement" : "No movement"}
             </Choice>
           ))}
@@ -1156,7 +1308,11 @@ function AppearancePanel() {
           Reset
         </Button>
       </div>
-      {dirty && <p className="text-xs text-muted-foreground">Previewing — nothing is kept until you press Apply.</p>}
+      {dirty && (
+        <p className="text-xs text-muted-foreground">
+          Previewing — nothing is kept until you press Apply.
+        </p>
+      )}
     </div>
   );
 }
@@ -1164,19 +1320,31 @@ function AppearancePanel() {
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
       {children}
     </div>
   );
 }
 
-function Choice({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Choice({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
       aria-pressed={active}
       className={`rounded-md border px-3 py-1.5 text-sm capitalize ${
-        active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-background text-foreground"
       }`}
     >
       {children}

@@ -4,7 +4,10 @@ import { resolve } from "node:path";
 import { SILENT_AUDIO_DATA_URL, playbackRefusalMessage } from "@/lib/use-manager-voice";
 
 const voice = readFileSync(resolve(process.cwd(), "src/lib/use-manager-voice.ts"), "utf8");
-const manager = readFileSync(resolve(process.cwd(), "src/components/office/OfficeManager.tsx"), "utf8");
+const manager = readFileSync(
+  resolve(process.cwd(), "src/components/office/OfficeManager.tsx"),
+  "utf8",
+);
 
 function block(source: string, start: string): string {
   const from = source.indexOf(start);
@@ -30,12 +33,9 @@ describe("Manager playback unlock happens inside the user's tap", () => {
     expect(release).not.toContain("playbackContextRef");
   });
 
-  it("runs the unlock from the single conversation control and voice test", () => {
-    const startVoice = block(manager, "const startVoiceMode");
-    expect(startVoice).toContain("managerVoice.unlockPlayback()");
+  it("uses a live media track for the main conversation and keeps the legacy voice test", () => {
     const primary = block(manager, "const primaryVoiceAction");
-    expect(primary).toContain("managerVoice.unlockPlayback()");
-    expect(primary).toContain("managerVoice.playPendingAudio()");
+    expect(primary).toContain("realtimeManager.start()");
     expect(block(manager, 'aria-label="Test the voice with the microphone off"')).toContain(
       "managerVoice.unlockPlayback()",
     );
@@ -64,10 +64,12 @@ describe("Android-style refusal becomes a visible manual-play state", () => {
     }
   });
 
-  it("turns the single talk control into a manual play control when needed", () => {
-    expect(manager).toContain("managerVoice.hasPendingAudio");
-    expect(manager).toContain("Play Data's answer");
+  it("keeps legacy playback diagnostics out of the main conversation control", () => {
+    expect(manager).toContain("managerVoice.report.playbackStarted");
     expect(manager).toContain("managerVoice.report.blockedReason");
+    const primary = block(manager, "const primaryVoiceAction");
+    expect(primary).not.toContain("managerVoice.hasPendingAudio");
+    expect(primary).not.toContain("Play Data's answer");
   });
 
   it("keeps the written answer regardless of sound", () => {
@@ -78,7 +80,7 @@ describe("Android-style refusal becomes a visible manual-play state", () => {
 });
 
 describe("Manual playback reuses the buffered audio", () => {
-  it("replays the stored audio without another voice request", () => {
+  it("can replay stored legacy test audio without another voice request", () => {
     const pending = block(voice, "const playPendingAudio");
     expect(pending).toContain("unlockPlayback()");
     expect(pending).toContain("attemptPlayback()");
@@ -87,8 +89,7 @@ describe("Manual playback reuses the buffered audio", () => {
     expect(attempt).not.toContain("fetch(");
     expect(voice).not.toContain("speakManagerText");
     const button = block(manager, "const primaryVoiceAction");
-    expect(button).toContain("managerVoice.playPendingAudio()");
-    expect(button).not.toContain("speakAnswer");
+    expect(button).toContain("realtimeManager.start()");
     expect(button).not.toContain("requestSpeech");
   });
 
@@ -109,7 +110,9 @@ describe("Microphone and playback never overlap", () => {
     const attempt = block(voice, "const attemptPlayback");
     const ended = attempt.slice(attempt.indexOf("audio.onended"));
     expect(ended).toContain("buffered.onEnded?.()");
-    expect(attempt.indexOf("buffered.onEnded?.()")).toBeGreaterThan(attempt.indexOf("audio.onended"));
+    expect(attempt.indexOf("buffered.onEnded?.()")).toBeGreaterThan(
+      attempt.indexOf("audio.onended"),
+    );
     expect(manager).toContain("void speakAnswer(answerId, spoken, resumeListening)");
   });
 });
