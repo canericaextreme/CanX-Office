@@ -124,13 +124,12 @@ export function OfficeManager() {
     setTextSize(size);
     try { localStorage.setItem("canx-manager-text-size", String(size)); } catch { /* Optional preference. */ }
   };
-  useEffect(() => {
-    const input = inputRef.current;
-    if (input) {
-      input.style.height = "auto";
-      input.style.height = `${Math.min(input.scrollHeight, window.innerHeight * 0.25)}px`;
-    }
-  }, [draft, textSize, open, minimized]);
+  const [composerHeight, setComposerHeight] = useState(120);
+  const [composerCollapsed, setComposerCollapsed] = useState(false);
+  const dividerDrag = useRef<{ y: number; height: number } | null>(null);
+  const resizeComposer = (height: number) => {
+    setComposerHeight(Math.max(60, Math.min(height, window.innerHeight * 0.4)));
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
@@ -532,6 +531,7 @@ export function OfficeManager() {
         );
         if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
       } else {
+        setComposerCollapsed(true);
         setDelivery("Received — Data returned a reply. This does not mean the requested work is complete.");
         const answerId = `m-${Date.now()}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
@@ -871,7 +871,7 @@ export function OfficeManager() {
                   followMessagesRef.current =
                     pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
                 }}
-                className="min-h-24 flex-1 space-y-4 overflow-y-auto p-4"
+                className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
                 aria-label="Conversation with Data"
                 style={{ fontSize: textSize, lineHeight: 1.5 }}
               >
@@ -1008,17 +1008,42 @@ export function OfficeManager() {
                 )}
               </div>
 
-              <div className="shrink-0 border-t border-border bg-card px-4 pb-3">
-                <div className="mt-3 border-t border-border pt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Type or paste a message, then press Send. Enter adds a new line; Ctrl+Enter sends.
-                  </p>
-                  <Textarea
+              <div className="shrink-0 border-t border-border bg-card px-3 pb-2">
+                <div
+                  role="separator" aria-label="Resize writing area" aria-orientation="horizontal"
+                  aria-valuemin={60} aria-valuemax={600} aria-valuenow={composerHeight} tabIndex={0}
+                  className="flex h-7 cursor-row-resize touch-none items-center justify-center rounded hover:bg-secondary focus:bg-secondary"
+                  onPointerDown={event => {
+                    setComposerCollapsed(false);
+                    dividerDrag.current = { y: event.clientY, height: composerCollapsed ? 60 : composerHeight };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={event => {
+                    if (dividerDrag.current) resizeComposer(dividerDrag.current.height + dividerDrag.current.y - event.clientY);
+                  }}
+                  onPointerUp={() => { dividerDrag.current = null; }}
+                  onLostPointerCapture={() => { dividerDrag.current = null; }}
+                  onKeyDown={event => {
+                    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                      event.preventDefault(); setComposerCollapsed(false);
+                      resizeComposer(composerHeight + (event.key === "ArrowUp" ? 30 : -30));
+                    }
+                  }}
+                ><span className="h-1.5 w-20 rounded-full bg-muted-foreground" /></div>
+                <div className="flex items-center justify-between gap-2 pb-1">
+                  <span className="text-sm">Drag divider: more reading or writing space</span>
+                  <Button size="sm" variant="outline" onClick={() => setComposerCollapsed(value => !value)}>
+                    {composerCollapsed ? "Show text box" : "Hide text box"}
+                  </Button>
+                </div>
+                <div>
+
+                  {!composerCollapsed && <Textarea
                     ref={inputRef}
                     rows={4}
                     value={draft}
-                    className="mt-2 min-h-[120px] max-h-[25dvh] resize-y overflow-y-auto leading-relaxed"
-                    style={{ fontSize: textSize }}
+                    className="min-h-0 max-h-[40dvh] resize-none overflow-y-auto leading-relaxed"
+                    style={{ fontSize: textSize, height: composerHeight }}
                     placeholder="Type or paste your message here…"
                     aria-label="Message the Office Manager"
                     onChange={(event) => setDraft(event.target.value)}
@@ -1028,8 +1053,8 @@ export function OfficeManager() {
                         void send();
                       }
                     }}
-                  />
-                  <div className="mt-3 flex flex-wrap gap-3" aria-label="Message and voice controls">
+                  />}
+                  <div className="mt-2 flex flex-wrap gap-2" aria-label="Message and voice controls">
                   <Button
                     className="h-12 flex-1 text-lg"
                     onClick={primaryVoiceAction}
