@@ -56,7 +56,7 @@ export function useRealtimeManager(
     abortRef.current = null;
     const channel = channelRef.current;
     channelRef.current = null;
-    if (channel) { channel.onmessage = null; channel.onclose = null; channel.close(); }
+    if (channel) { channel.onmessage = null; channel.onclose = null; channel.onopen = null; channel.close(); }
     const pc = pcRef.current;
     pcRef.current = null;
     if (pc) { pc.ontrack = null; pc.onconnectionstatechange = null; pc.close(); }
@@ -81,6 +81,23 @@ export function useRealtimeManager(
   useEffect(() => () => teardown(), [teardown]);
   // A signed-out owner must not leave an already-open microphone running.
   useEffect(() => { if (!accessToken) stop(); }, [accessToken, stop]);
+
+  // A background office must not keep listening or speak over another app.
+  // Returning to the office requires a fresh, deliberate Talk tap.
+  useEffect(() => {
+    const leave = () => {
+      if (!activeRef.current) return;
+      stop();
+      setError("Voice stopped when you left the office. Tap Talk to Data to resume.");
+    };
+    const visibility = () => { if (document.visibilityState === "hidden") leave(); };
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [stop]);
 
   const playAudio = useCallback(async (audio: HTMLAudioElement, generation: number) => {
     try {
@@ -196,6 +213,11 @@ export function useRealtimeManager(
 
       const channel = pc.createDataChannel("oai-events");
       channelRef.current = channel;
+      channel.onopen = () => {
+        if (!current()) return;
+        clearTimeout(timeout);
+        setPhase("listening");
+      };
       channel.onclose = () => fail("Data's voice connection ended. Press Start conversation to reconnect.");
       let outputPlaying = false;
       const transcripts = new Map<string, string>();
@@ -298,7 +320,7 @@ export function useRealtimeManager(
       const sdp = await answer.text();
       if (!current()) return;
       await pc.setRemoteDescription({ type: "answer", sdp });
-      if (current()) setPhase("listening");
+      if (current() && channel.readyState === "open") setPhase("listening");
     } catch (cause) {
       const name = cause instanceof Error ? cause.name : "";
       const detail = stage === "microphone"
@@ -314,7 +336,9 @@ export function useRealtimeManager(
           : "Data opened the microphone but could not connect to live voice. Check your network and try again.";
       fail(detail);
     } finally {
-      clearTimeout(timeout);
+      // An SDP answer is not proof that the voice event channel opened.
+      // Keep the watchdog until onopen, so a stalled connection cannot look ready.
+      if (!current() || channelRef.current?.readyState === "open") clearTimeout(timeout);
     }
   }, [accessToken, mintSession, team, teardown, playAudio]);
 

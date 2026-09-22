@@ -23,13 +23,15 @@ function deferred<T>() {
 }
 let stopTrack: ReturnType<typeof vi.fn>;
 let getUserMedia: ReturnType<typeof vi.fn>;
+let pageEvents: EventTarget;
+let windowEvents: EventTarget;
 let audio: { play: ReturnType<typeof vi.fn>; pause: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn>; setAttribute: ReturnType<typeof vi.fn>; style: Record<string, string> };
 class Peer {
   static instances: Peer[] = [];
   ontrack: ((event: unknown) => void) | null = null;
   onconnectionstatechange: (() => void) | null = null;
   connectionState = "connected";
-  channel = { readyState: "open", send: vi.fn(), onmessage: null as ((event: { data: string }) => void) | null, onclose: null as (() => void) | null, close: vi.fn() };
+  channel = { readyState: "open", send: vi.fn(), onmessage: null as ((event: { data: string }) => void) | null, onclose: null as (() => void) | null, onopen: null as (() => void) | null, close: vi.fn() };
   close = vi.fn(); addTrack = vi.fn();
   createDataChannel = () => this.channel;
   createOffer = vi.fn().mockResolvedValue({ sdp: "offer" });
@@ -44,7 +46,10 @@ beforeEach(() => {
   hooks.mint.mockReset().mockResolvedValue({ ok: true, clientSecret: "ephemeral-test", model: "test" });
   audio = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn(), remove: vi.fn(), setAttribute: vi.fn(), style: {} };
   vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
-  vi.stubGlobal("document", { createElement: () => audio, body: { appendChild: vi.fn() } });
+  pageEvents = new EventTarget(); windowEvents = new EventTarget();
+  vi.stubGlobal("document", { visibilityState: "visible", createElement: () => audio, body: { appendChild: vi.fn() },
+    addEventListener: pageEvents.addEventListener.bind(pageEvents), removeEventListener: pageEvents.removeEventListener.bind(pageEvents) });
+  vi.stubGlobal("window", { addEventListener: windowEvents.addEventListener.bind(windowEvents), removeEventListener: windowEvents.removeEventListener.bind(windowEvents) });
   vi.stubGlobal("RTCPeerConnection", Peer);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("answer")));
 });
@@ -52,6 +57,42 @@ afterEach(() => {
   hooks.cleanups.forEach((cleanup) => cleanup()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 describe("Data realtime connection lifecycle", () => {
+  it("keeps connecting after SDP until the event channel opens", async () => {
+    const answer = deferred<Response>(); vi.mocked(fetch).mockReturnValue(answer.promise);
+    useRealtimeManager("token", [], vi.fn()).start(); await flush();
+    const channel = Peer.instances[0]!.channel; channel.readyState = "connecting";
+    answer.resolve(new Response("answer")); await flush();
+    expect(hooks.states[0]).toBe("connecting");
+    channel.readyState = "open"; channel.onopen?.();
+    expect(hooks.states[0]).toBe("listening");
+    vi.advanceTimersByTime(30_000); expect(hooks.states[1]).toBe(true);
+  });
+  it("times out an event channel that never opens after SDP", async () => {
+    const answer = deferred<Response>(); vi.mocked(fetch).mockReturnValue(answer.promise);
+    useRealtimeManager("token", [], vi.fn()).start(); await flush();
+    Peer.instances[0]!.channel.readyState = "connecting";
+    answer.resolve(new Response("answer")); await flush();
+    vi.advanceTimersByTime(30_000);
+    expect(hooks.states[0]).toBe("error"); expect(stopTrack).toHaveBeenCalledOnce();
+  });
+  it("releases the microphone and sound when hidden and never restarts on return", async () => {
+    const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    pageEvents.dispatchEvent(new Event("visibilitychange"));
+    expect(stopTrack).toHaveBeenCalledOnce(); expect(audio.pause).toHaveBeenCalledOnce();
+    expect(hooks.states[1]).toBe(false);
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    pageEvents.dispatchEvent(new Event("visibilitychange")); await flush();
+    expect(getUserMedia).toHaveBeenCalledOnce(); expect(hooks.states[1]).toBe(false);
+  });
+  it("invalidates a pending microphone request on page departure", async () => {
+    const pending = deferred<unknown>(); getUserMedia.mockReturnValue(pending.promise);
+    useRealtimeManager("token", [], vi.fn()).start();
+    windowEvents.dispatchEvent(new Event("pagehide"));
+    pending.resolve({ getTracks: () => [{ stop: stopTrack }] }); await flush();
+    expect(stopTrack).toHaveBeenCalledOnce(); expect(hooks.mint).not.toHaveBeenCalled();
+    expect(hooks.states[1]).toBe(false);
+  });
   it("stops a microphone granted after End without minting a session", async () => {
     const pending = deferred<unknown>(); getUserMedia.mockReturnValue(pending.promise);
     const voice = useRealtimeManager("token", [], vi.fn());
