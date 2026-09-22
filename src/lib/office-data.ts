@@ -39,6 +39,7 @@ export type RoomId =
   | "work-board"
   | "office-team"
   | "build-testing"
+  | "product-studio"
   | "finance"
   | "subscriptions"
   | "communications"
@@ -151,6 +152,17 @@ export const ROOMS: RoomDef[] = [
     area: "operations",
     position: { x: 4, y: 0, z: 1 },
     color: "#ec4899",
+  },
+  {
+    id: "product-studio",
+    label: "Product Studio",
+    shortLabel: "Product Studio",
+    route: "/product-studio",
+    icon: Wrench,
+    purpose: "Turn approved ideas into apps, websites and books — briefs, builds, QA, publishing and launch.",
+    area: "operations",
+    position: { x: 0, y: 0, z: -9 },
+    color: "#0d9488",
   },
   {
     id: "build-testing",
