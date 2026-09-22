@@ -38,9 +38,10 @@ export interface ManagerRoomsPanelProps {
   recordsReadable: boolean;
   reviews: Record<string, RoomReview | undefined>;
   onReviewed: (review: RoomReview) => void;
+  onRequestReview?: (roomLabel: string) => void;
 }
 
-export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onReviewed }: ManagerRoomsPanelProps) {
+export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onReviewed, onRequestReview }: ManagerRoomsPanelProps) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const observe = useServerFn(observeCurrentRoom);
   const [busy, setBusy] = useState(false);
@@ -100,7 +101,7 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
           <MonitorSmartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {OBSERVE_SCOPE_NOTICE}
         </p>
-        <Button size="sm" className="mt-2 h-9" disabled={busy || !accessToken} onClick={() => void seeThisRoom()}>
+        <Button size="sm" className="mt-2 h-9" disabled={busy || !accessToken} onClick={() => onRequestReview && currentRoom ? onRequestReview(currentRoom.shortLabel) : void seeThisRoom()}>
           {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Camera className="mr-1.5 h-4 w-4" />}
           {busy ? "Looking…" : "See this room"}
         </Button>
@@ -153,12 +154,12 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">{status.source}</p>
+              {onRequestReview && <Button size="sm" variant="outline" className="mt-2" disabled={!accessToken} onClick={() => onRequestReview(status.room.shortLabel)}>Inspect {status.room.shortLabel}</Button>}
             </li>
           ))}
         </ul>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          To review another room, open it and press “See this room” there. A directory entry is never a visual
-          inspection.
+          Ask Data to check any named room, or use its Inspect button. Data opens the room and returns a fresh review. A directory entry is never a visual inspection.
         </p>
       </div>
     </div>

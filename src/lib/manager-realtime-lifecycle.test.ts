@@ -78,7 +78,7 @@ describe("Data realtime connection lifecycle", () => {
     audio.play.mockRejectedValueOnce(new Error("blocked"));
     Peer.instances[0]!.ontrack?.({ streams: [{}] }); await flush(); expect(hooks.states[3]).toBe(true);
     voice.resumeAudio(); await flush(); expect(hooks.states[3]).toBe(false);
-    expect(hooks.mint).toHaveBeenCalledOnce(); expect(audio.play).toHaveBeenCalledTimes(2);
+    expect(hooks.mint).toHaveBeenCalledOnce(); expect(audio.play).toHaveBeenCalledTimes(3);
   });
   it("closes a failed provider session and never displays provider error details", async () => {
     const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
@@ -151,5 +151,41 @@ describe("Data voice error recovery", () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response("private", {status:429}));
     voice.start(); await flush();
     expect(hooks.states[2]).toContain("HTTP 429"); expect(hooks.states[2]).not.toContain("private");
+  });
+});
+
+describe("Data's live voice controls", () => {
+  it("unlocks the speaker in the initiating gesture before microphone permission resolves", async () => {
+    const pending = deferred<unknown>(); getUserMedia.mockReturnValue(pending.promise);
+    const voice = useRealtimeManager("token", [], vi.fn()); voice.start();
+    expect(audio.play).toHaveBeenCalledOnce(); expect(hooks.mint).not.toHaveBeenCalled();
+    voice.stop(); pending.resolve({getTracks:()=>[{stop:stopTrack}]}); await flush();
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+  it("mutes without ending the session and interrupts buffered speech", async () => {
+    const track = {stop:stopTrack, enabled:true}; getUserMedia.mockResolvedValue({getTracks:()=>[track]});
+    const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
+    voice.toggleMic(); expect(track.enabled).toBe(false); expect(stopTrack).not.toHaveBeenCalled();
+    voice.interrupt(); expect(track.enabled).toBe(true);
+    const sent = Peer.instances[0]!.channel.send.mock.calls.map(call => JSON.parse(call[0]));
+    expect(sent.map(event => event.type)).toEqual(["input_audio_buffer.clear", "response.cancel", "output_audio_buffer.clear"]);
+    expect(hooks.mint).toHaveBeenCalledOnce();
+  });
+  it("tracks actual WebRTC playback until the buffer finishes", async () => {
+    const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
+    const emit = (type:string) => Peer.instances[0]!.channel.onmessage?.({data:JSON.stringify({type})});
+    emit("output_audio_buffer.started"); expect(hooks.states[0]).toBe("speaking");
+    emit("response.done"); expect(hooks.states[0]).toBe("speaking");
+    emit("output_audio_buffer.stopped"); expect(hooks.states[0]).toBe("listening");
+  });
+  it("reads a typed answer without allowing tools or reopening an ended session", async () => {
+    const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    voice.say("Saved report r1");
+    const response = JSON.parse(channel.send.mock.calls.at(-1)![0]);
+    expect(response.response.tool_choice).toBe("none");
+    expect(response.response.input[0].content[0].text).toBe("Saved report r1");
+    voice.stop(); const count = channel.send.mock.calls.length; voice.say("late");
+    expect(channel.send).toHaveBeenCalledTimes(count);
   });
 });

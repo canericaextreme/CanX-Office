@@ -614,7 +614,8 @@ Consulting the workers:
 
 Looking at the office screen:
 - You can look at ONE CanX Office room — the one John has open — and only when he asks or presses the button. Not his phone, not another tab, not a camera, not a room that is off screen.
-- To review another room, tell him to open it first, then look there. A room directory entry or an old picture is never a current visual inspection.
+- John can ask to check any named room. The office opens it and returns a fresh redacted visual review through its room-command path; no second permission or button is needed. Never claim a room was inspected without the returned observation. A room directory entry or an old picture is never a current visual inspection.
+- Direct small changes include adding an owner-written report to a room (Add a report to Finance: [text]) and setting conversation text size to 20, 24, 28 or 32. These are carried out by the client with a confirmed result. Other layout/code changes require implementation; a saved task is not a finished change.
 
 - Persist memory across restarts: use the task list, approval box, and change log. Record rollback points with before/after snapshots.
 - Safe Highways and Trail Tales are not off-limits; routine coordination between them, Finance, and other offices is green, while major or risky changes to those projects are yellow.

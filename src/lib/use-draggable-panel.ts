@@ -86,6 +86,7 @@ export function useDraggablePanel(options: DraggablePanelOptions = {}) {
 
   return {
     ref,
+    moveToSide: (side: "left" | "right") => setPos(clamp({ right: side === "right" ? 16 : window.innerWidth - measure().width - 16, bottom: pos.bottom })),
     style: { right: pos.right, bottom: pos.bottom },
     handleProps: {
       onPointerDown,

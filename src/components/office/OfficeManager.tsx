@@ -3,7 +3,10 @@ import { loadConversation, saveConversationMessage, type SavedMessage } from "@/
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
+import { captureOfficeView } from "@/lib/office-observe";
+import { observeCurrentRoom } from "@/lib/manager-observe.functions";
+import { parseRoomCommand, roomReportSource } from "@/lib/manager-room-commands";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Bot,
@@ -66,14 +69,9 @@ import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
 import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
 import {
   CONSOLE_VIEWS,
-  OBSERVE_SCOPE_NOTICE,
-  requestsRoomLook,
   type ConsoleView,
   type RoomReview,
 } from "@/lib/manager-console";
-
-/** Written by this app, not by AI, when John asks the Manager to look. */
-const LOOK_NOTICE = `I can look at the room you have open, once, when you press "See this room" in the Rooms view. ${OBSERVE_SCOPE_NOTICE} I have opened Rooms for you.`;
 
 import {
   budgetScopeLines,
@@ -97,6 +95,9 @@ export const VOICE_CHECK_SENTENCE =
   "Voice check. If you can hear this sentence, the speaking voice works on this device.";
 
 export function OfficeManager() {
+  const router = useRouter();
+  const observeRoom = useServerFn(observeCurrentRoom);
+  const roomActionLock = useRef(false);
   const [open, setOpen] = useState(false);
   /** Shrinks the window to a small floating control; the conversation stays live. */
   const [minimized, setMinimized] = useState(false);
@@ -318,8 +319,60 @@ export function OfficeManager() {
     saveQueue.current.add(message);
     void retrySaving();
   }, [retrySaving]);
+  // One implementation for typed and spoken requests. No model-generated code or URLs run here.
+  const runRoomCommand = async (request: string): Promise<string | null> => {
+    const command = parseRoomCommand(request, router.state.location.pathname);
+    if (!command) return null;
+    if (!session.stepUpComplete || !token) return "Complete owner verification before changing or inspecting a room.";
+    if (roomActionLock.current) return "A room request is already running. Wait for its result.";
+    roomActionLock.current = true;
+    try {
+      if (command.kind === "move-panel") {
+        setFullScreen(false);
+        panel.moveToSide(command.side);
+        return `Moved Data’s window to the ${command.side} side of this screen. You can drag it back.`;
+      }
+      if (command.kind === "text-size") {
+        changeTextSize(command.size);
+        return `Conversation text is now ${command.size} pixels on this device. You can change it back with the Text size control.`;
+      }
+      const { room } = command;
+      if (command.kind === "report") {
+        if (command.content.length > 2000) return "This report is longer than 2,000 characters. Please shorten it; nothing was saved.";
+        const note: OfficeNote = { id: crypto.randomUUID(), kind: "decision", title: `${room.shortLabel} report`,
+          detail: command.content, owner: "John", provenance: "john", source: roomReportSource(room.id), createdAt: new Date().toISOString() };
+        const saved = await pushShared({ data: { accessToken: token, notes: [note] } });
+        if (!saved.ok || saved.data?.saved !== 1) return saved.message || "The report was not saved.";
+        const readback = await listShared({ data: { accessToken: token } });
+        if (!readback.ok || !readback.data?.some(item => item.id === note.id && item.detail === note.detail))
+          return "The save was accepted, but I could not verify it. Check Records before repeating the request.";
+        setNotes(readback.data);
+        window.dispatchEvent(new CustomEvent("canx:room-reports-changed"));
+        await router.navigate({ to: room.route });
+        return `Saved and verified your report in ${room.shortLabel}. Record ${note.id}. It is also available in Records.`;
+      }
+      setDelivery(`Opening and checking ${room.shortLabel}…`);
+      await router.navigate({ to: room.route });
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (router.state.location.pathname !== room.route) return "The room changed before inspection. Please ask again in the intended room.";
+      const capture = await captureOfficeView(room.route);
+      if (!capture.ok) return capture.message;
+      if (router.state.location.pathname !== room.route) return "The room changed during inspection. No picture was sent.";
+      const reply = await observeRoom({ data: { accessToken: token, path: room.route,
+        room: room.label, text: capture.observation.text, image: capture.observation.image } });
+      if (!reply.ok) return reply.detail || "The room review did not complete.";
+      setRoomReviews(current => ({ ...current, [room.id]: { roomId: room.id, at: new Date(reply.observedAt).toLocaleString(), text: reply.text, thumbnail: capture.observation.image } }));
+      return `${room.shortLabel}, checked ${new Date(reply.observedAt).toLocaleTimeString()}:\n${reply.text}`;
+    } catch {
+      return "The room request could not be confirmed. Check the room before repeating a change.";
+    } finally { roomActionLock.current = false; }
+  };
+  const roomCommandRef = useRef(runRoomCommand);
+  roomCommandRef.current = runRoomCommand;
   const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
     useCallback(async (request: string) => {
+      const direct = await roomCommandRef.current(request);
+      if (direct !== null) return direct;
       await historyQueue.current;
       const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: [{ role: "user", content: request }] } });
       const result = reply.text || reply.detail || "The office action did not complete.";
@@ -450,20 +503,6 @@ export function OfficeManager() {
     }
     const voiceSession = voiceSessionRef.current;
 
-    // Asking the Manager to look at the screen opens the Rooms view, where the
-    // one-shot look is an explicit button press. Nothing is looked at silently.
-    if (requestsRoomLook(text)) {
-      setDraft("");
-      setTab("rooms");
-      setMessages((current) => [
-        ...current,
-        { id: `look-${Date.now()}`, role: "office", content: LOOK_NOTICE },
-      ]);
-      if (voiceModeRef.current) void speakAnswer("look", LOOK_NOTICE, resumeListening);
-      else resumeListening();
-      return;
-    }
-
     // A plain yes or no answers "shall I read the rest?" without going to the
     // provider at all — nothing is spent and nothing is approved by it.
     const pending = pendingFullRef.current;
@@ -500,6 +539,14 @@ export function OfficeManager() {
     setDelivery("Sending message — waiting for the server…");
     followMessagesRef.current = true;
     try {
+      const direct = await roomCommandRef.current(text);
+      if (direct !== null) {
+        saveQueue.current.add(userMessage as SavedMessage);
+        saveSpokenMessage("assistant", direct);
+        setDelivery("Room request returned a result — see Data's answer.");
+        if (realtimeManager.on) realtimeManager.say(direct);
+        return;
+      }
       const reply = await sendChat({
         data: {
           accessToken: token,
@@ -535,6 +582,7 @@ export function OfficeManager() {
         setDelivery("Received — Data returned a reply. This does not mean the requested work is complete.");
         const answerId = `m-${Date.now()}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
+        if (realtimeManager.on) realtimeManager.say(answer);
         setMessages((current) => [
           ...current,
           {
@@ -979,6 +1027,11 @@ export function OfficeManager() {
                       )}
                     </div>
                   )}
+                  {!realtimeManager.on && <Button variant="outline" onClick={() => {
+                    managerVoice.unlockPlayback();
+                    void speakAnswer("speaker-check", VOICE_CHECK_SENTENCE);
+                  }} disabled={!session.stepUpComplete || busy}>Test speaker</Button>}
+                  {speechError && <p role="alert" className="text-sm text-destructive">{speechError}</p>}
                   {realtimeManager.playbackBlocked && (
                     <Button variant="outline" className="w-full" onClick={realtimeManager.resumeAudio}>
                       Enable sound
@@ -1062,6 +1115,12 @@ export function OfficeManager() {
                   >
                     <Mic className="mr-2 h-5 w-5" /> Talk to Data
                   </Button>
+                  {realtimeManager.on && <>
+                    <Button variant="outline" className="h-12" onClick={realtimeManager.toggleMic}>
+                      {realtimeManager.micMuted ? "Unmute microphone" : "Mute microphone"}
+                    </Button>
+                    <Button variant="outline" className="h-12" onClick={realtimeManager.interrupt}>Interrupt and talk</Button>
+                  </>}
                   {realtimeManager.on && (
                     <Button variant="outline" className="h-12 text-lg" onClick={realtimeManager.stop}>
                       <PhoneOff className="mr-2 h-5 w-5" /> End conversation
@@ -1077,7 +1136,7 @@ export function OfficeManager() {
                   </Button>
                   </div>
                   <p role="status" className="mt-2 text-sm">
-                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation to stop." : "Ready: type a message or choose Talk to Data."}
+                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Use Mute, Interrupt, or End conversation." : "Ready: type a message or choose Talk to Data."}
                   </p>
                 </div>
               </div>
@@ -1090,6 +1149,7 @@ export function OfficeManager() {
               accessToken={token}
               recordsReadable={workbenchMemory.memory !== null}
               reviews={roomReviews}
+              onRequestReview={(label) => { setTab("now"); void sendRef.current(`Check ${label}`); }}
               onReviewed={(review) =>
                 setRoomReviews((current) => ({ ...current, [review.roomId]: review }))
               }
