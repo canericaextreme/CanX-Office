@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { CodexBuildPanel } from "@/components/office/CodexBuildPanel";
 
 export const Route = createFileRoute("/_office/build-testing")({
   head: () => ({
@@ -29,9 +29,10 @@ function BuildTesting() {
   return (
     <RoomShell>
       <div className="space-y-6">
+        <CodexBuildPanel />
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Change pipeline</CardTitle>
+            <CardTitle className="text-base">Planning examples — not live build status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {GATES.map((gate) => (
@@ -42,7 +43,6 @@ function BuildTesting() {
             ))}
           </CardContent>
         </Card>
-        <Button disabled>Propose a change</Button>
       </div>
     </RoomShell>
   );
