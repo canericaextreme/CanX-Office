@@ -110,6 +110,7 @@ export interface ClaudeReviewReply {
   coverage: string[];
   /** ISO time the review actually completed, or the attempt was refused. */
   reviewedAt: string;
+  archive?: { saved: boolean; id: string | null };
 }
 
 const MAX_CHARS = 6000;
@@ -893,4 +894,12 @@ export const getClaudeStatus = createServerFn({ method: "POST" })
 
 export const requestClaudeReview = createServerFn({ method: "POST" })
   .inputValidator(validateReviewInput)
-  .handler(async ({ data }): Promise<ClaudeReviewReply> => runClaudeReviewWith(await realDeps(), data));
+  .handler(async ({ data }): Promise<ClaudeReviewReply> => {
+    const reply = await runClaudeReviewWith(await realDeps(), data);
+    if (!reply.ok || !reply.structuredComplete) return reply;
+    try {
+      const { archiveReviewWith } = await import('./review-archive.functions');
+      const { historyDeps } = await import('./manager-history.functions');
+      return { ...reply, archive: await archiveReviewWith(await historyDeps(), data.accessToken, reply) };
+    } catch { return { ...reply, archive: { saved: false, id: null } }; }
+  });

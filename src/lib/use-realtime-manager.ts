@@ -75,6 +75,8 @@ export function useRealtimeManager(
 
   const playAudio = useCallback(async (audio: HTMLAudioElement, generation: number) => {
     try {
+      audio.muted = false;
+      audio.volume = 1;
       await audio.play();
       if (generation !== generationRef.current) return;
       setPlaybackBlocked(false);
@@ -119,7 +121,7 @@ export function useRealtimeManager(
 
     let stage = "microphone";
     try {
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       if (!current()) { mic.getTracks().forEach((track) => track.stop()); return; }
       micRef.current = mic;
 
@@ -145,6 +147,9 @@ export function useRealtimeManager(
       pc.ontrack = (event) => {
         if (!current()) return;
         audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+        // Remote tracks can arrive before they are ready to play.
+        if (event.track) event.track.onunmute = () => { if (current()) void playAudio(audio, generation); };
+        audio.onloadedmetadata = () => { if (current()) void playAudio(audio, generation); };
         void playAudio(audio, generation);
       };
       pc.onconnectionstatechange = () => {

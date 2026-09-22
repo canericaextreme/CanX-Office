@@ -39,7 +39,7 @@ describe("Office Manager voice — portable recording and playback", () => {
 describe("Office Manager voice — serialized turn lifecycle", () => {
   it("presents one primary voice control and hides expert controls", () => {
     expect(manager).toContain("const primaryVoiceAction");
-    expect(manager).toContain('"Start conversation"');
+    expect(manager).toContain("Talk to Data");
     expect(manager).toContain("The microphone stays open");
     expect(manager).not.toContain("Read aloud");
     expect(manager).not.toContain("Repeat answer");

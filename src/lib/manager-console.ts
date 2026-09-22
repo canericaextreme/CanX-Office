@@ -101,7 +101,7 @@ const LOOK_REQUEST =
 
 /** A typed request that plainly asks the Manager to look at the current room. */
 export function requestsRoomLook(message: string): boolean {
-  return LOOK_REQUEST.test(message);
+  return message.length <= 240 && !/[\r\n]/.test(message) && LOOK_REQUEST.test(message);
 }
 
 /**

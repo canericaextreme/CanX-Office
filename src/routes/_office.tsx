@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { RoomReports } from "@/components/office/RoomReports";
 import { OfficeNav } from "@/components/office/OfficeNav";
 import { OfficeManager } from "@/components/office/OfficeManager";
 import { ApprovalAlert } from "@/components/office/ApprovalAlert";
@@ -23,7 +24,9 @@ function OfficeInterior() {
       />
       {/* The only element an office observation may look at. */}
       <div className="flex-1 pb-20" data-canx-office-view="true">
+        <RoomReports position="top" />
         <Outlet />
+        <RoomReports position="bottom" />
       </div>
       {/* Overlays are excluded from every observation. */}
       <div data-canx-no-capture="true">
