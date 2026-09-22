@@ -21,16 +21,9 @@ export async function readHistoryWith(deps: HistoryDeps, token: string) {
   const messages = r.body.map((row: { entity_id?: string; after?: Record<string,unknown> }) => cleanSavedMessage({ ...row.after, id: row.entity_id })).filter((m): m is SavedMessage => !!m).reverse();
   return { ok: true as const, messages, message: "Recent conversation restored from your account." };
 }
-export async function saveHistoryWith(deps: HistoryDeps, token: string, raw: unknown) {
-  const v = await deps.verify(token);
-  if (!v.ok) return { ok: false, message: v.message };
-  const message = cleanSavedMessage(raw);
-  if (!message) return { ok: false, message: "Conversation message is invalid." };
-  const existing = await deps.read(token, `manager_changes?owner_id=eq.${encodeURIComponent(v.userId)}&entity=eq.manager_conversation&entity_id=eq.${encodeURIComponent(message.id)}&select=id&limit=1`);
-  if (!existing.ok) return { ok: false, message: "Conversation could not be saved." };
-  if (Array.isArray(existing.body) && existing.body.length) return { ok: true, message: "Conversation saved." };
-  const r = await deps.write(token, { owner_id: v.userId, entity: "manager_conversation", entity_id: message.id, action: `conversation.${message.role}`, before: {}, after: { role: message.role, content: message.content } });
-  return { ok: r.ok, message: r.ok ? "Conversation saved." : "Conversation could not be saved. Keep this window open." };
+/** Legacy callers may still be open on another device. Never archive raw turns. */
+export async function saveHistoryWith(_deps: HistoryDeps, _token: string, _raw: unknown) {
+  return { ok: false, message: "Automatic conversation saving is off. Say Save this conversation to save an office summary." };
 }
 export async function historyDeps(): Promise<HistoryDeps> {
   const backend = await import("./canx-backend.server");

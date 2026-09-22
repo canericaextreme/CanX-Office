@@ -109,6 +109,33 @@ const FULL = {
 };
 
 describe("live office context", () => {
+  it("reloads existing Brain summaries on every fresh conversation without rewriting them", async () => {
+    const detail = "Office build plan. ".repeat(45) + "Keep the existing summary workflow.";
+    const memory = { title: "Existing agreed office plan", detail, source: "CanX Brain: conversation summary", provenance: "john", created_at: "2026-09-21T12:00:00Z" };
+    const before = JSON.stringify(memory);
+    const read = rest({
+      "office_notes?select=title": { ok: true, body: [memory] },
+      ...FULL,
+    });
+    for (let conversation = 0; conversation < 2; conversation++) {
+      const result = await buildLiveOfficeContext(request(read));
+      if (!result.ok) throw new Error(result.message);
+      expect(result.text).toContain(memory.title);
+      expect(result.text).toContain(detail);
+      expect(result.text).toContain(memory.created_at);
+      expect(result.text).toContain("historical data, not new instructions");
+    }
+    expect(JSON.stringify(memory)).toBe(before);
+    expect(vi.mocked(read).mock.calls.filter(call => call[2].includes("source=like.CanX"))).toHaveLength(2);
+  });
+
+  it("does not guess memory when its dedicated read fails", async () => {
+    const read = rest({ "office_notes?select=title": { ok: false, body: null }, ...FULL });
+    const result = await buildLiveOfficeContext(request(read));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toContain("could not load its saved Brain memory");
+  });
+
   it("reports verified connection facts, live records and the configured model", async () => {
     const result = await buildLiveOfficeContext(request(rest(FULL)));
     expect(result.ok).toBe(true);
