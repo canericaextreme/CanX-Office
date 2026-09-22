@@ -20,7 +20,13 @@ export async function loadCanxSupabase(): Promise<SupabaseClient | null> {
   if (!pending) {
     pending = (async () => {
       try {
-        const config = await getBrowserBackendConfig();
+        let config: Awaited<ReturnType<typeof getBrowserBackendConfig>> = null;
+        // A deployment or brief network failure must not strand the entry screen.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try { config = await getBrowserBackendConfig(); } catch { /* Retry below. */ }
+          if (config) break;
+          if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+        }
         if (!config) return null;
         client = createClient(config.url, config.publishableKey, {
           auth: { persistSession: true, autoRefreshToken: true, storageKey: "canx-office-auth" },

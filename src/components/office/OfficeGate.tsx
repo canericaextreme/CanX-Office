@@ -17,7 +17,6 @@ import { Building2, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useOwnerSession } from "@/lib/owner-session";
-import { SUPABASE_SETUP_URL } from "@/lib/connections-inventory";
 
 function Shell({ children }: { children: ReactNode }) {
   return (
@@ -80,14 +79,18 @@ export function OfficeSignInScreen() {
   if (!session.configured) {
     return (
       <Shell>
-        <h1 className="text-base font-semibold">Sign-in is not available yet</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          No CanX-owned backend is configured, so there is no account to sign in to. The office stays closed until the
-          CanX-owned backend is configured.
+        <h1 className="text-xl font-semibold">The office connection could not be loaded</h1>
+        <p role="alert" className="mt-2 text-lg text-foreground">
+          This page could not load its sign-in settings. This does not mean your account or records are gone.
+          The office stays closed until the connection can be checked securely.
         </p>
-        <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm text-primary underline">
-          Open the connectors page and choose Supabase
-        </a>
+        <Button className="mt-4" disabled={busy} onClick={async () => {
+          setBusy(true);
+          try { await session.refresh(); } finally { setBusy(false); }
+        }}>{busy ? "Checking connection…" : "Retry office connection"}</Button>
+        <p className="mt-3 break-all text-sm text-muted-foreground">
+          Office address: {typeof window !== "undefined" ? window.location.origin : "loading…"}
+        </p>
       </Shell>
     );
   }
