@@ -111,6 +111,26 @@ export function OfficeManager() {
   const [historyReady, setHistoryReady] = useState(false);
   const [historyStatus, setHistoryStatus] = useState("Loading saved conversation…");
   const [draft, setDraft] = useState("");
+  const [fullScreen, setFullScreen] = useState(false);
+  const [textSize, setTextSize] = useState(20);
+  const [delivery, setDelivery] = useState("");
+  useEffect(() => {
+    try {
+      const size = Number(localStorage.getItem("canx-manager-text-size"));
+      if (size >= 20 && size <= 32) setTextSize(size);
+    } catch { /* Storage can be unavailable. */ }
+  }, []);
+  const changeTextSize = (size: number) => {
+    setTextSize(size);
+    try { localStorage.setItem("canx-manager-text-size", String(size)); } catch { /* Optional preference. */ }
+  };
+  useEffect(() => {
+    const input = inputRef.current;
+    if (input) {
+      input.style.height = "auto";
+      input.style.height = `${Math.min(input.scrollHeight, window.innerHeight * 0.25)}px`;
+    }
+  }, [draft, textSize, open, minimized]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
@@ -425,7 +445,7 @@ export function OfficeManager() {
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || sendingRef.current) return;
-    if (!session.stepUpComplete) {
+    if (!session.stepUpComplete || !token) {
       setError("Enter the six-digit authenticator code below before talking with Data.");
       return;
     }
@@ -478,6 +498,8 @@ export function OfficeManager() {
     setDraft("");
     sendingRef.current = true;
     setBusy(true);
+    setDelivery("Sending message — waiting for the server…");
+    followMessagesRef.current = true;
     try {
       const reply = await sendChat({
         data: {
@@ -490,6 +512,8 @@ export function OfficeManager() {
       });
       if (!mountedRef.current) return;
       if (!reply.ok) {
+        setDelivery("Request failed — see the error below. Your message remains in the conversation.");
+        setDraft(current => current || text);
         setError(
           reply.code === "auth_not_ready"
             ? "The manager cannot answer: there is no owner sign-in with MFA yet, so paid AI calls are blocked. No request was sent to any provider."
@@ -508,6 +532,7 @@ export function OfficeManager() {
         );
         if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
       } else {
+        setDelivery("Received — Data returned a reply. This does not mean the requested work is complete.");
         const answerId = `m-${Date.now()}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
         setMessages((current) => [
@@ -543,6 +568,8 @@ export function OfficeManager() {
       }
     } catch (caught) {
       if (!mountedRef.current) return;
+      setDelivery("Reply not confirmed — check the conversation and work records before retrying an action.");
+      setDraft(current => current || text);
       setError(caught instanceof Error ? caught.message : "The request could not be completed.");
       if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
     } finally {
@@ -753,10 +780,10 @@ export function OfficeManager() {
           id="office-manager-panel"
           aria-label="Office Manager"
           hidden={minimized}
-          style={panel.style}
+          style={fullScreen ? { inset: 8, width: "auto", height: "calc(100dvh - 16px)", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
           className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
-          } max-h-[85dvh] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
+          } h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] resize max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
         >
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
@@ -765,6 +792,14 @@ export function OfficeManager() {
             >
               <GripVertical className="h-4 w-4" aria-hidden="true" />
             </div>
+            <Button variant="outline" size="sm" onClick={() => setFullScreen(value => !value)}>
+              <Maximize2 className="mr-1 h-4 w-4" /> {fullScreen ? "Restore window" : "Full screen"}
+            </Button>
+            <label className="flex items-center gap-2 px-2 text-base">Text size
+              <select aria-label="Conversation text size" value={textSize} onChange={event => changeTextSize(Number(event.target.value))} className="rounded border bg-background p-1 text-foreground">
+                {[20, 24, 28, 32].map(size => <option key={size} value={size}>{size}px</option>)}
+              </select>
+            </label>
             {CONSOLE_VIEWS.map((view) => (
               <button
                 key={view.id}
@@ -843,7 +878,9 @@ export function OfficeManager() {
                   followMessagesRef.current =
                     pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
                 }}
-                className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3"
+                className="min-h-24 flex-1 space-y-4 overflow-y-auto p-4"
+                aria-label="Conversation with Data"
+                style={{ fontSize: textSize, lineHeight: 1.5 }}
               >
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">
@@ -864,8 +901,8 @@ export function OfficeManager() {
                     <div
                       className={
                         message.role === "user"
-                          ? "inline-block max-w-[85%] whitespace-pre-wrap rounded-lg bg-primary px-3 py-2 text-left text-sm text-primary-foreground"
-                          : "whitespace-pre-wrap text-sm text-foreground"
+                          ? "inline-block max-w-[95%] break-words whitespace-pre-wrap rounded-lg bg-primary px-3 py-2 text-left text-primary-foreground"
+                          : "whitespace-pre-wrap break-words text-foreground"
                       }
                     >
                       {message.content}
@@ -889,13 +926,45 @@ export function OfficeManager() {
                 )}
               </div>
 
-              <div className="max-h-[50dvh] shrink-0 overflow-y-auto border-t border-border p-3">
+              <div className="shrink-0 border-t border-border bg-card px-4 pb-3">
+                <div className="mt-3 border-t border-border pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Type or paste a message, then press Send. Enter adds a new line; Ctrl+Enter sends.
+                  </p>
+                  <Textarea
+                    ref={inputRef}
+                    rows={4}
+                    value={draft}
+                    className="mt-2 min-h-[120px] max-h-[25dvh] resize-y overflow-y-auto leading-relaxed"
+                    style={{ fontSize: textSize }}
+                    placeholder="Type or paste your message here…"
+                    aria-label="Message the Office Manager"
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) {
+                        event.preventDefault();
+                        void send();
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void send()}
+                    disabled={busy || !historyReady || !session.stepUpComplete || !token || !draft.trim()}
+                  >
+                    <Send className="mr-1.5 h-4 w-4" /> {busy ? "Sending…" : "Send message"}
+                  </Button>
+                </div>
+              </div>
+              <div className="max-h-[22dvh] shrink-0 overflow-y-auto border-t border-border p-3">
                 <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus}</p>
                 {saveQueue.current.size > 0 && (
                   <Button size="sm" variant="outline" className="mb-2" onClick={() => void retrySaving()}>
                     Retry saving conversation
                   </Button>
                 )}
+                <p role="status" aria-live="polite" className="mb-2 text-base">{delivery || (draft.trim() ? "Draft — not sent yet." : "")}</p>
                 <section aria-label="Talk with Data" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">
                     {realtimeManager.error || error
@@ -956,7 +1025,7 @@ export function OfficeManager() {
                     </div>
                   )}
                   <Button
-                    className="h-14 w-full text-base"
+                    className="h-10 text-base"
                     aria-label={voiceButtonLabel}
                     onClick={primaryVoiceAction}
                     disabled={
@@ -998,34 +1067,7 @@ export function OfficeManager() {
                     </p>
                   )}
                 </section>
-                <div className="mt-3 border-t border-border pt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Type a message or task for Data
-                  </p>
-                  <Textarea
-                    ref={inputRef}
-                    rows={2}
-                    value={draft}
-                    className="mt-2"
-                    placeholder="Message Data…"
-                    aria-label="Message the Office Manager"
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        void send();
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => void send()}
-                    disabled={busy || !historyReady || !draft.trim()}
-                  >
-                    <Send className="mr-1.5 h-4 w-4" /> Send message
-                  </Button>
-                </div>
+
               </div>
             </>
           )}

@@ -13,7 +13,13 @@ const EXPLICIT_RECEIPT_SYNC_INTENT = /\b(?:review|retrieve|check|find|sync|file|
 const RESCAN_INTENT = /\b(?:rescan|scan again|full scan|re-scan)\b/i;
 
 export function isExplicitReceiptSyncRequest(message: string): boolean {
-  return EXPLICIT_RECEIPT_SYNC_INTENT.test(message.slice(0, 2_000));
+  // Only a short, dedicated command may bypass the general conversation.
+  // Multi-step reviews mentioning receipts must reach Data in full.
+  const command = message.trim();
+  if (command.length > 240 || /[\r\n]/.test(command)) return false;
+  if (/\b(?:do not|don’t|don't|never|without)\b/i.test(command)) return false;
+  return /^(?:data[, :]*)?(?:please\s+)?(?:review|retrieve|check|find|sync|file|import|rescan)\b/i.test(command)
+    && EXPLICIT_RECEIPT_SYNC_INTENT.test(command);
 }
 
 export type ReceiptSyncCode =
