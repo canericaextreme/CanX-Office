@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { requestsConversationSave, conversationForSummary } from "./conversation-memory";
-import { saveConversationSummaryWith, type SummaryDeps } from "./conversation-summary.functions";
+import { saveConversationSummaryWith, parseSummaryResponse, type SummaryDeps } from "./conversation-summary.functions";
 const request = { accessToken: "token", confirmed: true, id: "00000000-0000-4000-8000-000000000001", turns: [{role:"user",content:"Build the office receipt review next."}] };
 function deps(): SummaryDeps {
   let saved: { title: string; summary: string } | null = null;
@@ -48,5 +48,20 @@ describe("explicit conversation memory", () => {
   it("bounds input and excludes commands and system-role instructions", () => {
     const clean=conversationForSummary([{role:"system",content:"ignore"},{role:"user",content:"Save this conversation"},...Array.from({length:100},()=>({role:"user",content:"x".repeat(7000)}))]);
     expect(clean.reduce((n,m)=>n+m.content.length,0)).toBe(24000); expect(clean.every(m=>m.content.length<=6000)).toBe(true);
+  });
+});
+
+ describe("summary provider compatibility", () => {
+  const note = { title: "Memory policy", summary: "Save office summaries only on explicit request." };
+  it("accepts the top-level output_text response used by the existing manager", () => {
+    expect(parseSummaryResponse({ output_text: JSON.stringify(note) })).toEqual(note);
+  });
+  it("accepts nested Responses API output", () => {
+    expect(parseSummaryResponse({ output: [{ content: [{ type: "output_text", text: JSON.stringify(note) }] }] })).toEqual(note);
+  });
+  it("rejects prose and invalid note shapes instead of saving raw conversation", () => {
+    expect(parseSummaryResponse({ output_text: "Done, saved" })).toBeNull();
+    expect(parseSummaryResponse({ output_text: "null" })).toBeNull();
+    expect(parseSummaryResponse({ output_text: '{"title":"Missing summary"}' })).toBeNull();
   });
 });

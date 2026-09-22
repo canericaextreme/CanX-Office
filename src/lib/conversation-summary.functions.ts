@@ -45,6 +45,20 @@ export async function saveConversationSummaryWith(deps: SummaryDeps, input: {
     : { ok: false, message: "The Brain save was not confirmed. Keep this window open and retry saving." };
 }
 
+export function parseSummaryResponse(body: {
+  output_text?: string;
+  output?: { content?: { type: string; text?: string }[] }[];
+}): { title: string; summary: string } | null {
+  // Accept both response shapes already supported by Data's existing provider path.
+  const text = body.output_text?.trim() || (body.output ?? []).flatMap(item => item.content ?? [])
+    .filter(item => item.type === "output_text").map(item => item.text ?? "").join("").trim();
+  try {
+    const note = JSON.parse(text) as { title?: unknown; summary?: unknown } | null;
+    return note && typeof note.title === "string" && typeof note.summary === "string"
+      ? { title: note.title, summary: note.summary } : null;
+  } catch { return null; }
+}
+
 async function summaryDeps(): Promise<SummaryDeps> {
   const backend = await import("./canx-backend.server");
   const config = backend.readBackendConfig();
@@ -73,10 +87,7 @@ async function summaryDeps(): Promise<SummaryDeps> {
           text: { format: { type: "json_object" } }, max_output_tokens: 1000 }),
       });
       if (!response.ok) return null;
-      const body = await response.json() as { output?: { content?: { type: string; text?: string }[] }[] };
-      const text = (body.output ?? []).flatMap(item => item.content ?? []).filter(item => item.type === "output_text").map(item => item.text ?? "").join("");
-      const note = JSON.parse(text) as { title?: unknown; summary?: unknown };
-      return typeof note.title === "string" && typeof note.summary === "string" ? { title: note.title, summary: note.summary } : null;
+      return parseSummaryResponse(await response.json() as Parameters<typeof parseSummaryResponse>[0]);
     },
     save: async (token, owner, id, title, summary) => {
       if (!config) return false;
