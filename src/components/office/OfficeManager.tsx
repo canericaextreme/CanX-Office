@@ -713,13 +713,6 @@ export function OfficeManager() {
             ? "Data is listening…"
             : "Office Manager";
 
-  const voiceButtonLabel =
-    realtimeManager.phase === "connecting"
-      ? "Connecting…"
-      : realtimeManager.on
-        ? "Data is listening"
-        : "Start conversation";
-
   const primaryVoiceAction = () => {
     if (realtimeManager.on || !historyReady) return;
     setError(null);
@@ -919,45 +912,7 @@ export function OfficeManager() {
                     ))}
                   </div>
                 ))}
-                {busy && (
-                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Thinking…
-                  </p>
-                )}
-              </div>
-
-              <div className="shrink-0 border-t border-border bg-card px-4 pb-3">
-                <div className="mt-3 border-t border-border pt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Type or paste a message, then press Send. Enter adds a new line; Ctrl+Enter sends.
-                  </p>
-                  <Textarea
-                    ref={inputRef}
-                    rows={4}
-                    value={draft}
-                    className="mt-2 min-h-[120px] max-h-[25dvh] resize-y overflow-y-auto leading-relaxed"
-                    style={{ fontSize: textSize }}
-                    placeholder="Type or paste your message here…"
-                    aria-label="Message the Office Manager"
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) {
-                        event.preventDefault();
-                        void send();
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => void send()}
-                    disabled={busy || !historyReady || !session.stepUpComplete || !token || !draft.trim()}
-                  >
-                    <Send className="mr-1.5 h-4 w-4" /> {busy ? "Sending…" : "Send message"}
-                  </Button>
-                </div>
-              </div>
-              <div className="max-h-[22dvh] shrink-0 overflow-y-auto border-t border-border p-3">
+              <div className="border-t border-border pt-3">
                 <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus}</p>
                 {saveQueue.current.size > 0 && (
                   <Button size="sm" variant="outline" className="mb-2" onClick={() => void retrySaving()}>
@@ -1024,33 +979,10 @@ export function OfficeManager() {
                       )}
                     </div>
                   )}
-                  <Button
-                    className="h-10 text-base"
-                    aria-label={voiceButtonLabel}
-                    onClick={primaryVoiceAction}
-                    disabled={
-                      !session.stepUpComplete ||
-                      !historyReady ||
-                      realtimeManager.on ||
-                      realtimeManager.phase === "connecting"
-                    }
-                  >
-                    <Mic className="mr-2 h-5 w-5" />
-                    {voiceButtonLabel}
-                  </Button>
                   {realtimeManager.playbackBlocked && (
                     <Button variant="outline" className="w-full" onClick={realtimeManager.resumeAudio}>
                       Enable sound
                     </Button>
-                  )}
-                  {realtimeManager.on && (
-                    <button
-                      type="button"
-                      className="min-h-11 rounded-md border border-border px-4 text-sm font-medium"
-                      onClick={realtimeManager.stop}
-                    >
-                      <PhoneOff className="mr-1 inline h-3.5 w-3.5" /> End conversation
-                    </button>
                   )}
                   {(realtimeManager.error || error) && (
                     <div
@@ -1069,6 +1001,62 @@ export function OfficeManager() {
                 </section>
 
               </div>
+                {busy && (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Thinking…
+                  </p>
+                )}
+              </div>
+
+              <div className="shrink-0 border-t border-border bg-card px-4 pb-3">
+                <div className="mt-3 border-t border-border pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Type or paste a message, then press Send. Enter adds a new line; Ctrl+Enter sends.
+                  </p>
+                  <Textarea
+                    ref={inputRef}
+                    rows={4}
+                    value={draft}
+                    className="mt-2 min-h-[120px] max-h-[25dvh] resize-y overflow-y-auto leading-relaxed"
+                    style={{ fontSize: textSize }}
+                    placeholder="Type or paste your message here…"
+                    aria-label="Message the Office Manager"
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) {
+                        event.preventDefault();
+                        void send();
+                      }
+                    }}
+                  />
+                  <div className="mt-3 flex flex-wrap gap-3" aria-label="Message and voice controls">
+                  <Button
+                    className="h-12 flex-1 text-lg"
+                    onClick={primaryVoiceAction}
+                    disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}
+                  >
+                    <Mic className="mr-2 h-5 w-5" /> Talk to Data
+                  </Button>
+                  {realtimeManager.on && (
+                    <Button variant="outline" className="h-12 text-lg" onClick={realtimeManager.stop}>
+                      <PhoneOff className="mr-2 h-5 w-5" /> End conversation
+                    </Button>
+                  )}
+                  <Button
+                    className="h-12 flex-1 text-lg"
+                    variant="outline"
+                    onClick={() => void send()}
+                    disabled={busy || !historyReady || !session.stepUpComplete || !token || !draft.trim()}
+                  >
+                    <Send className="mr-1.5 h-4 w-4" /> {busy ? "Sending…" : "Send message"}
+                  </Button>
+                  </div>
+                  <p role="status" className="mt-2 text-sm">
+                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation to stop." : "Ready: type a message or choose Talk to Data."}
+                  </p>
+                </div>
+              </div>
+
             </>
           )}
 
