@@ -73,7 +73,7 @@ import {
 } from "@/lib/manager-console";
 
 /** Written by this app, not by AI, when John asks the Manager to look. */
-const LOOK_NOTICE = `I can look at the room you have open, once, when you press "See this room" in the Rooms view. ${OBSERVE_SCOPE_NOTICE} I have opened Rooms for you.`;
+const LOOK_NOTICE = `Opening a room alone does not send me its picture. Choose "View with Data" for any room in the Rooms view. ${OBSERVE_SCOPE_NOTICE} I have opened Rooms for you.`;
 
 import {
   budgetScopeLines,
@@ -322,6 +322,7 @@ export function OfficeManager() {
     useCallback(async (request: string) => {
       await historyQueue.current;
       const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: [{ role: "user", content: request }] } });
+      window.dispatchEvent(new Event("canx-room-reports-changed"));
       const result = reply.text || reply.detail || "The office action did not complete.";
       setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result }]);
       if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))
@@ -444,6 +445,10 @@ export function OfficeManager() {
   const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || sendingRef.current) return;
+    if (text.length > 12000) {
+      setError("This message exceeds 12,000 characters. Split it into smaller messages; it has not been sent.");
+      return;
+    }
     if (!session.stepUpComplete || !token) {
       setError("Enter the six-digit authenticator code below before talking with Data.");
       return;
@@ -492,6 +497,10 @@ export function OfficeManager() {
     setError(null);
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
     if (!historyReady) { setError("Wait for conversation memory to load before sending."); return; }
+    // Live voice has its own context snapshot. Pause it so an old voice
+    // session cannot answer over the current typed request.
+    const speakTypedReply = realtimeManager.on && override === undefined;
+    if (speakTypedReply) realtimeManager.stop();
     const history = [...messages, userMessage];
     setMessages(history);
     setDraft("");
@@ -531,6 +540,7 @@ export function OfficeManager() {
         );
         if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
       } else {
+        window.dispatchEvent(new Event("canx-room-reports-changed"));
         setComposerCollapsed(true);
         setDelivery("Received — Data returned a reply. This does not mean the requested work is complete.");
         const answerId = `m-${Date.now()}-a`;
@@ -545,6 +555,10 @@ export function OfficeManager() {
             ...(reply.checked ? { checked: reply.checked } : {}),
           },
         ]);
+        if (speakTypedReply) {
+          void speakAnswer(answerId, answer);
+          setDelivery("Data answered your typed message. Voice conversation is paused; press Talk to Data to resume with the saved conversation.");
+        }
         // A real task change — typed or spoken — reloads the Work Board.
         const changedWork = (reply.actionResults ?? []).some((action) =>
           action.status === "done" || action.status === "pending",
@@ -1076,6 +1090,23 @@ export function OfficeManager() {
                     <Send className="mr-1.5 h-4 w-4" /> {busy ? "Sending…" : "Send message"}
                   </Button>
                   </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {realtimeManager.on && <Button variant="outline" onClick={realtimeManager.resumeAudio}>
+                      <Volume2 className="mr-2 h-4 w-4" /> Enable Data sound
+                    </Button>}
+                    <Button variant="outline" disabled={!messages.some(message => message.role === "assistant")} onClick={() => {
+                      const answer = [...messages].reverse().find(message => message.role === "assistant");
+                      if (!answer) return;
+                      realtimeManager.stop(); cancelVoiceActivity(); setVoiceMode(false);
+                      const started = managerVoice.speakLocally(answer.content);
+                      setDelivery(started ? "Reading the last reply using this device's voice. Press Talk to Data to resume conversation." : "This device could not start speech. Check the browser sound setting and selected speaker.");
+                    }}><Volume2 className="mr-2 h-4 w-4" /> Read last reply aloud</Button>
+                    <Button variant="outline" onClick={() => {
+                      realtimeManager.stop(); cancelVoiceActivity(); setVoiceMode(false);
+                      const started = managerVoice.speakLocally(VOICE_CHECK_SENTENCE);
+                      setDelivery(started ? "Speaker test requested. Tell us whether you hear it; playback alone cannot confirm audibility." : "Speaker test could not start. Check the browser sound setting.");
+                    }}>Test speaker</Button>
+                  </div>
                   <p role="status" className="mt-2 text-sm">
                     {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation to stop." : "Ready: type a message or choose Talk to Data."}
                   </p>
@@ -1090,9 +1121,11 @@ export function OfficeManager() {
               accessToken={token}
               recordsReadable={workbenchMemory.memory !== null}
               reviews={roomReviews}
-              onReviewed={(review) =>
-                setRoomReviews((current) => ({ ...current, [review.roomId]: review }))
-              }
+              onReviewed={(review) => {
+                if (realtimeManager.on) { realtimeManager.stop(); setDelivery("Room picture reviewed. Press Talk to Data to resume with these findings."); }
+                setRoomReviews((current) => ({ ...current, [review.roomId]: review }));
+                saveSpokenMessage("assistant", `Visual room review — ${review.roomId}, ${review.at}. One filtered screenshot; read-only findings, not proof of hidden records or completed actions.\n${review.text}`);
+              }}
             />
           )}
 

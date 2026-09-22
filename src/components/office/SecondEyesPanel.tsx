@@ -447,7 +447,9 @@ function ReviewResult({ reply, room }: { reply: ClaudeReviewReply; room: string 
         Scope: {scopeLabel} · Model: {reply.model ?? "unknown"} · Reviewed at {reply.reviewedAt}
       </div>
       <p className="text-xs text-muted-foreground">
-        Kept on this device for this browser session only. It is not saved to the office records.
+        {reply.archive?.saved
+          ? `Saved to office records. Record: ${reply.archive.id}. Read it again in Brain.`
+          : "This review has not been verified as saved. Keep this window open and copy the review before closing."}
       </p>
 
       {reply.review ? (

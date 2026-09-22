@@ -10,8 +10,8 @@
  * written to any record.
  */
 
-import { useState } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useState, useRef, useEffect } from "react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Camera, Loader2, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import {
   roomStatuses,
   type RoomReview,
 } from "@/lib/manager-console";
-import { roomByRoute, type RoomId } from "@/lib/office-data";
+import { roomByRoute, type RoomId, type RoomDef } from "@/lib/office-data";
 
 const STATE_DOT: Record<string, string> = {
   verified: "bg-emerald-500",
@@ -43,6 +43,11 @@ export interface ManagerRoomsPanelProps {
 export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onReviewed }: ManagerRoomsPanelProps) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const observe = useServerFn(observeCurrentRoom);
+  const router = useRouter();
+  const runRef = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const [lookingAt, setLookingAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,22 +56,34 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
   const currentReview = currentRoom ? reviews[currentRoom.id] : undefined;
   const statuses = roomStatuses({ reviews, recordsReadable });
 
-  const seeThisRoom = async () => {
-    if (busy) return;
+  const seeThisRoom = async (target?: RoomDef) => {
+    if (runRef.current) return;
+    runRef.current = true;
     setBusy(true);
     setError(null);
+    const targetPath = target?.route ?? path;
+    const targetRoom = target ?? roomByRoute(targetPath);
+    setLookingAt(targetRoom?.label ?? officeRoomLabel(targetPath));
     try {
+      if (targetPath !== router.state.location.pathname) await router.navigate({ to: targetPath });
+      // Wait for the selected route to commit before reading its rendered view.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (!mounted.current || router.state.location.pathname !== targetPath) return;
       // One capture of the marked office root only. A failed capture is
       // reported plainly; there is never a written fallback pretending to see.
-      const capture = await captureOfficeView(path);
+      const capture = await captureOfficeView(targetPath);
       if (!capture.ok) {
         setError(capture.message);
+        return;
+      }
+      if (!mounted.current || router.state.location.pathname !== targetPath) {
+        setError("The room changed before its picture was sent. Select View with Data again.");
         return;
       }
       const reply = await observe({
         data: {
           accessToken,
-          path,
+          path: targetPath,
           room: capture.observation.room,
           text: capture.observation.text,
           image: capture.observation.image,
@@ -76,9 +93,9 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
         setError(reply.detail || "The Manager could not review this room just now.");
         return;
       }
-      if (currentRoom) {
+      if (mounted.current && targetRoom) {
         onReviewed({
-          roomId: currentRoom.id as RoomId,
+          roomId: targetRoom.id as RoomId,
           at: new Date(reply.observedAt).toLocaleString(),
           text: reply.text,
           thumbnail: capture.observation.image,
@@ -87,7 +104,8 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
     } catch {
       setError("The Manager could not review this room just now.");
     } finally {
-      setBusy(false);
+      runRef.current = false;
+      if (mounted.current) setBusy(false);
     }
   };
 
@@ -102,7 +120,7 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
         </p>
         <Button size="sm" className="mt-2 h-9" disabled={busy || !accessToken} onClick={() => void seeThisRoom()}>
           {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Camera className="mr-1.5 h-4 w-4" />}
-          {busy ? "Looking…" : "See this room"}
+          {busy ? `Looking at ${lookingAt}…` : "See this room"}
         </Button>
         {!accessToken && (
           <p className="mt-1.5 text-[11px] text-muted-foreground">
@@ -131,7 +149,7 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
             One picture of this room only. The Manager changed nothing; every improvement above is a suggestion for you
-            to apply. This review is kept in memory for this visit and is not saved anywhere.
+            to apply. The picture stays in this session. The written findings are added to Data’s conversation; its save status reports whether they reached office records.
           </p>
         </div>
       )}
@@ -153,12 +171,16 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">{status.source}</p>
+              <Button className="mt-2" variant="outline" disabled={busy || !accessToken}
+                aria-label={`View ${status.room.label} with Data`}
+                onClick={() => void seeThisRoom(status.room)}>
+                <Camera className="mr-2 h-4 w-4" /> View with Data
+              </Button>
             </li>
           ))}
         </ul>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          To review another room, open it and press “See this room” there. A directory entry is never a visual
-          inspection.
+          Choose View with Data for any room. It opens that room and sends one filtered picture for read-only review within the existing AI budget and limits. Loading states and hidden content cannot be treated as inspected.
         </p>
       </div>
     </div>
