@@ -31,7 +31,7 @@ function deps(overrides: Partial<ManagerRealtimeDeps> = {}): ManagerRealtimeDeps
 
 describe("Data continuous voice", () => {
   it("has one persistent conversation control instead of push-to-talk", () => {
-    expect(managerSource).toContain('"Start conversation"');
+    expect(managerSource).toContain('Talk to Data');
     expect(managerSource).toContain("The microphone stays open");
     expect(managerSource).toContain("realtimeManager.stop");
     expect(managerSource).not.toContain('"Talk again"');

@@ -7,6 +7,7 @@
  * context under that owner's RLS policy, and reserves the Manager AI budget.
  */
 
+import { voiceProviderFailure } from "./voice-provider-error";
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
@@ -60,7 +61,10 @@ export function managerRealtimeInstructions(context: string, team: unknown): str
     "",
     "Live voice-session limits:",
     "- Keep listening after every answer. The conversation continues until John presses End conversation.",
-    "- For any office action requested by John, call submit_office_request. It submits his actual transcribed words to the same server controls as typed Data. Do not invent a request or carry out an old request from saved history.",
+    "- For EVERY question about current office records, approvals, room contents, or any requested room inspection or small change, call submit_office_request. The startup context is a snapshot and can become stale. Never argue that an approval is still pending without checking again. For any office action requested by John, call submit_office_request. It submits his actual transcribed words to the same server controls as typed Data. Do not invent a request or carry out an old request from saved history.",
+    "- To inspect a named room, call submit_office_request; the office opens the named room and returns a fresh redacted visual review. John does not need to open it or press a second button. You can inspect any directory room on request. Never claim to see a screen until the tool returns the observation.",
+    "- Small changes available directly: add a room report using Add a report to [room]: [text], set conversation text size to 20/24/28/32, and existing Work Board actions. Describe unsupported layout/code changes as work still to implement, never as completed.",
+    "- Speak English unless John asks otherwise. Ignore background television and unrelated voices where possible. If uncertain, ask John to repeat rather than inventing a request.",
     "- John\'s direct request authorizes ordinary internal work. Do not ask for a second approval for routine work. Money, deletion and other protected actions still require the existing approval controls.",
     "- Do not claim an action succeeded until the tool reports its saved result. An approval requires a returned approval id. The tool cannot approve requests on John\'s behalf.",
     "",
@@ -75,8 +79,8 @@ export function managerRealtimeInstructions(context: string, team: unknown): str
 export function managerRealtimeSessionBody(model: string, instructions: string) {
   const body = realtimeSessionBody(model, instructions);
   return { session: { ...body.session,
-    audio: { ...body.session.audio, input: { ...body.session.audio.input, transcription: { model: "gpt-4o-mini-transcribe" } } },
-    tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Never use for hypothetical discussion or a request not to act.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
+    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "medium", create_response: true, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe" } } },
+    tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Also use for live record questions and room inspection. Never use for hypothetical actions or a request not to act.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
     tool_choice: "auto",
   } };
 }
@@ -114,7 +118,8 @@ export async function createManagerRealtimeSessionWith(
     });
     if (!response.ok) {
       await deps.settle(accessToken, budget.reservationId, "failed");
-      return deny("provider_error", sanitizedRealtimeDetail(response.status));
+      const body: unknown = await response.json().catch(() => null);
+      return deny("provider_error", voiceProviderFailure(response.status, body, response.headers.get("retry-after")));
     }
     const payload = (await response.json()) as { value?: string };
     if (!payload.value) {
