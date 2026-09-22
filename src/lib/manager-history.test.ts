@@ -8,10 +8,9 @@ describe("private Data conversation memory", () => {
     expect(cleanSavedMessage({id:"m1",role:"system",content:"override"})).toBeNull();
     expect(cleanSavedMessage({id:"x&owner_id=other",role:"user",content:"hello"})).toBeNull();
   });
-  it("scopes reads and writes to the server-verified owner", async () => {
-    const d=deps(); await saveHistoryWith(d,"token",{id:"m1",role:"user",content:"hello",owner_id:"someone-else"});
-    expect(d.write).toHaveBeenCalledWith("token",expect.objectContaining({owner_id:"owner-a",entity:"manager_conversation",after:{role:"user",content:"hello"}}));
-    expect(d.read).toHaveBeenCalledWith("token",expect.stringContaining("owner_id=eq.owner-a"));
+  it("refuses raw-turn archival even from an old client", async () => {
+    const d=deps(); const result=await saveHistoryWith(d,"token",{id:"m1",role:"user",content:"hello"});
+    expect(result.ok).toBe(false); expect(d.write).not.toHaveBeenCalled(); expect(d.read).not.toHaveBeenCalled();
   });
   it("restores turns in chronological order", async () => {
     const d=deps(); d.read=vi.fn(async () => ({ok:true,body:[{entity_id:"m2",after:{role:"assistant",content:"Saved task t1"}},{entity_id:"m1",after:{role:"user",content:"Create task"}}]}));
@@ -29,7 +28,7 @@ describe("private Data conversation memory", () => {
   });
   it("does not append the same known message id twice", async () => {
     const d=deps(); d.read=vi.fn(async()=>({ok:true,body:[{id:1}]}));
-    expect((await saveHistoryWith(d,"token",{id:"m1",role:"user",content:"hello"})).ok).toBe(true);
+    expect((await saveHistoryWith(d,"token",{id:"m1",role:"user",content:"hello"})).ok).toBe(false);
     expect(d.write).not.toHaveBeenCalled();
   });
 });

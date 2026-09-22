@@ -1,6 +1,7 @@
-import { ConversationSaveQueue } from "@/lib/conversation-save-queue";
-import { loadConversation, saveConversationMessage, type SavedMessage } from "@/lib/manager-history.functions";
 "use client";
+
+import { MEMORY_NOTICE, requestsConversationSave } from "@/lib/conversation-memory";
+import { saveConversationSummary } from "@/lib/conversation-summary.functions";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -109,8 +110,14 @@ export function OfficeManager() {
   /** Room reviews held in memory for this visit. Never stored anywhere. */
   const [roomReviews, setRoomReviews] = useState<Record<string, RoomReview | undefined>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [historyReady, setHistoryReady] = useState(false);
-  const [historyStatus, setHistoryStatus] = useState("Loading saved conversation…");
+  const historyReady = true;
+  const [historyStatus, setHistoryStatus] = useState(MEMORY_NOTICE);
+  const [savingSummary, setSavingSummary] = useState(false);
+  const savingSummaryRef = useRef(false);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
+  const savedThroughRef = useRef(0);
+  const pendingSummaryRef = useRef<{ id: string; turns: ChatMessage[]; through: number } | null>(null);
   const [draft, setDraft] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
   const [textSize, setTextSize] = useState(20);
@@ -249,76 +256,60 @@ export function OfficeManager() {
   const shared = session.shared;
   const context = useMemo(() => buildOfficeContext(), []);
   const managerTeam = useMemo(() => teamForManager(loadTeam()), []);
-  const readConversation = useServerFn(loadConversation);
-  const persistMessage = useServerFn(saveConversationMessage);
-  const historyQueue = useRef(Promise.resolve());
-  const saveQueue = useRef(new ConversationSaveQueue());
+  const persistSummary = useServerFn(saveConversationSummary);
   const historyOwner = useRef<string | null>(null);
-  const currentToken = useRef(token);
-  currentToken.current = token;
-  const retrySaving = useCallback(() => {
-    if (!session.stepUpComplete || !currentToken.current) return Promise.resolve();
-    if (!saveQueue.current.size) return Promise.resolve();
-    setHistoryStatus("Saving conversation…");
-    historyQueue.current = saveQueue.current.flush(
-      message => persistMessage({ data: { accessToken: currentToken.current, message } }),
-      message => { if (mountedRef.current) setHistoryStatus(message); },
-    );
-    return historyQueue.current;
-  }, [persistMessage, session.stepUpComplete]);
   useEffect(() => {
-    let active = true;
-    // Token renewal is not a new conversation. Never erase unsaved turns on renewal.
     const owner = session.signedIn ? session.email : null;
     if (historyOwner.current !== owner) {
       historyOwner.current = owner;
-      saveQueue.current.clear();
       setMessages([]);
-      setHistoryReady(false);
+      messagesRef.current = [];
+      savedThroughRef.current = 0;
+      pendingSummaryRef.current = null;
+      setHistoryStatus(MEMORY_NOTICE);
     }
-    if (!session.stepUpComplete || !token) {
-      setHistoryReady(false);
-      setHistoryStatus("Sign in with your authenticator to restore conversation memory.");
-      return;
-    }
-    void (async () => {
-      // Wait for any older attempt, then flush with the current token.
-      await historyQueue.current;
-      if (!active) return;
-      await retrySaving();
-      const result = await readConversation({ data: { accessToken: token } });
-      if (!active) return;
-      if (result.ok) {
-        setMessages(current => {
-          const known = new Set(result.messages.map(message => message.id));
-          return [...result.messages, ...current.filter(message => !known.has(message.id))];
-        });
-        setHistoryReady(true);
+  }, [session.signedIn, session.email]);
+  const saveConversationNow = useCallback(async () => {
+    if (savingSummaryRef.current) return "The requested summary is already being saved.";
+    if (!session.stepUpComplete || !token) return "Sign in with your authenticator before saving.";
+    const owner = historyOwner.current;
+    const pending = pendingSummaryRef.current ?? {
+      id: crypto.randomUUID(),
+      turns: messagesRef.current.slice(savedThroughRef.current).filter(message => message.role !== "office"),
+      through: messagesRef.current.length,
+    };
+    pendingSummaryRef.current = pending;
+    savingSummaryRef.current = true;
+    setSavingSummary(true);
+    setHistoryStatus("Preparing the requested office summary…");
+    try {
+      const result = await persistSummary({ data: { accessToken: token, confirmed: true, id: pending.id, turns: pending.turns } });
+      if (owner !== historyOwner.current || !mountedRef.current) return result.message;
+      setHistoryStatus(result.message);
+      if (result.ok && "title" in result && "summary" in result) {
+        savedThroughRef.current = pending.through;
+        pendingSummaryRef.current = null;
+        setMessages(current => [...current, { id: `summary-${pending.id}`, role: "office", content: `${result.message}\n${result.title}\n${result.summary}` }]);
+        window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
+      } else {
+        // An explicit retry takes a fresh snapshot if nothing useful existed.
+        if (result.message.startsWith("No useful") || result.message.startsWith("There is no")) pendingSummaryRef.current = null;
       }
-      if (!saveQueue.current.size) setHistoryStatus(result.message);
-    })().catch(() => {
-      if (active) setHistoryStatus("Conversation memory could not be loaded. Keep this window open and check your connection.");
-    });
-    return () => { active = false; };
-  }, [token, session.stepUpComplete, session.signedIn, session.email, readConversation, retrySaving]);
-  useEffect(() => {
-    const retry = () => { void retrySaving(); };
-    const protectUnsaved = (event: BeforeUnloadEvent) => {
-      if (saveQueue.current.size) { event.preventDefault(); event.returnValue = ""; }
-    };
-    window.addEventListener("online", retry);
-    window.addEventListener("beforeunload", protectUnsaved);
-    return () => {
-      window.removeEventListener("online", retry);
-      window.removeEventListener("beforeunload", protectUnsaved);
-    };
-  }, [retrySaving]);
+      return result.message;
+    } catch {
+      const message = "The Brain save was not confirmed. Keep this window open and press Save conversation to retry.";
+      if (owner === historyOwner.current && mountedRef.current) setHistoryStatus(message);
+      return message;
+    } finally {
+      savingSummaryRef.current = false;
+      if (mountedRef.current) setSavingSummary(false);
+    }
+  }, [persistSummary, token, session.stepUpComplete]);
   const saveSpokenMessage = useCallback((role: "user" | "assistant", content: string) => {
-    const message: SavedMessage = { id: crypto.randomUUID(), role, content };
+    const message: ChatMessage = { id: crypto.randomUUID(), role, content };
+    messagesRef.current = [...messagesRef.current, message];
     setMessages(current => [...current, message]);
-    saveQueue.current.add(message);
-    void retrySaving();
-  }, [retrySaving]);
+  }, []);
   // One implementation for typed and spoken requests. No model-generated code or URLs run here.
   const runRoomCommand = async (request: string): Promise<string | null> => {
     const command = parseRoomCommand(request, router.state.location.pathname);
@@ -371,16 +362,20 @@ export function OfficeManager() {
   roomCommandRef.current = runRoomCommand;
   const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
     useCallback(async (request: string) => {
+      if (requestsConversationSave(request)) return saveConversationNow();
       const direct = await roomCommandRef.current(request);
       if (direct !== null) return direct;
-      await historyQueue.current;
-      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: [{ role: "user", content: request }] } });
+      const thread = messagesRef.current.filter(message => message.role !== "office").slice(-20)
+        .map(message => ({ role: message.role as "user" | "assistant", content: message.content }));
+      if (thread.at(-1)?.role !== "user" || thread.at(-1)?.content !== request)
+        thread.push({ role: "user", content: request });
+      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
       const result = reply.text || reply.detail || "The office action did not complete.";
       setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result }]);
       if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       return result;
-    }, [token, managerTeam, sendChat]),
+    }, [token, managerTeam, sendChat, saveConversationNow]),
   );
 
   useEffect(() => {
@@ -501,6 +496,11 @@ export function OfficeManager() {
       setError("Enter the six-digit authenticator code below before talking with Data.");
       return;
     }
+    if (requestsConversationSave(text)) {
+      setDraft("");
+      await saveConversationNow();
+      return;
+    }
     const voiceSession = voiceSessionRef.current;
 
     // A plain yes or no answers "shall I read the rest?" without going to the
@@ -532,6 +532,7 @@ export function OfficeManager() {
     const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
     if (!historyReady) { setError("Wait for conversation memory to load before sending."); return; }
     const history = [...messages, userMessage];
+    messagesRef.current = history;
     setMessages(history);
     setDraft("");
     sendingRef.current = true;
@@ -541,7 +542,6 @@ export function OfficeManager() {
     try {
       const direct = await roomCommandRef.current(text);
       if (direct !== null) {
-        saveQueue.current.add(userMessage as SavedMessage);
         saveSpokenMessage("assistant", direct);
         setDelivery("Room request returned a result — see Data's answer.");
         if (realtimeManager.on) realtimeManager.say(direct);
@@ -962,11 +962,10 @@ export function OfficeManager() {
                 ))}
               <div className="border-t border-border pt-3">
                 <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus}</p>
-                {saveQueue.current.size > 0 && (
-                  <Button size="sm" variant="outline" className="mb-2" onClick={() => void retrySaving()}>
-                    Retry saving conversation
-                  </Button>
-                )}
+                {historyStatus !== MEMORY_NOTICE && <p className="mb-2 text-xs text-muted-foreground">{MEMORY_NOTICE}</p>}
+                <Button size="sm" variant="outline" className="mb-2" disabled={savingSummary || busy || !session.stepUpComplete || !token} onClick={() => void saveConversationNow()}>
+                  {savingSummary ? "Saving summary…" : "Save conversation"}
+                </Button>
                 <p role="status" aria-live="polite" className="mb-2 text-base">{delivery || (draft.trim() ? "Draft — not sent yet." : "")}</p>
                 <section aria-label="Talk with Data" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">

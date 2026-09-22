@@ -1,3 +1,4 @@
+import { brainMemoryContext } from "./brain-memory-context";
 /**
  * Live office context for the Office Manager — SERVER ONLY, FAIL CLOSED.
  *
@@ -253,6 +254,14 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     return { ok: false, message: "The office records could not be read just now, so no answer was requested." };
   }
 
+  // Read memory separately so ordinary office notes cannot crowd it out.
+  const memoryResponse = await rest(config, token,
+    "office_notes?select=title,detail,source,provenance,created_at&source=like.CanX%20Brain%3A*&order=created_at.desc&limit=30"
+  ).catch(() => null);
+  if (!memoryResponse?.ok || !Array.isArray(memoryResponse.body)) {
+    return { ok: false, message: "Data could not load its saved Brain memory. Please try again; no history was guessed." };
+  }
+
   const roundTableResponse = await rest(
     config,
     token,
@@ -276,6 +285,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     .map((row) => {
       // Demonstration rows from the early build never reach the provider.
       if (line(row["provenance"], 20) === "sample") return null;
+      if (line(row["source"],120).startsWith("CanX Brain:")) return null;
       const title = line(row["title"]);
       if (!title) return null;
       const kind = row["kind"] === "decision" ? "decision" : "task";
@@ -326,6 +336,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
       `- Two-step verification: confirmed (${request.aal}).`,
       `- Office Manager provider: ${request.provider}; model: ${request.model}.`,
     ].join("\n"),
+    brainMemoryContext(memoryResponse.body),
     notes.length
       ? `Shared office notes, tasks and decisions [provenance: live database]:\n${notes.join("\n")}`
       : "Shared office notes, tasks and decisions [provenance: live database]: none recorded.",
