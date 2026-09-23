@@ -45,8 +45,8 @@ export function useBackgroundScrollLock(active: boolean) {
       // leaves that shell free to move on some mobile browsers. A fixed sibling
       // backdrop cannot be scrolled by gestures on the Manager panel.
       backdrop.style.position = "fixed";
-      backdrop.style.top = "0";
-      backdrop.style.left = "0";
+      backdrop.style.top = `-${scrollY}px`;
+      backdrop.style.left = `-${scrollX}px`;
       backdrop.style.right = "0";
       backdrop.style.width = "100%";
       backdrop.style.overflow = "hidden";
