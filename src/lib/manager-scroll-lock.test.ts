@@ -85,6 +85,7 @@ describe("Astra panel background scroll lock", () => {
     expect(src).toContain('ref={messagesScrollRef}');
     expect(src).toContain('useTranscriptScrollContainment(messagesScrollRef, open && !minimized && tab === "now")');
     expect(src.match(/overflow-y-auto(?! overscroll-contain)/g)).toBeNull();
-    expect(src).toContain("flex-col overflow-hidden overscroll-contain rounded-xl");
+    expect(src).toContain("flex-col overflow-hidden overscroll-contain border border-border bg-card shadow-2xl");
+    expect(src).toContain('"inset-0 h-screen h-[100svh] h-[100dvh] w-screen max-h-none max-w-none resize-none rounded-none"');
   });
 });
