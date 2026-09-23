@@ -46,8 +46,8 @@ function Reception() {
                 Ask the Office Manager — bottom right of every room.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                It reads the office, sums up what needs you, suggests tasks for you to save, and can preview the
-                look of the office. It has no AI connection yet, and it says so instead of guessing.
+                The current Office Manager is a separate AI assistant. Check Systems &amp; Connections for its live
+                connection status. ChatGPT/Astra has not yet replaced it inside this office.
               </p>
             </div>
             <Link

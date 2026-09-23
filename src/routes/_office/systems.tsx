@@ -181,21 +181,24 @@ function Systems() {
 
 
         <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-base">Your next step</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p className="text-muted-foreground">
-              The office cannot create the database for you, and it should not: the account has to be yours.
-            </p>
-            <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="inline-block text-primary underline">
-              {SUPABASE_SETUP_URL}
-            </a>
-            <p className="text-muted-foreground">
-              Choose Supabase there and finish the setup. Then follow <code>docs/office-manager-setup.md</code>, which
-              lists the exact steps: the two database files to run, making your account the owner, turning on the
-              authenticator app, setting spending limits, and only then adding the AI key.
-            </p>
+          <CardHeader><CardTitle className="text-base">ChatGPT / Astra connection</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>Requested, not connected inside the office. The Office Manager and companion use separate AI sessions;
+              they do not inherit your ChatGPT conversation, memory, or connected tools.</p>
+            <p>A replacement needs its own tested connection to office records and actions before it can take over.
+              Changing the assistant's name does not create that connection.</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card">
+          <CardHeader><CardTitle className="text-base">Next connection check</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            {signedIn ? (
+              <p>The CanX database and your owner sign-in are connected. Check the rows above for any remaining
+                verification steps. Protected actions may require your authenticator in the account menu.</p>
+            ) : (
+              <><p>Complete owner sign-in above. If the database is not configured, use the setup instructions.</p>
+                <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="text-primary underline">Database setup</a></>
+            )}
           </CardContent>
         </Card>
       </div>

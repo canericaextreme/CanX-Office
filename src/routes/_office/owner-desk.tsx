@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
-import { StatusPanel } from "@/components/office/StatusPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SAMPLE_STATUS, SAMPLE_APPROVALS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
 import { StatusBadge } from "@/components/office/StatusBadge";
 import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
 
@@ -23,7 +21,7 @@ export const Route = createFileRoute("/_office/owner-desk")({
 function OwnersDesk() {
   const { memory, error, isOwner, sessionMessage } = useManagerMemory();
 
-  const tasks = memory?.tasks ?? null;
+  const tasks = memory?.tasks.filter((task) => task.status === "open" || task.status === "in_progress") ?? null;
   const approvals = memory?.approvals ?? null;
   const budget = memory?.budget ?? null;
   const changes = memory?.changes ?? null;
@@ -31,11 +29,11 @@ function OwnersDesk() {
   const statusLine = memory
     ? "Shared memory — saved in the CanX-owned database."
     : isOwner
-      ? error ?? "Shared memory unavailable; showing labelled sample items."
+      ? error ?? "Shared memory is not available yet. No current status can be reported."
       : sessionMessage;
 
   return (
-    <RoomShell>
+    <RoomShell showSample={false}>
       <p className="mb-4 text-xs text-muted-foreground">{statusLine}</p>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-border bg-card">
@@ -66,15 +64,7 @@ function OwnersDesk() {
                       {item.worker && <p className="mt-1 text-xs text-muted-foreground">Worker: {item.worker}</p>}
                     </div>
                   ))
-              : SAMPLE_WORK_ITEMS.slice(0, 3).map((item) => (
-                  <div key={item.id} className="rounded-lg border border-border/50 p-3">
-                    <div className="flex items-center gap-2">
-                      <StatusBadge tone={item.status} />
-                      <span className="font-medium">{item.title}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{item.project}</p>
-                  </div>
-                ))}
+              : <p className="text-sm text-muted-foreground">Live priorities are unavailable. Open the account menu to check owner verification, then refresh the Work Board.</p>}
           </CardContent>
         </Card>
 
@@ -99,17 +89,7 @@ function OwnersDesk() {
                         </p>
                       </div>
                     ))
-              : SAMPLE_APPROVALS.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-border/50 p-3">
-                    <div className="flex items-center gap-2">
-                      <StatusBadge tone={item.status} />
-                      <span className="font-medium">{item.action}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Cost: {item.cost} · Risk: {item.risk}
-                    </p>
-                  </div>
-                ))}
+              : <p className="text-sm text-muted-foreground">Live approvals are unavailable. This does not mean the approval box is empty.</p>}
           </CardContent>
         </Card>
 
@@ -153,8 +133,12 @@ function OwnersDesk() {
           </Card>
         )}
 
-        <div className="lg:col-span-2">
-          <StatusPanel items={SAMPLE_STATUS} />
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold">Office connection status</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Open Systems &amp; Connections for the current session checks. A saved task or a working page does not
+            prove an AI worker is running. Background maintenance and restore tests have not been verified here.
+          </p>
         </div>
       </div>
     </RoomShell>

@@ -26,7 +26,7 @@ export function BudgetPanel() {
         <div>
           <div className="text-xs font-semibold uppercase text-muted-foreground">Known monthly costs</div>
           {view.known.length === 0 ? (
-            <p className="text-muted-foreground">None recorded. Nothing is being charged.</p>
+            <p className="text-muted-foreground">No verified monthly costs are recorded here. Actual charges are unknown.</p>
           ) : (
             <ul className="mt-1 space-y-1">
               {view.known.map((line) => (
