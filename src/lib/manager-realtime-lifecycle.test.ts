@@ -12,7 +12,7 @@ vi.mock("react", () => ({
   },
 }));
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => hooks.mint }));
-vi.mock("./manager-realtime.functions", () => ({ createManagerRealtimeSession: {} }));
+vi.mock("./manager-realtime.functions", () => ({ createManagerRealtimeSession: {}, refreshManagerVoiceContext: {} }));
 vi.mock("./use-realtime-chat", () => ({ realtimeEventPhase: () => "listening" }));
 import { useRealtimeManager } from "./use-realtime-manager";
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
