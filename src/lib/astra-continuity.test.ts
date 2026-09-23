@@ -31,10 +31,12 @@ function fakeRest(overrides: Partial<Record<"memory" | "summaries" | "recent", u
 }
 
 describe("reading continuity", () => {
-  it("reads all three tables filtered on the verified owner and labels them untrusted", async () => {
+  it("reads all three tables filtered on the verified owner after trying get_astra_context, labelled as office data", async () => {
     const { rest, calls } = fakeRest();
     const result = await readAstraContinuity(rest, OWNER_ID);
     expect(result.ok).toBe(true);
+    expect(calls[0]!.path).toBe("rpc/get_astra_context");
+    calls.shift();
     expect(calls).toHaveLength(3);
     for (const c of calls) expect(c.path).toContain(`owner_id=eq.${OWNER_ID}`);
     expect(calls[0]!.path).toContain("active=is.true");
