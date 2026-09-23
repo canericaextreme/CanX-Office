@@ -1166,20 +1166,20 @@ export function OfficeManager() {
                   >
                     <Mic className="mr-2 h-5 w-5" /> Talk to Astra
                   </Button>
-                  {realtimeManager.on && <>
-                    <Button variant="outline" className="h-12" onClick={realtimeManager.toggleMic}>
-                      {realtimeManager.micMuted ? "Unmute microphone" : "Mute microphone"}
-                    </Button>
-                    <Button variant="outline" className="h-12" onClick={realtimeManager.interrupt}>Interrupt and talk</Button>
-                  </>}
                   {realtimeManager.on && (
-                    <Button variant="outline" className="h-12 text-lg" onClick={realtimeManager.stop}>
-                      <PhoneOff className="mr-2 h-5 w-5" /> End conversation
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 shrink-0 px-2.5"
+                      onClick={realtimeManager.stop}
+                      aria-label="End the voice conversation with Astra"
+                    >
+                      <PhoneOff className="mr-1.5 h-4 w-4" aria-hidden="true" /> End conversation
                     </Button>
                   )}
                   </div>
                   <p role="status" className="mt-2 text-sm">
-                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Use Mute, Interrupt, or End conversation." : "Ready: type a message or choose Talk to Astra."}
+                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation when you are done." : "Ready: type a message or choose Talk to Astra."}
                   </p>
                 </div>
               </div>
