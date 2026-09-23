@@ -106,6 +106,8 @@ export function OfficeManager() {
   const [open, setOpen] = useState(false);
   /** Shrinks the window to a small floating control; the conversation stays live. */
   const [minimized, setMinimized] = useState(false);
+  // The office underneath stays fixed while the Astra panel is open.
+  useBackgroundScrollLock(open && !minimized);
   const [tab, setTab] = useState<Tab>("now");
 
   const [status, setStatus] = useState<ManagerStatus | null>(null);
