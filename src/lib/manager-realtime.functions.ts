@@ -83,7 +83,7 @@ export function managerRealtimeInstructions(context: string, team: unknown): str
 export function managerRealtimeSessionBody(model: string, instructions: string) {
   const body = realtimeSessionBody(model, instructions);
   return { session: { ...body.session,
-    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "medium", create_response: true, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe" } } },
+    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "medium", create_response: false, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe" } } },
     tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Also use for live record questions and room inspection. Never use for hypothetical actions or a request not to act.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
     tool_choice: "auto",
   } };
@@ -148,6 +148,40 @@ export async function createManagerRealtimeSessionWith(
   }
 }
 
+export type VoiceTurnContextResult =
+  | { ok: true; instructions: string; memoryRead: boolean; detail: string }
+  | { ok: false; instructions: null; memoryRead: false; detail: string };
+
+/**
+ * Per-turn refresh for live voice. Re-reads office records and durable Astra
+ * memory for the server-verified owner before each spoken reply. No AI call,
+ * no budget reservation. A memory failure is stated plainly in the returned
+ * instructions; an office-records failure returns ok:false so the browser
+ * keeps the previously verified session context and says so.
+ */
+export async function refreshManagerVoiceContextWith(
+  deps: Pick<ManagerRealtimeDeps, "verifyOwner" | "buildContext" | "readContinuity">,
+  accessToken: string,
+  team: unknown,
+): Promise<VoiceTurnContextResult> {
+  const verification = await deps.verifyOwner(accessToken);
+  if (!verification.ok) return { ok: false, instructions: null, memoryRead: false, detail: verification.message };
+  const context = await deps.buildContext(accessToken, verification).catch(() => ({
+    ok: false as const, message: "The office records could not be re-read for this turn.",
+  }));
+  if (!context.ok) return { ok: false, instructions: null, memoryRead: false, detail: context.message };
+  const continuity: ContinuityRead = deps.readContinuity
+    ? await deps.readContinuity(accessToken, verification.userId)
+        .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
+    : { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." };
+  return {
+    ok: true,
+    instructions: managerRealtimeInstructions(`${context.text}\n\n${continuity.text}`, team),
+    memoryRead: continuity.ok,
+    detail: continuity.ok ? "" : continuity.message,
+  };
+}
+
 function readSetting(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
@@ -196,4 +230,16 @@ export const createManagerRealtimeSession = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) =>
     createManagerRealtimeSessionWith(await realDeps(), data.accessToken, data.team),
+  );
+
+export const refreshManagerVoiceContext = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    const value = input as { accessToken?: unknown; team?: unknown } | undefined;
+    return {
+      accessToken: typeof value?.accessToken === "string" ? value.accessToken.slice(0, 4000) : "",
+      team: sanitizeTeam(value?.team),
+    };
+  })
+  .handler(async ({ data }) =>
+    refreshManagerVoiceContextWith(await realDeps(), data.accessToken, data.team),
   );
