@@ -69,6 +69,7 @@ import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { useBackgroundScrollLock } from "@/lib/use-background-scroll-lock";
+import { useTranscriptScrollContainment } from "@/lib/use-transcript-scroll-containment";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
 import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
@@ -157,6 +158,7 @@ export function OfficeManager() {
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
+  useTranscriptScrollContainment(messagesScrollRef, open && !minimized && tab === "now");
   const followMessagesRef = useRef(true);
   const [voiceMode, setVoiceMode] = useState(false);
   const voiceModeRef = useRef(false);
