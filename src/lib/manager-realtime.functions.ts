@@ -1,5 +1,5 @@
 /**
- * Data's continuous spoken conversation — SERVER ONLY, FAIL CLOSED.
+ * Astra's continuous spoken conversation — SERVER ONLY, FAIL CLOSED.
  *
  * This is deliberately separate from the old record/transcribe/TTS chain.
  * The browser receives only a short-lived realtime client secret. Before one
@@ -60,9 +60,9 @@ export function managerRealtimeInstructions(context: string, team: unknown): str
     MANAGER_SYSTEM_PROMPT,
     "",
     "Live voice-session limits:",
-    "- If John says Save this conversation, call submit_office_request. It saves only a useful office/build/ideas summary to persistent CanX Brain memory. Wait for the tool result before claiming a save. Otherwise conversations are temporary; do not save automatically.",
+    "- If John says Save this conversation, call submit_office_request. It saves only a useful office/build/ideas summary to persistent CanX Brain memory. Wait for the tool result before claiming a save. The application also checkpoints useful discussion under the standing continuity rule. Never claim a checkpoint succeeded without its returned result.",
     "- Keep listening after every answer. The conversation continues until John presses End conversation.",
-    "- For EVERY question about current office records, approvals, room contents, or any requested room inspection or small change, call submit_office_request. The startup context is a snapshot and can become stale. Never argue that an approval is still pending without checking again. For any office action requested by John, call submit_office_request. It submits his actual transcribed words to the same server controls as typed Data. Do not invent a request or carry out an old request from saved history.",
+    "- For EVERY question about current office records, approvals, room contents, or any requested room inspection or small change, call submit_office_request. The startup context is a snapshot and can become stale. Never argue that an approval is still pending without checking again. For any office action requested by John, call submit_office_request. It submits his actual transcribed words to the same server controls as typed Astra. Do not invent a request or carry out an old request from saved history.",
     "- To inspect a named room, call submit_office_request; the office opens the named room and returns a fresh redacted visual review. John does not need to open it or press a second button. You can inspect any directory room on request. Never claim to see a screen until the tool returns the observation.",
     "- Small changes available directly: add a room report using Add a report to [room]: [text], set conversation text size to 20/24/28/32, and existing Work Board actions. Describe unsupported layout/code changes as work still to implement, never as completed.",
     "- Speak English unless John asks otherwise. Ignore background television and unrelated voices where possible. If uncertain, ask John to repeat rather than inventing a request.",

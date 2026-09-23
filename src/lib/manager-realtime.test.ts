@@ -29,9 +29,9 @@ function deps(overrides: Partial<ManagerRealtimeDeps> = {}): ManagerRealtimeDeps
   };
 }
 
-describe("Data continuous voice", () => {
+describe("Astra continuous voice", () => {
   it("has one persistent conversation control instead of push-to-talk", () => {
-    expect(managerSource).toContain('Talk to Data');
+    expect(managerSource).toContain('Talk to Astra');
     expect(managerSource).toContain("The microphone stays open");
     expect(managerSource).toContain("realtimeManager.stop");
     expect(managerSource).not.toContain('"Talk again"');
@@ -39,7 +39,7 @@ describe("Data continuous voice", () => {
     expect(hookSource).toContain("getUserMedia");
   });
 
-  it("plays Data's remote audio and keeps semantic turn detection on", () => {
+  it("plays Astra's remote audio and keeps semantic turn detection on", () => {
     expect(hookSource).toContain("pc.ontrack");
     expect(hookSource).toContain("audio.play()");
     expect(hookSource).toContain("realtimeEventPhase");

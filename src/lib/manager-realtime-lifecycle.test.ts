@@ -56,7 +56,7 @@ beforeEach(() => {
 afterEach(() => {
   hooks.cleanups.forEach((cleanup) => cleanup()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
-describe("Data realtime connection lifecycle", () => {
+describe("Astra realtime connection lifecycle", () => {
   it("keeps connecting after SDP until the event channel opens", async () => {
     const answer = deferred<Response>(); vi.mocked(fetch).mockReturnValue(answer.promise);
     useRealtimeManager("token", [], vi.fn()).start(); await flush();
@@ -171,7 +171,7 @@ describe("Data realtime connection lifecycle", () => {
 
 });
 
-describe("Data voice error recovery", () => {
+describe("Astra voice error recovery", () => {
   it.each(["conversation_already_has_active_response", "response_cancel_not_active", "input_audio_buffer_commit_empty"])("keeps the microphone open for %s", async code => {
     const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
     Peer.instances[0]!.channel.onmessage?.({data:JSON.stringify({type:"error",error:{code,message:"private provider details"}})});
@@ -195,7 +195,7 @@ describe("Data voice error recovery", () => {
   });
 });
 
-describe("Data's live voice controls", () => {
+describe("Astra's live voice controls", () => {
   it("unlocks the speaker in the initiating gesture before microphone permission resolves", async () => {
     const pending = deferred<unknown>(); getUserMedia.mockReturnValue(pending.promise);
     const voice = useRealtimeManager("token", [], vi.fn()); voice.start();

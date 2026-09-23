@@ -19,7 +19,7 @@ export interface SummaryDeps {
 export async function saveConversationSummaryWith(deps: SummaryDeps, input: {
   accessToken: string; confirmed: boolean; id: string; turns: unknown;
 }) {
-  if (input.confirmed !== true) return { ok: false, message: "Conversation was not saved. An explicit save request is required." };
+  if (input.confirmed !== true) return { ok: false, message: "Conversation was not saved. A save request or the standing continuity instruction is required." };
   if (!/^[a-f0-9-]{36}$/i.test(input.id)) return { ok: false, message: "The save request is invalid." };
   const owner = await deps.verify(input.accessToken);
   if (!owner.ok) return { ok: false, message: owner.message };
@@ -49,7 +49,7 @@ export function parseSummaryResponse(body: {
   output_text?: string;
   output?: { content?: { type: string; text?: string }[] }[];
 }): { title: string; summary: string } | null {
-  // Accept both response shapes already supported by Data's existing provider path.
+  // Accept both response shapes already supported by Astra's existing provider path.
   const text = body.output_text?.trim() || (body.output ?? []).flatMap(item => item.content ?? [])
     .filter(item => item.type === "output_text").map(item => item.text ?? "").join("").trim();
   try {
@@ -70,7 +70,7 @@ async function summaryDeps(): Promise<SummaryDeps> {
       if (!result.ok || !Array.isArray(result.body)) return { ok: false, note: null };
       const row = result.body[0] as { title?: unknown; detail?: unknown; source?: unknown } | undefined;
       if (!row) return { ok: true, note: null };
-      if (typeof row.title !== "string" || typeof row.detail !== "string" || row.source !== "CanX Brain: explicitly saved conversation") return { ok: false, note: null };
+      if (typeof row.title !== "string" || typeof row.detail !== "string" || !["CanX Brain: explicitly saved conversation", "CanX Brain: conversation summary"].includes(String(row.source))) return { ok: false, note: null };
       return { ok: true, note: { title: row.title, summary: row.detail } };
     },
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
@@ -94,7 +94,7 @@ async function summaryDeps(): Promise<SummaryDeps> {
       const result = await backend.restRequest(config, token, "office_notes?on_conflict=id", {
         method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
         body: JSON.stringify({ id, owner_id: owner, kind: "decision", title, detail: summary,
-          owner_name: "", provenance: "ai-proposal", source: "CanX Brain: explicitly saved conversation", created_at: new Date().toISOString() }),
+          owner_name: "", provenance: "ai-proposal", source: "CanX Brain: conversation summary", created_at: new Date().toISOString() }),
       });
       return result.ok;
     },

@@ -14,11 +14,11 @@ const RESCAN_INTENT = /\b(?:rescan|scan again|full scan|re-scan)\b/i;
 
 export function isExplicitReceiptSyncRequest(message: string): boolean {
   // Only a short, dedicated command may bypass the general conversation.
-  // Multi-step reviews mentioning receipts must reach Data in full.
+  // Multi-step reviews mentioning receipts must reach Astra in full.
   const command = message.trim();
   if (command.length > 240 || /[\r\n]/.test(command)) return false;
   if (/\b(?:do not|don’t|don't|never|without)\b/i.test(command)) return false;
-  return /^(?:data[, :]*)?(?:please\s+)?(?:review|retrieve|check|find|sync|file|import|rescan)\b/i.test(command)
+  return /^(?:(?:astra|data)[, :]*)?(?:please\s+)?(?:review|retrieve|check|find|sync|file|import|rescan)\b/i.test(command)
     && EXPLICIT_RECEIPT_SYNC_INTENT.test(command);
 }
 

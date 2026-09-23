@@ -14,7 +14,7 @@ function deps(): SummaryDeps {
   };
 }
 describe("explicit conversation memory", () => {
-  it.each(["Save this conversation", "Data, save this conversation.", "Please save the conversation", "Save this conversation please"])("recognizes %s", text => expect(requestsConversationSave(text)).toBe(true));
+  it.each(["Save this conversation", "Astra, save this conversation.", "Please save the conversation", "Save this conversation please"])("recognizes %s", text => expect(requestsConversationSave(text)).toBe(true));
   it.each(["Don't save this conversation", "If I say save this conversation", "The TV said save this conversation", "Can you hear me?", 'He said "Save this conversation"'])("does not authorize saving for %s", text => expect(requestsConversationSave(text)).toBe(false));
   it("requires explicit consent before any provider or data call", async () => {
     const d=deps(); expect((await saveConversationSummaryWith(d,{...request,confirmed:false})).ok).toBe(false);
@@ -63,5 +63,12 @@ describe("explicit conversation memory", () => {
     expect(parseSummaryResponse({ output_text: "Done, saved" })).toBeNull();
     expect(parseSummaryResponse({ output_text: "null" })).toBeNull();
     expect(parseSummaryResponse({ output_text: '{"title":"Missing summary"}' })).toBeNull();
+  });
+});
+
+describe("Astra continuity checkpoints", () => {
+  it("retains the legacy name for explicit saves", () => {
+    expect(requestsConversationSave("Data, save this conversation.")).toBe(true);
+    expect(requestsConversationSave("Astra, save this conversation.")).toBe(true);
   });
 });

@@ -155,7 +155,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
             setState("signed_out");
           }
           // Leave the auth callback before calling getSession (auth holds a lock).
-          // TOKEN_REFRESHED must propagate the new token to Data and its save queue.
+          // TOKEN_REFRESHED must propagate the new token to Astra and its save queue.
           if (["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT", "TOKEN_REFRESHED", "MFA_CHALLENGE_VERIFIED", "USER_UPDATED"].includes(event)) {
             clearTimeout(refreshTimer);
             refreshTimer = setTimeout(() => { if (active) void refresh(); }, 0);

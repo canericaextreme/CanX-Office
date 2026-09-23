@@ -39,7 +39,7 @@ describe("Office Manager voice — portable recording and playback", () => {
 describe("Office Manager voice — serialized turn lifecycle", () => {
   it("presents one primary voice control and hides expert controls", () => {
     expect(manager).toContain("const primaryVoiceAction");
-    expect(manager).toContain('Talk to Data');
+    expect(manager).toContain('Talk to Astra');
     expect(manager).toContain("The microphone stays open");
     expect(manager).not.toContain("Read aloud");
     expect(manager).not.toContain("Repeat answer");
@@ -100,8 +100,8 @@ describe("Office Manager voice — bounded, ephemeral server audio", () => {
 
   it("surfaces recording, provider and playback failures", () => {
     expect(manager).toContain("The Manager could not understand that recording");
-    expect(manager).toContain("Data could not start a spoken answer");
-    expect(voice).toContain("Your phone blocked Data's voice");
+    expect(manager).toContain("Astra could not start a spoken answer");
+    expect(voice).toContain("Your phone blocked Astra's voice");
     expect(voice).toContain("Microphone access is needed");
   });
 });

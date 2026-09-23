@@ -1,6 +1,6 @@
 /**
  * Office access rules: ordinary sign-in opens the office and read-only tools;
- * paid Data calls and protected actions require authenticator step-up.
+ * paid Astra calls and protected actions require authenticator step-up.
  *
  * Source-level assertions are used where a real session would be required, so
  * the checks stay honest rather than mocking away the security gates.
@@ -89,7 +89,7 @@ describe("account menu", () => {
   });
 });
 
-describe("ordinary sign-in opens the office; paid Data calls require step-up", () => {
+describe("ordinary sign-in opens the office; paid Astra calls require step-up", () => {
   const realtime = read("src/lib/realtime-voice.functions.ts");
   const manager = read("src/lib/manager.functions.ts");
 
@@ -98,7 +98,7 @@ describe("ordinary sign-in opens the office; paid Data calls require step-up", (
     expect(realtime).not.toContain("verifyOwnerWith(config, token)");
   });
 
-  it("keeps the ordinary verifier available but uses the strict check for paid Data status and chat", () => {
+  it("keeps the ordinary verifier available but uses the strict check for paid Astra status and chat", () => {
     expect(manager).toContain("verifySignedIn: (token) => backend.verifySignedInWith(config, token)");
     expect(manager).toContain("deps.verifyOwner(accessToken)");
     expect(manager).toContain("deps.verifyOwner(data.accessToken)");

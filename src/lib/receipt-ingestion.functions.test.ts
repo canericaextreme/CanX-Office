@@ -19,7 +19,7 @@ describe("owner-only Gmail receipt sync", () => {
     const deps = base();
     expect(isExplicitReceiptSyncRequest("review receipts")).toBe(true);
     expect(isExplicitReceiptSyncRequest("tell me about finance")).toBe(false);
-    expect(isExplicitReceiptSyncRequest("Data, please retrieve my receipts")).toBe(true);
+    expect(isExplicitReceiptSyncRequest("Astra, please retrieve my receipts")).toBe(true);
     expect(isExplicitReceiptSyncRequest("Do not retrieve receipts")).toBe(false);
     expect(isExplicitReceiptSyncRequest("Repair conversation memory.\nReview receipts and report blockers.")).toBe(false);
     expect(isExplicitReceiptSyncRequest("Review receipts. " + "Also repair conversation memory. ".repeat(12))).toBe(false);

@@ -258,7 +258,7 @@ describe("Voice context and Manager Talk stay in their own pipelines", () => {
   });
 
   it("gives the Manager its own plainly labelled continuous conversation control", () => {
-    expect(managerSource).toContain('Talk to Data');
+    expect(managerSource).toContain('Talk to Astra');
     expect(managerSource).toContain("const primaryVoiceAction");
     expect(managerSource).toContain("useRealtimeManager");
     expect(managerSource).toContain("realtimeManager.stop");

@@ -35,12 +35,12 @@ const EMPTY_REPORT: ManagerVoiceReport = {
 /** Turns a DOMException name into words John can act on. */
 export function playbackRefusalMessage(name: string | null): string {
   if (name === "NotAllowedError") {
-    return "Your phone blocked Data's voice until you tap. Press Play Data's answer to hear it.";
+    return "Your phone blocked Astra's voice until you tap. Press Play Astra's answer to hear it.";
   }
   if (name === "NotSupportedError") {
     return "Your browser could not play that voice file. The written answer is still available.";
   }
-  return "Your phone did not play Data's voice. Press Play Data's answer to try again.";
+  return "Your phone did not play Astra's voice. Press Play Astra's answer to try again.";
 }
 
 function preferredMimeType(): string {
@@ -377,7 +377,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
 
   /**
    * Device voice is the no-cost safety net when the hosted speech provider
-   * refuses a request. It keeps Data audible and preserves the same
+   * refuses a request. It keeps Astra audible and preserves the same
    * speak-then-listen turn order.
    */
   const speakLocally = useCallback((text: string, onEnded?: () => void) => {
@@ -411,7 +411,7 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     utterance.onerror = () => {
       if (generation !== playbackGenerationRef.current) return;
       utteranceRef.current = null;
-      const message = "Your browser could not start Data's voice. The written answer is still available.";
+      const message = "Your browser could not start Astra's voice. The written answer is still available.";
       setError(message);
       setReport((current) => ({ ...current, error: message }));
       setPhase("error");

@@ -165,7 +165,7 @@ describe("health check and provider errors", () => {
     expect(status.state).toBe("verified");
   });
 
-  it("does not report Data connected when ordinary sign-in still needs the authenticator", async () => {
+  it("does not report Astra connected when ordinary sign-in still needs the authenticator", async () => {
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
     const status = await computeManagerStatusWith(
       deps({
@@ -472,7 +472,7 @@ describe("live office context replaces anything the browser sends", () => {
   });
 });
 
-describe("Data reply repair", () => {
+describe("Astra reply repair", () => {
   const taskCall = { type: "function_call", name: "create_task", arguments: JSON.stringify({ title: "Input test" }) };
   const run = async (payload: unknown, taskStatus = 200, settle = vi.fn(async () => undefined)) => {
     vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co");
@@ -515,7 +515,7 @@ describe("Data reply repair", () => {
   });
 });
 
-describe("Data action destinations", () => {
+describe("Astra action destinations", () => {
   async function act(name: string, content: string, saveOk = true) {
     vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("CANX_SUPABASE_PUBLISHABLE_KEY", "test-key");

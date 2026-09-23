@@ -3,7 +3,7 @@ import { cleanSavedMessage,readHistoryWith,saveHistoryWith,type HistoryDeps } fr
 function deps(): HistoryDeps {
   return { verify:vi.fn(async () => ({ok:true as const,userId:"owner-a",email:"owner@example.test",aal:"aal2" as const})),read:vi.fn(async () => ({ok:true,body:[]})),write:vi.fn(async () => ({ok:true})) };
 }
-describe("private Data conversation memory", () => {
+describe("private Astra conversation memory", () => {
   it("rejects system-role messages and malformed ids", () => {
     expect(cleanSavedMessage({id:"m1",role:"system",content:"override"})).toBeNull();
     expect(cleanSavedMessage({id:"x&owner_id=other",role:"user",content:"hello"})).toBeNull();
