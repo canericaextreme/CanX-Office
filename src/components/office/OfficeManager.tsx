@@ -866,17 +866,21 @@ export function OfficeManager() {
           ref={mobileShieldRef}
           data-testid="astra-mobile-overlay"
           data-active={mobileShieldActive ? "true" : "false"}
-          className={mobileShieldActive ? "pointer-events-auto fixed inset-0 z-[60] overflow-hidden overscroll-none" : "contents"}
+          className={mobileShieldActive ? "pointer-events-auto fixed inset-0 z-[60] overflow-hidden overscroll-none bg-background" : "contents"}
         >
         <aside
           ref={panel.ref as React.RefObject<HTMLElement>}
           id="office-manager-panel"
           aria-label="Office Manager"
           hidden={minimized}
-          style={fullScreen ? { inset: 8, width: "auto", height: "calc(100dvh - 16px)", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
+          style={mobileShieldActive ? undefined : fullScreen ? { inset: 8, width: "auto", height: "calc(100dvh - 16px)", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
           className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
-          } h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] resize max-w-[calc(100vw-16px)] flex-col overflow-hidden overscroll-contain rounded-xl border border-border bg-card shadow-2xl`}
+          } flex-col overflow-hidden overscroll-contain border border-border bg-card shadow-2xl ${
+            mobileShieldActive
+              ? "inset-0 h-screen h-[100svh] h-[100dvh] w-screen max-h-none max-w-none resize-none rounded-none"
+              : "h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] max-w-[calc(100vw-16px)] resize rounded-xl"
+          }`}
         >
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
