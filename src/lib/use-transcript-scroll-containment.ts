@@ -8,7 +8,9 @@ export function atScrollBoundary(
   deltaY: number,
 ) {
   const maxScroll = Math.max(0, scrollHeight - clientHeight);
-  return deltaY < 0 ? scrollTop <= 0 : deltaY > 0 && scrollTop >= maxScroll;
+  return deltaY < 0
+    ? scrollTop + deltaY <= 0
+    : deltaY > 0 && scrollTop + deltaY >= maxScroll;
 }
 
 export function useTranscriptScrollContainment(

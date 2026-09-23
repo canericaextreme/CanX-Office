@@ -37,10 +37,12 @@ describe("Astra transcript gesture containment", () => {
   it("detects top, middle, bottom and non-scrollable boundaries", () => {
     expect(atScrollBoundary(0, 300, 100, -10)).toBe(true);
     expect(atScrollBoundary(0, 300, 100, 10)).toBe(false);
+    expect(atScrollBoundary(5, 300, 100, -20)).toBe(true);
     expect(atScrollBoundary(100, 300, 100, -10)).toBe(false);
     expect(atScrollBoundary(100, 300, 100, 10)).toBe(false);
     expect(atScrollBoundary(200, 300, 100, 10)).toBe(true);
     expect(atScrollBoundary(200, 300, 100, -10)).toBe(false);
+    expect(atScrollBoundary(195, 300, 100, 20)).toBe(true);
     expect(atScrollBoundary(0, 50, 100, 10)).toBe(true);
     expect(atScrollBoundary(0, 50, 100, -10)).toBe(true);
   });
