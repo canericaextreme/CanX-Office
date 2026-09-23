@@ -866,7 +866,7 @@ export function OfficeManager() {
           ref={mobileShieldRef}
           data-testid="astra-mobile-overlay"
           data-active={mobileShieldActive ? "true" : "false"}
-          className={mobileShieldActive ? "pointer-events-auto fixed inset-0 z-[60] overflow-hidden overscroll-none bg-background" : "contents"}
+          className={mobileShieldActive ? "pointer-events-auto fixed inset-0 z-[60] h-screen h-[100svh] h-[100dvh] w-screen overflow-hidden overscroll-none bg-background" : "contents"}
         >
         <aside
           ref={panel.ref as React.RefObject<HTMLElement>}

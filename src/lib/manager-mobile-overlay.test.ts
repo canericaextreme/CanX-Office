@@ -9,7 +9,7 @@ describe("Astra mobile viewport-covering layer", () => {
     expect(src).toContain("const mobileShieldActive = isMobile && open && !minimized;");
   });
   it("renders an opaque, fixed inset-0 interactive layer above the office wrapping the panel", () => {
-    expect(src).toMatch(/mobileShieldActive \? "pointer-events-auto fixed inset-0 z-\[60\] overflow-hidden overscroll-none bg-background"/);
+    expect(src).toMatch(/mobileShieldActive \? "pointer-events-auto fixed inset-0 z-\[60\] h-screen h-\[100svh\] h-\[100dvh\] w-screen overflow-hidden overscroll-none bg-background"/);
     const layer = src.indexOf('data-testid="astra-mobile-overlay"');
     const aside = src.indexOf('id="office-manager-panel"');
     expect(layer).toBeGreaterThan(0);
