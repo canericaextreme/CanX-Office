@@ -5,19 +5,20 @@ const effects: (() => void | (() => void))[] = [];
 vi.mock("react", () => ({ useEffect: (fn: () => void | (() => void)) => { effects.push(fn); } }));
 
 function fakeDom() {
-  const style = () => ({ position: "", top: "", left: "", right: "", width: "", overflow: "", overscrollBehavior: "", touchAction: "" });
+  const style = () => ({ position: "", top: "", left: "", right: "", width: "", overflow: "", overscrollBehavior: "", touchAction: "", scrollBehavior: "" });
   const body = { style: style() }, html = { style: style() };
   const backdrop = { style: style(), scrollTop: 135, scrollLeft: 2 };
+  const documentScroller = { scrollTop: 420, scrollLeft: 0 };
   const scrollTo = vi.fn();
-  vi.stubGlobal("document", { body, documentElement: html, querySelector: vi.fn(() => backdrop) });
+  vi.stubGlobal("document", { body, documentElement: html, scrollingElement: documentScroller, querySelector: vi.fn(() => backdrop) });
   vi.stubGlobal("window", { scrollY: 420, scrollX: 0, scrollTo });
-  return { body, html, backdrop, scrollTo };
+  return { body, html, backdrop, documentScroller, scrollTo };
 }
 
 describe("Astra panel background scroll lock", () => {
   it("locks the office while open and restores the exact scroll position on close", async () => {
     const { useBackgroundScrollLock } = await import("./use-background-scroll-lock");
-    const { body, html, backdrop, scrollTo } = fakeDom();
+    const { body, html, backdrop, documentScroller, scrollTo } = fakeDom();
     effects.length = 0;
     useBackgroundScrollLock(true);
     const cleanup = effects[0]!();
@@ -31,6 +32,7 @@ describe("Astra panel background scroll lock", () => {
     expect(backdrop.style.touchAction).toBe("none");
     backdrop.scrollTop = 0;
     backdrop.scrollLeft = 0;
+    documentScroller.scrollTop = 0;
     (cleanup as () => void)();
     expect(body.style.position).toBe("");
     expect(html.style.overflow).toBe("");
@@ -40,6 +42,8 @@ describe("Astra panel background scroll lock", () => {
     expect(backdrop.style.touchAction).toBe("");
     expect(backdrop.scrollTop).toBe(135);
     expect(backdrop.scrollLeft).toBe(2);
+    expect(documentScroller.scrollTop).toBe(420);
+    expect(html.style.scrollBehavior).toBe("");
     expect(scrollTo).toHaveBeenCalledWith(0, 420);
   });
 

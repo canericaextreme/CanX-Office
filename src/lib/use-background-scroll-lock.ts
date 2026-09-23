@@ -11,8 +11,9 @@ export function useBackgroundScrollLock(active: boolean) {
     const body = document.body;
     const html = document.documentElement;
     const backdrop = document.querySelector<HTMLElement>("[data-canx-office-backdrop]");
-    const scrollY = window.scrollY;
-    const scrollX = window.scrollX;
+    const documentScroller = document.scrollingElement;
+    const scrollY = documentScroller?.scrollTop ?? window.scrollY;
+    const scrollX = documentScroller?.scrollLeft ?? window.scrollX;
     const backdropScrollTop = backdrop?.scrollTop ?? 0;
     const backdropScrollLeft = backdrop?.scrollLeft ?? 0;
     const backdropStyles = backdrop && {
@@ -29,6 +30,7 @@ export function useBackgroundScrollLock(active: boolean) {
       position: body.style.position, top: body.style.top, left: body.style.left,
       right: body.style.right, width: body.style.width, overflow: body.style.overflow,
       htmlOverflow: html.style.overflow, htmlOverscroll: html.style.overscrollBehavior,
+      htmlScrollBehavior: html.style.scrollBehavior,
       bodyOverscroll: body.style.overscrollBehavior,
     };
     body.style.position = "fixed";
@@ -75,7 +77,14 @@ export function useBackgroundScrollLock(active: boolean) {
       body.style.overscrollBehavior = prev.bodyOverscroll;
       html.style.overflow = prev.htmlOverflow;
       html.style.overscrollBehavior = prev.htmlOverscroll;
+      // Global smooth scrolling must not animate the office back into place.
+      html.style.scrollBehavior = "auto";
       window.scrollTo(scrollX, scrollY);
+      if (documentScroller) {
+        documentScroller.scrollTop = scrollY;
+        documentScroller.scrollLeft = scrollX;
+      }
+      html.style.scrollBehavior = prev.htmlScrollBehavior;
     };
   }, [active]);
 }
