@@ -69,6 +69,8 @@ import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { useBackgroundScrollLock } from "@/lib/use-background-scroll-lock";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useMobileOverlayShield } from "@/lib/use-mobile-overlay-shield";
 import { useTranscriptScrollContainment } from "@/lib/use-transcript-scroll-containment";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
@@ -109,6 +111,10 @@ export function OfficeManager() {
   const [minimized, setMinimized] = useState(false);
   // The office underneath stays fixed while the Astra panel is open.
   useBackgroundScrollLock(open && !minimized);
+  // On phones the open panel sits inside a full-viewport layer so the office is never a touch target.
+  const isMobile = useIsMobile();
+  const mobileShieldActive = isMobile && open && !minimized;
+  const mobileShieldRef = useMobileOverlayShield<HTMLDivElement>(mobileShieldActive);
   const [tab, setTab] = useState<Tab>("now");
 
   const [status, setStatus] = useState<ManagerStatus | null>(null);
@@ -856,6 +862,12 @@ export function OfficeManager() {
       )}
 
       {open && (
+        <div
+          ref={mobileShieldRef}
+          data-testid="astra-mobile-overlay"
+          data-active={mobileShieldActive ? "true" : "false"}
+          className={mobileShieldActive ? "pointer-events-auto fixed inset-0 z-[60] overflow-hidden overscroll-none" : "contents"}
+        >
         <aside
           ref={panel.ref as React.RefObject<HTMLElement>}
           id="office-manager-panel"
@@ -868,7 +880,7 @@ export function OfficeManager() {
         >
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
-              {...panel.handleProps}
+              {...(isMobile ? {} : panel.handleProps)}
               className="mr-1 flex cursor-move touch-none select-none items-center rounded-md p-1.5 text-muted-foreground hover:bg-background active:bg-secondary"
             >
               <GripVertical className="h-4 w-4" aria-hidden="true" />
@@ -1358,6 +1370,7 @@ export function OfficeManager() {
             </div>
           )}
         </aside>
+        </div>
       )}
     </>
   );
