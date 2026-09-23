@@ -68,6 +68,7 @@ import {
 import { useManagerMemory } from "@/lib/use-manager-memory";
 import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/records.functions";
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
+import { useBackgroundScrollLock } from "@/lib/use-background-scroll-lock";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
 import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
@@ -859,7 +860,7 @@ export function OfficeManager() {
           style={fullScreen ? { inset: 8, width: "auto", height: "calc(100dvh - 16px)", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
           className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
-          } h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] resize max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
+          } h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] resize max-w-[calc(100vw-16px)] flex-col overflow-hidden overscroll-contain rounded-xl border border-border bg-card shadow-2xl`}
         >
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
@@ -954,7 +955,7 @@ export function OfficeManager() {
                   followMessagesRef.current =
                     pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
                 }}
-                className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+                className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4"
                 aria-label="Conversation with Astra"
                 style={{ fontSize: textSize, lineHeight: 1.5 }}
               >
@@ -1134,7 +1135,7 @@ export function OfficeManager() {
                     ref={inputRef}
                     rows={4}
                     value={draft}
-                    className="min-h-0 max-h-[40dvh] resize-none overflow-y-auto pr-16 leading-relaxed"
+                    className="min-h-0 max-h-[40dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
                     style={{ fontSize: textSize, height: composerHeight }}
                     placeholder="Type or paste your message here…"
                     aria-label="Message the Office Manager"
@@ -1204,7 +1205,7 @@ export function OfficeManager() {
           )}
 
           {tab === "settings" && (
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
@@ -1485,7 +1486,7 @@ function AppearancePanel() {
   const { theme, dirty, canUndo, preview, apply, discard, undo, reset } = useOfficeTheme();
 
   return (
-    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3">
       <p className="text-xs text-muted-foreground">
         These are the only appearance settings anything in this office can change, and they stay on
         this device.
