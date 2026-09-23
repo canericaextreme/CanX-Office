@@ -11,7 +11,7 @@ const OWNER: OwnerVerification = { ok: true, userId: "owner-1", email: "o@exampl
 describe("live voice refreshes durable memory on every turn", () => {
   it("two successive turns in one session receive different, current memory", async () => {
     let memory = "Goal: first";
-    const readContinuity = vi.fn(async (_t: string, id: string) => ({ ok: true as const, text: `MEMORY(${id}): ${memory}`, message: "" }));
+    const readContinuity = vi.fn(async (_t: string, id: string) => ({ ok: true as const, text: `MEMORY(${id}): ${memory}`, counts: { memory: 1, summaries: 0, recent: 0 } }));
     const deps = { verifyOwner: async () => OWNER, buildContext: async () => ({ ok: true as const, text: "OFFICE" }), readContinuity };
     const first = await refreshManagerVoiceContextWith(deps, "t", []);
     memory = "Goal: second";
