@@ -155,7 +155,7 @@ describe("Astra realtime connection lifecycle", () => {
     const sends = channel.send.mock.calls.map(c => String(c[0]));
     expect(sends.filter(s => s.includes("function_call_output"))).toHaveLength(1);
     expect(sends.find(s => s.includes("function_call_output"))).toContain("approval id a1");
-    expect(channel.send).toHaveBeenCalledTimes(3);
+    expect(sends.filter(s => s.includes('"tool_choice":"none"'))).toHaveLength(1);
   });
   it("does not run a voice tool without a transcribed user request", async () => {
     const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
