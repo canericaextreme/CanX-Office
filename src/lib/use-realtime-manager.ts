@@ -4,7 +4,8 @@ import { SILENT_AUDIO_DATA_URL } from "./use-manager-voice";
 import { voiceProviderFailure } from "./voice-provider-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { createManagerRealtimeSession } from "@/lib/manager-realtime.functions";
+import { createManagerRealtimeSession, refreshManagerVoiceContext } from "@/lib/manager-realtime.functions";
+import { voiceTurnEvents } from "@/lib/voice-turn-refresh";
 import { realtimeEventPhase, type ChatPhase } from "@/lib/use-realtime-chat";
 
 export interface RealtimeManager {
@@ -28,6 +29,7 @@ export function useRealtimeManager(
   onOfficeRequest?: (request: string) => Promise<string>,
 ): RealtimeManager {
   const mintSession = useServerFn(createManagerRealtimeSession);
+  const refreshContext = useServerFn(refreshManagerVoiceContext);
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [on, setOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -224,6 +226,7 @@ export function useRealtimeManager(
       const handledCalls = new Set<string>();
       const handledInputs = new Set<string>();
       let currentInputId = "";
+      const refreshedInputs = new Set<string>();
       const responseInputs = new Map<string, string>();
       const executeRequest = async (callId: string, inputId: string) => {
         if (handledCalls.has(callId)) return;
@@ -271,7 +274,19 @@ export function useRealtimeManager(
           fail(hint);
           return;
         }
-        if (payload.type === "input_audio_buffer.committed" && payload.item_id) currentInputId = payload.item_id;
+        if (payload.type === "input_audio_buffer.committed" && payload.item_id) {
+          currentInputId = payload.item_id;
+          const inputId = payload.item_id;
+          if (!refreshedInputs.has(inputId)) {
+            refreshedInputs.add(inputId);
+            // Replies are created only after current memory is re-read for this turn.
+            const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 8000));
+            void Promise.race([refreshContext({ data: { accessToken, team } }).catch(() => null), timeout]).then(result => {
+              if (!current() || channel.readyState !== "open" || currentInputId !== inputId) return;
+              for (const e of voiceTurnEvents(result)) channel.send(JSON.stringify(e));
+            });
+          }
+        }
         if (payload.type === "response.created" && payload.response?.id) responseInputs.set(payload.response.id, currentInputId);
         if (payload.type === "response.done") {
           for (const item of payload.response?.output ?? []) {
@@ -340,7 +355,7 @@ export function useRealtimeManager(
       // Keep the watchdog until onopen, so a stalled connection cannot look ready.
       if (!current() || channelRef.current?.readyState === "open") clearTimeout(timeout);
     }
-  }, [accessToken, mintSession, team, teardown, playAudio]);
+  }, [accessToken, mintSession, refreshContext, team, teardown, playAudio]);
 
   return { phase, on, error, playbackBlocked, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say };
 }
