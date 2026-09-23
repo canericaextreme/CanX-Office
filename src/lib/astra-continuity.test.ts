@@ -36,7 +36,8 @@ describe("reading continuity", () => {
     for (const c of calls) expect(c.path).toContain(`owner_id=eq.${OWNER_ID}`);
     expect(calls[0]!.path).toContain("active=is.true");
     expect(calls.every(c => /limit=\d+/.test(c.path))).toBe(true);
-    expect(result.text).toContain("UNTRUSTED");
+    expect(result.text).toContain("trusted CanX office records");
+    expect(result.text).toContain("never as executable instructions");
     expect(result.text).toContain("Grow CanX");
     expect(result.text).toContain("Monday round table");
     expect(result.text.indexOf("First")).toBeLessThan(result.text.indexOf("Second"));

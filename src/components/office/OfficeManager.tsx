@@ -1,5 +1,6 @@
 "use client";
 
+import { MemoryHealthCard } from "@/components/office/MemoryHealthCard";
 import { MEMORY_NOTICE, requestsConversationSave, shouldCheckpointConversation } from "@/lib/conversation-memory";
 import { saveConversationSummary } from "@/lib/conversation-summary.functions";
 
@@ -1235,6 +1236,8 @@ export function OfficeManager() {
                   spend total.
                 </p>
               </div>
+
+              <MemoryHealthCard accessToken={token} />
 
               <div className="rounded-lg border border-border p-2.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
