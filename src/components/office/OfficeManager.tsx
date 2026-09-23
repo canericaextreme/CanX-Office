@@ -1129,11 +1129,12 @@ export function OfficeManager() {
                 </div>
                 <div>
 
-                  {!composerCollapsed && <Textarea
+                  {!composerCollapsed && <div className="relative">
+                  <Textarea
                     ref={inputRef}
                     rows={4}
                     value={draft}
-                    className="min-h-0 max-h-[40dvh] resize-none overflow-y-auto leading-relaxed"
+                    className="min-h-0 max-h-[40dvh] resize-none overflow-y-auto pr-16 leading-relaxed"
                     style={{ fontSize: textSize, height: composerHeight }}
                     placeholder="Type or paste your message here…"
                     aria-label="Message the Office Manager"
@@ -1144,7 +1145,19 @@ export function OfficeManager() {
                         void send();
                       }
                     }}
-                  />}
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="absolute bottom-2 right-2 h-11 w-11 rounded-full"
+                    onClick={() => void send()}
+                    disabled={busy || !historyReady || !session.stepUpComplete || !token || !draft.trim()}
+                    aria-label={busy ? "Sending message" : "Send message"}
+                    title={busy ? "Sending…" : "Send message"}
+                  >
+                    {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Send className="h-5 w-5" aria-hidden="true" />}
+                  </Button>
+                  </div>}
                   <div className="mt-2 flex flex-wrap gap-2" aria-label="Message and voice controls">
                   <Button
                     className="h-12 flex-1 text-lg"
@@ -1164,14 +1177,6 @@ export function OfficeManager() {
                       <PhoneOff className="mr-2 h-5 w-5" /> End conversation
                     </Button>
                   )}
-                  <Button
-                    className="h-12 flex-1 text-lg"
-                    variant="outline"
-                    onClick={() => void send()}
-                    disabled={busy || !historyReady || !session.stepUpComplete || !token || !draft.trim()}
-                  >
-                    <Send className="mr-1.5 h-4 w-4" /> {busy ? "Sending…" : "Send message"}
-                  </Button>
                   </div>
                   <p role="status" className="mt-2 text-sm">
                     {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Use Mute, Interrupt, or End conversation." : "Ready: type a message or choose Talk to Astra."}
