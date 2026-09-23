@@ -58,11 +58,12 @@ export function astraContinuityContext(
 export async function readAstraContinuity(rest: Rest, ownerId: string): Promise<ContinuityRead> {
   if (!uuid.test(ownerId)) return { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Owner id was not verified." };
   const owner = `owner_id=eq.${encodeURIComponent(ownerId)}`;
+  const safe = (p: ReturnType<Rest>) => p.catch(() => ({ ok: false, status: 0, body: null as unknown }));
   const [memory, summaries, recent] = await Promise.all([
     rest(`astra_memory?select=category,title,content,priority,active,source,updated_at&${owner}&active=is.true&order=priority.desc,updated_at.desc&limit=${MEMORY_LIMIT}`),
     rest(`astra_conversation_summaries?select=summary,created_at,updated_at&${owner}&order=updated_at.desc&limit=${SUMMARY_LIMIT}`),
     rest(`astra_recent_context?select=role,content,created_at&${owner}&conversation_key=eq.${ASTRA_CONVERSATION_KEY}&order=created_at.desc&limit=${RECENT_READ_LIMIT}`),
-  ].map(p => p.catch(() => ({ ok: false, status: 0, body: null }))));
+  ].map(safe)) as [Awaited<ReturnType<Rest>>, Awaited<ReturnType<Rest>>, Awaited<ReturnType<Rest>>];
   if (!memory.ok || !summaries.ok || !recent.ok || ![memory, summaries, recent].every(x => Array.isArray(x.body))) {
     return { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity tables could not be read." };
   }
