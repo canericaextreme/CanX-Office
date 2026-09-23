@@ -1,5 +1,7 @@
 "use client";
 
+import { recordVoiceTurn } from "@/lib/astra-voice-memory.functions";
+import { VoiceTurnPairer } from "@/lib/voice-turns";
 import { MemoryHealthCard } from "@/components/office/MemoryHealthCard";
 import { MEMORY_NOTICE, requestsConversationSave, shouldCheckpointConversation } from "@/lib/conversation-memory";
 import { saveConversationSummary } from "@/lib/conversation-summary.functions";
@@ -312,11 +314,21 @@ export function OfficeManager() {
       if (mountedRef.current) setSavingSummary(false);
     }
   }, [persistSummary, token, session.stepUpComplete]);
+  const saveVoiceTurn = useServerFn(recordVoiceTurn);
+  const voicePairerRef = useRef(new VoiceTurnPairer());
   const saveSpokenMessage = useCallback((role: "user" | "assistant", content: string) => {
     const message: ChatMessage = { id: crypto.randomUUID(), role, content };
     messagesRef.current = [...messagesRef.current, message];
     setMessages(current => [...current, message]);
-  }, []);
+    // Completed spoken turns go to durable Astra memory once; turns already
+    // saved by the typed Manager path are skipped by the pairer.
+    const turn = voicePairerRef.current.feed(role, content);
+    if (turn && token && session.stepUpComplete) {
+      void saveVoiceTurn({ data: { accessToken: token, ...turn } })
+        .then(result => { if (!result.ok && mountedRef.current) setHistoryStatus(result.message); })
+        .catch(() => { if (mountedRef.current) setHistoryStatus("The spoken turn was not saved to Astra memory."); });
+    }
+  }, [token, session.stepUpComplete, saveVoiceTurn]);
   // One implementation for typed and spoken requests. No model-generated code or URLs run here.
   const runRoomCommand = async (request: string): Promise<string | null> => {
     const command = parseRoomCommand(request, router.state.location.pathname);
@@ -377,6 +389,7 @@ export function OfficeManager() {
       if (thread.at(-1)?.role !== "user" || thread.at(-1)?.content !== request)
         thread.push({ role: "user", content: request });
       const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
+      if (reply.ok) voicePairerRef.current.markServerSaved(request);
       const result = reply.text || reply.detail || "The office action did not complete.";
       setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result }]);
       if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))
