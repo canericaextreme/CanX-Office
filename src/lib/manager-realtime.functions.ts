@@ -8,6 +8,7 @@
  */
 
 import { voiceProviderFailure } from "./voice-provider-error";
+import { CONTINUITY_UNAVAILABLE, type ContinuityRead } from "./astra-continuity";
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
@@ -45,6 +46,8 @@ export interface ManagerRealtimeDeps {
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   realtimeModel: string | undefined;
+  /** Same durable Astra memory as typed chat, for the verified owner id only. */
+  readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
 }
 
 const ESTIMATED_CENTS_PER_SESSION_START = 3;
@@ -102,6 +105,14 @@ export async function createManagerRealtimeSessionWith(
   }));
   if (!context.ok) return deny("context_unavailable", context.message);
 
+  // Durable memory is read before the session is minted. A failed read is
+  // stated plainly to Astra; voice continues on the office records alone.
+  const continuity: ContinuityRead = deps.readContinuity
+    ? await deps.readContinuity(accessToken, verification.userId)
+        .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
+    : { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." };
+  const fullContext = `${context.text}\n\n${continuity.text}`;
+
   const budget = await deps.reserve(accessToken, ESTIMATED_CENTS_PER_SESSION_START);
   if (!budget.allowed) return deny("limit_blocked", budget.message);
 
@@ -114,7 +125,7 @@ export async function createManagerRealtimeSessionWith(
       signal: controller.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${deps.openaiKey}` },
       body: JSON.stringify(
-        managerRealtimeSessionBody(model, managerRealtimeInstructions(context.text, team)),
+        managerRealtimeSessionBody(model, managerRealtimeInstructions(fullContext, team)),
       ),
     });
     if (!response.ok) {
@@ -163,6 +174,11 @@ async function realDeps(): Promise<ManagerRealtimeDeps> {
       });
       if (!context.ok) return context;
       return context;
+    },
+    readContinuity: async (token, ownerId) => {
+      const astra = await import("@/lib/astra-continuity");
+      if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
+      return astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId);
     },
     fetchImpl: (input, init) => fetch(input, init),
     openaiKey: readSetting(process.env["OPENAI_API_KEY"]),
