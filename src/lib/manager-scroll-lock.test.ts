@@ -5,7 +5,7 @@ const effects: (() => void | (() => void))[] = [];
 vi.mock("react", () => ({ useEffect: (fn: () => void | (() => void)) => { effects.push(fn); } }));
 
 function fakeDom() {
-  const style = () => ({ position: "", top: "", left: "", right: "", width: "", overflow: "", overscrollBehavior: "" } as Record<string, string>);
+  const style = () => ({ position: "", top: "", left: "", right: "", width: "", overflow: "", overscrollBehavior: "" });
   const body = { style: style() }, html = { style: style() };
   const scrollTo = vi.fn();
   vi.stubGlobal("document", { body, documentElement: html });
