@@ -14,6 +14,8 @@ export interface SummaryDeps {
   settle: (token: string, id: string, outcome: "ok" | "failed") => Promise<void>;
   summarize: (turns: ConversationTurn[]) => Promise<{ title: string; summary: string } | null>;
   save: (token: string, owner: string, id: string, title: string, summary: string) => Promise<boolean>;
+  /** Optional durable mirror into astra_conversation_summaries after verified readback. */
+  mirror?: (token: string, owner: string, id: string, summary: string) => Promise<boolean>;
 }
 
 export async function saveConversationSummaryWith(deps: SummaryDeps, input: {
@@ -40,6 +42,9 @@ export async function saveConversationSummaryWith(deps: SummaryDeps, input: {
   const summary = note.summary.trim().slice(0, 2000);
   const saved = await deps.save(input.accessToken, owner.userId, input.id, title, summary).catch(() => false);
   const readback = saved ? await deps.readSaved(input.accessToken, input.id).catch(() => ({ ok: false, note: null })) : null;
+  if (readback?.ok && readback.note && deps.mirror) {
+    await deps.mirror(input.accessToken, owner.userId, input.id, `${readback.note.title}: ${readback.note.summary}`).catch(() => false);
+  }
   return readback?.ok && readback.note
     ? { ok: true, message: "Office summary saved and verified in CanX Brain.", ...readback.note }
     : { ok: false, message: "The Brain save was not confirmed. Keep this window open and retry saving." };
@@ -88,6 +93,11 @@ async function summaryDeps(): Promise<SummaryDeps> {
       });
       if (!response.ok) return null;
       return parseSummaryResponse(await response.json() as Parameters<typeof parseSummaryResponse>[0]);
+    },
+    mirror: async (token, owner, id, summary) => {
+      if (!config) return false;
+      const astra = await import("./astra-continuity");
+      return astra.recordAstraSummary((path, init) => backend.restRequest(config, token, path, init), owner, id, summary);
     },
     save: async (token, owner, id, title, summary) => {
       if (!config) return false;

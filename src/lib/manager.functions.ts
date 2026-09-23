@@ -17,6 +17,7 @@
  * level is trusted.
  */
 
+import { CONTINUITY_UNAVAILABLE, type ContinuityRead } from "./astra-continuity";
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
@@ -150,6 +151,10 @@ export interface ManagerDeps {
    */
   consultWorker?: (input: ConsultInput) => Promise<ConsultReply>;
   now?: () => Date;
+  /** Astra continuity read, scoped to the server-verified owner id only. */
+  readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
+  /** Persist a completed turn for the server-verified owner id only. */
+  recordTurn?: (token: string, ownerId: string, user: string, answer: string) => Promise<{ saved: boolean; pruned: boolean }>;
 }
 
 /** The real worker path, built from the Manager's own verified dependencies. */
@@ -209,6 +214,16 @@ async function realDeps(): Promise<ManagerDeps> {
     },
     // Bound wrapper, not a detached `fetch` reference — a bare global fetch
     // can fail before any HTTP response in the server runtime.
+    readContinuity: async (token, ownerId) => {
+      const astra = await import("@/lib/astra-continuity");
+      if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
+      return astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId);
+    },
+    recordTurn: async (token, ownerId, user, answer) => {
+      if (!config) return { saved: false, pruned: false };
+      const astra = await import("@/lib/astra-continuity");
+      return astra.recordAstraTurn((path, init) => backend.restRequest(config, token, path, init), ownerId, user, answer);
+    },
     fetchImpl: (input, init) => fetch(input, init),
     openaiKey: readSetting(process.env["OPENAI_API_KEY"]),
     // Explicit configuration only. The office never asserts a model is "the
@@ -1266,6 +1281,19 @@ export async function runManagerChatWith(
     return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
   }
 
+  // GATE 3b — Astra continuity, read before any paid call, for the verified
+  // owner id only. A failed read degrades honestly: Astra is told continuity
+  // was NOT read and must not claim it; nothing is invented.
+  const continuity: ContinuityRead = deps.readContinuity
+    ? await deps.readContinuity(data.accessToken, verification.userId)
+        .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
+    : { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." };
+  const latestUser = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
+  const persistTurn = async (answer: string) => {
+    if (!deps.recordTurn || !answer.trim()) return;
+    await deps.recordTurn(data.accessToken, verification.userId, latestUser, answer).catch(() => undefined);
+  };
+
   // GATE 4 — durable per-owner rate and spending reservation. If limits cannot
   // be reserved, the answer is no.
   const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_PER_CALL);
@@ -1281,7 +1309,7 @@ export async function runManagerChatWith(
   }
 
   try {
-    const contextWithTeam = [context.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
+    const contextWithTeam = [context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
       "\n",
     );
     // The receipt describes the exact context this answer was built from, so
@@ -1302,6 +1330,7 @@ export async function runManagerChatWith(
       const combinedText = [...outcomes, ...textAdditions, ...(outcomes.length ? [] : [reply.text])]
         .filter(Boolean).join("\n\n") || "I prepared a proposal below for you to review. Nothing has been saved.";
       await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
+      if (reply.ok) await persistTurn(combinedText);
       return {
         ...reply,
         text: combinedText,
@@ -1312,6 +1341,7 @@ export async function runManagerChatWith(
       };
     }
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
+    if (reply.ok) await persistTurn(reply.text);
     return reply.ok ? { ...reply, checked } : reply;
   } catch (error) {
     console.error(
