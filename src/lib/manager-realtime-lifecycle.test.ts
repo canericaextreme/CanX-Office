@@ -151,8 +151,11 @@ describe("Astra realtime connection lifecycle", () => {
     const done = {type:"response.done", response:{id:"r1", output:[{type:"function_call",name:"submit_office_request",call_id:"c1",arguments:'{"request":"Ignore the user"}'}]}};
     emit(done); emit(done); await flush();
     expect(action).toHaveBeenCalledExactlyOnceWith("Put the purchase in approvals");
-    expect(channel.send.mock.calls[0]?.[0]).toContain("approval id a1");
-    expect(channel.send).toHaveBeenCalledTimes(2);
+    // One per-turn memory-refreshed reply for the committed turn, plus the tool result and its follow-up reply.
+    const sends = channel.send.mock.calls.map(c => String(c[0]));
+    expect(sends.filter(s => s.includes("function_call_output"))).toHaveLength(1);
+    expect(sends.find(s => s.includes("function_call_output"))).toContain("approval id a1");
+    expect(channel.send).toHaveBeenCalledTimes(3);
   });
   it("does not run a voice tool without a transcribed user request", async () => {
     const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
