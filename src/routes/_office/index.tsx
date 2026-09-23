@@ -43,11 +43,11 @@ function Reception() {
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
             <div className="min-w-[240px] flex-1">
               <p className="text-sm font-medium text-foreground">
-                Ask the Office Manager — bottom right of every room.
+                Ask Astra, your Office Manager — bottom right of every room.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                The current Office Manager is a separate AI assistant. Check Systems &amp; Connections for its live
-                connection status. ChatGPT/Astra has not yet replaced it inside this office.
+                Astra continues the existing Office Manager role with the same saved Office records.
+                ChatGPT history must be transferred into CanX Brain; it is not connected automatically.
               </p>
             </div>
             <Link

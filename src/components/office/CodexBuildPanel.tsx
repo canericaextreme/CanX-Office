@@ -18,8 +18,8 @@ export function CodexBuildPanel() {
     finally { setBusy(false); }
   };
   return <section className="space-y-3 rounded-xl border bg-card p-5" aria-label="Codex builds">
-    <h2 className="text-lg font-semibold">Build with Data and Codex</h2>
-    <p>Describe a change here or ask Data to send it to Codex. Codex prepares a draft change with test results. Claude can review the returned evidence through Data. Publishing is a separate step.</p>
+    <h2 className="text-lg font-semibold">Build with Astra and Codex</h2>
+    <p>Describe a change here or ask Astra to send it to Codex. Codex prepares a draft change with test results. Claude can review the returned evidence through Astra. Publishing is a separate step.</p>
     <label className="block" htmlFor="codex-build-request">What should Codex build or fix?</label>
     <textarea id="codex-build-request" className="min-h-28 w-full rounded border bg-background p-3" value={request} maxLength={6000} onChange={e => setRequest(e.target.value)} />
     <div className="flex flex-wrap gap-2">

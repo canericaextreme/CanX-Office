@@ -20,8 +20,8 @@ export type RoomCommand =
 /** Direct requests only. Quoted examples, negation and hypothetical requests do not execute. */
 export function parseRoomCommand(request: string, currentPath: string): RoomCommand | null {
   if (/\b(don['’]?t|do not|never|hypothetical|example|if|would|could you explain|how)\b/i.test(request)) return null;
-  const text = request.trim().replace(/^(?:data[, ]+)?(?:please\s+)?/i, "");
-  const move = text.match(/^(?:move|put) (?:the |your )?(?:data |office manager |manager )?(?:window|panel) (?:to |on )?(?:the )?(left|right)(?: side)?[.!]?$/i);
+  const text = request.trim().replace(/^(?:(?:astra|data)[, ]+)?(?:please\s+)?/i, "");
+  const move = text.match(/^(?:move|put) (?:the |your )?(?:astra |data |office manager |manager )?(?:window|panel) (?:to |on )?(?:the )?(left|right)(?: side)?[.!]?$/i);
   if (move) return { kind: "move-panel", side: move[1] as "left" | "right" };
   if (/^make (?:the |your )?(?:conversation )?(?:text|font) (?:larger|bigger)[.!]?$/i.test(text)) return { kind: "text-size", size: 28 };
   if (/^make (?:the |your )?(?:conversation )?(?:text|font) smaller[.!]?$/i.test(text)) return { kind: "text-size", size: 20 };

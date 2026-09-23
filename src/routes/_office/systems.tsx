@@ -183,10 +183,10 @@ function Systems() {
         <Card className="border-border bg-card">
           <CardHeader><CardTitle className="text-base">ChatGPT / Astra connection</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>Requested, not connected inside the office. The Office Manager and companion use separate AI sessions;
+            <p>Astra is the Office Manager identity. The Office Manager and companion use separate AI sessions;
               they do not inherit your ChatGPT conversation, memory, or connected tools.</p>
-            <p>A replacement needs its own tested connection to office records and actions before it can take over.
-              Changing the assistant's name does not create that connection.</p>
+            <p>Existing Office records and permissions are retained. Saved Brain memory is read on every request.
+              Live voice and actions still require verified owner access; no automatic ChatGPT history bridge is connected.</p>
           </CardContent>
         </Card>
         <Card className="border-border bg-card">

@@ -159,7 +159,7 @@ export function ManagerRoomsPanel({ accessToken, recordsReadable, reviews, onRev
           ))}
         </ul>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Ask Data to check any named room, or use its Inspect button. Data opens the room and returns a fresh review. A directory entry is never a visual inspection.
+          Ask Astra to check any named room, or use its Inspect button. Astra opens the room and returns a fresh review. A directory entry is never a visual inspection.
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { MEMORY_NOTICE, requestsConversationSave } from "@/lib/conversation-memory";
+import { MEMORY_NOTICE, requestsConversationSave, shouldCheckpointConversation } from "@/lib/conversation-memory";
 import { saveConversationSummary } from "@/lib/conversation-summary.functions";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -117,6 +117,8 @@ export function OfficeManager() {
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
   const savedThroughRef = useRef(0);
+  const autoAttemptThroughRef = useRef(0);
+  const [autoMemory, setAutoMemory] = useState(true);
   const pendingSummaryRef = useRef<{ id: string; turns: ChatMessage[]; through: number } | null>(null);
   const [draft, setDraft] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
@@ -190,7 +192,7 @@ export function OfficeManager() {
     )
       return;
     if (!result?.ok || !result.audioBase64) {
-      // The hosted voice is preferred, but Data must still talk if that one
+      // The hosted voice is preferred, but Astra must still talk if that one
       // provider or model refuses the request. The device voice costs nothing.
       const started = managerVoice.speakLocally(text, () => {
         if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current)
@@ -200,7 +202,7 @@ export function OfficeManager() {
         managerVoice.setPhase("error");
         setSpeechError(
           result?.detail ??
-            "Data could not start a spoken answer. The written answer is still available.",
+            "Astra could not start a spoken answer. The written answer is still available.",
         );
       }
       return;
@@ -265,6 +267,7 @@ export function OfficeManager() {
       setMessages([]);
       messagesRef.current = [];
       savedThroughRef.current = 0;
+      autoAttemptThroughRef.current = 0;
       pendingSummaryRef.current = null;
       setHistoryStatus(MEMORY_NOTICE);
     }
@@ -281,7 +284,7 @@ export function OfficeManager() {
     pendingSummaryRef.current = pending;
     savingSummaryRef.current = true;
     setSavingSummary(true);
-    setHistoryStatus("Preparing the requested office summary…");
+    setHistoryStatus("Preparing an office continuity summary…");
     try {
       const result = await persistSummary({ data: { accessToken: token, confirmed: true, id: pending.id, turns: pending.turns } });
       if (owner !== historyOwner.current || !mountedRef.current) return result.message;
@@ -293,7 +296,10 @@ export function OfficeManager() {
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       } else {
         // An explicit retry takes a fresh snapshot if nothing useful existed.
-        if (result.message.startsWith("No useful") || result.message.startsWith("There is no")) pendingSummaryRef.current = null;
+        if (result.message.startsWith("No useful") || result.message.startsWith("There is no")) {
+          pendingSummaryRef.current = null;
+          savedThroughRef.current = pending.through;
+        }
       }
       return result.message;
     } catch {
@@ -321,7 +327,7 @@ export function OfficeManager() {
       if (command.kind === "move-panel") {
         setFullScreen(false);
         panel.moveToSide(command.side);
-        return `Moved Data’s window to the ${command.side} side of this screen. You can drag it back.`;
+        return `Moved Astra’s window to the ${command.side} side of this screen. You can drag it back.`;
       }
       if (command.kind === "text-size") {
         changeTextSize(command.size);
@@ -377,6 +383,21 @@ export function OfficeManager() {
       return result;
     }, [token, managerTeam, sendChat, saveConversationNow]),
   );
+
+  // One attempt per new completed discussion; a failed save needs an explicit retry.
+  // No unload request: never claim a browser shutdown can finish an in-flight save.
+  useEffect(() => {
+    if (!autoMemory || busy || savingSummary || !session.stepUpComplete || !token) return;
+    if (["connecting", "thinking", "speaking"].includes(realtimeManager.phase)) return;
+    if (pendingSummaryRef.current || messages.length <= autoAttemptThroughRef.current) return;
+    const unsaved = messages.slice(savedThroughRef.current).filter(message => message.role !== "office");
+    if (!shouldCheckpointConversation(unsaved)) return;
+    const timer = window.setTimeout(() => {
+      autoAttemptThroughRef.current = messagesRef.current.length;
+      void saveConversationNow();
+    }, 12000);
+    return () => window.clearTimeout(timer);
+  }, [messages, autoMemory, busy, savingSummary, session.stepUpComplete, token, realtimeManager.phase, saveConversationNow]);
 
   useEffect(() => {
     setNotes(loadNotes());
@@ -493,7 +514,7 @@ export function OfficeManager() {
     const text = (override ?? draft).trim();
     if (!text || sendingRef.current) return;
     if (!session.stepUpComplete || !token) {
-      setError("Enter the six-digit authenticator code below before talking with Data.");
+      setError("Enter the six-digit authenticator code below before talking with Astra.");
       return;
     }
     if (requestsConversationSave(text)) {
@@ -543,7 +564,7 @@ export function OfficeManager() {
       const direct = await roomCommandRef.current(text);
       if (direct !== null) {
         saveSpokenMessage("assistant", direct);
-        setDelivery("Room request returned a result — see Data's answer.");
+        setDelivery("Room request returned a result — see Astra's answer.");
         if (realtimeManager.on) realtimeManager.say(direct);
         return;
       }
@@ -579,7 +600,7 @@ export function OfficeManager() {
         if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
       } else {
         setComposerCollapsed(true);
-        setDelivery("Received — Data returned a reply. This does not mean the requested work is complete.");
+        setDelivery("Received — Astra returned a reply. This does not mean the requested work is complete.");
         const answerId = `m-${Date.now()}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
         if (realtimeManager.on) realtimeManager.say(answer);
@@ -688,7 +709,7 @@ export function OfficeManager() {
   const startVoiceMode = () => {
     if (sendingRef.current) return;
     if (!session.stepUpComplete) {
-      setError("Enter the six-digit authenticator code below before talking with Data.");
+      setError("Enter the six-digit authenticator code below before talking with Astra.");
       return;
     }
     cancelVoiceActivity();
@@ -752,13 +773,13 @@ export function OfficeManager() {
   // Plain words for the small floating control, so the state is never a colour alone.
   const liveState =
     realtimeManager.phase === "connecting"
-      ? "Connecting Data…"
+      ? "Connecting Astra…"
       : realtimeManager.phase === "speaking"
-        ? "Data is speaking…"
+        ? "Astra is speaking…"
         : realtimeManager.phase === "thinking"
-          ? "Data is thinking…"
+          ? "Astra is thinking…"
           : realtimeManager.on
-            ? "Data is listening…"
+            ? "Astra is listening…"
             : "Office Manager";
 
   const primaryVoiceAction = () => {
@@ -920,12 +941,12 @@ export function OfficeManager() {
                     pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
                 }}
                 className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
-                aria-label="Conversation with Data"
+                aria-label="Conversation with Astra"
                 style={{ fontSize: textSize, lineHeight: 1.5 }}
               >
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    Talk to Data about today's priorities, your projects, or the next task. Ask Data
+                    Talk to Astra about today's priorities, your projects, or the next task. Ask Astra
                     to create or assign work, then check the Work Board. Spending and protected
                     actions still need your approval.
                   </p>
@@ -935,8 +956,8 @@ export function OfficeManager() {
                     {message.role !== "user" && (
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {message.role === "office"
-                          ? "Office briefing — written by this app, not by AI"
-                          : "Office Manager — OpenAI"}
+                          ? "Office notice — save and action results"
+                          : "Astra — Office Manager"}
                       </p>
                     )}
                     <div
@@ -961,30 +982,34 @@ export function OfficeManager() {
                   </div>
                 ))}
               <div className="border-t border-border pt-3">
-                <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus}</p>
-                {historyStatus !== MEMORY_NOTICE && <p className="mb-2 text-xs text-muted-foreground">{MEMORY_NOTICE}</p>}
+                <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={autoMemory} onChange={event => setAutoMemory(event.target.checked)} />
+                  Save useful discussion automatically during this session
+                </label>
+                <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus === MEMORY_NOTICE && !autoMemory ? "Automatic saving is paused. Use Save conversation to preserve useful discussion before closing." : historyStatus}</p>
+                {autoMemory && historyStatus !== MEMORY_NOTICE && <p className="mb-2 text-xs text-muted-foreground">{MEMORY_NOTICE}</p>}
                 <Button size="sm" variant="outline" className="mb-2" disabled={savingSummary || busy || !session.stepUpComplete || !token} onClick={() => void saveConversationNow()}>
                   {savingSummary ? "Saving summary…" : "Save conversation"}
                 </Button>
                 <p role="status" aria-live="polite" className="mb-2 text-base">{delivery || (draft.trim() ? "Draft — not sent yet." : "")}</p>
-                <section aria-label="Talk with Data" className="space-y-3">
+                <section aria-label="Talk with Astra" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">
                     {realtimeManager.error || error
-                      ? "Data needs attention — see the message below."
+                      ? "Astra needs attention — see the message below."
                       : realtimeManager.phase === "connecting"
-                        ? "Connecting Data…"
+                        ? "Connecting Astra…"
                         : realtimeManager.phase === "speaking"
-                          ? "Data is speaking… you can interrupt."
+                          ? "Astra is speaking… you can interrupt."
                           : realtimeManager.phase === "thinking"
-                            ? "Data is thinking…"
+                            ? "Astra is thinking…"
                             : realtimeManager.on
-                              ? "Data is listening — just speak naturally."
-                              : "Talk with Data"}
+                              ? "Astra is listening — just speak naturally."
+                              : "Talk with Astra"}
                   </p>
                   {session.signedIn && !session.stepUpComplete && (
                     <div className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
                       <p className="text-sm font-semibold text-foreground">
-                        Confirm your authenticator to talk with Data
+                        Confirm your authenticator to talk with Astra
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Enter the current six-digit code from your authenticator app. This completes
@@ -996,7 +1021,7 @@ export function OfficeManager() {
                           autoComplete="one-time-code"
                           value={mfaCode}
                           placeholder="123456"
-                          aria-label="Six-digit authenticator code for Data"
+                          aria-label="Six-digit authenticator code for Astra"
                           onChange={(event) =>
                             setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
                           }
@@ -1112,7 +1137,7 @@ export function OfficeManager() {
                     onClick={primaryVoiceAction}
                     disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}
                   >
-                    <Mic className="mr-2 h-5 w-5" /> Talk to Data
+                    <Mic className="mr-2 h-5 w-5" /> Talk to Astra
                   </Button>
                   {realtimeManager.on && <>
                     <Button variant="outline" className="h-12" onClick={realtimeManager.toggleMic}>
@@ -1135,7 +1160,7 @@ export function OfficeManager() {
                   </Button>
                   </div>
                   <p role="status" className="mt-2 text-sm">
-                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Use Mute, Interrupt, or End conversation." : "Ready: type a message or choose Talk to Data."}
+                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Use Mute, Interrupt, or End conversation." : "Ready: type a message or choose Talk to Astra."}
                   </p>
                 </div>
               </div>

@@ -32,7 +32,7 @@ export function ClaudeSpendApproval() {
         subject: "Whole CanX Office — owner-approved Second Eyes review",
         primaryRecommendation: "The office is ready for reliable daily use. Challenge this claim with evidence; do not change anything.",
         evidence: "Use the fresh read-only office snapshot built by the server. Do not assume a control works because it is visible.",
-        question: `Review all six office areas. Identify gaps, risks and unverified behavior, especially Data voice, conversation saving and approvals. Do not claim to have tested live audio. Owner's additional instructions: ${instructions.trim().slice(0,4000)}`,
+        question: `Review all six office areas. Identify gaps, risks and unverified behavior, especially Astra voice, conversation saving and approvals. Do not claim to have tested live audio. Owner's additional instructions: ${instructions.trim().slice(0,4000)}`,
       }});
       if (result.ok && result.structuredComplete) {
         rememberReview(result, "Approvals");

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { codexBuildsWith, type CodexBuildDeps } from './codex-builds.server';
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 const setup = (): CodexBuildDeps => ({ enabled: true, githubToken: 'private-github-key', verify: vi.fn().mockResolvedValue({ ok: true, userId: 'owner', aal: 'aal2', email: '' }), fetch: vi.fn() });
-describe('Data to Codex connection', () => {
+describe('Astra to Codex connection', () => {
   it('refuses unauthenticated callers before accessing GitHub', async () => {
     const d = setup(); vi.mocked(d.verify).mockResolvedValue({ ok: false, reason: 'mfa_required', message: 'MFA required' });
     expect((await codexBuildsWith(d, 'bad', 'Build an office widget')).ok).toBe(false);

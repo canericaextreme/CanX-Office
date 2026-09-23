@@ -88,7 +88,7 @@ export function useRealtimeManager(
     const leave = () => {
       if (!activeRef.current) return;
       stop();
-      setError("Voice stopped when you left the office. Tap Talk to Data to resume.");
+      setError("Voice stopped when you left the office. Tap Talk to Astra to resume.");
     };
     const visibility = () => { if (document.visibilityState === "hidden") leave(); };
     document.addEventListener("visibilitychange", visibility);
@@ -108,7 +108,7 @@ export function useRealtimeManager(
     } catch {
       if (generation !== generationRef.current) return;
       setPlaybackBlocked(true);
-      setError("Your browser blocked Data's sound. Tap Enable sound to hear this conversation.");
+      setError("Your browser blocked Astra's sound. Tap Enable sound to hear this conversation.");
     }
   }, []);
 
@@ -150,7 +150,7 @@ export function useRealtimeManager(
     if (activeRef.current) return;
     if (!accessToken) {
       setPhase("error");
-      setError("Sign in and complete the authenticator check before talking with Data.");
+      setError("Sign in and complete the authenticator check before talking with Astra.");
       return;
     }
     teardown();
@@ -171,7 +171,7 @@ export function useRealtimeManager(
       setPhase("error");
       setError(message);
     };
-    const timeout = setTimeout(() => fail("Data's voice connection timed out. Please try again."), 30_000);
+    const timeout = setTimeout(() => fail("Astra's voice connection timed out. Please try again."), 30_000);
 
     let stage = "microphone";
     try {
@@ -194,7 +194,7 @@ export function useRealtimeManager(
       const session = await mintSession({ data: { accessToken, team } });
       if (!current()) return;
       if (!session.ok || !session.clientSecret || !session.model) {
-        fail(session.detail || "Data's voice conversation could not be started.");
+        fail(session.detail || "Astra's voice conversation could not be started.");
         return;
       }
       stage = "voice connection";
@@ -207,7 +207,7 @@ export function useRealtimeManager(
       };
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === "failed" || pc.connectionState === "closed")
-          fail("Data's voice connection ended. Press Start conversation to reconnect.");
+          fail("Astra's voice connection ended. Press Start conversation to reconnect.");
       };
       mic.getTracks().forEach((track) => pc.addTrack(track, mic));
 
@@ -218,7 +218,7 @@ export function useRealtimeManager(
         clearTimeout(timeout);
         setPhase("listening");
       };
-      channel.onclose = () => fail("Data's voice connection ended. Press Start conversation to reconnect.");
+      channel.onclose = () => fail("Astra's voice connection ended. Press Start conversation to reconnect.");
       let outputPlaying = false;
       const transcripts = new Map<string, string>();
       const handledCalls = new Set<string>();
@@ -260,7 +260,7 @@ export function useRealtimeManager(
           if (code === "conversation_already_has_active_response" || code === "response_cancel_not_active") return;
           if (code === "input_audio_buffer_commit_empty") {
             setPhase("listening");
-            setError("Data did not catch that. Please speak again; the microphone is still on.");
+            setError("Astra did not catch that. Please speak again; the microphone is still on.");
             return;
           }
           const hint = code === "rate_limit_exceeded"
@@ -332,8 +332,8 @@ export function useRealtimeManager(
               ? "The device could not open its microphone. Check whether another app is using it."
               : "The browser could not open the microphone. Check this device's microphone settings."
         : stage === "office session"
-          ? "Data could not reach the office server to start voice. Check your connection and sign-in, then try again."
-          : "Data opened the microphone but could not connect to live voice. Check your network and try again.";
+          ? "Astra could not reach the office server to start voice. Check your connection and sign-in, then try again."
+          : "Astra opened the microphone but could not connect to live voice. Check your network and try again.";
       fail(detail);
     } finally {
       // An SDP answer is not proof that the voice event channel opened.

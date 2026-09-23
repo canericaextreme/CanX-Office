@@ -79,7 +79,7 @@ afterEach(() => {
   vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
 });
 
-describe("Data voice lifecycle", () => {
+describe("Astra voice lifecycle", () => {
   it("cancels a recording without transcribing or sending it", async () => {
     const onTurn = vi.fn(); const voice = useManagerVoice(onTurn);
     await voice.startListening();
