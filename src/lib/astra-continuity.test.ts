@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  checkAstraMemoryHealth,
+  HEALTH_PROBE,
+  rpcContext,
   CONTINUITY_UNAVAILABLE,
   RECENT_KEEP_LIMIT,
   readAstraContinuity,
@@ -64,6 +67,7 @@ describe("writing recent turns", () => {
     const rest: Rest = async (path, init) => {
       calls.push({ path, init });
       if (path.includes("offset=")) return ok([{ id: "99999999-2222-3333-4444-555555555555" }]);
+      if (path === "astra_recent_context") return ok([{ id: 1, owner_id: OWNER_ID }, { id: 2, owner_id: OWNER_ID }]);
       return ok(null);
     };
     const result = await recordAstraTurn(rest, OWNER_ID, "hello", "hi John");
@@ -172,5 +176,54 @@ describe("summary integration", () => {
     const rest = vi.fn() as unknown as Rest;
     expect(await recordAstraSummary(rest, "bad", "k", "s")).toBe(false);
     expect(rest).not.toHaveBeenCalled();
+  });
+});
+
+describe("get_astra_context, summary readback and health", () => {
+  it("uses get_astra_context output when it returns memory, summaries and recent lists", () => {
+    const r = rpcContext({ memory: [{ title: "Core", content: "Keep truth", active: true }], summaries: [{ summary: "Checkpoint" }],
+      recent: [{ role: "user", content: "Old", created_at: "1" }, { role: "assistant", content: "New", created_at: "2" }, { role: "assistant", content: HEALTH_PROBE, created_at: "3" }] });
+    expect(r?.ok).toBe(true);
+    expect(r!.text).toContain("Core");
+    expect(r!.text).toContain("get_astra_context");
+    expect(r!.text).not.toContain(HEALTH_PROBE);
+    expect(r!.text.indexOf("Old")).toBeLessThan(r!.text.indexOf("New"));
+    expect(rpcContext({ unexpected: 1 })).toBeNull();
+  });
+
+  it("updates an existing summary and confirms it by readback", async () => {
+    let stored = "old";
+    const rest: Rest = async (path, init) => {
+      if (init?.method === "PATCH") { stored = JSON.parse(String(init.body)).summary; return ok(null); }
+      if (path.includes("select=id")) return ok([{ id: "x" }]);
+      if (path.includes("select=summary")) return ok([{ summary: stored }]);
+      return ok(null);
+    };
+    expect(await recordAstraSummary(rest, OWNER_ID, "k", "New checkpoint")).toBe(true);
+    expect(stored).toBe("New checkpoint");
+  });
+
+  it("reports a summary as not saved when readback does not match", async () => {
+    const rest: Rest = async (path) => path.includes("select=summary") ? ok([{ summary: "different" }]) : ok([]);
+    expect(await recordAstraSummary(rest, OWNER_ID, "k", "New")).toBe(false);
+  });
+
+  it("health: connected only after read, write, readback and removal; no AI call", async () => {
+    const paths: string[] = [];
+    const rest: Rest = async (path, init) => {
+      paths.push(`${init?.method ?? "GET"} ${path}`);
+      if (path === "astra_recent_context") return ok([{ id: 7 }]);
+      if (path.includes("select=content")) return ok([{ content: HEALTH_PROBE }]);
+      return ok([]);
+    };
+    const h = await checkAstraMemoryHealth(rest, OWNER_ID);
+    expect(h.state).toBe("connected");
+    expect(paths.some(p => p.startsWith("DELETE"))).toBe(true);
+    expect(paths.every(p => !p.includes("openai") && !p.includes("anthropic"))).toBe(true);
+  });
+
+  it("health: degraded with a reason when core memory cannot be read", async () => {
+    const h = await checkAstraMemoryHealth(async () => ({ ok: false, status: 403, body: null }), OWNER_ID);
+    expect(h).toMatchObject({ state: "degraded", reason: "Core memory could not be read." });
   });
 });
