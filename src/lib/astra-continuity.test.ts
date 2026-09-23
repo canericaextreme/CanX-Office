@@ -16,7 +16,7 @@ const OWNER: OwnerVerification = { ok: true, userId: OWNER_ID, email: "o@example
 const ok = (body: unknown) => ({ ok: true, status: 200, body });
 
 function fakeRest(overrides: Partial<Record<"memory" | "summaries" | "recent", unknown>> = {}) {
-  const calls: { path: string; init?: RequestInit }[] = [];
+  const calls: { path: string; init?: RequestInit | undefined }[] = [];
   const rest: Rest = vi.fn(async (path, init) => {
     calls.push({ path, init });
     if (path.startsWith("astra_memory")) return "memory" in overrides ? (overrides.memory as never) : ok([{ category: "goal", title: "Grow CanX", content: "Keep the office honest", priority: 5, active: true, source: "handover" }]);
@@ -59,7 +59,7 @@ describe("reading continuity", () => {
 
 describe("writing recent turns", () => {
   it("writes both turns for the owner and prunes beyond the keep limit", async () => {
-    const calls: { path: string; init?: RequestInit }[] = [];
+    const calls: { path: string; init?: RequestInit | undefined }[] = [];
     const rest: Rest = async (path, init) => {
       calls.push({ path, init });
       if (path.includes("offset=")) return ok([{ id: "99999999-2222-3333-4444-555555555555" }]);
