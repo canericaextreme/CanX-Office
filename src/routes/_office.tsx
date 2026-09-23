@@ -18,14 +18,16 @@ function OfficeInterior() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <OfficeNav
-        viewMode={hydrated ? mode : "3d"}
-        onToggleView={() => setMode(mode === "3d" ? "simple" : "3d")}
-      />
-      {/* The only element an office observation may look at. */}
-      <div className="flex-1 pb-20" data-canx-office-view="true">
-        <Outlet />
-        <RoomReports />
+      <div className="flex min-h-screen flex-1 flex-col" data-canx-office-backdrop="true">
+        <OfficeNav
+          viewMode={hydrated ? mode : "3d"}
+          onToggleView={() => setMode(mode === "3d" ? "simple" : "3d")}
+        />
+        {/* The only element an office observation may look at. */}
+        <div className="flex-1 pb-20" data-canx-office-view="true">
+          <Outlet />
+          <RoomReports />
+        </div>
       </div>
       {/* Overlays are excluded from every observation. */}
       <div data-canx-no-capture="true">
