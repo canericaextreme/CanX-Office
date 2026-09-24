@@ -109,6 +109,11 @@ export interface ManagerReply {
   checked?: VerificationReceipt;
   /** Labelled worker answers returned during this turn, with their evidence. */
   consultations?: ConsultReply[];
+  /**
+   * Whether this turn was saved to the owner's durable recent context and read
+   * back. `undefined` means persistence is not wired; `false` means it failed.
+   */
+  persisted?: boolean;
   detail?: string;
 }
 
@@ -1297,9 +1302,10 @@ export async function runManagerChatWith(
   const latestUser = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
   const previousDocumentRequest = [...data.messages].reverse().slice(1).filter(m => m.role === "user").map(m => m.content).find(t => /[0-9a-f]{8}-[0-9a-f-]{27}/i.test(t)) ?? "";
   const documents = deps.readDocuments ? await deps.readDocuments(data.accessToken, latestUser, previousDocumentRequest) : { text: "", sources: [], gaps: [] };
-  const persistTurn = async (answer: string) => {
-    if (!deps.recordTurn || !answer.trim()) return;
-    await deps.recordTurn(data.accessToken, verification.userId, latestUser, answer).catch(() => undefined);
+  const persistTurn = async (answer: string): Promise<boolean | undefined> => {
+    if (!deps.recordTurn || !answer.trim()) return undefined;
+    const saved = await deps.recordTurn(data.accessToken, verification.userId, latestUser, answer).catch(() => null);
+    return saved?.saved === true;
   };
 
   // GATE 4 — durable per-owner rate and spending reservation. If limits cannot
@@ -1340,7 +1346,7 @@ export async function runManagerChatWith(
       const combinedText = [...outcomes, ...textAdditions, ...(outcomes.length ? [] : [reply.text])]
         .filter(Boolean).join("\n\n") || "I prepared a proposal below for you to review. Nothing has been saved.";
       await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-      if (reply.ok) await persistTurn(combinedText);
+      const persisted = reply.ok ? await persistTurn(combinedText) : undefined;
       return {
         ...reply,
         text: combinedText,
@@ -1348,11 +1354,12 @@ export async function runManagerChatWith(
         actionResults,
         checked,
         consultations,
+        ...(persisted === undefined ? {} : { persisted }),
       };
     }
     await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
-    if (reply.ok) await persistTurn(reply.text);
-    return reply.ok ? { ...reply, checked } : reply;
+    const persisted = reply.ok ? await persistTurn(reply.text) : undefined;
+    return reply.ok ? { ...reply, checked, ...(persisted === undefined ? {} : { persisted }) } : reply;
   } catch (error) {
     console.error(
       "[office-manager] provider call threw",
