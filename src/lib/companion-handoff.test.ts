@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  handoffStatusFromRoomOutcome,
+  handoffStillApplies,
+  resolveHandoffForSend,
   buildWorkHandoffDraft,
   handoffStatusFromReply,
   HANDOFF_STATUS_EVENT,
@@ -99,7 +102,8 @@ describe("wiring", () => {
   });
   it("Astra's panel sends a handoff only from John's Send press, through the normal pipeline", () => {
     expect(manager).toContain('data-testid="astra-handoff-send"');
-    expect(manager).toContain("send(undefined, handoff.id)");
+    expect(manager).toContain("resolveHandoffForSend(handoff, text)");
+    expect(manager).not.toContain("send(undefined, handoff.id)");
     expect(manager).toContain("reportHandoff(handoffId, handoffStatusFromReply(reply))");
     expect(manager).toContain("reportHandoff(handoffId, handoffStatusFromReply(null))");
     // Receiving a handoff never calls the server.
@@ -110,5 +114,60 @@ describe("wiring", () => {
   it("voice never leaves a superseded or wordless request unanswered", () => {
     expect(realtime).toContain("Not submitted: a newer spoken request replaced this one");
     expect(realtime).toContain("Astra did not receive the words of this request");
+  });
+});
+
+describe("one handoff, every submission path", () => {
+  const text = "Handoff from the Office Work assistant (a discussion, not an approval).\n\nJohn's request: do X";
+  const drafted = { id: "h-1", status: "drafted" as const, canResend: false, text };
+
+  it("Send button, Enter and the card all attach the same id to the reviewed draft", () => {
+    // All three call send() with no override, which resolves through this function.
+    expect(resolveHandoffForSend(drafted, text)).toEqual({ kind: "attach", id: "h-1" });
+    expect(resolveHandoffForSend(drafted, text + "\nplus my edit")).toEqual({ kind: "attach", id: "h-1" });
+    const sends = manager.match(/void send\(\)/g) ?? [];
+    expect(sends.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("replacing the draft with unrelated text detaches the old handoff", () => {
+    expect(handoffStillApplies(text, "What is on the Work Board today?")).toBe(false);
+    expect(handoffStillApplies(text, "")).toBe(false);
+    expect(resolveHandoffForSend(drafted, "What is on the Work Board today?")).toEqual({ kind: "none" });
+    expect(manager).toContain('status: "withdrawn"');
+  });
+
+  it("after a possibly delivered or unknown result, the same handoff cannot be sent again", () => {
+    for (const status of ["submitted", "responded", "acted", "pending_approval", "failed"] as const) {
+      expect(resolveHandoffForSend({ ...drafted, status }, text).kind).toBe("refuse");
+    }
+    expect(resolveHandoffForSend({ ...drafted, status: "blocked", canResend: false }, text).kind).toBe("refuse");
+    expect(resolveHandoffForSend({ ...drafted, status: "blocked", canResend: true }, text).kind).toBe("attach");
+  });
+});
+
+describe("direct room commands report their real outcome", () => {
+  it("distinguishes a verified save from a read and from display-only changes", () => {
+    expect(handoffStatusFromRoomOutcome("saved").status).toBe("acted");
+    expect(handoffStatusFromRoomOutcome("read")).toMatchObject({ status: "responded" });
+    expect(handoffStatusFromRoomOutcome("read").detail).toMatch(/read only/i);
+    expect(handoffStatusFromRoomOutcome("display").detail).toMatch(/No office record/);
+  });
+  it("never claims a save unless the save was read back", () => {
+    for (const o of ["save_unverified", "not_saved", "error", null] as const) {
+      const s = handoffStatusFromRoomOutcome(o);
+      expect(s.status).toBe("failed");
+      expect(s.canResend).toBe(false);
+      expect(s.detail).not.toMatch(/saved and read back/);
+    }
+    expect(handoffStatusFromRoomOutcome("too_long")).toMatchObject({ status: "blocked", canResend: true });
+  });
+  it("the outcome is set by the room command code, not parsed from reply text", () => {
+    expect(manager).toContain('roomOutcomeRef.current = "saved"');
+    expect(manager).toContain('roomOutcomeRef.current = "read"');
+    expect(manager).toContain("handoffStatusFromRoomOutcome(roomOutcomeRef.current)");
+    const savedAt = manager.indexOf('roomOutcomeRef.current = "saved"');
+    const readbackAt = manager.indexOf("item.id === note.id && item.detail === note.detail");
+    expect(readbackAt).toBeGreaterThan(0);
+    expect(savedAt).toBeGreaterThan(readbackAt);
   });
 });

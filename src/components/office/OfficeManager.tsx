@@ -76,8 +76,13 @@ import {
   HANDOFF_SOURCE_LABEL,
   HANDOFF_STATUS_LABEL,
   MANAGER_HANDOFF_EVENT,
+  handoffSendable,
   handoffStatusFromReply,
+  handoffStatusFromRoomOutcome,
+  handoffStillApplies,
   newHandoffId,
+  resolveHandoffForSend,
+  type RoomOutcome,
   publishHandoffReceipt,
   type HandoffSource,
   type HandoffStatus,
@@ -154,6 +159,7 @@ export function OfficeManager() {
     status: HandoffStatus;
     detail: string;
     canResend: boolean;
+    text: string;
   } | null>(null);
   const reportHandoff = (
     id: string,
@@ -366,33 +372,40 @@ export function OfficeManager() {
     }
   }, [token, session.stepUpComplete, saveVoiceTurn]);
   // One implementation for typed and spoken requests. No model-generated code or URLs run here.
+  /** Set by runRoomCommand itself so handoff receipts never infer from text. */
+  const roomOutcomeRef = useRef<RoomOutcome | null>(null);
   const runRoomCommand = async (request: string): Promise<string | null> => {
     const command = parseRoomCommand(request, router.state.location.pathname);
+    roomOutcomeRef.current = null;
     if (!command) return null;
-    if (!session.stepUpComplete || !token) return "Complete owner verification before changing or inspecting a room.";
-    if (roomActionLock.current) return "A room request is already running. Wait for its result.";
+    const out = (o: RoomOutcome, text: string) => { roomOutcomeRef.current = o; return text; };
+    if (!session.stepUpComplete || !token) return out("blocked", "Complete owner verification before changing or inspecting a room.");
+    if (roomActionLock.current) return out("blocked", "A room request is already running. Wait for its result.");
     roomActionLock.current = true;
     try {
       if (command.kind === "move-panel") {
         setFullScreen(false);
         panel.moveToSide(command.side);
+        roomOutcomeRef.current = "display";
         return `Moved Astra’s window to the ${command.side} side of this screen. You can drag it back.`;
       }
       if (command.kind === "text-size") {
         changeTextSize(command.size);
+        roomOutcomeRef.current = "display";
         return `Conversation text is now ${command.size} pixels on this device. You can change it back with the Text size control.`;
       }
       const { room } = command;
       if (command.kind === "report") {
-        if (command.content.length > 2000) return "This report is longer than 2,000 characters. Please shorten it; nothing was saved.";
+        if (command.content.length > 2000) return out("too_long", "This report is longer than 2,000 characters. Please shorten it; nothing was saved.");
         const note: OfficeNote = { id: crypto.randomUUID(), kind: "decision", title: `${room.shortLabel} report`,
           detail: command.content, owner: "John", provenance: "john", source: roomReportSource(room.id), createdAt: new Date().toISOString() };
         const saved = await pushShared({ data: { accessToken: token, notes: [note] } });
-        if (!saved.ok || saved.data?.saved !== 1) return saved.message || "The report was not saved.";
+        if (!saved.ok || saved.data?.saved !== 1) return out("not_saved", saved.message || "The report was not saved.");
         const readback = await listShared({ data: { accessToken: token } });
         if (!readback.ok || !readback.data?.some(item => item.id === note.id && item.detail === note.detail))
-          return "The save was accepted, but I could not verify it. Check Records before repeating the request.";
+          return out("save_unverified", "The save was accepted, but I could not verify it. Check Records before repeating the request.");
         setNotes(readback.data);
+        roomOutcomeRef.current = "saved";
         window.dispatchEvent(new CustomEvent("canx:room-reports-changed"));
         await router.navigate({ to: room.route });
         return `Saved and verified your report in ${room.shortLabel}. Record ${note.id}. It is also available in Records.`;
@@ -400,17 +413,18 @@ export function OfficeManager() {
       setDelivery(`Opening and checking ${room.shortLabel}…`);
       await router.navigate({ to: room.route });
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-      if (router.state.location.pathname !== room.route) return "The room changed before inspection. Please ask again in the intended room.";
+      if (router.state.location.pathname !== room.route) return out("read_failed", "The room changed before inspection. Please ask again in the intended room.");
       const capture = await captureOfficeView(room.route);
-      if (!capture.ok) return capture.message;
-      if (router.state.location.pathname !== room.route) return "The room changed during inspection. No picture was sent.";
+      if (!capture.ok) return out("read_failed", capture.message);
+      if (router.state.location.pathname !== room.route) return out("read_failed", "The room changed during inspection. No picture was sent.");
       const reply = await observeRoom({ data: { accessToken: token, path: room.route,
         room: room.label, text: capture.observation.text, image: capture.observation.image } });
-      if (!reply.ok) return reply.detail || "The room review did not complete.";
+      if (!reply.ok) return out("read_failed", reply.detail || "The room review did not complete.");
       setRoomReviews(current => ({ ...current, [room.id]: { roomId: room.id, at: new Date(reply.observedAt).toLocaleString(), text: reply.text, thumbnail: capture.observation.image } }));
+      roomOutcomeRef.current = "read";
       return `${room.shortLabel}, checked ${new Date(reply.observedAt).toLocaleTimeString()}:\n${reply.text}`;
     } catch {
-      return "The room request could not be confirmed. Check the room before repeating a change.";
+      return out("error", "The room request could not be confirmed. Check the room before repeating a change.");
     } finally { roomActionLock.current = false; }
   };
   const roomCommandRef = useRef(runRoomCommand);
@@ -561,9 +575,17 @@ export function OfficeManager() {
     }
   }, [shared, token, pushShared, listShared]);
 
-  const send = async (override?: string, handoffId?: string) => {
+  const send = async (override?: string) => {
     const text = (override ?? draft).trim();
     if (!text || sendingRef.current) return;
+    // Every submission path (Send button, Enter, handoff card) resolves the
+    // active handoff here, so the receipt always follows the real submission.
+    const decision = override === undefined ? resolveHandoffForSend(handoff, text) : { kind: "none" as const };
+    if (decision.kind === "refuse") {
+      setError(decision.message);
+      return;
+    }
+    const handoffId = decision.kind === "attach" ? decision.id : undefined;
     if (!session.stepUpComplete || !token) {
       setError("Enter the six-digit authenticator code below before talking with Astra.");
       if (handoffId) reportHandoff(handoffId, { status: "blocked", detail: "Authenticator step not complete. Nothing was sent.", canResend: true });
@@ -622,7 +644,7 @@ export function OfficeManager() {
       if (direct !== null) {
         saveSpokenMessage("assistant", direct);
         setDelivery("Room request returned a result — see Astra's answer.");
-        if (handoffId) reportHandoff(handoffId, { status: "responded", detail: "Handled as a room request. Not saved to Astra's memory.", canResend: false });
+        if (handoffId) reportHandoff(handoffId, handoffStatusFromRoomOutcome(roomOutcomeRef.current));
         if (realtimeManager.on) realtimeManager.say(direct);
         return;
       }
@@ -819,6 +841,7 @@ export function OfficeManager() {
         status: "drafted",
         detail: "",
         canResend: false,
+        text: detail.text.slice(0, 4000),
       });
     };
     window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
@@ -1086,12 +1109,12 @@ export function OfficeManager() {
                       The request is in the message box below — edit it if you like. The Work assistant cannot act on its own; only your Send reaches Astra.
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {(handoff.status === "drafted" || (handoff.status === "blocked" && handoff.canResend)) && (
+                      {handoffSendable(handoff) && (
                         <Button
                           size="sm"
                           data-testid="astra-handoff-send"
                           disabled={busy || !draft.trim()}
-                          onClick={() => void send(undefined, handoff.id)}
+                          onClick={() => void send()}
                         >
                           Send to Astra
                         </Button>
@@ -1234,7 +1257,16 @@ export function OfficeManager() {
                     style={{ fontSize: textSize, height: composerHeight }}
                     placeholder="Type or paste your message here…"
                     aria-label="Message the Office Manager"
-                    onChange={(event) => setDraft(event.target.value)}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setDraft(next);
+                      // Replacing the handoff text detaches it: a different request
+                      // is never attributed to the old handoff id.
+                      if (handoff && handoffSendable(handoff) && !handoffStillApplies(handoff.text, next)) {
+                        publishHandoffReceipt({ id: handoff.id, status: "withdrawn", detail: "The draft in Astra's panel was replaced. Nothing was sent.", at: new Date().toISOString() });
+                        setHandoff(null);
+                      }
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) {
                         event.preventDefault();
