@@ -379,7 +379,7 @@ export function OfficeManager() {
     roomOutcomeRef.current = null;
     if (!command) return null;
     const out = (o: RoomOutcome, text: string) => { roomOutcomeRef.current = o; return text; };
-    if (!session.stepUpComplete || !token) return out("blocked", "Complete owner verification before changing or inspecting a room.";
+    if (!session.stepUpComplete || !token) return out("blocked", "Complete owner verification before changing or inspecting a room.");
     if (roomActionLock.current) return out("blocked", "A room request is already running. Wait for its result.");
     roomActionLock.current = true;
     try {
