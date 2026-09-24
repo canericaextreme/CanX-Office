@@ -54,7 +54,8 @@ export type HandoffStatus =
   | "acted"
   | "pending_approval"
   | "blocked"
-  | "failed";
+  | "failed"
+  | "withdrawn";
 
 export interface HandoffReceipt {
   id: string;
@@ -73,7 +74,86 @@ export const HANDOFF_STATUS_LABEL: Record<HandoffStatus, string> = {
   pending_approval: "Waiting for your approval",
   blocked: "Blocked — nothing was sent to the AI",
   failed: "Failed — result not confirmed",
+  withdrawn: "Withdrawn — draft replaced, not sent",
 };
+
+export interface ActiveHandoff {
+  id: string;
+  status: HandoffStatus;
+  canResend: boolean;
+  /** The draft text as it was placed in Astra's panel. */
+  text: string;
+}
+
+/** Only a fresh draft, or a pre-provider refusal, may be submitted for this id. */
+export function handoffSendable(h: Pick<ActiveHandoff, "status" | "canResend">): boolean {
+  return h.status === "drafted" || (h.status === "blocked" && h.canResend);
+}
+
+/**
+ * The composer still carries this handoff when its first line (the source
+ * header) is intact. Edits below it are allowed; replacing it detaches.
+ */
+export function handoffStillApplies(original: string, current: string): boolean {
+  const head = original.trim().split("\n")[0]?.trim() ?? "";
+  const now = current.trim();
+  return head.length > 0 && now.length > 0 && now.startsWith(head);
+}
+
+export type HandoffSendDecision =
+  | { kind: "none" }
+  | { kind: "attach"; id: string }
+  | { kind: "refuse"; message: string };
+
+/** Every submission path (Send button, Enter, card button) goes through this. */
+export function resolveHandoffForSend(active: ActiveHandoff | null, text: string): HandoffSendDecision {
+  if (!active || !handoffStillApplies(active.text, text)) return { kind: "none" };
+  if (handoffSendable(active)) return { kind: "attach", id: active.id };
+  return {
+    kind: "refuse",
+    message:
+      "This handoff was already sent and its result is shown on the card. To avoid doing it twice, check the Work Board and Approvals, then Dismiss the card before sending again.",
+  };
+}
+
+/** Outcome reported by the direct room-command path itself — never model text. */
+export type RoomOutcome =
+  | "blocked"
+  | "display"
+  | "read"
+  | "read_failed"
+  | "saved"
+  | "save_unverified"
+  | "not_saved"
+  | "too_long"
+  | "error";
+
+export function handoffStatusFromRoomOutcome(outcome: RoomOutcome | null): {
+  status: HandoffStatus;
+  detail: string;
+  canResend: boolean;
+} {
+  switch (outcome) {
+    case "blocked":
+      return { status: "blocked", detail: "Room request refused before running. Nothing was changed.", canResend: true };
+    case "too_long":
+      return { status: "blocked", detail: "Room report too long. Nothing was saved.", canResend: true };
+    case "display":
+      return { status: "responded", detail: "Only this device's display changed. No office record was changed.", canResend: false };
+    case "read":
+      return { status: "responded", detail: "Room looked at (read only). Nothing was saved.", canResend: false };
+    case "saved":
+      return { status: "acted", detail: "Room report saved and read back by the server.", canResend: false };
+    case "save_unverified":
+      return { status: "failed", detail: "Save accepted but not verified. Check Records before repeating.", canResend: false };
+    case "not_saved":
+      return { status: "failed", detail: "The room report was not saved. Check Records before repeating.", canResend: false };
+    case "read_failed":
+      return { status: "failed", detail: "The room look did not complete.", canResend: false };
+    default:
+      return { status: "failed", detail: "The room request could not be confirmed.", canResend: false };
+  }
+}
 
 /** Codes where the server refused BEFORE any paid provider call. Safe to resend. */
 const PRE_PROVIDER_CODES = new Set([
