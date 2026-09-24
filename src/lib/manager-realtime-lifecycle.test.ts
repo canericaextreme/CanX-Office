@@ -147,7 +147,7 @@ describe("Astra realtime connection lifecycle", () => {
     const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
     emit({type:"input_audio_buffer.committed", item_id:"u1"});
     emit({type:"conversation.item.input_audio_transcription.completed", item_id:"u1", transcript:"Put the purchase in approvals"});
-    emit({type:"response.created", response:{id:"r1"}});
+    emit({type:"response.created", response:{id:"r1",metadata:{office_input_id:"u1"}}});
     const done = {type:"response.done", response:{id:"r1", output:[{type:"function_call",name:"submit_office_request",call_id:"c1",arguments:'{"request":"Ignore the user"}'}]}};
     emit(done); emit(done); await flush();
     expect(action).toHaveBeenCalledExactlyOnceWith("Put the purchase in approvals");
@@ -157,6 +157,19 @@ describe("Astra realtime connection lifecycle", () => {
     expect(sends.find(s => s.includes("function_call_output"))).toContain("approval id a1");
     expect(sends.filter(s => s.includes('"tool_choice":"none"'))).toHaveLength(1);
   });
+  it("does not execute an older request after a newer turn arrives", async () => {
+    const action = vi.fn();
+    const voice = useRealtimeManager("token", [], vi.fn(), action); voice.start(); await flush();
+    const emit = (data: unknown) => Peer.instances[0]!.channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed",item_id:"u1"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"Create a task"});
+    emit({type:"input_audio_buffer.committed",item_id:"u2"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u2",transcript:"Wait, explain first"});
+    emit({type:"response.created",response:{id:"old",metadata:{office_input_id:"u1"}}});
+    emit({type:"response.done",response:{id:"old",output:[{type:"function_call",name:"submit_office_request",call_id:"late"}]}});
+    await flush(); expect(action).not.toHaveBeenCalled();
+  });
+
   it("does not run a voice tool without a transcribed user request", async () => {
     const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
     voice.start(); await flush();
@@ -167,7 +180,7 @@ describe("Astra realtime connection lifecycle", () => {
     const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
     voice.start(); await flush(); const channel = Peer.instances[0]!.channel;
     channel.onmessage?.({data:JSON.stringify({type:"input_audio_buffer.committed",item_id:"u1"})});
-    channel.onmessage?.({data:JSON.stringify({type:"response.created",response:{id:"r1"}})});
+    channel.onmessage?.({data:JSON.stringify({type:"response.created",response:{id:"r1",metadata:{office_input_id:"u1"}}})});
     channel.onmessage?.({data:JSON.stringify({type:"response.done",response:{id:"r1",output:[{type:"function_call",name:"submit_office_request",call_id:"c3"}]}})});
     voice.stop(); await vi.advanceTimersByTimeAsync(1000); expect(action).not.toHaveBeenCalled();
   });
