@@ -25,6 +25,14 @@ describe("live voice refreshes durable memory on every turn", () => {
     expect(JSON.stringify(e2)).toContain("Goal: second");
   });
 
+  it("routes ordinary conversation through reasoning and binds its input id", () => {
+    const events = voiceTurnEvents(null, "turn-2");
+    expect(events.at(-1)).toMatchObject({ response: {
+      tool_choice: { type: "function", name: "submit_office_request" },
+      metadata: { office_input_id: "turn-2" },
+    } });
+  });
+
   it("states a memory gap and continues on office records", async () => {
     const r = await refreshManagerVoiceContextWith({ verifyOwner: async () => OWNER, buildContext: async () => ({ ok: true as const, text: "OFFICE" }), readContinuity: async () => { throw new Error("down"); } }, "t", []);
     expect(r.ok).toBe(true);
@@ -35,7 +43,7 @@ describe("live voice refreshes durable memory on every turn", () => {
   it("failed refresh falls back to verified session context with an explicit gap note", () => {
     const events = voiceTurnEvents(null);
     expect(JSON.stringify(events)).toContain(VOICE_REFRESH_GAP_NOTE);
-    expect(events.at(-1)).toEqual({ type: "response.create" });
+    expect(events.at(-1)).toMatchObject({ type: "response.create", response: { tool_choice: { type: "function", name: "submit_office_request" } } });
   });
 
   it("never reads memory for an unverified owner", async () => {
@@ -51,7 +59,7 @@ describe("live voice refreshes durable memory on every turn", () => {
     expect(td.interrupt_response).toBe(true);
     const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
     expect(hook).toContain("refreshedInputs.has(inputId)");
-    expect(hook).toContain("voiceTurnEvents(result)");
+    expect(hook).toContain("voiceTurnEvents(result, inputId)");
   });
 
   it("two ordinary turns are each persisted exactly once", () => {

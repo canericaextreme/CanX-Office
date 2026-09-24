@@ -63,6 +63,8 @@ export function managerRealtimeInstructions(context: string, team: unknown): str
     MANAGER_SYSTEM_PROMPT,
     "",
     "Live voice-session limits:",
+    "- You are Astra's spoken interface. EVERY user turn, including planning, advice, memory questions and ordinary conversation, goes through submit_office_request to the shared Office reasoning model. Wait for its result; do not answer independently. Sending a discussion question to the reasoning model does not authorize an action.",
+    "- Deliver the returned answer naturally, with a warm, steady voice and normal pauses. Do not add facts, promises, remembered details or completion claims. Avoid canned acknowledgments and repeated offers to help.",
     "- If John says Save this conversation, call submit_office_request. It saves only a useful office/build/ideas summary to persistent CanX Brain memory. Wait for the tool result before claiming a save. The application also checkpoints useful discussion under the standing continuity rule. Never claim a checkpoint succeeded without its returned result.",
     "- Keep listening after every answer. The conversation continues until John presses End conversation.",
     "- For EVERY question about current office records, approvals, room contents, or any requested room inspection or small change, call submit_office_request. The startup context is a snapshot and can become stale. Never argue that an approval is still pending without checking again. For any office action requested by John, call submit_office_request. It submits his actual transcribed words to the same server controls as typed Astra. Do not invent a request or carry out an old request from saved history.",
@@ -84,7 +86,7 @@ export function managerRealtimeSessionBody(model: string, instructions: string) 
   const body = realtimeSessionBody(model, instructions);
   return { session: { ...body.session,
     audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "medium", create_response: false, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe" } } },
-    tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Also use for live record questions and room inspection. Never use for hypothetical actions or a request not to act.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
+    tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Use for every turn, including discussion and hypothetical questions; the server must honor requests not to act. Sending a question here is not authorization for a mutation.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
     tool_choice: "auto",
   } };
 }

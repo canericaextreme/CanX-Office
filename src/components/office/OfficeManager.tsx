@@ -402,7 +402,8 @@ export function OfficeManager() {
       const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
       if (reply.ok) voicePairerRef.current.markServerSaved(request);
       const result = reply.text || reply.detail || "The office action did not complete.";
-      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result }]);
+      // The spoken transcript appends the reply once and updates messagesRef.
+      // Appending here too created duplicate replies and stale thread history.
       if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       return result;
