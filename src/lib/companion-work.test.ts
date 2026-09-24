@@ -30,14 +30,14 @@ describe("ChatGPT Work panel belongs to the companion", () => {
   it("opens from the companion's own Work button", () => {
     expect(dockSource).toContain("CompanionWorkPanel");
     expect(dockSource).toContain("const toggleWork");
-    expect(dockSource).toContain('aria-label={workOpen ? "Close the ChatGPT Work window"');
-    expect(panelSource).toContain('aria-label="ChatGPT Work"');
-    expect(panelSource).toContain("ChatGPT Work</h2>");
+    expect(dockSource).toContain('aria-label={workOpen ? "Close the Office Work assistant window"');
+    expect(panelSource).toContain('aria-label="Office Work assistant"');
+    expect(panelSource).toContain("Office Work assistant</h2>");
   });
 
   it("has its own close, minimize, input, Send button and plain states", () => {
-    expect(panelSource).toContain("Close the ChatGPT Work window");
-    expect(panelSource).toContain("Minimize the ChatGPT Work window");
+    expect(panelSource).toContain("Close the Office Work assistant window");
+    expect(panelSource).toContain("Minimize the Office Work assistant window");
     expect(panelSource).toContain("canx-work-input");
     expect(panelSource).toContain("Send\n            </button>");
     for (const state of ["Ready", "Working", "Completed", "Error"]) {

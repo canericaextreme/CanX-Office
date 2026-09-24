@@ -72,7 +72,17 @@ import { useBackgroundScrollLock } from "@/lib/use-background-scroll-lock";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMobileOverlayShield } from "@/lib/use-mobile-overlay-shield";
 import { useTranscriptScrollContainment } from "@/lib/use-transcript-scroll-containment";
-import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
+import {
+  HANDOFF_SOURCE_LABEL,
+  HANDOFF_STATUS_LABEL,
+  MANAGER_HANDOFF_EVENT,
+  handoffStatusFromReply,
+  newHandoffId,
+  publishHandoffReceipt,
+  type HandoffSource,
+  type HandoffStatus,
+  type ManagerHandoff,
+} from "@/lib/companion-bridge";
 import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
 import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
 import {
@@ -137,6 +147,21 @@ export function OfficeManager() {
   const [fullScreen, setFullScreen] = useState(false);
   const [textSize, setTextSize] = useState(20);
   const [delivery, setDelivery] = useState("");
+  /** One reviewed handoff from the Office Work assistant. Session memory only. */
+  const [handoff, setHandoff] = useState<{
+    id: string;
+    source: HandoffSource;
+    status: HandoffStatus;
+    detail: string;
+    canResend: boolean;
+  } | null>(null);
+  const reportHandoff = (
+    id: string,
+    next: { status: HandoffStatus; detail: string; canResend: boolean },
+  ) => {
+    setHandoff((current) => (current && current.id === id ? { ...current, ...next } : current));
+    publishHandoffReceipt({ id, status: next.status, detail: next.detail, at: new Date().toISOString() });
+  };
   useEffect(() => {
     try {
       const size = Number(localStorage.getItem("canx-manager-text-size"));
@@ -536,11 +561,16 @@ export function OfficeManager() {
     }
   }, [shared, token, pushShared, listShared]);
 
-  const send = async (override?: string) => {
+  const send = async (override?: string, handoffId?: string) => {
     const text = (override ?? draft).trim();
     if (!text || sendingRef.current) return;
     if (!session.stepUpComplete || !token) {
       setError("Enter the six-digit authenticator code below before talking with Astra.");
+      if (handoffId) reportHandoff(handoffId, { status: "blocked", detail: "Authenticator step not complete. Nothing was sent.", canResend: true });
+      return;
+    }
+    if (handoffId && !historyReady) {
+      setError("Wait for conversation memory to load before sending.");
       return;
     }
     if (requestsConversationSave(text)) {
@@ -585,12 +615,14 @@ export function OfficeManager() {
     sendingRef.current = true;
     setBusy(true);
     setDelivery("Sending message — waiting for the server…");
+    if (handoffId) reportHandoff(handoffId, { status: "submitted", detail: "", canResend: false });
     followMessagesRef.current = true;
     try {
       const direct = await roomCommandRef.current(text);
       if (direct !== null) {
         saveSpokenMessage("assistant", direct);
         setDelivery("Room request returned a result — see Astra's answer.");
+        if (handoffId) reportHandoff(handoffId, { status: "responded", detail: "Handled as a room request. Not saved to Astra's memory.", canResend: false });
         if (realtimeManager.on) realtimeManager.say(direct);
         return;
       }
@@ -603,6 +635,7 @@ export function OfficeManager() {
             .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
         },
       });
+      if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(reply));
       if (!mountedRef.current) return;
       if (!reply.ok) {
         setDelivery("Request failed — see the error below. Your message remains in the conversation.");
@@ -664,6 +697,7 @@ export function OfficeManager() {
     } catch (caught) {
       if (!mountedRef.current) return;
       setDelivery("Reply not confirmed — check the conversation and work records before retrying an action.");
+      if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(null));
       setDraft(current => current || text);
       setError(caught instanceof Error ? caught.message : "The request could not be completed.");
       if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
@@ -768,7 +802,8 @@ export function OfficeManager() {
   const voiceModeOn = voiceMode;
 
   // Text-only handoff from the companion's Work window: an explicit click
-  // prefills a draft here for review. Nothing is sent, saved or approved.
+  // prefills a draft here for review. Nothing is sent, saved or approved
+  // until John presses Send to Astra.
   useEffect(() => {
     const onHandoff = (event: Event) => {
       const detail = (event as CustomEvent<ManagerHandoff>).detail;
@@ -777,6 +812,14 @@ export function OfficeManager() {
       setMinimized(false);
       setTab("now");
       setDraft(detail.text.slice(0, 4000));
+      const id = typeof detail.id === "string" && /^[a-z0-9-]{1,60}$/i.test(detail.id) ? detail.id : newHandoffId();
+      setHandoff({
+        id,
+        source: detail.source === "work_discussion" ? "work_discussion" : "screen_observation",
+        status: "drafted",
+        detail: "",
+        canResend: false,
+      });
     };
     window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
     return () => window.removeEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
@@ -1028,6 +1071,37 @@ export function OfficeManager() {
                   {savingSummary ? "Saving summary…" : "Save conversation"}
                 </Button>
                 <p role="status" aria-live="polite" className="mb-2 text-base">{delivery || (draft.trim() ? "Draft — not sent yet." : "")}</p>
+                {handoff && (
+                  <section
+                    data-testid="astra-handoff-card"
+                    aria-label="Handoff from the Office Work assistant"
+                    className="mb-2 rounded-md border border-border p-2 text-xs"
+                  >
+                    <p className="font-semibold">
+                      {HANDOFF_STATUS_LABEL[handoff.status]}
+                    </p>
+                    <p className="text-muted-foreground">Source: {HANDOFF_SOURCE_LABEL[handoff.source]}</p>
+                    {handoff.detail && <p className="mt-1">{handoff.detail}</p>}
+                    <p className="mt-1 text-muted-foreground">
+                      The request is in the message box below — edit it if you like. The Work assistant cannot act on its own; only your Send reaches Astra.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(handoff.status === "drafted" || (handoff.status === "blocked" && handoff.canResend)) && (
+                        <Button
+                          size="sm"
+                          data-testid="astra-handoff-send"
+                          disabled={busy || !draft.trim()}
+                          onClick={() => void send(undefined, handoff.id)}
+                        >
+                          Send to Astra
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => setHandoff(null)}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  </section>
+                )}
                 <section aria-label="Talk with Astra" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">
                     {realtimeManager.error || error

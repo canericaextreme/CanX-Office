@@ -218,7 +218,7 @@ export function CompanionDock() {
           onPointerDown={(event) => event.stopPropagation()}
           onClick={toggleWork}
           aria-pressed={workOpen}
-          aria-label={workOpen ? "Close the ChatGPT Work window" : "Open the ChatGPT Work window"}
+          aria-label={workOpen ? "Close the Office Work assistant window" : "Open the Office Work assistant window"}
           className="min-h-9 flex-1 rounded-md border border-border bg-secondary px-1 text-xs font-semibold text-secondary-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Work
