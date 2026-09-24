@@ -15,14 +15,22 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, Mic, Minus, Send as SendIcon, X } from "lucide-react";
+import { ArrowRightLeft, Eye, Mic, Minus, Send as SendIcon, X } from "lucide-react";
 import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
 import { askCompanionWork } from "@/lib/companion-work.functions";
 import { observeOfficeView } from "@/lib/office-observe.functions";
 import { captureOfficeView, managerDraft } from "@/lib/office-observe";
-import { sendManagerHandoff } from "@/lib/companion-bridge";
+import {
+  buildWorkHandoffDraft,
+  HANDOFF_SOURCE_LABEL,
+  HANDOFF_STATUS_EVENT,
+  HANDOFF_STATUS_LABEL,
+  newHandoffId,
+  sendManagerHandoff,
+  type HandoffReceipt,
+} from "@/lib/companion-bridge";
 
 export type WorkState = "Ready" | "Working" | "Observing" | "Completed" | "Error";
 
@@ -66,11 +74,39 @@ export function CompanionWorkPanel({
   const [error, setError] = useState<string | null>(null);
   const [observation, setObservation] = useState<Observation | null>(null);
   const [handedOff, setHandedOff] = useState(false);
+  /** Editable review draft for ONE selected exchange; nothing leaves until John presses. */
+  const [review, setReview] = useState<{ text: string; turnId: string } | null>(null);
+  /** Receipts for handoffs made from this window, keyed by handoff id. Memory only. */
+  const [receipts, setReceipts] = useState<Record<string, HandoffReceipt>>({});
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [turns, work, observation]);
+  }, [turns, work, observation, review]);
+
+  useEffect(() => {
+    const onStatus = (event: Event) => {
+      const detail = (event as CustomEvent<HandoffReceipt>).detail;
+      if (!detail?.id) return;
+      setReceipts((current) => (current[detail.id] ? { ...current, [detail.id]: detail } : current));
+    };
+    window.addEventListener(HANDOFF_STATUS_EVENT, onStatus);
+    return () => window.removeEventListener(HANDOFF_STATUS_EVENT, onStatus);
+  }, []);
+
+  const trackHandoff = (id: string) =>
+    setReceipts((current) => ({
+      ...current,
+      [id]: { id, status: "drafted", detail: "Placed in Astra's panel for your review.", at: new Date().toISOString() },
+    }));
+
+  const handToAstra = () => {
+    if (!review || !review.text.trim()) return;
+    const id = newHandoffId();
+    trackHandoff(id);
+    sendManagerHandoff({ id, source: "work_discussion", text: review.text.trim().slice(0, 4000), room: "", path });
+    setReview(null);
+  };
 
   const requireSession = () => {
     if (ownerState === "signed_out" || !accessToken) {
@@ -158,16 +194,16 @@ export function CompanionWorkPanel({
     <section
       data-testid="canx-work-panel"
       data-canx-no-capture="true"
-      aria-label="ChatGPT Work"
+      aria-label="Office Work assistant"
       className={`fixed bottom-4 right-4 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl ${
         minimized ? "" : "max-h-[min(34rem,calc(100vh-6rem))]"
       }`}
     >
       <header className="flex items-center justify-between gap-2 border-b border-border bg-secondary px-3 py-2">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold text-foreground">ChatGPT Work</h2>
+          <h2 className="truncate text-sm font-semibold text-foreground">Office Work assistant</h2>
           <p className="truncate text-[11px] text-muted-foreground">
-            Thinking and drafting only — separate from the Office Manager.
+            A separate AI helper — not your ChatGPT chat, its memory or connectors.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -177,7 +213,7 @@ export function CompanionWorkPanel({
           <button
             type="button"
             onClick={() => setMinimized((v) => !v)}
-            aria-label={minimized ? "Expand the ChatGPT Work window" : "Minimize the ChatGPT Work window"}
+            aria-label={minimized ? "Expand the Office Work assistant window" : "Minimize the Office Work assistant window"}
             className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Minus className="h-4 w-4" />
@@ -185,7 +221,7 @@ export function CompanionWorkPanel({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close the ChatGPT Work window"
+            aria-label="Close the Office Work assistant window"
             className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-4 w-4" />
@@ -219,8 +255,8 @@ export function CompanionWorkPanel({
                 Ask for thinking, drafting, analysis or wording. This window cannot read or change office records.
               </p>
             )}
-            {turns.map((turn) => (
-              <div key={turn.id} className={turn.role === "user" ? "flex justify-end" : ""}>
+            {turns.map((turn, index) => (
+              <div key={turn.id} className={turn.role === "user" ? "flex flex-col items-end gap-1" : ""}>
                 <div
                   className={
                     turn.role === "user"
@@ -230,8 +266,80 @@ export function CompanionWorkPanel({
                 >
                   {turn.content}
                 </div>
+                {turn.role === "user" && (
+                  <button
+                    type="button"
+                    data-testid="canx-work-handoff-select"
+                    onClick={() => {
+                      const text = buildWorkHandoffDraft(turns, index);
+                      if (text) setReview({ text, turnId: turn.id });
+                    }}
+                    className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                    Hand this to Astra…
+                  </button>
+                )}
               </div>
             ))}
+
+            {review && (
+              <article
+                data-testid="canx-work-handoff-review"
+                aria-label="Review the handoff to Astra"
+                className="rounded-lg border border-canx-yellow/50 bg-canx-yellow/5 p-3"
+              >
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Review before handing to Astra
+                </h3>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Source: {HANDOFF_SOURCE_LABEL.work_discussion}. Only this one request and the reply after it are
+                  included — no pictures, no whole chat, secrets removed. Edit freely.
+                </p>
+                <label className="sr-only" htmlFor="canx-work-handoff-text">Handoff draft</label>
+                <textarea
+                  id="canx-work-handoff-text"
+                  data-testid="canx-work-handoff-text"
+                  value={review.text}
+                  onChange={(event) => setReview({ ...review, text: event.target.value.slice(0, 4000) })}
+                  rows={6}
+                  className="mt-2 w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="canx-work-handoff-confirm"
+                    onClick={handToAstra}
+                    disabled={!review.text.trim()}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <SendIcon className="h-4 w-4" aria-hidden="true" />
+                    Place draft in Astra's panel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReview(null)}
+                    className="inline-flex min-h-9 items-center rounded-md border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  This only places a draft. Astra does nothing until you press Send in her panel.
+                </p>
+              </article>
+            )}
+
+            {Object.values(receipts).length > 0 && (
+              <ul data-testid="canx-work-handoff-receipts" aria-label="Handoff receipts" className="space-y-1">
+                {Object.values(receipts).map((r) => (
+                  <li key={r.id} className="rounded-md border border-border px-2 py-1 text-[11px] text-foreground">
+                    <span className="font-semibold">{HANDOFF_STATUS_LABEL[r.status]}</span> — {r.detail}{" "}
+                    <span className="text-muted-foreground">({new Date(r.at).toLocaleTimeString()})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {observation && (
               <article
@@ -258,7 +366,11 @@ export function CompanionWorkPanel({
                     type="button"
                     data-testid="canx-send-to-manager"
                     onClick={() => {
+                      const id = newHandoffId();
+                      trackHandoff(id);
                       sendManagerHandoff({
+                        id,
+                        source: "screen_observation",
                         text: managerDraft(observation.room, observation.path, observation.text),
                         room: observation.room,
                         path: observation.path,
