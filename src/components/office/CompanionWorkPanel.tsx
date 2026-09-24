@@ -111,7 +111,7 @@ export function CompanionWorkPanel({
   const requireSession = () => {
     if (ownerState === "signed_out" || !accessToken) {
       setWork("Error");
-      setError("Sign in to the CanX Office to use ChatGPT Work.");
+      setError("Sign in to the CanX Office to use the Office Work assistant.");
       return false;
     }
     return true;
@@ -133,7 +133,7 @@ export function CompanionWorkPanel({
 
     if (!reply || !reply.ok || !reply.text) {
       setWork("Error");
-      setError(reply?.detail ?? "ChatGPT Work could not answer just now.");
+      setError(reply?.detail ?? "The Office Work assistant could not answer just now.");
       return;
     }
     setTurns((current) => [...current, { id: `a-${Date.now()}`, role: "assistant", content: reply.text }]);
@@ -417,7 +417,7 @@ export function CompanionWorkPanel({
             }}
           >
             <label className="sr-only" htmlFor="canx-work-input">
-              Message ChatGPT Work
+              Message the Office Work assistant
             </label>
             <textarea
               id="canx-work-input"
