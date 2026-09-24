@@ -72,7 +72,17 @@ import { useBackgroundScrollLock } from "@/lib/use-background-scroll-lock";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMobileOverlayShield } from "@/lib/use-mobile-overlay-shield";
 import { useTranscriptScrollContainment } from "@/lib/use-transcript-scroll-containment";
-import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
+import {
+  HANDOFF_SOURCE_LABEL,
+  HANDOFF_STATUS_LABEL,
+  MANAGER_HANDOFF_EVENT,
+  handoffStatusFromReply,
+  newHandoffId,
+  publishHandoffReceipt,
+  type HandoffSource,
+  type HandoffStatus,
+  type ManagerHandoff,
+} from "@/lib/companion-bridge";
 import { ManagerRoomsPanel } from "@/components/office/ManagerRoomsPanel";
 import { ManagerTeamPanel } from "@/components/office/ManagerTeamPanel";
 import {
@@ -137,6 +147,21 @@ export function OfficeManager() {
   const [fullScreen, setFullScreen] = useState(false);
   const [textSize, setTextSize] = useState(20);
   const [delivery, setDelivery] = useState("");
+  /** One reviewed handoff from the Office Work assistant. Session memory only. */
+  const [handoff, setHandoff] = useState<{
+    id: string;
+    source: HandoffSource;
+    status: HandoffStatus;
+    detail: string;
+    canResend: boolean;
+  } | null>(null);
+  const reportHandoff = (
+    id: string,
+    next: { status: HandoffStatus; detail: string; canResend: boolean },
+  ) => {
+    setHandoff((current) => (current && current.id === id ? { ...current, ...next } : current));
+    publishHandoffReceipt({ id, status: next.status, detail: next.detail, at: new Date().toISOString() });
+  };
   useEffect(() => {
     try {
       const size = Number(localStorage.getItem("canx-manager-text-size"));
@@ -672,6 +697,7 @@ export function OfficeManager() {
     } catch (caught) {
       if (!mountedRef.current) return;
       setDelivery("Reply not confirmed — check the conversation and work records before retrying an action.");
+      if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(null));
       setDraft(current => current || text);
       setError(caught instanceof Error ? caught.message : "The request could not be completed.");
       if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
