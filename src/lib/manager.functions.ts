@@ -152,6 +152,7 @@ export interface ManagerDeps {
   consultWorker?: (input: ConsultInput) => Promise<ConsultReply>;
   now?: () => Date;
   /** Astra continuity read, scoped to the server-verified owner id only. */
+  readDocuments?: (token: string, request: string, previous: string) => Promise<import("./document-knowledge").DocumentContext>;
   readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
   /** Persist a completed turn for the server-verified owner id only. */
   recordTurn?: (token: string, ownerId: string, user: string, answer: string) => Promise<{ saved: boolean; pruned: boolean }>;
@@ -218,6 +219,11 @@ async function realDeps(): Promise<ManagerDeps> {
       const astra = await import("@/lib/astra-continuity");
       if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
       return astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId);
+    },
+    readDocuments: async (token, request, previous) => {
+      const { readDocumentContext } = await import("./document-knowledge");
+      if (!config) return { text: "Documents unavailable", sources: [], gaps: ["Documents unavailable"] };
+      return readDocumentContext((path, init) => backend.restRequest(config, token, path, init), request, previous);
     },
     recordTurn: async (token, ownerId, user, answer) => {
       if (!config) return { saved: false, pruned: false };
@@ -1289,6 +1295,8 @@ export async function runManagerChatWith(
         .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
     : { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." };
   const latestUser = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
+  const previousDocumentRequest = [...data.messages].reverse().slice(1).filter(m => m.role === "user").map(m => m.content).find(t => /[0-9a-f]{8}-[0-9a-f-]{27}/i.test(t)) ?? "";
+  const documents = deps.readDocuments ? await deps.readDocuments(data.accessToken, latestUser, previousDocumentRequest) : { text: "", sources: [], gaps: [] };
   const persistTurn = async (answer: string) => {
     if (!deps.recordTurn || !answer.trim()) return;
     await deps.recordTurn(data.accessToken, verification.userId, latestUser, answer).catch(() => undefined);
@@ -1309,12 +1317,14 @@ export async function runManagerChatWith(
   }
 
   try {
-    const contextWithTeam = [context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
+    const contextWithTeam = [documents.text, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
       "\n",
     );
     // The receipt describes the exact context this answer was built from, so
     // it can never claim a source that was not read.
     const checked = buildVerificationReceipt(contextWithTeam, {
+      extraSources: documents.sources,
+      extraGaps: documents.gaps,
       provider: "OpenAI",
       model: deps.model,
       checkedAt: (deps.now?.() ?? new Date()).toISOString(),

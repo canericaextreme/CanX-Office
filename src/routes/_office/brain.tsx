@@ -1,3 +1,4 @@
+import { BrainDocuments } from "@/components/office/BrainDocuments";
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { BrainMap } from "@/components/office/BrainMap";
@@ -22,6 +23,7 @@ function Brain() {
   return (
     <RoomShell>
       <div className="space-y-6">
+        <BrainDocuments />
         <BrainMemory />
         <BrainMap />
         <Card className="border-border bg-card">
