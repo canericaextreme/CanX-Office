@@ -237,9 +237,15 @@ export function useRealtimeManager(
           // Transcription can arrive after the function-call event.
           for (let attempt = 0; attempt < 40 && current() && !transcripts.has(inputId); attempt++)
             await new Promise(resolve => setTimeout(resolve, 200));
-          if (!current() || inputId !== currentInputId) return;
-          const request = transcripts.get(inputId);
-          if (request && requestRef.current) {
+          if (!current()) return;
+          const request = inputId === currentInputId ? transcripts.get(inputId) : undefined;
+          if (inputId !== currentInputId) {
+            // Answer the call so the provider is never left waiting, but submit
+            // nothing: John already started a newer request.
+            output = "Not submitted: a newer spoken request replaced this one. No action was carried out.";
+          } else if (!request) {
+            output = "Astra did not receive the words of this request, so nothing was submitted. Please say it again.";
+          } else if (requestRef.current) {
             setPhase("thinking");
             try { output = await requestRef.current(request); }
             catch { output = "The action result is unknown. Check the Work Board or Approvals before repeating it."; }
