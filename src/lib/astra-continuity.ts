@@ -20,6 +20,8 @@ export const SUMMARY_LIMIT = 8;
 /** Recent turns read into context, and kept in storage (older rows are pruned). */
 export const RECENT_READ_LIMIT = 20;
 export const RECENT_KEEP_LIMIT = 40;
+/** Never remove a completed exchange during the owner’s working day. */
+export const RECENT_RETENTION_MS = 10 * 60 * 60 * 1000;
 export const TURN_MAX_CHARS = 4000;
 export const HEALTH_PROBE = "CanX memory health check probe (removed automatically)";
 
@@ -123,11 +125,13 @@ export async function recordAstraTurn(
   // Only a readback of both new rows counts as saved.
   if (!insert.ok || rows(insert.body).filter(x => x["owner_id"] === ownerId).length !== 2) return { saved: false, pruned: false };
   const owner = `owner_id=eq.${encodeURIComponent(ownerId)}`;
-  const old = await rest(`astra_recent_context?select=id&${owner}&order=created_at.desc&offset=${RECENT_KEEP_LIMIT}&limit=200`).catch(() => ({ ok: false, status: 0, body: null }));
+  const cutoff = encodeURIComponent(new Date(t - RECENT_RETENTION_MS).toISOString());
+  const scope = `${owner}&conversation_key=eq.${ASTRA_CONVERSATION_KEY}&created_at=lt.${cutoff}`;
+  const old = await rest(`astra_recent_context?select=id&${scope}&order=created_at.desc&offset=${RECENT_KEEP_LIMIT}&limit=200`).catch(() => ({ ok: false, status: 0, body: null }));
   if (!old.ok) return { saved: true, pruned: false };
   const ids = rows(old.body).map(x => String(x["id"] ?? "")).filter(id => uuid.test(id) || /^\d+$/.test(id));
   if (!ids.length) return { saved: true, pruned: true };
-  const del = await rest(`astra_recent_context?${owner}&id=in.(${ids.join(",")})`, { method: "DELETE", headers: { Prefer: "return=minimal" } })
+  const del = await rest(`astra_recent_context?${scope}&id=in.(${ids.join(",")})`, { method: "DELETE", headers: { Prefer: "return=minimal" } })
     .catch(() => ({ ok: false, status: 0, body: null }));
   return { saved: true, pruned: del.ok };
 }

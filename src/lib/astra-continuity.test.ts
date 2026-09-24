@@ -77,6 +77,9 @@ describe("writing recent turns", () => {
     const body = JSON.parse(String(calls[0]!.init?.body));
     expect(body.map((r: { owner_id: string; role: string }) => [r.owner_id, r.role])).toEqual([[OWNER_ID, "user"], [OWNER_ID, "assistant"]]);
     expect(calls[1]!.path).toContain(`offset=${RECENT_KEEP_LIMIT}`);
+    expect(calls[1]!.path).toContain("created_at=lt.");
+    expect(calls[1]!.path).toContain("conversation_key=eq.office-manager");
+    expect(calls[2]!.path).toContain("created_at=lt.");
     expect(calls[2]!.init?.method).toBe("DELETE");
     expect(calls[2]!.path).toContain(`owner_id=eq.${OWNER_ID}`);
   });

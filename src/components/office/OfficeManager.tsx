@@ -1,5 +1,6 @@
 "use client";
 
+import { loadConversation } from "@/lib/manager-history.functions";
 import { recordVoiceTurn } from "@/lib/astra-voice-memory.functions";
 import { VoiceTurnPairer } from "@/lib/voice-turns";
 import { MemoryHealthCard } from "@/components/office/MemoryHealthCard";
@@ -123,7 +124,8 @@ export function OfficeManager() {
   /** Room reviews held in memory for this visit. Never stored anywhere. */
   const [roomReviews, setRoomReviews] = useState<Record<string, RoomReview | undefined>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const historyReady = true;
+  const [historyReady, setHistoryReady] = useState(false);
+  const [historyRetry, setHistoryRetry] = useState(0);
   const [historyStatus, setHistoryStatus] = useState(MEMORY_NOTICE);
   const [savingSummary, setSavingSummary] = useState(false);
   const savingSummaryRef = useRef(false);
@@ -286,6 +288,35 @@ export function OfficeManager() {
       setHistoryStatus(MEMORY_NOTICE);
     }
   }, [session.signedIn, session.email]);
+  const restoreConversation = useServerFn(loadConversation);
+  useEffect(() => {
+    if (!session.stepUpComplete || !token) { setHistoryReady(false); return; }
+    let cancelled = false;
+    const owner = historyOwner.current;
+    setHistoryReady(false);
+    setHistoryStatus("Restoring saved conversation…");
+    void restoreConversation({ data: { accessToken: token } }).then(result => {
+      if (cancelled || owner !== historyOwner.current) return;
+      setHistoryStatus(result.message);
+      if (!result.ok) return;
+      // On token refresh keep this tab's live turns. On reopening restore the saved thread.
+      if (messagesRef.current.length === 0) {
+        messagesRef.current = result.messages;
+        setMessages(result.messages);
+        savedThroughRef.current = 0;
+        autoAttemptThroughRef.current = 0;
+      }
+      setHistoryReady(true);
+    }).catch(() => {
+      if (!cancelled) setHistoryStatus("Saved conversation could not be loaded. Reconnect and retry.");
+    });
+    return () => { cancelled = true; };
+  }, [session.stepUpComplete, session.email, token, restoreConversation, historyRetry]);
+  useEffect(() => {
+    const retry = () => setHistoryRetry(value => value + 1);
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, []);
   const saveConversationNow = useCallback(async () => {
     if (savingSummaryRef.current) return "The requested summary is already being saved.";
     if (!session.stepUpComplete || !token) return "Sign in with your authenticator before saving.";
@@ -1023,6 +1054,7 @@ export function OfficeManager() {
                   Save useful discussion automatically during this session
                 </label>
                 <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus === MEMORY_NOTICE && !autoMemory ? "Automatic saving is paused. Use Save conversation to preserve useful discussion before closing." : historyStatus}</p>
+                {!historyReady && session.stepUpComplete && <Button variant="outline" onClick={() => setHistoryRetry(value => value + 1)}>Retry conversation restore</Button>}
                 {autoMemory && historyStatus !== MEMORY_NOTICE && <p className="mb-2 text-xs text-muted-foreground">{MEMORY_NOTICE}</p>}
                 <Button size="sm" variant="outline" className="mb-2" disabled={savingSummary || busy || !session.stepUpComplete || !token} onClick={() => void saveConversationNow()}>
                   {savingSummary ? "Saving summary…" : "Save conversation"}

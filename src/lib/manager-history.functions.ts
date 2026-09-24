@@ -16,10 +16,20 @@ export function cleanSavedMessage(raw: unknown): SavedMessage | null {
 export async function readHistoryWith(deps: HistoryDeps, token: string) {
   const v = await deps.verify(token);
   if (!v.ok) return { ok: false as const, messages: [] as SavedMessage[], message: v.message };
-  const r = await deps.read(token, `manager_changes?owner_id=eq.${encodeURIComponent(v.userId)}&entity=eq.manager_conversation&select=entity_id,after&order=id.desc&limit=100`);
-  if (!r.ok || !Array.isArray(r.body)) return { ok: false as const, messages: [] as SavedMessage[], message: "Saved conversation could not be loaded." };
-  const messages = r.body.map((row: { entity_id?: string; after?: Record<string,unknown> }) => cleanSavedMessage({ ...row.after, id: row.entity_id })).filter((m): m is SavedMessage => !!m).reverse();
-  return { ok: true as const, messages, message: "Recent conversation restored from your account." };
+  const { ASTRA_CONVERSATION_KEY, RECENT_RETENTION_MS, HEALTH_PROBE } = await import("./astra-continuity");
+  const cutoff = encodeURIComponent(new Date(Date.now() - RECENT_RETENTION_MS).toISOString());
+  const messages: SavedMessage[] = [];
+  // Page the entire working window, not merely the last 20 or 40 lines.
+  for (let offset = 0; offset < 10000; offset += 500) {
+    const r = await deps.read(token, `astra_recent_context?owner_id=eq.${encodeURIComponent(v.userId)}&conversation_key=eq.${ASTRA_CONVERSATION_KEY}&created_at=gte.${cutoff}&select=id,role,content,created_at&order=created_at.asc,id.asc&limit=500&offset=${offset}`);
+    if (!r.ok || !Array.isArray(r.body)) return { ok: false as const, messages: [] as SavedMessage[], message: "Saved conversation could not be loaded. Reconnect and retry." };
+    for (const row of r.body) {
+      const m = cleanSavedMessage({ ...row, id: String(row.id) });
+      if (m && m.content !== HEALTH_PROBE) messages.push(m);
+    }
+    if (r.body.length < 500) return { ok: true as const, messages, message: messages.length ? "Saved exchanges from the last ten hours restored." : "No saved exchanges in the last ten hours." };
+  }
+  return { ok: false as const, messages: [] as SavedMessage[], message: "Conversation exceeds the restore limit. History was not silently truncated." };
 }
 /** Legacy callers may still be open on another device. Never archive raw turns. */
 export async function saveHistoryWith(_deps: HistoryDeps, _token: string, _raw: unknown) {

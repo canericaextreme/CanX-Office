@@ -13,7 +13,7 @@ describe("private Astra conversation memory", () => {
     expect(result.ok).toBe(false); expect(d.write).not.toHaveBeenCalled(); expect(d.read).not.toHaveBeenCalled();
   });
   it("restores turns in chronological order", async () => {
-    const d=deps(); d.read=vi.fn(async () => ({ok:true,body:[{entity_id:"m2",after:{role:"assistant",content:"Saved task t1"}},{entity_id:"m1",after:{role:"user",content:"Create task"}}]}));
+    const d=deps(); d.read=vi.fn(async () => ({ok:true,body:[{id:"m1",role:"user",content:"Create task"},{id:"m2",role:"assistant",content:"Saved task t1"}]}));
     expect((await readHistoryWith(d,"token")).messages.map(m=>m.id)).toEqual(["m1","m2"]);
   });
   it("does not pretend a failed save succeeded", async () => {
@@ -30,5 +30,26 @@ describe("private Astra conversation memory", () => {
     const d=deps(); d.read=vi.fn(async()=>({ok:true,body:[{id:1}]}));
     expect((await saveHistoryWith(d,"token",{id:"m1",role:"user",content:"hello"})).ok).toBe(false);
     expect(d.write).not.toHaveBeenCalled();
+  });
+});
+
+ describe("ten-hour restoration", () => {
+  it("pages more than forty saved lines and scopes every page to owner and conversation", async () => {
+    const d=deps(); let page=0;
+    d.read=vi.fn(async()=>({ok:true,body:page++ === 0 ? Array.from({length:500},(_,i)=>({id:`m${i}`,role:"user",content:`line ${i}`})) : [{id:"last",role:"assistant",content:"resume here"}]}));
+    const result=await readHistoryWith(d,"token");
+    expect(result.ok).toBe(true); expect(result.messages).toHaveLength(501);
+    expect(result.messages.at(-1)?.content).toBe("resume here");
+    for (const [,path] of vi.mocked(d.read).mock.calls) {
+      expect(path).toContain("owner_id=eq.owner-a");
+      expect(path).toContain("conversation_key=eq.office-manager");
+      expect(path).toContain("created_at=gte.");
+    }
+  });
+  it("does not report partial history as restored when a later page fails", async()=>{
+    const d=deps(); let page=0;
+    d.read=vi.fn(async()=> page++===0 ? {ok:true,body:Array.from({length:500},(_,i)=>({id:`m${i}`,role:"user",content:"x"}))} : {ok:false,body:null});
+    const result=await readHistoryWith(d,"token");
+    expect(result.ok).toBe(false); expect(result.messages).toEqual([]);
   });
 });
