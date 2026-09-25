@@ -84,21 +84,16 @@ export function useRealtimeManager(
   // A signed-out owner must not leave an already-open microphone running.
   useEffect(() => { if (!accessToken) stop(); }, [accessToken, stop]);
 
-  // A background office must not keep listening or speak over another app.
-  // Returning to the office requires a fresh, deliberate Talk tap.
+  // Keep the live call while John visits another Office room or switches tabs
+  // and windows. Visibility changes are not an instruction to hang up.
+  // A real page departure still releases the microphone and peer connection.
   useEffect(() => {
-    const leave = () => {
+    const leavePage = () => {
       if (!activeRef.current) return;
       stop();
-      setError("Voice stopped when you left the office. Tap Talk to Astra to resume.");
     };
-    const visibility = () => { if (document.visibilityState === "hidden") leave(); };
-    document.addEventListener("visibilitychange", visibility);
-    window.addEventListener("pagehide", leave);
-    return () => {
-      document.removeEventListener("visibilitychange", visibility);
-      window.removeEventListener("pagehide", leave);
-    };
+    window.addEventListener("pagehide", leavePage);
+    return () => window.removeEventListener("pagehide", leavePage);
   }, [stop]);
 
   const playAudio = useCallback(async (audio: HTMLAudioElement, generation: number) => {
