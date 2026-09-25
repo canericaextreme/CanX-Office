@@ -768,9 +768,12 @@ export function OfficeManager() {
     // In Voice Mode the microphone pauses while the Manager thinks.
     if (voiceModeRef.current) managerVoice.cancelListening();
     setError(null);
-    const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
+    const turnId = crypto.randomUUID();
+    const userMessage: ChatMessage = { id: `${turnId}-u`, role: "user", content: text, at: new Date().toISOString(), mode: "text" };
     if (!historyReady) { setError("Wait for conversation memory to load before sending."); return; }
-    const history = [...messages, userMessage];
+    // The model sees answered pairs only (restored ones included) plus this request.
+    const modelHistory = [...modelThread(messagesRef.current), { role: "user" as const, content: text }];
+    const history = [...messagesRef.current, userMessage];
     messagesRef.current = history;
     setMessages(history);
     setDraft("");
@@ -782,7 +785,10 @@ export function OfficeManager() {
     try {
       const direct = await roomCommandRef.current(text);
       if (direct !== null) {
-        saveSpokenMessage("assistant", direct);
+        const directMessage: ChatMessage = { id: `${turnId}-a`, role: "assistant", content: direct, at: new Date().toISOString(), mode: "text" };
+        messagesRef.current = [...messagesRef.current, directMessage];
+        setMessages(current => [...current, directMessage]);
+        queueTurn(turnId, text, direct, "text");
         setDelivery("Room request returned a result — see Astra's answer.");
         if (handoffId) reportHandoff(handoffId, handoffStatusFromRoomOutcome(roomOutcomeRef.current));
         if (realtimeManager.on) realtimeManager.say(direct);
@@ -792,9 +798,7 @@ export function OfficeManager() {
         data: {
           accessToken: token,
           team: teamForManager(loadTeam()),
-          messages: history
-            .filter((m) => m.role !== "office")
-            .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          messages: modelHistory.slice(-20),
         },
       });
       if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(reply));
@@ -822,19 +826,21 @@ export function OfficeManager() {
       } else {
         setComposerCollapsed(true);
         setDelivery("Received — Astra returned a reply. This does not mean the requested work is complete.");
-        const answerId = `m-${Date.now()}-a`;
+        const answerId = `${turnId}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
         if (realtimeManager.on) realtimeManager.say(answer);
-        setMessages((current) => [
-          ...current,
-          {
-            id: answerId,
-            role: "assistant",
-            content: answer,
-            toolCalls: reply.toolCalls,
-            ...(reply.checked ? { checked: reply.checked } : {}),
-          },
-        ]);
+        const answerMessage: ChatMessage = {
+          id: answerId,
+          role: "assistant",
+          content: answer,
+          at: new Date().toISOString(),
+          mode: "text",
+          ...(reply.toolCalls ? { toolCalls: reply.toolCalls } : {}),
+          ...(reply.checked ? { checked: reply.checked } : {}),
+        };
+        messagesRef.current = [...messagesRef.current, answerMessage];
+        setMessages((current) => [...current, answerMessage]);
+        queueTurn(turnId, text, answer, "text");
         // A real task change — typed or spoken — reloads the Work Board.
         const changedWork = (reply.actionResults ?? []).some((action) =>
           action.status === "done" || action.status === "pending",
