@@ -43,6 +43,7 @@ describe("live voice refreshes durable memory on every turn", () => {
   it("failed refresh falls back to verified session context with an explicit gap note", () => {
     const events = voiceTurnEvents(null);
     expect(JSON.stringify(events)).toContain(VOICE_REFRESH_GAP_NOTE);
+    expect(events).toHaveLength(1);
     expect(events.at(-1)).toMatchObject({ type: "response.create", response: { tool_choice: { type: "function", name: "submit_office_request" } } });
   });
 
@@ -57,6 +58,8 @@ describe("live voice refreshes durable memory on every turn", () => {
     const td = managerRealtimeSessionBody("gpt-realtime", "x").session.audio.input.turn_detection;
     expect(td.create_response).toBe(false);
     expect(td.interrupt_response).toBe(true);
+    expect(managerRealtimeSessionBody("gpt-realtime", "x").session.output_modalities).toEqual(["audio"]);
+    expect(voiceTurnEvents(null)[0]).toMatchObject({ response: { output_modalities: ["audio"] } });
     const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
     expect(hook).toContain("refreshedInputs.has(inputId)");
     expect(hook).toContain("voiceTurnEvents(result, inputId)");

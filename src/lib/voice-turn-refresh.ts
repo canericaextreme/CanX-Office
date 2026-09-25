@@ -14,10 +14,10 @@ export function voiceTurnEvents(result: VoiceTurnContextResult | null, inputId =
   const response = {
     tool_choice: { type: "function", name: "submit_office_request" },
     metadata: { office_input_id: inputId },
+    output_modalities: ["audio"],
   };
   if (result?.ok) return [{ type: "response.create", response: { ...response, instructions: result.instructions } }];
-  return [
-    { type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: VOICE_REFRESH_GAP_NOTE }] } },
-    { type: "response.create", response },
-  ];
+  // Realtime conversation items do not accept a system role. A rejected item
+  // previously left the turn with no reply even though the call stayed green.
+  return [{ type: "response.create", response: { ...response, instructions: VOICE_REFRESH_GAP_NOTE } }];
 }
