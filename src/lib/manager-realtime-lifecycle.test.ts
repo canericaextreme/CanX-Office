@@ -75,15 +75,20 @@ describe("Astra realtime connection lifecycle", () => {
     vi.advanceTimersByTime(30_000);
     expect(hooks.states[0]).toBe("error"); expect(stopTrack).toHaveBeenCalledOnce();
   });
-  it("releases the microphone and sound when hidden and never restarts on return", async () => {
+  it("keeps the microphone and voice connection alive across tabs and windows", async () => {
     const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
     Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
     pageEvents.dispatchEvent(new Event("visibilitychange"));
-    expect(stopTrack).toHaveBeenCalledOnce(); expect(audio.pause).toHaveBeenCalledOnce();
-    expect(hooks.states[1]).toBe(false);
+    expect(stopTrack).not.toHaveBeenCalled();
+    expect(audio.pause).not.toHaveBeenCalled();
+    expect(hooks.states[1]).toBe(true);
     Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
     pageEvents.dispatchEvent(new Event("visibilitychange")); await flush();
-    expect(getUserMedia).toHaveBeenCalledOnce(); expect(hooks.states[1]).toBe(false);
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(hooks.states[1]).toBe(true);
+    windowEvents.dispatchEvent(new Event("pagehide"));
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(hooks.states[1]).toBe(false);
   });
   it("invalidates a pending microphone request on page departure", async () => {
     const pending = deferred<unknown>(); getUserMedia.mockReturnValue(pending.promise);
