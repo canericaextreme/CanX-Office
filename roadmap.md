@@ -132,8 +132,10 @@
 - OPEN: `OPENAI_REALTIME_MODEL` is not set on the server, so Chat fails closed with an honest message until John chooses the model.
 
 ## Astra persistent conversation repair (2026-09-25)
-- [ ] Owner-scoped device checkpoint (thread + draft), restore on reload, clear on sign-out/owner switch
-- [ ] Persistence-only outbox with idempotent turn IDs; retry on reconnect; never replay actions
-- [ ] Unapplied migration + server load/append with readback for cross-device checkpoint
-- [ ] Restored completed turns in typed and voice model context; interrupted prompts excluded and labelled
-- [ ] Focused tests, full suite, typecheck, build; no publish, no paid calls
+- [x] Owner-scoped device checkpoint (thread + draft), restore on reload, clear on sign-out/owner switch
+- [x] Persistence-only outbox with idempotent turn IDs; retry on reconnect; never replay actions
+- [x] Unapplied migration + server load/append with readback for cross-device checkpoint
+- [x] Restored completed turns in typed and voice model context; interrupted prompts excluded and labelled
+- [x] Focused tests, full suite, typecheck, build; no publish, no paid calls
+- [ ] BLOCKED on John: apply docs/migrations/0008_astra_conversation_checkpoints.sql for cross-device sync
+- [ ] BLOCKED on John: signed-in Android phone test (lose service mid-turn, reload, reopen)
