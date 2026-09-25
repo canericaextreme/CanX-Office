@@ -165,6 +165,8 @@ export function OfficeManager() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   /** False until this owner's device copy has been loaded, so nothing is sent blind. */
   const [historyReady, setHistoryReady] = useState(false);
+  /** The account read must finish before a new request can use restored history. */
+  const [loadedAccountToken, setLoadedAccountToken] = useState<string | null>(null);
   const voicePairerRef = useRef(new VoiceTurnPairer());
   const pendingVoiceTurnRef = useRef<string | null>(null);
   const [historyStatus, setHistoryStatus] = useState(MEMORY_NOTICE);
@@ -328,6 +330,7 @@ export function OfficeManager() {
   const dropShared = useServerFn(deleteSharedNote);
   const session = useOwnerSession();
   const token = session.accessToken ?? "";
+  const accountHistoryReady = !session.stepUpComplete || loadedAccountToken === token;
   const shared = session.shared;
   const context = useMemo(() => buildOfficeContext(), []);
   const managerTeam = useMemo(() => teamForManager(loadTeam()), []);
@@ -356,6 +359,7 @@ export function OfficeManager() {
     pendingSummaryRef.current = null;
     setHistoryStatus(MEMORY_NOTICE);
     setAccountNote("");
+    setLoadedAccountToken(null);
     if (!ownerId) {
       snapshotRef.current = null;
       setMessages([]);
@@ -424,15 +428,21 @@ export function OfficeManager() {
     window.addEventListener("online", online);
     return () => window.removeEventListener("online", online);
   }, [historyReady, flushCheckpoints]);
-  // On reopen: read the verified account checkpoint and fill any gaps.
+  // On reopen: read the account checkpoint before accepting another turn.
+  // Device history remains visible while this read is pending. A failed read
+  // still permits the device copy, with a clear account-memory warning.
   useEffect(() => {
-    if (!historyReady || !ownerId || !token || !session.stepUpComplete) return;
+    if (!historyReady || !ownerId || !token) return;
+    if (!session.stepUpComplete) {
+      return;
+    }
     let cancelled = false;
     const owner = ownerId;
+    setLoadedAccountToken(null);
     void loadCheckpoint({ data: { accessToken: token } }).then(result => {
       if (cancelled || owner !== historyOwner.current) return;
       const at = new Date(result.readAt).toLocaleString();
-      if (!result.ok) { setAccountNote(`${result.message} (checked ${at})`); return; }
+      if (!result.ok) { setAccountNote(`${result.message} (checked ${at})`); setLoadedAccountToken(token); return; }
       const remote: ChatMessage[] = result.turns.flatMap(turnMessages).map(m => ({ ...m, restored: true, fromAccount: true }));
       setMessages(current => {
         const merged = mergeMessages(current, remote);
@@ -443,8 +453,12 @@ export function OfficeManager() {
       });
       if (snapshotRef.current) writeDevice(markSynced(snapshotRef.current, result.turns.map(t => t.turnId)));
       setAccountNote(`${result.message} Read ${at}. This is the last conversation, separate from curated CanX Brain summaries.`);
+      setLoadedAccountToken(token);
     }).catch(() => {
-      if (!cancelled) setAccountNote("The account conversation checkpoint could not be read. Showing this device's copy only.");
+      if (!cancelled && owner === historyOwner.current) {
+        setAccountNote("The account conversation checkpoint could not be read. Showing this device's copy only.");
+        setLoadedAccountToken(token);
+      }
     });
     return () => { cancelled = true; };
   }, [historyReady, ownerId, token, session.stepUpComplete, loadCheckpoint, writeDevice]);
@@ -731,7 +745,7 @@ export function OfficeManager() {
       if (handoffId) reportHandoff(handoffId, { status: "blocked", detail: "Authenticator step not complete. Nothing was sent.", canResend: true });
       return;
     }
-    if (handoffId && !historyReady) {
+    if (!historyReady || !accountHistoryReady) {
       setError("Wait for conversation memory to load before sending.");
       return;
     }
@@ -770,7 +784,7 @@ export function OfficeManager() {
     setError(null);
     const turnId = crypto.randomUUID();
     const userMessage: ChatMessage = { id: `${turnId}-u`, role: "user", content: text, at: new Date().toISOString(), mode: "text" };
-    if (!historyReady) { setError("Wait for conversation memory to load before sending."); return; }
+    if (!historyReady || !accountHistoryReady) { setError("Wait for conversation memory to load before sending."); return; }
     // The model sees answered pairs only (restored ones included) plus this request.
     const modelHistory = [...modelThread(messagesRef.current), { role: "user" as const, content: text }];
     const history = [...messagesRef.current, userMessage];
@@ -1023,7 +1037,7 @@ export function OfficeManager() {
             : "Office Manager";
 
   const primaryVoiceAction = () => {
-    if (realtimeManager.on || !historyReady) return;
+    if (realtimeManager.on || !historyReady || !accountHistoryReady) return;
     setError(null);
     setSpeechError(null);
     realtimeManager.start();
@@ -1456,7 +1470,7 @@ export function OfficeManager() {
                     size="icon"
                     className="absolute bottom-2 right-2 h-11 w-11 rounded-full"
                     onClick={() => void send()}
-                    disabled={busy || !historyReady || !session.stepUpComplete || !token || !draft.trim()}
+                    disabled={busy || !historyReady || !accountHistoryReady || !session.stepUpComplete || !token || !draft.trim()}
                     aria-label={busy ? "Sending message" : "Send message"}
                     title={busy ? "Sending…" : "Send message"}
                   >
@@ -1467,7 +1481,7 @@ export function OfficeManager() {
                   <Button
                     className="h-12 flex-1 text-lg"
                     onClick={primaryVoiceAction}
-                    disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}
+                    disabled={!session.stepUpComplete || !token || !historyReady || !accountHistoryReady || realtimeManager.on || realtimeManager.phase === "connecting"}
                   >
                     <Mic className="mr-2 h-5 w-5" /> Talk to Astra
                   </Button>
@@ -1484,7 +1498,7 @@ export function OfficeManager() {
                   )}
                   </div>
                   <p role="status" className="mt-2 text-sm">
-                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation when you are done." : "Ready: type a message or choose Talk to Astra."}
+                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady || !accountHistoryReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation when you are done." : "Ready: type a message or choose Talk to Astra."}
                   </p>
                 </div>
               </div>
