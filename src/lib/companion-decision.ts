@@ -12,7 +12,7 @@ import { WORKER_SEATS } from "@/lib/manager-workers";
 import { redactSecrets, type WorkTurnLike } from "@/lib/companion-bridge";
 
 export const DECISION_MARKER_PREFIX = "[canx-handoff:";
-const ID_PATTERN = /^h-[a-z0-9]{4,16}-[a-z0-9]{3,10}$/;
+const ID_PATTERN = /^h-[a-z0-9]{4,16}-[a-z0-9]{1,10}$/;
 
 export function isCorrelationId(value: unknown): value is string {
   return typeof value === "string" && ID_PATTERN.test(value);
@@ -23,7 +23,7 @@ export function decisionMarker(id: string): string {
 }
 
 export function correlationFromDetail(detail: string): string | null {
-  const match = /^\[canx-handoff:(h-[a-z0-9]{4,16}-[a-z0-9]{3,10})\]/.exec(detail ?? "");
+  const match = /^\[canx-handoff:(h-[a-z0-9]{4,16}-[a-z0-9]{1,10})\]/.exec(detail ?? "");
   return match ? match[1]! : null;
 }
 
