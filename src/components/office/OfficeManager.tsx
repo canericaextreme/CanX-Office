@@ -994,6 +994,8 @@ export function OfficeManager() {
     return () => window.removeEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
   }, []);
 
+  const answeredIds = useMemo(() => completedPairIds(messages), [messages]);
+
   const briefing = () => {
     setMessages((current) => [
       ...current,
@@ -1220,6 +1222,17 @@ export function OfficeManager() {
                     >
                       {message.content}
                     </div>
+                    {message.restored && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {message.fromAccount ? "Restored from your CanX account checkpoint" : "Restored from this device"}
+                        {message.at ? ` · ${new Date(message.at).toLocaleString()}` : ""}
+                      </p>
+                    )}
+                    {message.role === "user" && !answeredIds.has(message.id) && !(busy && message === messages[messages.length - 1]) && (
+                      <p className="mt-0.5 text-[11px] text-canx-yellow">
+                        Not answered — Astra did not receive or finish this. It is not used as history; send it again if needed.
+                      </p>
+                    )}
                     {message.checked && <CheckedReceipt receipt={message.checked} />}
 
                     {message.toolCalls?.map((call, index) => (
@@ -1233,6 +1246,22 @@ export function OfficeManager() {
                   </div>
                 ))}
               <div className="border-t border-border pt-3">
+                <section data-testid="astra-continuity-status" aria-label="Conversation continuity" className="mb-3 space-y-1 rounded-md border border-border p-2 text-xs">
+                  <p className="font-semibold text-foreground">Last conversation (not CanX Brain)</p>
+                  {deviceNote && <p className="text-muted-foreground">{deviceNote}</p>}
+                  <p className={pendingSync ? "text-canx-yellow" : "text-muted-foreground"}>
+                    {pendingSync
+                      ? `${pendingSync} completed turn${pendingSync === 1 ? "" : "s"} kept on this device only — not yet synced to your CanX account and not saved in CanX Brain.`
+                      : ownerId ? "All completed turns in this window are on this device; account sync status is below." : "Sign in as the owner to keep a device copy of this conversation."}
+                  </p>
+                  {accountNote && <p role="status" className="text-muted-foreground">{accountNote}</p>}
+                  {pendingSync > 0 && (
+                    <Button size="sm" variant="outline" className="h-8" disabled={!session.stepUpComplete} onClick={() => void flushCheckpoints()}>
+                      Retry sync (saves only; repeats no actions)
+                    </Button>
+                  )}
+                </section>
+
                 <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <input type="checkbox" checked={autoMemory} onChange={event => setAutoMemory(event.target.checked)} />
                   Save useful discussion automatically during this session
