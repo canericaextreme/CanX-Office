@@ -333,7 +333,7 @@ export async function consultRoomWorkerWith(deps: ConsultDeps, input: ConsultInp
   }
 }
 
-async function realDeps(): Promise<ConsultDeps> {
+export async function realConsultDeps(): Promise<ConsultDeps> {
   const backend = await import("@/lib/canx-backend.server");
   const config = backend.readBackendConfig();
   const read = (value: string | undefined) => {
@@ -368,4 +368,4 @@ async function realDeps(): Promise<ConsultDeps> {
 
 export const consultRoomWorker = createServerFn({ method: "POST" })
   .inputValidator(sanitizeConsultInput)
-  .handler(async ({ data }) => consultRoomWorkerWith(await realDeps(), data));
+  .handler(async ({ data }) => consultRoomWorkerWith(await realConsultDeps(), data));

@@ -97,8 +97,8 @@ describe("wiring", () => {
     expect(panel).toContain('data-testid="canx-work-handoff-text"');
     expect(panel).toContain("HANDOFF_SOURCE_LABEL.work_discussion");
     expect(panel).toContain('source: "screen_observation"');
-    expect(panel).toContain("Office Work assistant</h2>");
-    expect(panel).toContain("not your ChatGPT chat");
+    expect(panel).toContain("CanX Office companion (OpenAI)</h2>");
+    expect(panel).toContain("Not your external ChatGPT");
   });
   it("Astra's panel sends a handoff only from John's Send press, through the normal pipeline", () => {
     expect(manager).toContain('data-testid="astra-handoff-send"');

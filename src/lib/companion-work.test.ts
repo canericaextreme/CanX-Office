@@ -31,8 +31,8 @@ describe("ChatGPT Work panel belongs to the companion", () => {
     expect(dockSource).toContain("CompanionWorkPanel");
     expect(dockSource).toContain("const toggleWork");
     expect(dockSource).toContain('aria-label={workOpen ? "Close the Office Work assistant window"');
-    expect(panelSource).toContain('aria-label="Office Work assistant"');
-    expect(panelSource).toContain("Office Work assistant</h2>");
+    expect(panelSource).toContain('aria-label="CanX Office companion (OpenAI)"');
+    expect(panelSource).toContain("CanX Office companion (OpenAI)</h2>");
   });
 
   it("has its own close, minimize, input, Send button and plain states", () => {
@@ -88,7 +88,7 @@ describe("Work is fully independent of the Office Manager", () => {
 
   it("tells the model honestly that it is not the Office Manager", () => {
     expect(WORK_SYSTEM_PROMPT).toContain("NOT the Office Manager");
-    expect(WORK_SYSTEM_PROMPT).toContain("cannot read, change, save or delete any office record");
+    expect(WORK_SYSTEM_PROMPT).toContain("cannot change, save or delete any office record");
   });
 });
 

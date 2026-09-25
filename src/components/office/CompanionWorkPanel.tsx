@@ -31,6 +31,18 @@ import {
   sendManagerHandoff,
   type HandoffReceipt,
 } from "@/lib/companion-bridge";
+import { submitCompanionDecision } from "@/lib/companion-decision.functions";
+import {
+  buildDecisionDraft,
+  COMPANION_INFLIGHT_KEY,
+  COMPANION_THREAD_KEY,
+  loadLocal,
+  saveLocal,
+  type DecisionDraft,
+} from "@/lib/companion-decision";
+import type { CompanionContextStatus } from "@/lib/companion-work.functions";
+import { WORKER_SEATS } from "@/lib/manager-workers";
+import { DecisionTracker, DECISIONS_CHANGED_EVENT } from "@/components/office/DecisionTracker";
 
 export type WorkState = "Ready" | "Working" | "Observing" | "Completed" | "Error";
 
@@ -64,6 +76,7 @@ export function CompanionWorkPanel({
 }) {
   const { state: ownerState, accessToken } = useOwnerSession();
   const ask = useServerFn(askCompanionWork);
+  const submitDecision = useServerFn(submitCompanionDecision);
   const observe = useServerFn(observeOfficeView);
   const path = useRouterState({ select: (s) => s.location.pathname });
 
@@ -78,6 +91,52 @@ export function CompanionWorkPanel({
   const [review, setReview] = useState<{ text: string; turnId: string } | null>(null);
   /** Receipts for handoffs made from this window, keyed by handoff id. Memory only. */
   const [receipts, setReceipts] = useState<Record<string, HandoffReceipt>>({});
+  /** Tracked decision being reviewed. Its correlation id stays the same across retries. */
+  const [decision, setDecision] = useState<DecisionDraft | null>(null);
+  const [sending, setSending] = useState(false);
+  const [decisionNote, setDecisionNote] = useState<string | null>(null);
+  const [context, setContext] = useState<CompanionContextStatus | null>(null);
+  const [storageNote, setStorageNote] = useState<string | null>(null);
+  const restoredRef = useRef(false);
+
+  // Continuity after interruption: this device only, clearly labelled.
+  useEffect(() => {
+    const saved = loadLocal<WorkTurn[]>(COMPANION_THREAD_KEY);
+    if (Array.isArray(saved)) setTurns(saved.filter((t) => t && (t.role === "user" || t.role === "assistant")).slice(-40));
+    const inflight = loadLocal<DecisionDraft>(COMPANION_INFLIGHT_KEY);
+    if (inflight?.correlationId) {
+      setDecision(inflight);
+      setDecisionNote("A request from before the reload was not confirmed. Press Send to Astra — it checks for a saved copy first.");
+    }
+    restoredRef.current = true;
+  }, []);
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    setStorageNote(saveLocal(COMPANION_THREAD_KEY, turns.slice(-40)) ? null : "This discussion could not be saved on this device; it will be lost on reload.");
+  }, [turns]);
+
+  const sendDecision = async () => {
+    if (!decision || sending || !decision.request.trim()) return;
+    if (!requireSession()) return;
+    setSending(true);
+    setDecisionNote(null);
+    saveLocal(COMPANION_INFLIGHT_KEY, decision);
+    const res = await submitDecision({ data: { accessToken: accessToken!, ...decision } }).catch(() => null);
+    setSending(false);
+    if (!res) {
+      setDecisionNote("No confirmation came back. Nothing is shown as saved. Press Send again — it checks the same request id first, so no duplicate is made.");
+      return;
+    }
+    if (!res.ok) {
+      setDecisionNote(res.message);
+      if (res.code === "invalid_input") saveLocal(COMPANION_INFLIGHT_KEY, null);
+      return;
+    }
+    saveLocal(COMPANION_INFLIGHT_KEY, null);
+    setDecision(null);
+    setDecisionNote(`Task ${res.status.taskId.slice(0, 8)} saved and read back. ${res.assignmentNote}`);
+    window.dispatchEvent(new Event(DECISIONS_CHANGED_EVENT));
+  };
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -111,7 +170,7 @@ export function CompanionWorkPanel({
   const requireSession = () => {
     if (ownerState === "signed_out" || !accessToken) {
       setWork("Error");
-      setError("Sign in to the CanX Office to use the Office Work assistant.");
+      setError("Sign in to the CanX Office to use the CanX Office companion.");
       return false;
     }
     return true;
@@ -131,9 +190,10 @@ export function CompanionWorkPanel({
       data: { accessToken: accessToken!, messages: next.map(({ role, content }) => ({ role, content })) },
     }).catch(() => null);
 
+    if (reply?.context) setContext(reply.context);
     if (!reply || !reply.ok || !reply.text) {
       setWork("Error");
-      setError(reply?.detail ?? "The Office Work assistant could not answer just now.");
+      setError(reply?.detail ?? "The CanX Office companion could not answer just now.");
       return;
     }
     setTurns((current) => [...current, { id: `a-${Date.now()}`, role: "assistant", content: reply.text }]);
@@ -194,16 +254,16 @@ export function CompanionWorkPanel({
     <section
       data-testid="canx-work-panel"
       data-canx-no-capture="true"
-      aria-label="Office Work assistant"
+      aria-label="CanX Office companion (OpenAI)"
       className={`fixed bottom-4 right-4 z-50 flex w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl ${
         minimized ? "" : "max-h-[min(34rem,calc(100vh-6rem))]"
       }`}
     >
       <header className="flex items-center justify-between gap-2 border-b border-border bg-secondary px-3 py-2">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold text-foreground">Office Work assistant</h2>
+          <h2 className="truncate text-sm font-semibold text-foreground">CanX Office companion (OpenAI)</h2>
           <p className="truncate text-[11px] text-muted-foreground">
-            A separate AI helper — not your ChatGPT chat, its memory or connectors.
+            Not your external ChatGPT — no ChatGPT history, memory or connectors.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -249,10 +309,19 @@ export function CompanionWorkPanel({
             </p>
           </div>
 
+          <p data-testid="canx-companion-context" className="border-b border-border px-3 py-1 text-[11px] text-muted-foreground">
+            {context === null
+              ? "Shared CanX context: not loaded yet — it is read from your protected office records with each answer."
+              : context.loaded
+                ? `Shared CanX context loaded from ${context.sources.join(" + ")} at ${new Date(context.readAt).toLocaleTimeString()}.${context.detail ? ` ${context.detail}` : ""}`
+                : `Shared CanX context NOT loaded (${new Date(context.readAt).toLocaleTimeString()}): ${context.detail}`}
+            {" "}Discussion kept on this device only.{storageNote ? ` ${storageNote}` : ""}
+          </p>
+
           <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
             {turns.length === 0 && !observation && (
               <p className="text-sm text-muted-foreground">
-                Ask for thinking, drafting, analysis or wording. This window cannot read or change office records.
+                Talk a decision through here. When ready, press "Send to Astra…" under your message to create one tracked task. This window cannot change office records itself.
               </p>
             )}
             {turns.map((turn, index) => (
@@ -271,17 +340,107 @@ export function CompanionWorkPanel({
                     type="button"
                     data-testid="canx-work-handoff-select"
                     onClick={() => {
-                      const text = buildWorkHandoffDraft(turns, index);
-                      if (text) setReview({ text, turnId: turn.id });
+                      const draft = buildDecisionDraft(turns, index, newHandoffId());
+                      if (draft) {
+                        setDecision(draft);
+                        setDecisionNote(null);
+                        setReview(null);
+                      }
                     }}
                     className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                    Hand this to Astra…
+                    Send to Astra…
                   </button>
                 )}
               </div>
             ))}
+
+            {decision && (
+              <article
+                data-testid="canx-decision-review"
+                aria-label="Review the tracked request to Astra"
+                className="rounded-lg border border-canx-yellow/50 bg-canx-yellow/5 p-3 text-xs"
+              >
+                <h3 className="font-semibold uppercase tracking-wide text-muted-foreground">Tracked request to Astra</h3>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Source: {decision.source}. Ref {decision.correlationId}. Edit anything before sending.
+                </p>
+                <label className="mt-2 block font-semibold" htmlFor="canx-decision-request">Request / decision</label>
+                <textarea
+                  id="canx-decision-request"
+                  data-testid="canx-decision-request"
+                  value={decision.request}
+                  onChange={(e) => setDecision({ ...decision, request: e.target.value.slice(0, 800) })}
+                  rows={3}
+                  className="mt-1 w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <label className="mt-2 block font-semibold" htmlFor="canx-decision-outcome">Outcome expected</label>
+                <textarea
+                  id="canx-decision-outcome"
+                  value={decision.outcome}
+                  onChange={(e) => setDecision({ ...decision, outcome: e.target.value.slice(0, 500) })}
+                  rows={2}
+                  className="mt-1 w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <label className="mt-2 block font-semibold" htmlFor="canx-decision-worker">Room worker (suggested)</label>
+                <select
+                  id="canx-decision-worker"
+                  value={decision.workerId}
+                  onChange={(e) => setDecision({ ...decision, workerId: e.target.value })}
+                  className="mt-1 min-h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                >
+                  {WORKER_SEATS.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} — {s.role}</option>
+                  ))}
+                  <option value="">Leave unassigned</option>
+                </select>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="canx-decision-send"
+                    onClick={() => void sendDecision()}
+                    disabled={sending || !decision.request.trim()}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <SendIcon className="h-4 w-4" aria-hidden="true" />
+                    {sending ? "Sending…" : "Send to Astra"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const idx = turns.findIndex((t) => t.role === "user" && t.content.includes(decision.request.slice(0, 40)));
+                      const text = idx >= 0 ? buildWorkHandoffDraft(turns, idx) : null;
+                      setReview({ text: text ?? decision.request, turnId: "" });
+                      setDecision(null);
+                      saveLocal(COMPANION_INFLIGHT_KEY, null);
+                    }}
+                    className="inline-flex min-h-9 items-center rounded-md border border-border px-3 font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Discuss in Astra's panel instead
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDecision(null);
+                      saveLocal(COMPANION_INFLIGHT_KEY, null);
+                    }}
+                    className="inline-flex min-h-9 items-center rounded-md border border-border px-3 font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Send saves one task in your office records (checked by reading it back) and assigns it to the chosen worker. The worker does not answer until you press Ask. Nothing is marked done.
+                </p>
+              </article>
+            )}
+            {decisionNote && (
+              <p role="status" data-testid="canx-decision-note" className="rounded-md border border-border px-2 py-1 text-[11px] text-foreground">
+                {decisionNote}
+              </p>
+            )}
+            <DecisionTracker accessToken={accessToken ?? null} compact />
 
             {review && (
               <article
