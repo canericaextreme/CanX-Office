@@ -403,11 +403,18 @@ export function OfficeManager() {
     flushingRef.current = true;
     const owner = historyOwner.current;
     try {
-      const result = await flushPending(snap.pending, turn => appendCheckpoint({ data: { accessToken: token, turn } }));
-      if (owner !== historyOwner.current || !snapshotRef.current) return;
-      writeDevice(markSynced(snapshotRef.current, result.synced));
-      if (result.stopped) setAccountNote(result.stopped.message);
-      else if (result.synced.length) setAccountNote(`Synced ${result.synced.length} completed turn${result.synced.length === 1 ? "" : "s"} to your CanX account checkpoint at ${new Date().toLocaleTimeString()} (read back).`);
+      // A second turn can arrive while the first append is in flight. Drain
+      // the current outbox after every confirmed batch so it is not stranded
+      // until the browser happens to reconnect.
+      while (owner === historyOwner.current && snapshotRef.current?.pending.length) {
+        const pending = snapshotRef.current.pending;
+        const result = await flushPending(pending, turn => appendCheckpoint({ data: { accessToken: token, turn } }));
+        if (owner !== historyOwner.current || !snapshotRef.current) return;
+        writeDevice(markSynced(snapshotRef.current, result.synced));
+        if (result.stopped) { setAccountNote(result.stopped.message); return; }
+        if (!result.synced.length) return;
+        setAccountNote(`Synced ${result.synced.length} completed turn${result.synced.length === 1 ? "" : "s"} to your CanX account checkpoint at ${new Date().toLocaleTimeString()} (read back).`);
+      }
     } finally { flushingRef.current = false; }
   }, [token, session.stepUpComplete, appendCheckpoint, writeDevice]);
   const queueTurn = useCallback((turnId: string, user: string, answer: string, mode: TurnMode) => {
