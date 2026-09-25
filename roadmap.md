@@ -130,3 +130,10 @@
 - Chat is now its own realtime spoken conversation (server-minted short-lived client secret, CanX-owned account); it no longer uses the Office Manager browser speech voice.
 - Chat consults the Office Manager through one explicit `ask_office_manager` handoff; approval rules unchanged.
 - OPEN: `OPENAI_REALTIME_MODEL` is not set on the server, so Chat fails closed with an honest message until John chooses the model.
+
+## Astra persistent conversation repair (2026-09-25)
+- [ ] Owner-scoped device checkpoint (thread + draft), restore on reload, clear on sign-out/owner switch
+- [ ] Persistence-only outbox with idempotent turn IDs; retry on reconnect; never replay actions
+- [ ] Unapplied migration + server load/append with readback for cross-device checkpoint
+- [ ] Restored completed turns in typed and voice model context; interrupted prompts excluded and labelled
+- [ ] Focused tests, full suite, typecheck, build; no publish, no paid calls
