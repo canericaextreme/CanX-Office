@@ -1,5 +1,6 @@
 "use client";
 
+import { DecisionTracker } from "@/components/office/DecisionTracker";
 import { recordVoiceTurn } from "@/lib/astra-voice-memory.functions";
 import { VoiceTurnPairer } from "@/lib/voice-turns";
 import { MemoryHealthCard } from "@/components/office/MemoryHealthCard";
@@ -1007,6 +1008,9 @@ export function OfficeManager() {
 
           {tab === "now" && (
             <>
+              <div className="max-h-40 shrink-0 overflow-y-auto overscroll-contain border-b border-border px-3 py-2">
+                <DecisionTracker accessToken={token || null} compact />
+              </div>
               <div className="shrink-0 border-b border-border px-3 py-2 text-xs">
                 {status === null ? (
                   <span className="text-muted-foreground">Checking the connection…</span>
