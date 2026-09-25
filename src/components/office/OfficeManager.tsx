@@ -1381,9 +1381,8 @@ export function OfficeManager() {
                     </div>
                   )}
                   {realtimeManager.on && (
-                    <p className="text-xs text-muted-foreground">
-                      The microphone stays open. Talk back and forth until you press End
-                      conversation.
+                    <p role="status" className="text-xs text-muted-foreground">
+                      {realtimeManager.activity} The microphone stays open until you press End conversation.
                     </p>
                   )}
                 </section>
