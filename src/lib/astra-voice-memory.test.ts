@@ -74,7 +74,8 @@ describe("voice turns are persisted once", () => {
   it("the browser wires the pairer to both the voice save and the typed path", () => {
     const src = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
     expect(src).toContain("voicePairerRef.current.feed(role, content)");
-    expect(src).toContain("if (reply.ok) voicePairerRef.current.markServerSaved(request);");
+    // Only a readback-confirmed server save may suppress the separate voice save.
+    expect(src).toContain("if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);");
   });
 
   it("server saves a voice turn once for the verified owner with readback", async () => {

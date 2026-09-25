@@ -11,6 +11,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { loadCanxSupabase } from "@/lib/canx-supabase";
 import { verifyOwnerSession, type SessionResult } from "@/lib/auth.functions";
+import { browserStore, clearAllSnapshots } from "@/lib/astra-device-continuity";
 
 export type OwnerState =
   | "checking"
@@ -25,6 +26,8 @@ export interface OwnerSession {
   state: OwnerState;
   configured: boolean;
   email: string | null;
+  /** Server-verified owner account id, used only to scope this device's Astra copy. */
+  ownerId: string | null;
   message: string;
   accessToken: string | null;
   /** Verified assurance level of the current session, from the server. */
@@ -98,17 +101,20 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState("Checking your sign-in…");
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [aal, setAal] = useState<"aal1" | "aal2" | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const applyResult = useCallback((token: string | null, result: SessionResult) => {
     setAccessToken(token);
     if (result.ok) {
       setState("owner");
       setEmail(result.email);
+      setUserId(result.userId);
       setMessage(result.message);
       setAal(result.aal === "aal2" ? "aal2" : "aal1");
       return;
     }
     setAal(null);
+    setUserId(null);
     setState(STATE_FROM_REASON[result.reason ?? "no_session"] ?? "signed_out");
     setMessage(result.message);
   }, []);
@@ -149,8 +155,10 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
         const { data } = supabase.auth.onAuthStateChange((event: string) => {
           if (event === "SIGNED_OUT") {
             ++refreshGeneration.current;
+            clearAllSnapshots(browserStore());
             setAccessToken(null);
             setEmail(null);
+            setUserId(null);
             setAal(null);
             setState("signed_out");
           }
@@ -247,10 +255,13 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     ++refreshGeneration.current;
+    // Astra's device copy belongs to the signed-in owner only.
+    clearAllSnapshots(browserStore());
     const supabase = await loadCanxSupabase();
     if (supabase) await supabase.auth.signOut();
     setAccessToken(null);
     setEmail(null);
+    setUserId(null);
     setAal(null);
     setState(configured ? "signed_out" : "backend_missing");
     setMessage("Signed out. Sign in again to open the office.");
@@ -261,6 +272,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       state,
       configured,
       email,
+      ownerId: state === "owner" ? userId : null,
       message,
       accessToken,
       aal,
@@ -276,7 +288,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       signOut,
       refresh,
     }),
-    [state, configured, email, message, accessToken, aal, signIn, requestPasswordReset, updatePassword, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
+    [state, configured, email, userId, message, accessToken, aal, signIn, requestPasswordReset, updatePassword, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

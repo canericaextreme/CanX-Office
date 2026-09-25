@@ -6,6 +6,25 @@ import { VoiceTurnPairer } from "@/lib/voice-turns";
 import { MemoryHealthCard } from "@/components/office/MemoryHealthCard";
 import { MEMORY_NOTICE, requestsConversationSave, shouldCheckpointConversation } from "@/lib/conversation-memory";
 import { saveConversationSummary } from "@/lib/conversation-summary.functions";
+import { appendAstraCheckpoint, loadAstraCheckpoint } from "@/lib/astra-checkpoint.functions";
+import {
+  browserStore,
+  clearOtherOwners,
+  completedPairIds,
+  emptySnapshot,
+  enqueueTurn,
+  flushPending,
+  loadSnapshot,
+  markSynced,
+  mergeMessages,
+  modelThread,
+  saveSnapshot,
+  turnMessages,
+  withMessages,
+  type CachedMessage,
+  type DeviceSnapshot,
+  type TurnMode,
+} from "@/lib/astra-device-continuity";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -110,6 +129,11 @@ interface ChatMessage {
   toolCalls?: ManagerToolCall[];
   /** What was actually read for this answer. Shown, never assumed. */
   checked?: VerificationReceipt;
+  at?: string;
+  mode?: TurnMode;
+  /** Brought back after a reload/reconnect (device copy or account checkpoint). */
+  restored?: boolean;
+  fromAccount?: boolean;
 }
 
 type Tab = ConsoleView;
@@ -139,7 +163,10 @@ export function OfficeManager() {
   /** Room reviews held in memory for this visit. Never stored anywhere. */
   const [roomReviews, setRoomReviews] = useState<Record<string, RoomReview | undefined>>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const historyReady = true;
+  /** False until this owner's device copy has been loaded, so nothing is sent blind. */
+  const [historyReady, setHistoryReady] = useState(false);
+  const voicePairerRef = useRef(new VoiceTurnPairer());
+  const pendingVoiceTurnRef = useRef<string | null>(null);
   const [historyStatus, setHistoryStatus] = useState(MEMORY_NOTICE);
   const [savingSummary, setSavingSummary] = useState(false);
   const savingSummaryRef = useRef(false);
@@ -306,18 +333,121 @@ export function OfficeManager() {
   const managerTeam = useMemo(() => teamForManager(loadTeam()), []);
   const persistSummary = useServerFn(saveConversationSummary);
   const historyOwner = useRef<string | null>(null);
+  // ---- Astra continuity: owner-scoped device buffer + persistence-only outbox ----
+  const ownerId = session.signedIn ? session.ownerId : null;
+  const snapshotRef = useRef<DeviceSnapshot | null>(null);
+  const [deviceNote, setDeviceNote] = useState("");
+  const [accountNote, setAccountNote] = useState("");
+  const [pendingSync, setPendingSync] = useState(0);
+  const appendCheckpoint = useServerFn(appendAstraCheckpoint);
+  const loadCheckpoint = useServerFn(loadAstraCheckpoint);
+  const flushingRef = useRef(false);
+  const writeDevice = useCallback((next: DeviceSnapshot) => {
+    snapshotRef.current = next;
+    setPendingSync(next.pending.length);
+    if (!saveSnapshot(browserStore(), next))
+      setDeviceNote("This device could not keep a copy of the conversation. It will be lost if the page reloads.");
+  }, []);
   useEffect(() => {
-    const owner = session.signedIn ? session.email : null;
-    if (historyOwner.current !== owner) {
-      historyOwner.current = owner;
+    if (historyOwner.current === ownerId) return;
+    historyOwner.current = ownerId;
+    voicePairerRef.current.reset();
+    pendingVoiceTurnRef.current = null;
+    pendingSummaryRef.current = null;
+    setHistoryStatus(MEMORY_NOTICE);
+    setAccountNote("");
+    if (!ownerId) {
+      snapshotRef.current = null;
       setMessages([]);
       messagesRef.current = [];
       savedThroughRef.current = 0;
       autoAttemptThroughRef.current = 0;
-      pendingSummaryRef.current = null;
-      setHistoryStatus(MEMORY_NOTICE);
+      setPendingSync(0);
+      setDeviceNote("");
+      setHistoryReady(true);
+      return;
     }
-  }, [session.signedIn, session.email]);
+    const store = browserStore();
+    clearOtherOwners(store, ownerId);
+    const loaded = loadSnapshot(store, ownerId);
+    const snap = loaded.snapshot ?? emptySnapshot(ownerId);
+    snapshotRef.current = snap;
+    setPendingSync(snap.pending.length);
+    const restored: ChatMessage[] = snap.messages.map(m => ({ ...m, restored: true }));
+    setMessages(restored);
+    messagesRef.current = restored;
+    // Restored lines were already considered; do not pay to re-summarise them.
+    savedThroughRef.current = restored.length;
+    autoAttemptThroughRef.current = restored.length;
+    if (snap.draft) setDraft(current => current || snap.draft);
+    setDeviceNote(loaded.message);
+    setHistoryReady(true);
+  }, [ownerId]);
+  // Every change to the visible conversation or draft is written promptly.
+  useEffect(() => {
+    const snap = snapshotRef.current;
+    if (!historyReady || !ownerId || !snap || snap.ownerId !== ownerId) return;
+    const cached: CachedMessage[] = messages
+      .filter(m => m.role !== "office")
+      .map(m => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content, at: m.at ?? new Date().toISOString(), mode: m.mode ?? "text" }));
+    writeDevice(withMessages(snap, cached, draft));
+  }, [messages, draft, historyReady, ownerId, writeDevice]);
+  /** Checkpoints only. Never re-sends a request, command, tool or approval. */
+  const flushCheckpoints = useCallback(async () => {
+    const snap = snapshotRef.current;
+    if (flushingRef.current || !snap?.pending.length || !token || !session.stepUpComplete) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setAccountNote("No connection. Completed turns are kept on this device and will sync when service returns.");
+      return;
+    }
+    flushingRef.current = true;
+    const owner = historyOwner.current;
+    try {
+      const result = await flushPending(snap.pending, turn => appendCheckpoint({ data: { accessToken: token, turn } }));
+      if (owner !== historyOwner.current || !snapshotRef.current) return;
+      writeDevice(markSynced(snapshotRef.current, result.synced));
+      if (result.stopped) setAccountNote(result.stopped.message);
+      else if (result.synced.length) setAccountNote(`Synced ${result.synced.length} completed turn${result.synced.length === 1 ? "" : "s"} to your CanX account checkpoint at ${new Date().toLocaleTimeString()} (read back).`);
+    } finally { flushingRef.current = false; }
+  }, [token, session.stepUpComplete, appendCheckpoint, writeDevice]);
+  const queueTurn = useCallback((turnId: string, user: string, answer: string, mode: TurnMode) => {
+    const snap = snapshotRef.current;
+    if (!snap || !ownerId) return;
+    writeDevice(enqueueTurn(snap, { turnId, user, answer, mode, at: new Date().toISOString() }));
+    void flushCheckpoints();
+  }, [ownerId, writeDevice, flushCheckpoints]);
+  // Retry after reconnection, token refresh or authenticator step-up.
+  useEffect(() => {
+    if (!historyReady) return;
+    void flushCheckpoints();
+    const online = () => void flushCheckpoints();
+    window.addEventListener("online", online);
+    return () => window.removeEventListener("online", online);
+  }, [historyReady, flushCheckpoints]);
+  // On reopen: read the verified account checkpoint and fill any gaps.
+  useEffect(() => {
+    if (!historyReady || !ownerId || !token || !session.stepUpComplete) return;
+    let cancelled = false;
+    const owner = ownerId;
+    void loadCheckpoint({ data: { accessToken: token } }).then(result => {
+      if (cancelled || owner !== historyOwner.current) return;
+      const at = new Date(result.readAt).toLocaleString();
+      if (!result.ok) { setAccountNote(`${result.message} (checked ${at})`); return; }
+      const remote: ChatMessage[] = result.turns.flatMap(turnMessages).map(m => ({ ...m, restored: true, fromAccount: true }));
+      setMessages(current => {
+        const merged = mergeMessages(current, remote);
+        if (savedThroughRef.current >= current.length) savedThroughRef.current = merged.length;
+        if (autoAttemptThroughRef.current >= current.length) autoAttemptThroughRef.current = merged.length;
+        messagesRef.current = merged;
+        return merged;
+      });
+      if (snapshotRef.current) writeDevice(markSynced(snapshotRef.current, result.turns.map(t => t.turnId)));
+      setAccountNote(`${result.message} Read ${at}. This is the last conversation, separate from curated CanX Brain summaries.`);
+    }).catch(() => {
+      if (!cancelled) setAccountNote("The account conversation checkpoint could not be read. Showing this device's copy only.");
+    });
+    return () => { cancelled = true; };
+  }, [historyReady, ownerId, token, session.stepUpComplete, loadCheckpoint, writeDevice]);
   const saveConversationNow = useCallback(async () => {
     if (savingSummaryRef.current) return "The requested summary is already being saved.";
     if (!session.stepUpComplete || !token) return "Sign in with your authenticator before saving.";
@@ -358,20 +488,28 @@ export function OfficeManager() {
     }
   }, [persistSummary, token, session.stepUpComplete]);
   const saveVoiceTurn = useServerFn(recordVoiceTurn);
-  const voicePairerRef = useRef(new VoiceTurnPairer());
   const saveSpokenMessage = useCallback((role: "user" | "assistant", content: string) => {
-    const message: ChatMessage = { id: crypto.randomUUID(), role, content };
+    const at = new Date().toISOString();
+    // A spoken user line opens a turn id; the next Astra line closes it, so
+    // the device copy and the account checkpoint share the same ids.
+    let id: string = crypto.randomUUID();
+    let closing: string | null = null;
+    if (role === "user") { pendingVoiceTurnRef.current = id; id = `${id}-u`; }
+    else if (pendingVoiceTurnRef.current) { closing = pendingVoiceTurnRef.current; id = `${closing}-a`; pendingVoiceTurnRef.current = null; }
+    const message: ChatMessage = { id, role, content, at, mode: "voice" };
     messagesRef.current = [...messagesRef.current, message];
     setMessages(current => [...current, message]);
     // Completed spoken turns go to durable Astra memory once; turns already
     // saved by the typed Manager path are skipped by the pairer.
     const turn = voicePairerRef.current.feed(role, content);
+    const paired = messagesRef.current.find(m => m.id === `${closing}-u`);
+    if (closing && paired) queueTurn(closing, paired.content, content, "voice");
     if (turn && token && session.stepUpComplete) {
       void saveVoiceTurn({ data: { accessToken: token, ...turn } })
         .then(result => { if (!result.ok && mountedRef.current) setHistoryStatus(result.message); })
         .catch(() => { if (mountedRef.current) setHistoryStatus("The spoken turn was not saved to Astra memory."); });
     }
-  }, [token, session.stepUpComplete, saveVoiceTurn]);
+  }, [token, session.stepUpComplete, saveVoiceTurn, queueTurn]);
   // One implementation for typed and spoken requests. No model-generated code or URLs run here.
   /** Set by runRoomCommand itself so handoff receipts never infer from text. */
   const roomOutcomeRef = useRef<RoomOutcome | null>(null);
@@ -435,12 +573,13 @@ export function OfficeManager() {
       if (requestsConversationSave(request)) return saveConversationNow();
       const direct = await roomCommandRef.current(request);
       if (direct !== null) return direct;
-      const thread = messagesRef.current.filter(message => message.role !== "office").slice(-20)
-        .map(message => ({ role: message.role as "user" | "assistant", content: message.content }));
-      if (thread.at(-1)?.role !== "user" || thread.at(-1)?.content !== request)
-        thread.push({ role: "user", content: request });
+      // Only answered pairs (including restored ones) are history; an
+      // interrupted older prompt is never handed back to be acted on.
+      const thread = modelThread(messagesRef.current).slice(-19);
+      thread.push({ role: "user", content: request });
       const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
-      if (reply.ok) voicePairerRef.current.markServerSaved(request);
+      // Skip the separate voice save only when the server confirmed its own save.
+      if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);
       const result = reply.text || reply.detail || "The office action did not complete.";
       // The spoken transcript appends the reply once and updates messagesRef.
       // Appending here too created duplicate replies and stale thread history.
@@ -629,9 +768,12 @@ export function OfficeManager() {
     // In Voice Mode the microphone pauses while the Manager thinks.
     if (voiceModeRef.current) managerVoice.cancelListening();
     setError(null);
-    const userMessage: ChatMessage = { id: `m-${Date.now()}`, role: "user", content: text };
+    const turnId = crypto.randomUUID();
+    const userMessage: ChatMessage = { id: `${turnId}-u`, role: "user", content: text, at: new Date().toISOString(), mode: "text" };
     if (!historyReady) { setError("Wait for conversation memory to load before sending."); return; }
-    const history = [...messages, userMessage];
+    // The model sees answered pairs only (restored ones included) plus this request.
+    const modelHistory = [...modelThread(messagesRef.current), { role: "user" as const, content: text }];
+    const history = [...messagesRef.current, userMessage];
     messagesRef.current = history;
     setMessages(history);
     setDraft("");
@@ -643,7 +785,10 @@ export function OfficeManager() {
     try {
       const direct = await roomCommandRef.current(text);
       if (direct !== null) {
-        saveSpokenMessage("assistant", direct);
+        const directMessage: ChatMessage = { id: `${turnId}-a`, role: "assistant", content: direct, at: new Date().toISOString(), mode: "text" };
+        messagesRef.current = [...messagesRef.current, directMessage];
+        setMessages(current => [...current, directMessage]);
+        queueTurn(turnId, text, direct, "text");
         setDelivery("Room request returned a result — see Astra's answer.");
         if (handoffId) reportHandoff(handoffId, handoffStatusFromRoomOutcome(roomOutcomeRef.current));
         if (realtimeManager.on) realtimeManager.say(direct);
@@ -653,9 +798,7 @@ export function OfficeManager() {
         data: {
           accessToken: token,
           team: teamForManager(loadTeam()),
-          messages: history
-            .filter((m) => m.role !== "office")
-            .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          messages: modelHistory.slice(-20),
         },
       });
       if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(reply));
@@ -683,19 +826,21 @@ export function OfficeManager() {
       } else {
         setComposerCollapsed(true);
         setDelivery("Received — Astra returned a reply. This does not mean the requested work is complete.");
-        const answerId = `m-${Date.now()}-a`;
+        const answerId = `${turnId}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
         if (realtimeManager.on) realtimeManager.say(answer);
-        setMessages((current) => [
-          ...current,
-          {
-            id: answerId,
-            role: "assistant",
-            content: answer,
-            toolCalls: reply.toolCalls,
-            ...(reply.checked ? { checked: reply.checked } : {}),
-          },
-        ]);
+        const answerMessage: ChatMessage = {
+          id: answerId,
+          role: "assistant",
+          content: answer,
+          at: new Date().toISOString(),
+          mode: "text",
+          ...(reply.toolCalls ? { toolCalls: reply.toolCalls } : {}),
+          ...(reply.checked ? { checked: reply.checked } : {}),
+        };
+        messagesRef.current = [...messagesRef.current, answerMessage];
+        setMessages((current) => [...current, answerMessage]);
+        queueTurn(turnId, text, answer, "text");
         // A real task change — typed or spoken — reloads the Work Board.
         const changedWork = (reply.actionResults ?? []).some((action) =>
           action.status === "done" || action.status === "pending",
@@ -848,6 +993,8 @@ export function OfficeManager() {
     window.addEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
     return () => window.removeEventListener(MANAGER_HANDOFF_EVENT, onHandoff);
   }, []);
+
+  const answeredIds = useMemo(() => completedPairIds(messages), [messages]);
 
   const briefing = () => {
     setMessages((current) => [
@@ -1075,6 +1222,17 @@ export function OfficeManager() {
                     >
                       {message.content}
                     </div>
+                    {message.restored && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {message.fromAccount ? "Restored from your CanX account checkpoint" : "Restored from this device"}
+                        {message.at ? ` · ${new Date(message.at).toLocaleString()}` : ""}
+                      </p>
+                    )}
+                    {message.role === "user" && !answeredIds.has(message.id) && !(busy && message === messages[messages.length - 1]) && (
+                      <p className="mt-0.5 text-[11px] text-canx-yellow">
+                        Not answered — Astra did not receive or finish this. It is not used as history; send it again if needed.
+                      </p>
+                    )}
                     {message.checked && <CheckedReceipt receipt={message.checked} />}
 
                     {message.toolCalls?.map((call, index) => (
@@ -1088,6 +1246,22 @@ export function OfficeManager() {
                   </div>
                 ))}
               <div className="border-t border-border pt-3">
+                <section data-testid="astra-continuity-status" aria-label="Conversation continuity" className="mb-3 space-y-1 rounded-md border border-border p-2 text-xs">
+                  <p className="font-semibold text-foreground">Last conversation (not CanX Brain)</p>
+                  {deviceNote && <p className="text-muted-foreground">{deviceNote}</p>}
+                  <p className={pendingSync ? "text-canx-yellow" : "text-muted-foreground"}>
+                    {pendingSync
+                      ? `${pendingSync} completed turn${pendingSync === 1 ? "" : "s"} kept on this device only — not yet synced to your CanX account and not saved in CanX Brain.`
+                      : ownerId ? "All completed turns in this window are on this device; account sync status is below." : "Sign in as the owner to keep a device copy of this conversation."}
+                  </p>
+                  {accountNote && <p role="status" className="text-muted-foreground">{accountNote}</p>}
+                  {pendingSync > 0 && (
+                    <Button size="sm" variant="outline" className="h-8" disabled={!session.stepUpComplete} onClick={() => void flushCheckpoints()}>
+                      Retry sync (saves only; repeats no actions)
+                    </Button>
+                  )}
+                </section>
+
                 <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <input type="checkbox" checked={autoMemory} onChange={event => setAutoMemory(event.target.checked)} />
                   Save useful discussion automatically during this session
