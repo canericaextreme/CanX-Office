@@ -177,7 +177,9 @@ export function OfficeManager() {
   const [autoMemory, setAutoMemory] = useState(true);
   const pendingSummaryRef = useRef<{ id: string; turns: ChatMessage[]; through: number } | null>(null);
   const [draft, setDraft] = useState("");
-  const [fullScreen, setFullScreen] = useState(false);
+  // Open in the stable full-window layout. The Lovable preview has a right-edge
+  // chat drawer that otherwise covers the Manager's scrollbar and controls.
+  const [fullScreen, setFullScreen] = useState(true);
   const [textSize, setTextSize] = useState(20);
   const [delivery, setDelivery] = useState("");
   /** One reviewed handoff from the Office Work assistant. Session memory only. */
@@ -1097,7 +1099,7 @@ export function OfficeManager() {
           id="office-manager-panel"
           aria-label="Office Manager"
           hidden={minimized}
-          style={mobileShieldActive ? undefined : fullScreen ? { inset: 8, width: "auto", height: "calc(100dvh - 16px)", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
+          style={mobileShieldActive ? undefined : fullScreen ? { top: 8, bottom: 8, left: 8, right: 56, width: "auto", height: "auto", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
           className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
           } flex-col overflow-hidden overscroll-contain border border-border bg-card shadow-2xl ${
@@ -1443,7 +1445,7 @@ export function OfficeManager() {
                     ref={inputRef}
                     rows={4}
                     value={draft}
-                    className="min-h-0 max-h-[40dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
+                    className="min-h-[120px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
                     style={{ fontSize: textSize, height: composerHeight }}
                     placeholder="Type or paste your message here…"
                     aria-label="Message the Office Manager"
