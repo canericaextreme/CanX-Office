@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { createManagerRealtimeSession, refreshManagerVoiceContext } from "@/lib/manager-realtime.functions";
 import { voiceTurnEvents } from "@/lib/voice-turn-refresh";
 import { realtimeEventPhase, type ChatPhase } from "@/lib/use-realtime-chat";
+import { waitForIceGatheringComplete } from "@/lib/webrtc-ice";
 
 export interface RealtimeManager {
   phase: ChatPhase;
@@ -347,10 +348,14 @@ export function useRealtimeManager(
       if (!current()) return;
       await pc.setLocalDescription(offer);
       if (!current()) return;
+      await waitForIceGatheringComplete(pc);
+      if (!current()) return;
+      const localSdp = pc.localDescription?.sdp;
+      if (!localSdp) throw new Error("Missing local SDP offer");
       const answer = await fetch(
         `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(session.model)}`,
         {
-          method: "POST", body: offer.sdp ?? "", signal: abort.signal,
+          method: "POST", body: localSdp, signal: abort.signal,
           headers: { Authorization: `Bearer ${session.clientSecret}`, "Content-Type": "application/sdp" },
         },
       );
