@@ -57,6 +57,7 @@ describe("Astra continuous voice", () => {
     const body = managerRealtimeSessionBody("test", instructions);
     expect(body.session.tools.map(tool => tool.name)).toEqual(["submit_office_request"]);
     expect(body.session.audio.input.transcription.model).toBe("gpt-4o-mini-transcribe");
+    expect(body.session.audio.input.turn_detection.eagerness).toBe("high");
   });
 
   it("checks MFA, context and budget before minting a short-lived secret", async () => {

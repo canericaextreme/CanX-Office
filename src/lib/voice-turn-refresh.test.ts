@@ -54,15 +54,16 @@ describe("live voice refreshes durable memory on every turn", () => {
     expect(readContinuity).not.toHaveBeenCalled();
   });
 
-  it("automatic replies wait for the refresh; interruption stays on", () => {
+  it("automatic replies wait for the guarded Office request; interruption stays on", () => {
     const td = managerRealtimeSessionBody("gpt-realtime", "x").session.audio.input.turn_detection;
     expect(td.create_response).toBe(false);
     expect(td.interrupt_response).toBe(true);
     expect(managerRealtimeSessionBody("gpt-realtime", "x").session.output_modalities).toEqual(["audio"]);
     expect(voiceTurnEvents(null)[0]).toMatchObject({ response: { output_modalities: ["audio"] } });
     const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
-    expect(hook).toContain("refreshedInputs.has(inputId)");
-    expect(hook).toContain("voiceTurnEvents(result, inputId)");
+    expect(hook).toContain('payload.type === "conversation.item.input_audio_transcription.completed"');
+    expect(hook).toContain("requestRef.current(request)");
+    expect(hook).toContain("spokenOfficeAnswer(output)");
   });
 
   it("two ordinary turns are each persisted exactly once", () => {

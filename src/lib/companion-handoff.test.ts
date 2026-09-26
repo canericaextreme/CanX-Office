@@ -111,9 +111,10 @@ describe("wiring", () => {
     expect(listener).not.toMatch(/sendChat|send\(/);
     expect(listener).toContain('status: "drafted"');
   });
-  it("voice never leaves a superseded or wordless request unanswered", () => {
-    expect(realtime).toContain("Not submitted: a newer spoken request replaced this one");
-    expect(realtime).toContain("Astra did not receive the words of this request");
+  it("voice submits only the completed transcript for the current spoken turn", () => {
+    expect(realtime).toContain('payload.type === "conversation.item.input_audio_transcription.completed"');
+    expect(realtime).toContain("inputId !== currentInputId");
+    expect(realtime).toContain("handledInputs.has(inputId)");
   });
 });
 

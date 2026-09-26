@@ -162,6 +162,10 @@ describe("Astra realtime connection lifecycle", () => {
     const sends = channel.send.mock.calls.map(c => String(c[0]));
     expect(sends.filter(s => s.includes('"tool_choice":"none"'))).toHaveLength(1);
     expect(sends.find(s => s.includes('"tool_choice":"none"'))).toContain("approval id a1");
+    const spoken = JSON.parse(sends.find(s => s.includes('"tool_choice":"none"'))!);
+    expect(spoken.response.conversation).toBe("none");
+    expect(spoken.response.input).toEqual([]);
+    expect(spoken.response.instructions).toContain("Queued for approval: test (approval id a1).");
     expect(sends.every(s => !s.includes("function_call_output"))).toBe(true);
   });
   it("does not execute an older request after a newer turn arrives", async () => {
@@ -248,7 +252,9 @@ describe("Astra's live voice controls", () => {
     voice.say("Saved report r1");
     const response = JSON.parse(channel.send.mock.calls.at(-1)![0]);
     expect(response.response.tool_choice).toBe("none");
-    expect(response.response.input[0].content[0].text).toBe("Saved report r1");
+    expect(response.response.conversation).toBe("none");
+    expect(response.response.input).toEqual([]);
+    expect(response.response.instructions).toContain("Saved report r1");
     voice.stop(); const count = channel.send.mock.calls.length; voice.say("late");
     expect(channel.send).toHaveBeenCalledTimes(count);
   });
