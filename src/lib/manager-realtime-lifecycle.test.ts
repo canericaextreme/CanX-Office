@@ -31,8 +31,11 @@ class Peer {
   ontrack: ((event: unknown) => void) | null = null;
   onconnectionstatechange: (() => void) | null = null;
   connectionState = "connected";
+  iceGatheringState: RTCIceGatheringState = "complete";
+  localDescription = { sdp: "offer-with-candidates" };
   channel = { readyState: "open", send: vi.fn(), onmessage: null as ((event: { data: string }) => void) | null, onclose: null as (() => void) | null, onopen: null as (() => void) | null, close: vi.fn() };
   close = vi.fn(); addTrack = vi.fn();
+  addEventListener = vi.fn(); removeEventListener = vi.fn();
   createDataChannel = () => this.channel;
   createOffer = vi.fn().mockResolvedValue({ sdp: "offer" });
   setLocalDescription = vi.fn().mockResolvedValue(undefined);
