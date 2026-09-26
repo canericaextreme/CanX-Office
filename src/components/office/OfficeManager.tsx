@@ -673,7 +673,16 @@ export function OfficeManager() {
 
   useEffect(() => {
     const pane = messagesScrollRef.current;
-    if (pane && followMessagesRef.current) pane.scrollTop = pane.scrollHeight;
+    if (!pane || !followMessagesRef.current) return;
+    const messageNodes = pane.querySelectorAll<HTMLElement>("[data-astra-message]");
+    const latestMessage = messageNodes.item(messageNodes.length - 1);
+    if (!latestMessage) return;
+    // Status cards and speaker controls sit after the transcript. Scrolling to
+    // scrollHeight hid Astra's newest answer above those controls, which made a
+    // successful reply look empty. Keep the latest message inside the viewport.
+    const paneRect = pane.getBoundingClientRect();
+    const messageRect = latestMessage.getBoundingClientRect();
+    pane.scrollTop += messageRect.bottom - paneRect.bottom + 16;
   }, [messages, busy]);
 
   const addNote = useCallback(
@@ -1205,7 +1214,11 @@ export function OfficeManager() {
                   </p>
                 )}
                 {messages.map((message) => (
-                  <div key={message.id} className={message.role === "user" ? "text-right" : ""}>
+                  <div
+                    key={message.id}
+                    data-astra-message={message.role}
+                    className={message.role === "user" ? "text-right" : ""}
+                  >
                     {message.role !== "user" && (
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {message.role === "office"
