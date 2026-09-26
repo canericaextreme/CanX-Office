@@ -5,6 +5,7 @@ export function namedOfficeRoom(text: string): RoomDef | null {
   const words = ` ${normalize(text)} `;
   const candidates = ROOMS.flatMap(room => [room.shortLabel, room.id, ...room.label.split(" / "),
     ...(room.id === "subscriptions" ? ["subscription", "subscription watch"] : []),
+    ...(room.id === "product-studio" ? ["studio", "product build room"] : []),
     ...(room.id === "brain" ? ["brain"] : []),
   ].map(alias => ({ room, alias: normalize(alias) })))
     .filter(({ alias }) => words.includes(` ${alias} `)).sort((a, b) => b.alias.length - a.alias.length);
