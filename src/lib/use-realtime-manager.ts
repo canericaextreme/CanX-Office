@@ -314,9 +314,16 @@ export function useRealtimeManager(
           if (id && refreshedInputs.has(id)) responseInputs.set(payload.response.id, id);
         }
         if (payload.type === "response.done") {
+          // OpenAI guarantees response metadata on the completed response. Some
+          // live sessions do not echo it on response.created, so recover the
+          // spoken-turn id here instead of silently dropping the function call.
+          const inputId =
+            payload.response?.metadata?.office_input_id ??
+            responseInputs.get(payload.response?.id ?? "") ??
+            "";
           for (const item of payload.response?.output ?? []) {
             if (item.type === "function_call" && item.name === "submit_office_request" && item.call_id)
-              void executeRequest(item.call_id, responseInputs.get(payload.response?.id ?? "") ?? "");
+              void executeRequest(item.call_id, inputId);
           }
         }
         if (payload.type === "input_audio_buffer.speech_started") setActivity("Hearing you speak…");
