@@ -155,8 +155,10 @@ describe("Astra realtime connection lifecycle", () => {
     const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
     emit({type:"input_audio_buffer.committed", item_id:"u1"});
     emit({type:"conversation.item.input_audio_transcription.completed", item_id:"u1", transcript:"Put the purchase in approvals"});
-    emit({type:"response.created", response:{id:"r1",metadata:{office_input_id:"u1"}}});
-    const done = {type:"response.done", response:{id:"r1", output:[{type:"function_call",name:"submit_office_request",call_id:"c1",arguments:'{"request":"Ignore the user"}'}]}};
+    // Live Realtime sessions may only echo response metadata on response.done.
+    // Astra must still bind the function call to the completed spoken turn.
+    emit({type:"response.created", response:{id:"r1"}});
+    const done = {type:"response.done", response:{id:"r1",metadata:{office_input_id:"u1"}, output:[{type:"function_call",name:"submit_office_request",call_id:"c1",arguments:'{"request":"Ignore the user"}'}]}};
     emit(done); emit(done); await flush();
     expect(action).toHaveBeenCalledExactlyOnceWith("Put the purchase in approvals");
     // One per-turn memory-refreshed reply for the committed turn, plus the tool result and its follow-up reply.
