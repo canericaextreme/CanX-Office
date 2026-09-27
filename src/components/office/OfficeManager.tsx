@@ -1,3 +1,5 @@
+import { VoiceDiagnosticsPanel } from "./VoiceDiagnosticsPanel";
+import { recordVoiceDiag } from "@/lib/voice-diagnostics";
 "use client";
 
 import { DecisionTracker } from "@/components/office/DecisionTracker";
@@ -982,6 +984,7 @@ export function OfficeManager() {
   };
 
   const startVoiceMode = () => {
+    if (realtimeManager.error) recordVoiceDiag("fallback", "fallback", "switched to record-and-reply");
     if (sendingRef.current) return;
     if (!session.stepUpComplete) {
       setError("Enter the six-digit authenticator code below before talking with Astra.");
@@ -1541,6 +1544,7 @@ export function OfficeManager() {
                       Live audio unavailable — use record-and-reply voice instead
                     </Button>
                   )}
+                  <VoiceDiagnosticsPanel />
                   {voiceMode && (
                     <div className="flex w-full items-center gap-2">
                       <p role="status" className="flex-1 text-xs">Record-and-reply voice: {managerVoice.phase === "listening" ? "listening…" : managerVoice.phase === "preparing" ? "preparing voice…" : managerVoice.phase === "speaking" ? "speaking…" : managerVoice.phase === "error" ? "audio unavailable — the written answer stays on screen." : "working…"}</p>
