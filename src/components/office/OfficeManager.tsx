@@ -78,6 +78,7 @@ import { useOwnerSession } from "@/lib/owner-session";
 import { speakManagerText, transcribeManagerAudio } from "@/lib/manager-voice.functions";
 import { useManagerVoice } from "@/lib/use-manager-voice";
 import { useRealtimeManager } from "@/lib/use-realtime-manager";
+import { voiceTurnOutcome, VoiceTurnError } from "@/lib/voice-turn-outcome";
 import {
   approvalSubmissionNotice,
   isAffirmative,
@@ -611,7 +612,10 @@ export function OfficeManager() {
       const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
       // Skip the separate voice save only when the server confirmed its own save.
       if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);
-      const result = reply.text || reply.detail || "The office action did not complete.";
+      // A failure detail is never returned as if it were Astra's answer.
+      const outcome = voiceTurnOutcome(reply);
+      if (outcome.kind === "failure") throw new VoiceTurnError(outcome.stage, outcome.message, outcome.status);
+      const result = outcome.text;
       // The spoken transcript appends the reply once and updates messagesRef.
       // Appending here too created duplicate replies and stale thread history.
       if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))

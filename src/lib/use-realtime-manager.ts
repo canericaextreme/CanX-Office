@@ -2,6 +2,7 @@
 
 import { SILENT_AUDIO_DATA_URL } from "./use-manager-voice";
 import { voiceProviderFailure } from "./voice-provider-error";
+import { VoiceTurnError, voiceDiagnostic } from "./voice-turn-outcome";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createManagerRealtimeSession } from "@/lib/manager-realtime.functions";
@@ -268,13 +269,16 @@ export function useRealtimeManager(
         setPhase("thinking");
         setActivity("Astra heard your request and is preparing an answer…");
         let output = "";
+        const requestStartedAt = Date.now();
         try { output = (await requestRef.current(request)).trim(); }
-        catch {
-          console.warn("[astra-voice]", { stage: "assistant_request_failed", turn: inputId });
+        catch (failure) {
+          const known = failure instanceof VoiceTurnError ? failure : null;
+          // Safe diagnostics only: stage, HTTP status, timing, retry count (never retried automatically).
+          console.warn("[astra-voice]", { turn: inputId, ...voiceDiagnostic(known?.stage ?? "other", requestStartedAt, 0, known?.status) });
           turnFailedRef.current?.(inputId);
           if (current()) {
             setPhase("listening");
-            setError("Astra received your words, but the Office answer did not finish. Please send that request again.");
+            setError(known?.userMessage ?? "Astra received your words, but the Office answer did not finish. Please send that request again.");
             setActivity("The Office answer did not finish. Your spoken request remains visible.");
           }
           return;
