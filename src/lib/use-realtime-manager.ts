@@ -109,6 +109,8 @@ export function useRealtimeManager(
   requestRef.current = onOfficeRequest;
   const turnFailedRef = useRef(onTurnFailed);
   turnFailedRef.current = onTurnFailed;
+  // Free, on-device hearing check: never recorded, never sent anywhere.
+  const hearingCleanupRef = useRef<(() => void) | null>(null);
 
   const teardown = useCallback(() => {
     // Invalidate pending permission, minting, SDP and playback callbacks first.
@@ -124,6 +126,8 @@ export function useRealtimeManager(
     const pc = pcRef.current;
     pcRef.current = null;
     if (pc) { pc.ontrack = null; pc.onconnectionstatechange = null; pc.close(); }
+    hearingCleanupRef.current?.();
+    hearingCleanupRef.current = null;
     micRef.current?.getTracks().forEach((track) => track.stop());
     micRef.current = null;
     if (audioRef.current) {
@@ -238,6 +242,41 @@ export function useRealtimeManager(
     };
     const timeout = setTimeout(() => fail("Astra's voice connection timed out. Please try again."), 30_000);
 
+    // Tracks what actually happened so a silent turn gets an honest reason.
+    const hearing = {
+      lastSoundAt: 0, providerHeardAt: 0, committedAt: 0, transcriptAt: 0, timer: 0 as unknown as ReturnType<typeof setInterval>,
+      attach(stream: MediaStream) {
+        try {
+          const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+          if (!Ctx) return;
+          const ctx = new Ctx();
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 512;
+          ctx.createMediaStreamSource(stream).connect(analyser);
+          const data = new Uint8Array(analyser.fftSize);
+          const startedAt = Date.now();
+          let warned = "";
+          const warn = (key: string, message: string) => { if (warned !== key && current()) { warned = key; setError(message); console.warn("[astra-voice]", { stage: key }); } };
+          this.timer = setInterval(() => {
+            if (!current()) return;
+            if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
+            analyser.getByteTimeDomainData(data);
+            let peak = 0;
+            for (const v of data) peak = Math.max(peak, Math.abs(v - 128));
+            const now = Date.now();
+            if (peak > 6) this.lastSoundAt = now;
+            if (channelRef.current?.readyState !== "open") return;
+            if (!this.lastSoundAt && now - startedAt > 15_000)
+              warn("mic_silent", "The microphone light is on, but no sound is reaching Astra from this device. Check that the right microphone is selected and no other app or Bluetooth device is holding it.");
+            else if (this.lastSoundAt && !this.providerHeardAt && now - startedAt > 20_000 && now - this.lastSoundAt < 3_000)
+              warn("speech_not_detected", "Your microphone is picking up sound, but the voice service has not detected speech yet. Try speaking closer to the phone, or press End conversation and start again.");
+            else if (this.committedAt && this.transcriptAt < this.committedAt && now - this.committedAt > 10_000)
+              warn("transcript_missing", "Astra heard you speak but did not receive your words. Please say it again; nothing was sent to the Office.");
+          }, 1000);
+          hearingCleanupRef.current = () => { clearInterval(this.timer); void ctx.close().catch(() => undefined); };
+        } catch { /* The hearing check is optional; voice continues without it. */ }
+      },
+    };
     let stage = "microphone";
     try {
       const audio = document.createElement("audio");
@@ -254,7 +293,13 @@ export function useRealtimeManager(
       const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       if (!current()) { mic.getTracks().forEach((track) => track.stop()); return; }
       micRef.current = mic;
-      mic.getTracks().forEach(track => { track.enabled = !micMutedRef.current; });
+      mic.getTracks().forEach(track => {
+        track.enabled = !micMutedRef.current;
+        track.onmute = () => { if (current()) setError("Your phone or browser paused the microphone (another app may be using it). Astra cannot hear you until it resumes."); };
+        track.onunmute = () => { if (current()) setError(null); };
+        track.onended = () => fail("The microphone was switched off by the device. Press Talk to Astra to start again.");
+      });
+      hearing.attach(mic);
       stage = "office session";
       const session = await mintSession({ data: { accessToken, team, mode: sessionMode } });
       if (!current()) return;
@@ -395,7 +440,17 @@ export function useRealtimeManager(
           currentInputId = payload.item_id;
           setActivity("Heard your voice. Checking the Office…");
         }
-        if (payload.type === "input_audio_buffer.speech_started") setActivity("Hearing you speak…");
+        if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setActivity("Hearing you speak…"); }
+        if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
+        if (payload.type === "conversation.item.input_audio_transcription.completed") hearing.transcriptAt = Date.now();
+        // Previously ignored: a failed transcription left the turn silent.
+        if (payload.type === "conversation.item.input_audio_transcription.failed") {
+          hearing.transcriptAt = Date.now();
+          console.warn("[astra-voice]", { stage: "transcription_failed", turn: payload.item_id ?? "unknown" });
+          setPhase("listening");
+          setError("Astra heard you, but your words could not be turned into text. Please say it again; nothing was sent to the Office.");
+          return;
+        }
         if (payload.type === "output_audio_buffer.started") {
           outputPlaying = true;
           setActivity("Astra is speaking. If you hear nothing, check your output device or tap Enable sound.");
