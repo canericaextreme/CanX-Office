@@ -1,6 +1,6 @@
+"use client";
 import { VoiceDiagnosticsPanel } from "./VoiceDiagnosticsPanel";
 import { recordVoiceDiag } from "@/lib/voice-diagnostics";
-"use client";
 
 import { DecisionTracker } from "@/components/office/DecisionTracker";
 import { recordVoiceTurn } from "@/lib/astra-voice-memory.functions";
