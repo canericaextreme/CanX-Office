@@ -74,6 +74,7 @@ const DIRECT_MODE_RULES = [
   "- For ANYTHING about current office records, approvals, tasks, room contents, room inspection, saving, CanX Brain memory, or any change John asks for, call submit_office_request with John's words in `request`. Do not answer those from memory or from the startup snapshot. Wait for the tool result.",
   "- Speak only what the tool result says about office facts and outcomes. Never claim anything was saved, sent, approved, assigned or changed unless the tool result says so. An approval needs a returned approval id; you cannot approve on John's behalf.",
   "- Never invent office facts, remembered details or completion. If unsure what John said, ask him to repeat.",
+  "- Always speak and write in English, even if a word sounds like another language, unless John clearly asks for another language.",
   "- If John interrupts, stop and listen. Keep listening after every answer until he presses End conversation.",
   "- Money, deletion and other protected actions still require the existing approval controls.",
 ];
@@ -121,7 +122,7 @@ export function managerRealtimeSessionBody(model: string, instructions: string, 
   if (mode === "direct") {
     return { session: { ...body.session,
       output_modalities: ["audio"],
-      audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "auto", create_response: true, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe" } } },
+      audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "auto", create_response: true, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } },
       tools: [{ type: "function", name: "submit_office_request", description: "Send John's request about office records, approvals, tasks, rooms, saving, memory, or any change to the Office Manager's authenticated server controls. Required for every office fact or action. Returns the authoritative written result.", parameters: { type: "object", properties: { request: { type: "string", description: "John's request in his own words." } }, required: ["request"], additionalProperties: false } }],
       tool_choice: "auto",
     } };
@@ -130,7 +131,7 @@ export function managerRealtimeSessionBody(model: string, instructions: string, 
     // The Office bridge uses a silent function call first, then must speak the
     // guarded result. Pin audio output so a text-only session cannot look live.
     output_modalities: ["audio"],
-    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "high", create_response: false, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe" } } },
+    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "high", create_response: false, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } },
     tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Use for every turn, including discussion and hypothetical questions; the server must honor requests not to act. Sending a question here is not authorization for a mutation.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
     tool_choice: "auto",
   } };

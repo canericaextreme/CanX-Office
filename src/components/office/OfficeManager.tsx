@@ -602,7 +602,7 @@ export function OfficeManager() {
   };
   const roomCommandRef = useRef(runRoomCommand);
   roomCommandRef.current = runRoomCommand;
-  const [liveVoiceMode, setLiveVoiceMode] = useState<"relay" | "direct">("relay");
+  const [liveVoiceMode, setLiveVoiceMode] = useState<"relay" | "direct">("direct");
   const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
     useCallback(async (request: string) => {
       if (requestsConversationSave(request)) return saveConversationNow();
@@ -1246,6 +1246,7 @@ export function OfficeManager() {
                 }}
                 className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4"
                 aria-label="Conversation with Astra"
+                aria-live="polite"
                 style={{ fontSize: textSize, lineHeight: 1.5 }}
               >
                 {messages.length === 0 && (
@@ -1262,7 +1263,7 @@ export function OfficeManager() {
                     className={message.role === "user" ? "text-right" : ""}
                   >
                     {message.role !== "user" && (
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <p className="mb-1 text-sm font-semibold text-foreground">
                         {message.role === "office"
                           ? "Office notice — save and action results"
                           : "Astra — Office Manager"}
@@ -1272,19 +1273,19 @@ export function OfficeManager() {
                       className={
                         message.role === "user"
                           ? "inline-block max-w-[95%] break-words whitespace-pre-wrap rounded-lg bg-primary px-3 py-2 text-left text-primary-foreground"
-                          : "whitespace-pre-wrap break-words text-foreground"
+                          : "whitespace-pre-wrap break-words rounded-lg border border-border bg-card px-3 py-2 text-card-foreground"
                       }
                     >
                       {message.content}
                     </div>
                     {message.restored && (
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {message.fromAccount ? "Restored from your CanX account checkpoint" : "Restored from this device"}
                         {message.at ? ` · ${new Date(message.at).toLocaleString()}` : ""}
                       </p>
                     )}
                     {message.role === "user" && !answeredIds.has(message.id) && !pendingVoiceIds.has(message.id) && !(busy && message === messages[messages.length - 1]) && (
-                      <p className="mt-0.5 text-[11px] text-canx-yellow">
+                      <p className="mt-0.5 text-sm text-canx-yellow">
                         Not answered — Astra did not receive or finish this. It is not used as history; send it again if needed.
                       </p>
                     )}
