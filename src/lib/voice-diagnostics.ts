@@ -25,8 +25,8 @@ export function summarizeVoiceDiag(list: VoiceDiagEvent[]) {
     failures: list.filter(e => e.kind === "failure").length,
     interruptions: list.filter(e => e.kind === "interruption").length,
     fallbacks: list.filter(e => e.kind === "fallback").length,
-    medianMs: lat.length ? lat[Math.floor(lat.length / 2)] : null,
-    worstMs: lat.length ? lat[lat.length - 1] : null,
+    medianMs: lat.length ? lat[Math.floor(lat.length / 2)] ?? null : null,
+    worstMs: lat.length ? lat[lat.length - 1] ?? null : null,
   };
 }
 

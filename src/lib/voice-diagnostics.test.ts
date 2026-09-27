@@ -14,8 +14,8 @@ describe("voice diagnostics", () => {
   });
   it("strips unsafe characters and caps size", () => {
     recordVoiceDiag("failure", "relay", "<script>" + "a".repeat(200));
-    expect(readVoiceDiag()[0].detail).not.toContain("<");
-    expect(readVoiceDiag()[0].detail.length).toBeLessThanOrEqual(80);
+    expect(readVoiceDiag()[0]!.detail).not.toContain("<");
+    expect(readVoiceDiag()[0]!.detail.length).toBeLessThanOrEqual(80);
     for (let i = 0; i < 100; i++) recordVoiceDiag("connected", "relay", "ok");
     expect(readVoiceDiag().length).toBe(60);
   });
