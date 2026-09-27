@@ -71,9 +71,17 @@ describe("voice turns are persisted once", () => {
     expect(p.feed("assistant", "Nothing else.")).not.toBeNull();
   });
 
+  it("keeps overlapping provider turns paired to their own request", () => {
+    const p = new VoiceTurnPairer();
+    p.feed("user", "first", "u1");
+    p.feed("user", "second", "u2");
+    expect(p.feed("assistant", "answer one", "u1")).toEqual({ user: "first", answer: "answer one" });
+    expect(p.feed("assistant", "answer two", "u2")).toEqual({ user: "second", answer: "answer two" });
+  });
+
   it("the browser wires the pairer to both the voice save and the typed path", () => {
     const src = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
-    expect(src).toContain("voicePairerRef.current.feed(role, content)");
+    expect(src).toContain("voicePairerRef.current.feed(role, content, providerTurnId)");
     // Only a readback-confirmed server save may suppress the separate voice save.
     expect(src).toContain("if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);");
   });

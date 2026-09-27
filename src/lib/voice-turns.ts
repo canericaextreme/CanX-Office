@@ -7,7 +7,7 @@
 export interface VoiceTurn { user: string; answer: string }
 
 export class VoiceTurnPairer {
-  private pendingUser: string | null = null;
+  private pendingUsers = new Map<string, string>();
   private serverSaved = new Set<string>();
 
   /** Call when a spoken request goes through the typed Manager path. */
@@ -17,16 +17,18 @@ export class VoiceTurnPairer {
   }
 
   /** Feed each completed transcript; returns a turn to persist, or null. */
-  feed(role: "user" | "assistant", content: string): VoiceTurn | null {
+  feed(role: "user" | "assistant", content: string, turnId = "default"): VoiceTurn | null {
     const text = content.trim();
     if (!text) return null;
-    if (role === "user") { this.pendingUser = text; return null; }
-    const user = this.pendingUser;
-    this.pendingUser = null;
+    if (role === "user") { this.pendingUsers.set(turnId, text); return null; }
+    const user = this.pendingUsers.get(turnId) ?? null;
+    this.pendingUsers.delete(turnId);
     if (!user) return null;
     if (this.serverSaved.delete(user)) return null;
     return { user, answer: text };
   }
 
-  reset() { this.pendingUser = null; this.serverSaved.clear(); }
+  cancel(turnId = "default") { this.pendingUsers.delete(turnId); }
+
+  reset() { this.pendingUsers.clear(); this.serverSaved.clear(); }
 }

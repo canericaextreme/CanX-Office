@@ -9,4 +9,13 @@ describe("Astra conversation visibility", () => {
     expect(source).toContain("data-astra-message={message.role}");
     expect(source).not.toContain("pane.scrollTop = pane.scrollHeight");
   });
+
+  it("does not label a live voice turn unanswered while its reply is pending", () => {
+    expect(source).toContain("!pendingVoiceIds.has(message.id)");
+  });
+
+  it("shows playback trouble separately from an Office response failure", () => {
+    expect(source).toContain("speechError || realtimeManager.playbackError");
+    expect(source).toContain("realtimeManager.error || error");
+  });
 });
