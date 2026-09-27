@@ -623,7 +623,7 @@ export function OfficeManager() {
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       return result;
     }, [token, managerTeam, sendChat, saveConversationNow]),
-    failSpokenTurn,,
+    failSpokenTurn,
     liveVoiceMode,
   );
 
