@@ -3,6 +3,7 @@
 import { SILENT_AUDIO_DATA_URL } from "./use-manager-voice";
 import { voiceProviderFailure } from "./voice-provider-error";
 import { VoiceTurnError, voiceDiagnostic } from "./voice-turn-outcome";
+import { recordVoiceDiag } from "./voice-diagnostics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createManagerRealtimeSession, type ManagerVoiceMode } from "@/lib/manager-realtime.functions";
@@ -231,8 +232,11 @@ export function useRealtimeManager(
     setOn(true);
     setPhase("connecting");
     setActivity("Connecting the microphone and speaker…");
+    let speechEndedAt = 0;
+    let stage = "microphone";
     const fail = (message: string) => {
       if (!current()) return;
+      recordVoiceDiag("failure", sessionMode, "connection " + stage);
       teardown();
       setOn(false);
       setPlaybackBlocked(false);
@@ -256,7 +260,7 @@ export function useRealtimeManager(
           const data = new Uint8Array(analyser.fftSize);
           const startedAt = Date.now();
           let warned = "";
-          const warn = (key: string, message: string) => { if (warned !== key && current()) { warned = key; setError(message); console.warn("[astra-voice]", { stage: key }); } };
+          const warn = (key: string, message: string) => { if (warned !== key && current()) { warned = key; recordVoiceDiag("failure", sessionMode, key.replace(/_/g, " ")); setError(message); console.warn("[astra-voice]", { stage: key }); } };
           this.timer = setInterval(() => {
             if (!current()) return;
             if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
@@ -277,7 +281,6 @@ export function useRealtimeManager(
         } catch { /* The hearing check is optional; voice continues without it. */ }
       },
     };
-    let stage = "microphone";
     try {
       const audio = document.createElement("audio");
       audio.autoplay = true;
@@ -327,6 +330,7 @@ export function useRealtimeManager(
       channel.onopen = () => {
         if (!current()) return;
         clearTimeout(timeout);
+        recordVoiceDiag("connected", sessionMode, "voice channel open");
         setPhase("listening");
         setActivity("Listening for your words…");
       };
@@ -350,6 +354,7 @@ export function useRealtimeManager(
         catch (failure) {
           const known = failure instanceof VoiceTurnError ? failure : null;
           // Safe diagnostics only: stage, HTTP status, timing, retry count (never retried automatically).
+          recordVoiceDiag("failure", sessionMode, "office answer " + (known?.stage ?? "other") + (known?.status ? " " + known.status : ""));
           console.warn("[astra-voice]", { turn: inputId, ...voiceDiagnostic(known?.stage ?? "other", requestStartedAt, 0, known?.status) });
           turnFailedRef.current?.(inputId);
           if (current()) {
@@ -408,6 +413,7 @@ export function useRealtimeManager(
           // These command/turn errors do not invalidate the connection. Do not
           // repeat an office action or create a replacement paid session.
           if (code === "conversation_already_has_active_response" || code === "response_cancel_not_active") return;
+          recordVoiceDiag("failure", sessionMode, "provider " + (code ?? "unknown"));
           if (code === "input_audio_buffer_commit_empty") {
             setPhase("listening");
             setError("Astra did not catch that. Please speak again; the microphone is still on.");
@@ -440,16 +446,23 @@ export function useRealtimeManager(
           currentInputId = payload.item_id;
           setActivity("Heard your voice. Checking the Office…");
         }
+        if (payload.type === "input_audio_buffer.speech_started" && outputPlaying) recordVoiceDiag("interruption", sessionMode, "spoke over Astra");
+        if (payload.type === "input_audio_buffer.speech_stopped") speechEndedAt = Date.now();
         if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setActivity("Hearing you speak…"); }
         if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
         if (payload.type === "conversation.item.input_audio_transcription.completed") hearing.transcriptAt = Date.now();
         // Previously ignored: a failed transcription left the turn silent.
         if (payload.type === "conversation.item.input_audio_transcription.failed") {
           hearing.transcriptAt = Date.now();
+          recordVoiceDiag("failure", sessionMode, "transcription failed");
           console.warn("[astra-voice]", { stage: "transcription_failed", turn: payload.item_id ?? "unknown" });
           setPhase("listening");
           setError("Astra heard you, but your words could not be turned into text. Please say it again; nothing was sent to the Office.");
           return;
+        }
+        if (payload.type === "output_audio_buffer.started" && speechEndedAt) {
+          recordVoiceDiag("latency", sessionMode, "end of speech to first sound", Date.now() - speechEndedAt);
+          speechEndedAt = 0;
         }
         if (payload.type === "output_audio_buffer.started") {
           outputPlaying = true;
