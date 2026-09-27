@@ -12,6 +12,8 @@ import { waitForIceGatheringComplete } from "@/lib/webrtc-ice";
 
 export interface RealtimeManager {
   phase: ChatPhase;
+  /** Live step indicator: where the current voice turn actually is. */
+  export type VoiceStage = "idle" | "connecting" | "listening" | "hearing" | "recognized" | "thinking" | "speaking" | "error";
   on: boolean;
   error: string | null;
   playbackError: string | null;
@@ -309,7 +311,7 @@ export function useRealtimeManager(
         track.onended = () => fail("The microphone was switched off by the device. Press Talk to Astra to start again.");
       });
       hearing.attach(mic);
-      stage = "office session";
+      connectStage = "office session";
       const session = await mintSession({ data: { accessToken, team, mode: sessionMode } });
       if (!current()) return;
       if (!session.ok || !session.clientSecret || !session.model) {
