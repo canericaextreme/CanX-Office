@@ -17,6 +17,7 @@ export interface RealtimeManager {
   playbackError: string | null;
   playbackBlocked: boolean;
   activity: string;
+  stage: VoiceStage;
   resumeAudio: () => void;
   start: () => void;
   stop: () => void;
