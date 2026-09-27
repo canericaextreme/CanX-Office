@@ -319,7 +319,7 @@ export function useRealtimeManager(
         fail(session.detail || "Astra's voice conversation could not be started.");
         return;
       }
-      stage = "voice connection";
+      connectStage = "voice connection";
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
       pc.ontrack = (event) => {
