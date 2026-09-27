@@ -336,6 +336,7 @@ export function useRealtimeManager(
         clearTimeout(timeout);
         recordVoiceDiag("connected", sessionMode, "voice channel open");
         setPhase("listening");
+        setStage("listening");
         setActivity("Listening for your words…");
       };
       channel.onclose = () => fail("Astra's voice connection ended. Press Start conversation to reconnect.");
@@ -351,6 +352,7 @@ export function useRealtimeManager(
         handledInputs.add(inputId);
         console.info("[astra-voice]", { stage: "assistant_request_started", turn: inputId });
         setPhase("thinking");
+        setStage("thinking");
         setActivity("Astra heard your request and is preparing an answer…");
         let output = "";
         const requestStartedAt = Date.now();
@@ -452,7 +454,7 @@ export function useRealtimeManager(
         }
         if (payload.type === "input_audio_buffer.speech_started" && outputPlaying) recordVoiceDiag("interruption", sessionMode, "spoke over Astra");
         if (payload.type === "input_audio_buffer.speech_stopped") speechEndedAt = Date.now();
-        if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setActivity("Hearing you speak…"); }
+        if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setStage("hearing"); setActivity("Hearing you speak…"); }
         if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
         if (payload.type === "conversation.item.input_audio_transcription.completed") hearing.transcriptAt = Date.now();
         // Previously ignored: a failed transcription left the turn silent.
@@ -461,6 +463,7 @@ export function useRealtimeManager(
           recordVoiceDiag("failure", sessionMode, "transcription failed");
           console.warn("[astra-voice]", { stage: "transcription_failed", turn: payload.item_id ?? "unknown" });
           setPhase("listening");
+          setStage("listening");
           setError("Astra heard you, but your words could not be turned into text. Please say it again; nothing was sent to the Office.");
           return;
         }
@@ -470,6 +473,7 @@ export function useRealtimeManager(
         }
         if (payload.type === "output_audio_buffer.started") {
           outputPlaying = true;
+          setStage("speaking");
           setActivity("Astra is speaking. If you hear nothing, check your output device or tap Enable sound.");
         }
         if (payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared") {
@@ -487,6 +491,7 @@ export function useRealtimeManager(
         const text = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
         if (!text) return;
         if (payload.type === "conversation.item.input_audio_transcription.completed") {
+          setStage("recognized");
           setActivity("Heard: " + text.slice(0, 140));
           transcriptRef.current("user", text, payload.item_id);
           console.info("[astra-voice]", { stage: "transcript_received", turn: payload.item_id ?? "unknown" });
