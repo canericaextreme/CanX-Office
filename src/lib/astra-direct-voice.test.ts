@@ -14,7 +14,7 @@ describe("Astra direct speech-to-speech (preview)", () => {
   it("relay session is unchanged: no automatic reply, arg-less tool", () => {
     const s = managerRealtimeSessionBody("gpt-realtime", "x").session;
     expect(s.audio.input.turn_detection.create_response).toBe(false);
-    expect(s.tools[0].parameters.properties).toEqual({});
+    expect(s.tools[0]!.parameters.properties).toEqual({});
   });
 
   it("direct session replies from audio, keeps interruption, transcription and the office tool", () => {
@@ -23,8 +23,8 @@ describe("Astra direct speech-to-speech (preview)", () => {
     expect(s.audio.input.turn_detection.interrupt_response).toBe(true);
     expect(s.audio.input.transcription.model).toBeTruthy();
     expect(s.output_modalities).toEqual(["audio"]);
-    expect(s.tools[0].name).toBe("submit_office_request");
-    expect(s.tools[0].parameters.required).toEqual(["request"]);
+    expect(s.tools[0]!.name).toBe("submit_office_request");
+    expect((s.tools[0]!.parameters as { required?: string[] }).required).toEqual(["request"]);
   });
 
   it("direct instructions route office facts/actions to the tool and forbid unconfirmed claims", () => {
