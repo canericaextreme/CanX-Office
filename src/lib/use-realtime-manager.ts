@@ -17,6 +17,7 @@ export interface RealtimeManager {
   playbackError: string | null;
   playbackBlocked: boolean;
   activity: string;
+  stage: VoiceStage;
   resumeAudio: () => void;
   start: () => void;
   stop: () => void;
@@ -78,6 +79,9 @@ export function spokenOfficeAnswer(text: string) {
   };
 }
 
+/** Live step indicator: where the current voice turn actually is. */
+export type VoiceStage = "idle" | "connecting" | "listening" | "hearing" | "recognized" | "thinking" | "speaking" | "error";
+
 export function useRealtimeManager(
   accessToken: string,
   team: { name: string; role: string; room: string }[],
@@ -96,6 +100,8 @@ export function useRealtimeManager(
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const [activity, setActivity] = useState("Voice has not started.");
+  // Live step indicator: microphone → words recognized → Astra's answer.
+  const [stage, setStage] = useState<VoiceStage>("idle");
   const micMutedRef = useRef(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const micRef = useRef<MediaStream | null>(null);
@@ -143,6 +149,7 @@ export function useRealtimeManager(
     teardown();
     setOn(false);
     setPhase("idle");
+    setStage("idle");
     setError(null);
     setPlaybackBlocked(false);
     setPlaybackError(null);
@@ -204,6 +211,7 @@ export function useRealtimeManager(
     micRef.current?.getTracks().forEach(track => { track.enabled = true; });
     setMicMuted(false);
     setPhase("listening");
+    setStage("listening");
   }, [sendEvent]);
   const say = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -231,16 +239,18 @@ export function useRealtimeManager(
     setPlaybackError(null);
     setOn(true);
     setPhase("connecting");
+    setStage("connecting");
     setActivity("Connecting the microphone and speaker…");
     let speechEndedAt = 0;
-    let stage = "microphone";
+    let connectStage = "microphone";
     const fail = (message: string) => {
       if (!current()) return;
-      recordVoiceDiag("failure", sessionMode, "connection " + stage);
+      recordVoiceDiag("failure", sessionMode, "connection " + connectStage);
       teardown();
       setOn(false);
       setPlaybackBlocked(false);
       setPhase("error");
+      setStage("error");
       setError(message);
       setActivity(message);
     };
@@ -303,14 +313,14 @@ export function useRealtimeManager(
         track.onended = () => fail("The microphone was switched off by the device. Press Talk to Astra to start again.");
       });
       hearing.attach(mic);
-      stage = "office session";
+      connectStage = "office session";
       const session = await mintSession({ data: { accessToken, team, mode: sessionMode } });
       if (!current()) return;
       if (!session.ok || !session.clientSecret || !session.model) {
         fail(session.detail || "Astra's voice conversation could not be started.");
         return;
       }
-      stage = "voice connection";
+      connectStage = "voice connection";
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
       pc.ontrack = (event) => {
@@ -332,6 +342,7 @@ export function useRealtimeManager(
         clearTimeout(timeout);
         recordVoiceDiag("connected", sessionMode, "voice channel open");
         setPhase("listening");
+        setStage("listening");
         setActivity("Listening for your words…");
       };
       channel.onclose = () => fail("Astra's voice connection ended. Press Start conversation to reconnect.");
@@ -347,6 +358,7 @@ export function useRealtimeManager(
         handledInputs.add(inputId);
         console.info("[astra-voice]", { stage: "assistant_request_started", turn: inputId });
         setPhase("thinking");
+        setStage("thinking");
         setActivity("Astra heard your request and is preparing an answer…");
         let output = "";
         const requestStartedAt = Date.now();
@@ -448,7 +460,7 @@ export function useRealtimeManager(
         }
         if (payload.type === "input_audio_buffer.speech_started" && outputPlaying) recordVoiceDiag("interruption", sessionMode, "spoke over Astra");
         if (payload.type === "input_audio_buffer.speech_stopped") speechEndedAt = Date.now();
-        if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setActivity("Hearing you speak…"); }
+        if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setStage("hearing"); setActivity("Hearing you speak…"); }
         if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
         if (payload.type === "conversation.item.input_audio_transcription.completed") hearing.transcriptAt = Date.now();
         // Previously ignored: a failed transcription left the turn silent.
@@ -457,6 +469,7 @@ export function useRealtimeManager(
           recordVoiceDiag("failure", sessionMode, "transcription failed");
           console.warn("[astra-voice]", { stage: "transcription_failed", turn: payload.item_id ?? "unknown" });
           setPhase("listening");
+          setStage("listening");
           setError("Astra heard you, but your words could not be turned into text. Please say it again; nothing was sent to the Office.");
           return;
         }
@@ -466,12 +479,16 @@ export function useRealtimeManager(
         }
         if (payload.type === "output_audio_buffer.started") {
           outputPlaying = true;
+          setStage("speaking");
           setActivity("Astra is speaking. If you hear nothing, check your output device or tap Enable sound.");
         }
         if (payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared") {
           outputPlaying = false;
           answerAwaitingPlayback = false;
+          setStage("listening");
         }
+        // Direct mode: the live model started forming an answer.
+        if (payload.type === "response.created") setStage("thinking");
         // WebRTC audio arrives on a media track, not as WebSocket audio deltas.
         const next = payload.type === "output_audio_buffer.started" ? "speaking"
           : payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared" ? "listening"
@@ -483,6 +500,7 @@ export function useRealtimeManager(
         const text = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
         if (!text) return;
         if (payload.type === "conversation.item.input_audio_transcription.completed") {
+          setStage("recognized");
           setActivity("Heard: " + text.slice(0, 140));
           transcriptRef.current("user", text, payload.item_id);
           console.info("[astra-voice]", { stage: "transcript_received", turn: payload.item_id ?? "unknown" });
@@ -530,7 +548,7 @@ export function useRealtimeManager(
       if (current() && channel.readyState === "open") setPhase("listening");
     } catch (cause) {
       const name = cause instanceof Error ? cause.name : "";
-      const detail = stage === "microphone"
+      const detail = connectStage === "microphone"
         ? name === "NotAllowedError" || name === "SecurityError"
           ? "Microphone access was denied. Allow microphone access for this office in your browser."
           : name === "NotFoundError"
@@ -538,7 +556,7 @@ export function useRealtimeManager(
             : name === "NotReadableError"
               ? "The device could not open its microphone. Check whether another app is using it."
               : "The browser could not open the microphone. Check this device's microphone settings."
-        : stage === "office session"
+        : connectStage === "office session"
           ? "Astra could not reach the office server to start voice. Check your connection and sign-in, then try again."
           : "Astra opened the microphone but could not connect to live voice. Check your network and try again.";
       fail(detail);
@@ -549,5 +567,5 @@ export function useRealtimeManager(
     }
   }, [accessToken, mintSession, team, teardown, playAudio, sendEvent]);
 
-  return { phase, on, error, playbackError, playbackBlocked, activity, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say, mode };
+  return { phase, on, error, playbackError, playbackBlocked, activity, stage, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say, mode };
 }
