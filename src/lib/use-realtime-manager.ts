@@ -96,6 +96,8 @@ export function useRealtimeManager(
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const [activity, setActivity] = useState("Voice has not started.");
+  // Live step indicator: microphone → words recognized → Astra's answer.
+  const [stage, setStage] = useState<VoiceStage>("idle");
   const micMutedRef = useRef(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const micRef = useRef<MediaStream | null>(null);
@@ -143,6 +145,7 @@ export function useRealtimeManager(
     teardown();
     setOn(false);
     setPhase("idle");
+    setStage("idle");
     setError(null);
     setPlaybackBlocked(false);
     setPlaybackError(null);
@@ -233,14 +236,15 @@ export function useRealtimeManager(
     setPhase("connecting");
     setActivity("Connecting the microphone and speaker…");
     let speechEndedAt = 0;
-    let stage = "microphone";
+    let connectStage = "microphone";
     const fail = (message: string) => {
       if (!current()) return;
-      recordVoiceDiag("failure", sessionMode, "connection " + stage);
+      recordVoiceDiag("failure", sessionMode, "connection " + connectStage);
       teardown();
       setOn(false);
       setPlaybackBlocked(false);
       setPhase("error");
+      setStage("error");
       setError(message);
       setActivity(message);
     };
