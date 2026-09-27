@@ -544,7 +544,7 @@ export function useRealtimeManager(
       if (current() && channel.readyState === "open") setPhase("listening");
     } catch (cause) {
       const name = cause instanceof Error ? cause.name : "";
-      const detail = stage === "microphone"
+      const detail = connectStage === "microphone"
         ? name === "NotAllowedError" || name === "SecurityError"
           ? "Microphone access was denied. Allow microphone access for this office in your browser."
           : name === "NotFoundError"
@@ -552,7 +552,7 @@ export function useRealtimeManager(
             : name === "NotReadableError"
               ? "The device could not open its microphone. Check whether another app is using it."
               : "The browser could not open the microphone. Check this device's microphone settings."
-        : stage === "office session"
+        : connectStage === "office session"
           ? "Astra could not reach the office server to start voice. Check your connection and sign-in, then try again."
           : "Astra opened the microphone but could not connect to live voice. Check your network and try again.";
       fail(detail);
