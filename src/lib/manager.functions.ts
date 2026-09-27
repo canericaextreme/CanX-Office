@@ -85,6 +85,13 @@ export interface ManagerActionResult {
   detail: string;
 }
 
+export type ManagerFailedStage =
+  | "office_rate_limit"
+  | "office_budget"
+  | "provider_check"
+  | "assistant_provider"
+  | "response_parse";
+
 export interface ManagerReply {
   ok: boolean;
   code:
@@ -102,6 +109,10 @@ export interface ManagerReply {
   text: string;
   toolCalls: ManagerToolCall[];
   actionResults: ManagerActionResult[];
+  /** Safe failure stage for diagnostics and user-facing wording. Never contains content. */
+  failedStage?: ManagerFailedStage;
+  /** Upstream HTTP status when a provider stage failed. */
+  providerStatus?: number;
   /**
    * Visible proof of what was actually checked for this answer: sources read,
    * the time they were read, gaps and failed reads, and the exact model.
@@ -580,7 +591,7 @@ export async function computeManagerStatusWith(
 }
 
 /** Real, authenticated call to the provider. Presence of a key proves nothing. */
-async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; detail: string }> {
+async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; detail: string; status?: number }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   try {
@@ -592,7 +603,7 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
       },
     );
     if (response.ok) return { ok: true, detail: "" };
-    return { ok: false, detail: sanitizedProviderDetail(response.status) };
+    return { ok: false, status: response.status, detail: sanitizedProviderDetail(response.status, "provider_check") };
   } catch {
     return {
       ok: false,
@@ -780,9 +791,12 @@ function liveContextMessage(context: string) {
 }
 
 /** Never echo an upstream body, header, or key material back to the client. */
-function sanitizedProviderDetail(status?: number): string {
+function sanitizedProviderDetail(status?: number, stage: "provider_check" | "assistant_provider" = "assistant_provider"): string {
   if (status === 401 || status === 403) return "The AI provider connection needs attention.";
-  if (status === 429) return "The AI service is temporarily busy. Please try again shortly.";
+  if (status === 429)
+    return stage === "provider_check"
+      ? "The AI provider asked Astra to slow down during its connection check (HTTP 429). No answer was requested; wait a moment and send again."
+      : "The AI provider is rate-limiting Astra right now (HTTP 429). Your words arrived; wait a moment and send again.";
   if (status && status >= 500) return "The AI service could not be reached. Please try again.";
   return "The AI service could not be reached. Please try again.";
 }
@@ -843,6 +857,8 @@ async function callOpenAI(
         text: "",
         toolCalls: [],
         actionResults: [],
+        failedStage: "assistant_provider",
+        providerStatus: response.status,
         detail: sanitizedProviderDetail(response.status),
       };
     }
@@ -877,12 +893,15 @@ async function callOpenAI(
       .filter((call): call is ManagerToolCall => call !== null);
 
     if (!text && toolCalls.length === 0) {
-      return denyReply(
-        "provider_error",
-        "configured_unverified",
-        "Astra did not receive a usable reply. No office action was carried out. Please try again.",
-        model,
-      );
+      return {
+        ...denyReply(
+          "provider_error",
+          "configured_unverified",
+          "Astra did not receive a usable reply. No office action was carried out. Please try again.",
+          model,
+        ),
+        failedStage: "response_parse",
+      };
     }
 
     return {
@@ -1310,16 +1329,27 @@ export async function runManagerChatWith(
 
   // GATE 4 — durable per-owner rate and spending reservation. If limits cannot
   // be reserved, the answer is no.
+  const startedAt = Date.now();
+  const diag = (stage: string, status?: number) =>
+    // Safe diagnostics only: stage, status and timing. No transcript, key or payload.
+    console.info("[office-manager] turn", { stage, status: status ?? null, ms: Date.now() - startedAt });
   const reservation = await deps.reserve(data.accessToken, ESTIMATED_CENTS_PER_CALL);
   if (!reservation.allowed) {
-    return denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model);
+    const failedStage: ManagerFailedStage = reservation.reason === "rate_limit" ? "office_rate_limit" : "office_budget";
+    diag(failedStage);
+    return { ...denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model), failedStage };
   }
 
   // GATE 5 — a real authenticated health check, every time.
   const health = await providerHealthCheck(deps);
   if (!health.ok) {
     await deps.settle(data.accessToken, reservation.reservationId, "failed");
-    return denyReply("health_check_failed", "configured_unverified", health.detail, deps.model);
+    diag("provider_check", health.status);
+    return {
+      ...denyReply("health_check_failed", "configured_unverified", health.detail, deps.model),
+      failedStage: "provider_check",
+      ...(health.status ? { providerStatus: health.status } : {}),
+    };
   }
 
   try {
@@ -1336,6 +1366,7 @@ export async function runManagerChatWith(
       checkedAt: (deps.now?.() ?? new Date()).toISOString(),
     });
     const reply = await callOpenAI(deps, data, contextWithTeam);
+    diag(reply.ok ? "answered" : (reply.failedStage ?? "assistant_provider"), reply.providerStatus);
     if (reply.ok && reply.toolCalls.length > 0) {
       const { textAdditions, actionResults, remainingToolCalls, consultations } =
         await executeToolCalls(deps, data.accessToken, reply.toolCalls, [...data.messages].reverse().find(message => message.role === "user")?.content ?? "");
@@ -1375,6 +1406,7 @@ export async function runManagerChatWith(
       text: "",
       toolCalls: [],
       actionResults: [],
+      failedStage: "assistant_provider",
       detail: sanitizedProviderDetail(),
     };
   }
