@@ -207,6 +207,7 @@ export function useRealtimeManager(
     micRef.current?.getTracks().forEach(track => { track.enabled = true; });
     setMicMuted(false);
     setPhase("listening");
+    setStage("listening");
   }, [sendEvent]);
   const say = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -234,6 +235,7 @@ export function useRealtimeManager(
     setPlaybackError(null);
     setOn(true);
     setPhase("connecting");
+    setStage("connecting");
     setActivity("Connecting the microphone and speaker…");
     let speechEndedAt = 0;
     let connectStage = "microphone";
@@ -479,7 +481,10 @@ export function useRealtimeManager(
         if (payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared") {
           outputPlaying = false;
           answerAwaitingPlayback = false;
+          setStage("listening");
         }
+        // Direct mode: the live model started forming an answer.
+        if (payload.type === "response.created") setStage("thinking");
         // WebRTC audio arrives on a media track, not as WebSocket audio deltas.
         const next = payload.type === "output_audio_buffer.started" ? "speaking"
           : payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared" ? "listening"
