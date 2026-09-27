@@ -12,6 +12,7 @@ export interface RealtimeManager {
   phase: ChatPhase;
   on: boolean;
   error: string | null;
+  playbackError: string | null;
   playbackBlocked: boolean;
   activity: string;
   resumeAudio: () => void;
@@ -51,14 +52,16 @@ export function spokenOfficeAnswer(text: string) {
 export function useRealtimeManager(
   accessToken: string,
   team: { name: string; role: string; room: string }[],
-  onTranscript: (role: "user" | "assistant", text: string) => void,
+  onTranscript: (role: "user" | "assistant", text: string, turnId?: string) => void,
   onOfficeRequest?: (request: string) => Promise<string>,
+  onTurnFailed?: (turnId: string) => void,
 ): RealtimeManager {
   const mintSession = useServerFn(createManagerRealtimeSession);
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [on, setOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [playbackBlocked, setPlaybackBlocked] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const [activity, setActivity] = useState("Voice has not started.");
   const micMutedRef = useRef(false);
@@ -73,6 +76,8 @@ export function useRealtimeManager(
   transcriptRef.current = onTranscript;
   const requestRef = useRef(onOfficeRequest);
   requestRef.current = onOfficeRequest;
+  const turnFailedRef = useRef(onTurnFailed);
+  turnFailedRef.current = onTurnFailed;
 
   const teardown = useCallback(() => {
     // Invalidate pending permission, minting, SDP and playback callbacks first.
@@ -104,6 +109,7 @@ export function useRealtimeManager(
     setPhase("idle");
     setError(null);
     setPlaybackBlocked(false);
+    setPlaybackError(null);
     setActivity("Voice ended.");
   }, [teardown]);
 
@@ -128,12 +134,13 @@ export function useRealtimeManager(
       await audio.play();
       if (generation !== generationRef.current) return;
       setPlaybackBlocked(false);
+      setPlaybackError(null);
       setError(null);
       setActivity("Astra's speaker is ready. Listening for your words…");
     } catch {
       if (generation !== generationRef.current) return;
       setPlaybackBlocked(true);
-      setError("Your browser blocked Astra's sound. Tap Enable sound to hear this conversation.");
+      setPlaybackError("Your browser blocked Astra's sound. Written answers will still remain visible; tap Enable sound to hear them.");
       setActivity("Browser blocked sound. Tap Enable sound.");
     }
   }, []);
@@ -184,6 +191,7 @@ export function useRealtimeManager(
     abortRef.current = abort;
     setError(null);
     setPlaybackBlocked(false);
+    setPlaybackError(null);
     setOn(true);
     setPhase("connecting");
     setActivity("Connecting the microphone and speaker…");
@@ -247,6 +255,7 @@ export function useRealtimeManager(
       };
       channel.onclose = () => fail("Astra's voice connection ended. Press Start conversation to reconnect.");
       let outputPlaying = false;
+      let answerAwaitingPlayback = false;
       const handledInputs = new Set<string>();
       let currentInputId = "";
       const executeRequest = async (inputId: string, request: string) => {
@@ -255,15 +264,45 @@ export function useRealtimeManager(
         // Office adapter. Do not depend on a second model-generated function call:
         // that extra handoff can fail after transcription and leave a turn silent.
         handledInputs.add(inputId);
+        console.info("[astra-voice]", { stage: "assistant_request_started", turn: inputId });
         setPhase("thinking");
         setActivity("Astra heard your request and is preparing an answer…");
-        let output: string;
-        try { output = await requestRef.current(request); }
-        catch { output = "The action result is unknown. Check the Work Board or Approvals before repeating it."; }
-        if (!current() || channel.readyState !== "open") return;
-        // A later user turn must not be interrupted by an older result.
-        if (inputId !== currentInputId) return;
-        channel.send(JSON.stringify(spokenOfficeAnswer(output)));
+        let output = "";
+        try { output = (await requestRef.current(request)).trim(); }
+        catch {
+          console.warn("[astra-voice]", { stage: "assistant_request_failed", turn: inputId });
+          turnFailedRef.current?.(inputId);
+          if (current()) {
+            setPhase("listening");
+            setError("Astra received your words, but the Office answer did not finish. Please send that request again.");
+            setActivity("The Office answer did not finish. Your spoken request remains visible.");
+          }
+          return;
+        }
+        if (!output) {
+          console.warn("[astra-voice]", { stage: "assistant_response_empty", turn: inputId });
+          turnFailedRef.current?.(inputId);
+          if (current()) {
+            setPhase("listening");
+            setError("Astra received your words, but no usable answer came back. Please send that request again.");
+          }
+          return;
+        }
+        // The Office text is the canonical answer. Save and render it before
+        // asking the separate realtime speaker to read it aloud. A stopped,
+        // blocked or failed speaker can never erase a completed Office reply.
+        transcriptRef.current("assistant", output, inputId);
+        console.info("[astra-voice]", { stage: "assistant_response_received", turn: inputId });
+        if (!current() || channel.readyState !== "open" || inputId !== currentInputId) {
+          console.info("[astra-voice]", { stage: "playback_skipped", turn: inputId });
+          return;
+        }
+        if (!sendEvent(spokenOfficeAnswer(output))) {
+          setPlaybackError("Astra's written answer is available, but it could not be sent to the speaker.");
+          console.warn("[astra-voice]", { stage: "playback_send_failed", turn: inputId });
+          return;
+        }
+        answerAwaitingPlayback = true;
         setActivity("Answer ready. Waiting for Astra to speak…");
       };
       channel.onmessage = (event) => {
@@ -286,6 +325,12 @@ export function useRealtimeManager(
             : code === "insufficient_quota"
               ? "The voice service has no remaining credit. Check the provider account."
               : "The voice service could not continue this conversation. Press Start conversation to reconnect.";
+          if (answerAwaitingPlayback) {
+            setPlaybackError("Astra's written answer is available, but live voice could not finish playing it.");
+            console.warn("[astra-voice]", { stage: "playback_response_failed", code: code ?? "unknown" });
+          } else {
+            console.warn("[astra-voice]", { stage: "voice_connection_failed", code: code ?? "unknown" });
+          }
           fail(hint);
           return;
         }
@@ -298,7 +343,10 @@ export function useRealtimeManager(
           outputPlaying = true;
           setActivity("Astra is speaking. If you hear nothing, check your output device or tap Enable sound.");
         }
-        if (payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared") outputPlaying = false;
+        if (payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared") {
+          outputPlaying = false;
+          answerAwaitingPlayback = false;
+        }
         // WebRTC audio arrives on a media track, not as WebSocket audio deltas.
         const next = payload.type === "output_audio_buffer.started" ? "speaking"
           : payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared" ? "listening"
@@ -311,11 +359,13 @@ export function useRealtimeManager(
         if (!text) return;
         if (payload.type === "conversation.item.input_audio_transcription.completed") {
           setActivity("Heard: " + text.slice(0, 140));
-          transcriptRef.current("user", text);
+          transcriptRef.current("user", text, payload.item_id);
+          console.info("[astra-voice]", { stage: "transcript_received", turn: payload.item_id ?? "unknown" });
           if (payload.item_id) void executeRequest(payload.item_id, text);
         }
-        if (payload.type === "response.output_audio_transcript.done" || payload.type === "response.audio_transcript.done")
-          transcriptRef.current("assistant", text);
+        // Audio transcripts are playback diagnostics only. The canonical
+        // Office answer was already saved above, so these provider echoes must
+        // never duplicate, replace or truncate it.
       };
 
       const offer = await pc.createOffer();
@@ -363,7 +413,7 @@ export function useRealtimeManager(
       // Keep the watchdog until onopen, so a stalled connection cannot look ready.
       if (!current() || channelRef.current?.readyState === "open") clearTimeout(timeout);
     }
-  }, [accessToken, mintSession, team, teardown, playAudio]);
+  }, [accessToken, mintSession, team, teardown, playAudio, sendEvent]);
 
-  return { phase, on, error, playbackBlocked, activity, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say };
+  return { phase, on, error, playbackError, playbackBlocked, activity, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say };
 }

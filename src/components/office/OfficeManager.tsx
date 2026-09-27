@@ -166,7 +166,8 @@ export function OfficeManager() {
   /** False until this owner's device copy has been loaded, so nothing is sent blind. */
   const [historyReady, setHistoryReady] = useState(false);
   const voicePairerRef = useRef(new VoiceTurnPairer());
-  const pendingVoiceTurnRef = useRef<string | null>(null);
+  const voiceTurnIdsRef = useRef(new Map<string, string>());
+  const [pendingVoiceIds, setPendingVoiceIds] = useState<Set<string>>(new Set());
   const [historyStatus, setHistoryStatus] = useState(MEMORY_NOTICE);
   const [savingSummary, setSavingSummary] = useState(false);
   const savingSummaryRef = useRef(false);
@@ -354,7 +355,8 @@ export function OfficeManager() {
     if (historyOwner.current === ownerId) return;
     historyOwner.current = ownerId;
     voicePairerRef.current.reset();
-    pendingVoiceTurnRef.current = null;
+    voiceTurnIdsRef.current.clear();
+    setPendingVoiceIds(new Set());
     pendingSummaryRef.current = null;
     setHistoryStatus(MEMORY_NOTICE);
     setAccountNote("");
@@ -490,28 +492,55 @@ export function OfficeManager() {
     }
   }, [persistSummary, token, session.stepUpComplete]);
   const saveVoiceTurn = useServerFn(recordVoiceTurn);
-  const saveSpokenMessage = useCallback((role: "user" | "assistant", content: string) => {
+  const saveSpokenMessage = useCallback((role: "user" | "assistant", content: string, providerTurnId = "default") => {
     const at = new Date().toISOString();
-    // A spoken user line opens a turn id; the next Astra line closes it, so
-    // the device copy and the account checkpoint share the same ids.
-    let id: string = crypto.randomUUID();
-    let closing: string | null = null;
-    if (role === "user") { pendingVoiceTurnRef.current = id; id = `${id}-u`; }
-    else if (pendingVoiceTurnRef.current) { closing = pendingVoiceTurnRef.current; id = `${closing}-a`; pendingVoiceTurnRef.current = null; }
+    // Bind the provider turn to a local id. Concurrent or interrupted turns
+    // can then close their own pair without overwriting the newest user line.
+    let closing = voiceTurnIdsRef.current.get(providerTurnId) ?? null;
+    if (role === "user") {
+      if (closing) return;
+      closing = crypto.randomUUID();
+      voiceTurnIdsRef.current.set(providerTurnId, closing);
+    } else if (!closing) return;
+    const id = `${closing}-${role === "user" ? "u" : "a"}`;
     const message: ChatMessage = { id, role, content, at, mode: "voice" };
-    messagesRef.current = [...messagesRef.current, message];
-    setMessages(current => [...current, message]);
+    if (messagesRef.current.some(existing => existing.id === id)) return;
+    if (role === "user") {
+      messagesRef.current = [...messagesRef.current, message];
+      setPendingVoiceIds(current => new Set(current).add(id));
+    } else {
+      // Keep each answer beside its own question even if another voice turn
+      // began while the Office was still reasoning.
+      const next = [...messagesRef.current];
+      const userIndex = next.findIndex(existing => existing.id === `${closing}-u`);
+      next.splice(userIndex < 0 ? next.length : userIndex + 1, 0, message);
+      messagesRef.current = next;
+      voiceTurnIdsRef.current.delete(providerTurnId);
+      setPendingVoiceIds(current => {
+        const copy = new Set(current); copy.delete(`${closing}-u`); return copy;
+      });
+    }
+    setMessages(messagesRef.current);
     // Completed spoken turns go to durable Astra memory once; turns already
     // saved by the typed Manager path are skipped by the pairer.
-    const turn = voicePairerRef.current.feed(role, content);
+    const turn = voicePairerRef.current.feed(role, content, providerTurnId);
     const paired = messagesRef.current.find(m => m.id === `${closing}-u`);
-    if (closing && paired) queueTurn(closing, paired.content, content, "voice");
+    if (role === "assistant" && closing && paired) queueTurn(closing, paired.content, content, "voice");
     if (turn && token && session.stepUpComplete) {
       void saveVoiceTurn({ data: { accessToken: token, ...turn } })
         .then(result => { if (!result.ok && mountedRef.current) setHistoryStatus(result.message); })
         .catch(() => { if (mountedRef.current) setHistoryStatus("The spoken turn was not saved to Astra memory."); });
     }
   }, [token, session.stepUpComplete, saveVoiceTurn, queueTurn]);
+  const failSpokenTurn = useCallback((providerTurnId: string) => {
+    const closing = voiceTurnIdsRef.current.get(providerTurnId);
+    if (!closing) return;
+    voiceTurnIdsRef.current.delete(providerTurnId);
+    voicePairerRef.current.cancel(providerTurnId);
+    setPendingVoiceIds(current => {
+      const copy = new Set(current); copy.delete(`${closing}-u`); return copy;
+    });
+  }, []);
   // One implementation for typed and spoken requests. No model-generated code or URLs run here.
   /** Set by runRoomCommand itself so handoff receipts never infer from text. */
   const roomOutcomeRef = useRef<RoomOutcome | null>(null);
@@ -589,6 +618,7 @@ export function OfficeManager() {
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       return result;
     }, [token, managerTeam, sendChat, saveConversationNow]),
+    failSpokenTurn,
   );
 
   // One attempt per new completed discussion; a failed save needs an explicit retry.
@@ -1243,7 +1273,7 @@ export function OfficeManager() {
                         {message.at ? ` · ${new Date(message.at).toLocaleString()}` : ""}
                       </p>
                     )}
-                    {message.role === "user" && !answeredIds.has(message.id) && !(busy && message === messages[messages.length - 1]) && (
+                    {message.role === "user" && !answeredIds.has(message.id) && !pendingVoiceIds.has(message.id) && !(busy && message === messages[messages.length - 1]) && (
                       <p className="mt-0.5 text-[11px] text-canx-yellow">
                         Not answered — Astra did not receive or finish this. It is not used as history; send it again if needed.
                       </p>
@@ -1381,7 +1411,7 @@ export function OfficeManager() {
                     managerVoice.unlockPlayback();
                     void speakAnswer("speaker-check", VOICE_CHECK_SENTENCE);
                   }} disabled={!session.stepUpComplete || busy}>Test speaker</Button>}
-                  {speechError && <p role="alert" className="text-sm text-destructive">{speechError}</p>}
+                  {(speechError || realtimeManager.playbackError) && <p role="alert" className="text-sm text-destructive">{speechError ?? realtimeManager.playbackError}</p>}
                   {realtimeManager.playbackBlocked && (
                     <Button variant="outline" className="w-full" onClick={realtimeManager.resumeAudio}>
                       Enable sound

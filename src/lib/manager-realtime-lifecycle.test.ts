@@ -150,7 +150,8 @@ describe("Astra realtime connection lifecycle", () => {
   });
   it("runs the actual spoken request once and sends its saved result back", async () => {
     const action = vi.fn().mockResolvedValue('Queued for approval: test (approval id a1).');
-    const voice = useRealtimeManager("token", [], vi.fn(), action); voice.start(); await flush();
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, action); voice.start(); await flush();
     const channel = Peer.instances[0]!.channel;
     const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
     emit({type:"input_audio_buffer.committed", item_id:"u1"});
@@ -167,6 +168,65 @@ describe("Astra realtime connection lifecycle", () => {
     expect(spoken.response.input).toEqual([]);
     expect(spoken.response.instructions).toContain("Queued for approval: test (approval id a1).");
     expect(sends.every(s => !s.includes("function_call_output"))).toBe(true);
+    expect(transcript).toHaveBeenCalledWith("assistant", "Queued for approval: test (approval id a1).", "u1");
+    // The provider's playback transcript is only a diagnostic echo.
+    emit({type:"response.output_audio_transcript.done",transcript:"Queued for approval: test (approval id a1)."});
+    expect(transcript.mock.calls.filter(call => call[0] === "assistant")).toHaveLength(1);
+  });
+  it("keeps a completed written answer when voice playback later fails", async () => {
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, vi.fn().mockResolvedValue("The saved answer"));
+    voice.start(); await flush(); const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed",item_id:"u1"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"Question"});
+    await flush();
+    emit({type:"response.done",response:{status:"failed",status_details:{error:{code:"voice_failed"}}}});
+    expect(transcript).toHaveBeenCalledWith("assistant", "The saved answer", "u1");
+    expect(hooks.states[4]).toContain("written answer is available");
+  });
+  it("retains each completed answer while only speaking the newest overlapping turn", async () => {
+    const first = deferred<string>(), second = deferred<string>();
+    const transcript = vi.fn();
+    const action = vi.fn((request: string) => request === "First" ? first.promise : second.promise);
+    const voice = useRealtimeManager("token", [], transcript, action); voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed",item_id:"u1"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"First"});
+    emit({type:"input_audio_buffer.committed",item_id:"u2"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u2",transcript:"Second"});
+    first.resolve("First answer"); second.resolve("Second answer"); await flush();
+    expect(transcript).toHaveBeenCalledWith("assistant", "First answer", "u1");
+    expect(transcript).toHaveBeenCalledWith("assistant", "Second answer", "u2");
+    const spoken = channel.send.mock.calls.map(call => String(call[0])).filter(value => value.includes('"tool_choice":"none"'));
+    expect(spoken).toHaveLength(1); expect(spoken[0]).toContain("Second answer");
+  });
+  it("marks a turn unanswered only when the Office produced no usable reply", async () => {
+    const failed = vi.fn();
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, vi.fn().mockRejectedValue(new Error("private")), failed);
+    voice.start(); await flush(); const channel = Peer.instances[0]!.channel;
+    channel.onmessage?.({data:JSON.stringify({type:"input_audio_buffer.committed",item_id:"u1"})});
+    channel.onmessage?.({data:JSON.stringify({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"Question"})});
+    await flush();
+    expect(failed).toHaveBeenCalledExactlyOnceWith("u1");
+    expect(transcript.mock.calls.some(call => call[0] === "assistant")).toBe(false);
+  });
+  it("logs failed stages without transcript or answer content", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const voice = useRealtimeManager("token", [], vi.fn(), vi.fn().mockResolvedValue("private answer words"));
+    voice.start(); await flush(); const channel = Peer.instances[0]!.channel;
+    channel.onmessage?.({data:JSON.stringify({type:"input_audio_buffer.committed",item_id:"u1"})});
+    channel.onmessage?.({data:JSON.stringify({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"private microphone words"})});
+    await flush();
+    channel.onmessage?.({data:JSON.stringify({type:"response.done",response:{status:"failed",status_details:{error:{code:"voice_failed"}}}})});
+    const diagnostics = JSON.stringify([...info.mock.calls, ...warn.mock.calls]);
+    expect(diagnostics).not.toContain("private microphone words");
+    expect(diagnostics).not.toContain("private answer words");
+    expect(diagnostics).toContain("playback_response_failed");
+    info.mockRestore(); warn.mockRestore();
   });
   it("does not execute an older request after a newer turn arrives", async () => {
     const action = vi.fn().mockResolvedValue("Wait, explain first");
