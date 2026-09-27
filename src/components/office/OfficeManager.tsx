@@ -1437,9 +1437,39 @@ export function OfficeManager() {
                     </div>
                   )}
                   {realtimeManager.on && (
-                    <p role="status" className="text-xs text-muted-foreground">
-                      {realtimeManager.activity} The microphone stays open until you press End conversation.
-                    </p>
+                    <div role="status" className="space-y-1.5">
+                      <ol aria-label="Voice progress" className="flex flex-wrap items-center gap-1.5 text-xs">
+                        {([
+                          ["mic", "1. Microphone", ["connecting", "listening", "hearing"]],
+                          ["words", "2. Your words recognized", ["recognized"]],
+                          ["astra", "3. Astra answers", ["thinking", "speaking"]],
+                        ] as const).map(([key, label, active]) => {
+                          const isActive = (active as readonly string[]).includes(realtimeManager.stage);
+                          const isDone =
+                            (key === "mic" && ["recognized", "thinking", "speaking"].includes(realtimeManager.stage)) ||
+                            (key === "words" && ["thinking", "speaking"].includes(realtimeManager.stage));
+                          return (
+                            <li
+                              key={key}
+                              aria-current={isActive ? "step" : undefined}
+                              className={
+                                "rounded-full border px-2.5 py-1 " +
+                                (isActive
+                                  ? "border-canx-yellow bg-canx-yellow/15 font-semibold text-foreground"
+                                  : isDone
+                                    ? "border-emerald-500/50 text-emerald-600 dark:text-emerald-400"
+                                    : "border-border text-muted-foreground")
+                              }
+                            >
+                              {isDone ? "✓ " : isActive ? "● " : ""}{label}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                      <p className="text-sm text-muted-foreground">
+                        {realtimeManager.activity} The microphone stays open until you press End conversation.
+                      </p>
+                    </div>
                   )}
                 </section>
 
