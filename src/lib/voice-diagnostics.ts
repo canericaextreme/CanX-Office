@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 export type VoiceDiagKind = "connected" | "failure" | "latency" | "interruption" | "fallback" | "ended";
-export interface VoiceDiagEvent { id: number; at: number; kind: VoiceDiagKind; mode: string; detail: string; ms?: number }
+export interface VoiceDiagEvent { id: number; at: number; kind: VoiceDiagKind; mode: string; detail: string; ms?: number | undefined }
 
 const MAX = 60;
 let events: VoiceDiagEvent[] = [];
