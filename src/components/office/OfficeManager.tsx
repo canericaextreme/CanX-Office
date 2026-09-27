@@ -600,6 +600,7 @@ export function OfficeManager() {
   };
   const roomCommandRef = useRef(runRoomCommand);
   roomCommandRef.current = runRoomCommand;
+  const [liveVoiceMode, setLiveVoiceMode] = useState<"relay" | "direct">("relay");
   const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
     useCallback(async (request: string) => {
       if (requestsConversationSave(request)) return saveConversationNow();
@@ -623,6 +624,7 @@ export function OfficeManager() {
       return result;
     }, [token, managerTeam, sendChat, saveConversationNow]),
     failSpokenTurn,
+    liveVoiceMode,
   );
 
   // One attempt per new completed discussion; a failed save needs an explicit retry.
@@ -1069,6 +1071,7 @@ export function OfficeManager() {
 
   const primaryVoiceAction = () => {
     if (realtimeManager.on || !historyReady) return;
+    if (voiceModeRef.current) endVoiceMode();
     setError(null);
     setSpeechError(null);
     realtimeManager.start();
@@ -1520,6 +1523,30 @@ export function OfficeManager() {
                   >
                     <Mic className="mr-2 h-5 w-5" /> Talk to Astra
                   </Button>
+                  <div role="group" aria-label="Voice style" className="flex w-full gap-1 text-xs">
+                    <Button type="button" size="sm" variant={liveVoiceMode === "relay" ? "default" : "outline"} className="h-9 flex-1"
+                      aria-pressed={liveVoiceMode === "relay"} disabled={realtimeManager.on} onClick={() => setLiveVoiceMode("relay")}>
+                      Standard voice
+                    </Button>
+                    <Button type="button" size="sm" variant={liveVoiceMode === "direct" ? "default" : "outline"} className="h-9 flex-1"
+                      aria-pressed={liveVoiceMode === "direct"} disabled={realtimeManager.on} onClick={() => setLiveVoiceMode("direct")}>
+                      Live voice (preview)
+                    </Button>
+                  </div>
+                  {liveVoiceMode === "direct" && !realtimeManager.on && (
+                    <p className="w-full text-xs text-muted-foreground">Live voice: Astra hears your voice directly and replies straight away. Office records, saving and changes still go through the protected Office checks.</p>
+                  )}
+                  {realtimeManager.error && !realtimeManager.on && !voiceMode && (
+                    <Button type="button" variant="outline" className="h-11 w-full" onClick={startVoiceMode}>
+                      Live audio unavailable — use record-and-reply voice instead
+                    </Button>
+                  )}
+                  {voiceMode && (
+                    <div className="flex w-full items-center gap-2">
+                      <p role="status" className="flex-1 text-xs">Record-and-reply voice: {managerVoice.phase === "listening" ? "listening…" : managerVoice.phase === "preparing" ? "preparing voice…" : managerVoice.phase === "speaking" ? "speaking…" : managerVoice.phase === "error" ? "audio unavailable — the written answer stays on screen." : "working…"}</p>
+                      <Button type="button" size="sm" variant="outline" className="h-9" onClick={endVoiceMode}>Stop</Button>
+                    </div>
+                  )}
                   {realtimeManager.on && (
                     <Button
                       variant="outline"
