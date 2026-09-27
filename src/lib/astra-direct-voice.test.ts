@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-vi.mock("@tanstack/react-start", () => ({ createServerFn: () => ({ inputValidator: () => ({ handler: () => ({}) }) }), useServerFn: (f: unknown) => f }));
 import { managerRealtimeInstructions, managerRealtimeSessionBody, parseVoiceMode, createManagerRealtimeSessionWith } from "./manager-realtime.functions";
 import { directToolOutput } from "./use-realtime-manager";
 import { VoiceTurnError } from "./voice-turn-outcome";
