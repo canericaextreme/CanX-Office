@@ -1071,6 +1071,7 @@ export function OfficeManager() {
 
   const primaryVoiceAction = () => {
     if (realtimeManager.on || !historyReady) return;
+    if (voiceModeRef.current) endVoiceMode();
     setError(null);
     setSpeechError(null);
     realtimeManager.start();
