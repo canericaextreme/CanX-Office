@@ -5,7 +5,7 @@ import { voiceProviderFailure } from "./voice-provider-error";
 import { VoiceTurnError, voiceDiagnostic } from "./voice-turn-outcome";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { createManagerRealtimeSession } from "@/lib/manager-realtime.functions";
+import { createManagerRealtimeSession, type ManagerVoiceMode } from "@/lib/manager-realtime.functions";
 import { realtimeEventPhase, type ChatPhase } from "@/lib/use-realtime-chat";
 import { waitForIceGatheringComplete } from "@/lib/webrtc-ice";
 
@@ -23,6 +23,33 @@ export interface RealtimeManager {
   toggleMic: () => void;
   interrupt: () => void;
   say: (text: string) => void;
+  mode: ManagerVoiceMode;
+}
+
+export interface DirectToolOutput { ok: boolean; result: string; note: string }
+
+/**
+ * Runs one direct-mode Office tool call through the SAME guarded request path
+ * as typed Astra. The returned object is what the live voice model may say:
+ * failures are explicit so it never claims an unconfirmed save or action.
+ */
+export async function directToolOutput(
+  rawArgs: string,
+  run: ((request: string) => Promise<string>) | undefined,
+): Promise<DirectToolOutput> {
+  let request = "";
+  try { const parsed = JSON.parse(rawArgs || "{}") as { request?: unknown }; request = typeof parsed.request === "string" ? parsed.request.trim().slice(0, 4000) : ""; }
+  catch { request = ""; }
+  if (!run) return { ok: false, result: "", note: "The Office connection is not available. Nothing was checked, saved or changed." };
+  if (!request) return { ok: false, result: "", note: "No request was received. Ask John to repeat it. Nothing was saved or changed." };
+  try {
+    const result = (await run(request)).trim();
+    if (!result) return { ok: false, result: "", note: "The Office returned no answer. Nothing should be described as saved or changed." };
+    return { ok: true, result, note: "Authoritative Office result. Report only what it says." };
+  } catch (failure) {
+    const message = failure instanceof VoiceTurnError ? failure.userMessage : "The Office request did not finish.";
+    return { ok: false, result: "", note: `${message} Nothing should be described as saved or changed.` };
+  }
 }
 
 /**
@@ -56,8 +83,11 @@ export function useRealtimeManager(
   onTranscript: (role: "user" | "assistant", text: string, turnId?: string) => void,
   onOfficeRequest?: (request: string) => Promise<string>,
   onTurnFailed?: (turnId: string) => void,
+  mode: ManagerVoiceMode = "relay",
 ): RealtimeManager {
   const mintSession = useServerFn(createManagerRealtimeSession);
+  const modeRef = useRef<ManagerVoiceMode>(mode);
+  modeRef.current = mode;
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [on, setOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -185,6 +215,7 @@ export function useRealtimeManager(
       return;
     }
     teardown();
+    const sessionMode = modeRef.current;
     const generation = generationRef.current;
     const current = () => generation === generationRef.current;
     activeRef.current = true;
@@ -225,7 +256,7 @@ export function useRealtimeManager(
       micRef.current = mic;
       mic.getTracks().forEach(track => { track.enabled = !micMutedRef.current; });
       stage = "office session";
-      const session = await mintSession({ data: { accessToken, team } });
+      const session = await mintSession({ data: { accessToken, team, mode: sessionMode } });
       if (!current()) return;
       if (!session.ok || !session.clientSecret || !session.model) {
         fail(session.detail || "Astra's voice conversation could not be started.");
@@ -309,9 +340,22 @@ export function useRealtimeManager(
         answerAwaitingPlayback = true;
         setActivity("Answer ready. Waiting for Astra to speak…");
       };
+      const handledCalls = new Set<string>();
+      const savedResponses = new Set<string>();
+      const runDirectTool = async (callId: string, rawArgs: string) => {
+        if (!callId || handledCalls.has(callId)) return;
+        handledCalls.add(callId);
+        const turnId = currentInputId;
+        const output = await directToolOutput(rawArgs, requestRef.current);
+        if (!current() || channel.readyState !== "open") return;
+        if (!output.ok) turnFailedRef.current?.(turnId);
+        sendEvent({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) } });
+        sendEvent({ type: "response.create" });
+        setActivity(output.ok ? "Office answer received. Astra is replying…" : "The Office request did not finish. Astra will say so.");
+      };
       channel.onmessage = (event) => {
         if (!current()) return;
-        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string }[] } };
+        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string; arguments?: string }[] }; response_id?: string };
         try { payload = JSON.parse(String(event.data)) as typeof payload; }
         catch { return; }
         if (payload.type === "error" || (payload.type === "response.done" && payload.response?.status === "failed")) {
@@ -337,6 +381,15 @@ export function useRealtimeManager(
           }
           fail(hint);
           return;
+        }
+        if (sessionMode === "direct" && payload.type === "response.done") {
+          for (const item of payload.response?.output ?? []) {
+            if (item.type === "function_call" && item.name === "submit_office_request" && item.call_id) {
+              setPhase("thinking");
+              setActivity("Astra is checking the Office…");
+              void runDirectTool(item.call_id, item.arguments ?? "");
+            }
+          }
         }
         if (payload.type === "input_audio_buffer.committed" && payload.item_id) {
           currentInputId = payload.item_id;
@@ -365,7 +418,16 @@ export function useRealtimeManager(
           setActivity("Heard: " + text.slice(0, 140));
           transcriptRef.current("user", text, payload.item_id);
           console.info("[astra-voice]", { stage: "transcript_received", turn: payload.item_id ?? "unknown" });
-          if (payload.item_id) void executeRequest(payload.item_id, text);
+          if (payload.item_id && sessionMode === "relay") void executeRequest(payload.item_id, text);
+        }
+        // Direct mode: the live model's own spoken words are Astra's reply.
+        // Save each spoken response once, paired with the turn that caused it.
+        if (sessionMode === "direct" && payload.type === "response.output_audio_transcript.done") {
+          const key = payload.response_id ?? `${currentInputId}:${text}`;
+          if (!savedResponses.has(key)) {
+            savedResponses.add(key);
+            transcriptRef.current("assistant", text, currentInputId || undefined);
+          }
         }
         // Audio transcripts are playback diagnostics only. The canonical
         // Office answer was already saved above, so these provider echoes must
@@ -419,5 +481,5 @@ export function useRealtimeManager(
     }
   }, [accessToken, mintSession, team, teardown, playAudio, sendEvent]);
 
-  return { phase, on, error, playbackError, playbackBlocked, activity, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say };
+  return { phase, on, error, playbackError, playbackBlocked, activity, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say, mode };
 }
