@@ -231,7 +231,7 @@ export async function reserveAiCallWith(
           reason === "budget_limit"
             ? "The CanX AI spending limit for this period has been reached."
             : reason === "rate_limit"
-              ? "The AI service is temporarily busy. Please try again shortly."
+              ? "Astra's own office safety limit on AI calls per minute was reached. This is not the AI provider. Wait about a minute, then send again."
               : result?.reason === "not_permitted"
                 ? "Astra cannot speak yet: the database did not accept this session for paid AI calls. Check owner access and complete two-step verification, then try again."
                 : result?.reason === "unavailable"

@@ -10,7 +10,7 @@ describe("AI budget failures stay closed and explain the next check", () => {
     [200, [{ allowed: false, reason: "not_permitted" }], "two-step verification"],
     [200, [{ allowed: false, reason: "unavailable" }], "no usable AI spending limits"],
     [200, [{ allowed: false, reason: "budget_limit" }], "spending limit for this period"],
-    [200, [{ allowed: false, reason: "rate_limit" }], "temporarily busy"],
+    [200, [{ allowed: false, reason: "rate_limit" }], "office safety limit"],
   ])("explains HTTP %s / %j without granting access", async (status, body, expected) => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
     const result = await reserveAiCallWith(config, "test-session", 2, fetcher);
