@@ -12,8 +12,6 @@ import { waitForIceGatheringComplete } from "@/lib/webrtc-ice";
 
 export interface RealtimeManager {
   phase: ChatPhase;
-  /** Live step indicator: where the current voice turn actually is. */
-  export type VoiceStage = "idle" | "connecting" | "listening" | "hearing" | "recognized" | "thinking" | "speaking" | "error";
   on: boolean;
   error: string | null;
   playbackError: string | null;
@@ -79,6 +77,9 @@ export function spokenOfficeAnswer(text: string) {
     },
   };
 }
+
+/** Live step indicator: where the current voice turn actually is. */
+export type VoiceStage = "idle" | "connecting" | "listening" | "hearing" | "recognized" | "thinking" | "speaking" | "error";
 
 export function useRealtimeManager(
   accessToken: string,
@@ -565,5 +566,5 @@ export function useRealtimeManager(
     }
   }, [accessToken, mintSession, team, teardown, playAudio, sendEvent]);
 
-  return { phase, on, error, playbackError, playbackBlocked, activity, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say, mode };
+  return { phase, on, error, playbackError, playbackBlocked, activity, stage, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say, mode };
 }
