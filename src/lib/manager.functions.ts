@@ -47,7 +47,7 @@ import {
   type RiskLevel,
   type WorkbenchDeps,
 } from "@/lib/manager-work.functions";
-import { handOffTaskToCodex, shouldHandOffToCodex } from "@/lib/codex-task-handoff";
+import { handOffTaskToCodex, looksLikeOfficeCodeChange, shouldHandOffToCodex } from "@/lib/codex-task-handoff";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
 const cleanTaskRisk = (value: unknown): RiskLevel =>
@@ -1121,7 +1121,7 @@ async function executeToolCalls(
           const buildText = `${result.title} ${String(call.arguments["detail"] ?? "")} ${currentRequest}`;
           let handoffNote = "";
           if (shouldHandOffToCodex({
-            codeChange: call.arguments["code_change"] === true,
+            codeChange: call.arguments["code_change"] === true || looksLikeOfficeCodeChange(currentRequest),
             taskRisk,
             classifiedRisk: classifyManagerRisk("start_codex_build", buildText),
             protectedCategory: protectedCategoryOf(buildText),
