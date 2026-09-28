@@ -39,6 +39,7 @@ import {
   logManagerChangeWith,
   requestManagerApprovalWith,
   runManagerSecondEyesWith,
+  updateManagerTaskWith,
   verifyManagerTaskWith,
   type JsonObject,
   type ManagerMemory,
@@ -46,6 +47,11 @@ import {
   type RiskLevel,
   type WorkbenchDeps,
 } from "@/lib/manager-work.functions";
+import { handOffTaskToCodex, shouldHandOffToCodex } from "@/lib/codex-task-handoff";
+
+/** Missing or unknown task risk is treated as green, matching task creation. */
+const cleanTaskRisk = (value: unknown): RiskLevel =>
+  value === "yellow" || value === "red" ? value : "green";
 
 export type ManagerState =
   /** No CanX-owned database, or the caller is not a verified owner with MFA. */
