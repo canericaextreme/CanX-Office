@@ -309,6 +309,7 @@ const TOOLS = [
         project: { type: "string" },
         worker: { type: "string" },
         risk: { type: "string", enum: ["green", "yellow", "red"] },
+        code_change: { type: "boolean", description: "True only when John is directly asking for a change to the CanX Office code or screens (for example removing or changing something on a page). Green code changes are sent to Codex automatically; do not also call start_codex_build." },
       },
     },
   },
@@ -1108,6 +1109,29 @@ async function executeToolCalls(
             if (isManagerError(assigned)) assignFailed = assigned.message;
             else assignedTo = assigned.worker ?? worker;
           }
+          // Authorised GREEN code-change tasks go straight to the existing
+          // Codex path using John's current words. Never marks done.
+          const taskRisk = cleanTaskRisk(call.arguments["risk"]);
+          const buildText = `${result.title} ${String(call.arguments["detail"] ?? "")} ${currentRequest}`;
+          let handoffNote = "";
+          if (shouldHandOffToCodex({
+            codeChange: call.arguments["code_change"] === true,
+            taskRisk,
+            classifiedRisk: classifyManagerRisk("start_codex_build", buildText),
+            protectedCategory: protectedCategoryOf(buildText),
+            alreadySubmitted: codexSubmitted,
+          })) {
+            codexSubmitted = true;
+            const { runCodexBuildOperation } = await import("./codex-builds.functions");
+            const outcome = await handOffTaskToCodex({
+              startBuild: (request) => runCodexBuildOperation(accessToken, request),
+              recordOnTask: async (patch) => !isManagerError(await updateManagerTaskWith(workbench, {
+                accessToken, taskId: result.id, status: patch.status, evidence: patch.evidence,
+              })),
+            }, currentRequest);
+            handoffNote = ` ${outcome.detail}`;
+            actionResults.push({ name: "start_codex_build", risk: "green", status: outcome.submitted ? "pending" : "stopped", detail: outcome.detail });
+          }
           actionResults.push({
             name: call.name,
             risk,
@@ -1118,7 +1142,7 @@ async function executeToolCalls(
                 : assignFailed
                   ? ` It could not be assigned: ${assignFailed}`
                   : ""
-            }`,
+            }${handoffNote}`,
           });
         }
       } else if (call.name === "assign_task") {
