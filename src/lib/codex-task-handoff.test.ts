@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handOffTaskToCodex, shouldHandOffToCodex, type CodexHandoffGate } from "./codex-task-handoff";
+import { handOffTaskToCodex, looksLikeOfficeCodeChange, shouldHandOffToCodex, type CodexHandoffGate } from "./codex-task-handoff";
 
 const green: CodexHandoffGate = { codeChange: true, taskRisk: "green", classifiedRisk: "green", protectedCategory: null, alreadySubmitted: false };
 
@@ -41,5 +41,18 @@ describe("Work Board task to Codex handoff", () => {
   });
   it("no duplicate build submission within one manager turn", () => {
     expect(shouldHandOffToCodex({ ...green, alreadySubmitted: true })).toBe(false);
+  });
+  it("plain owner UI instruction is recognised as a code change and passes the gate", async () => {
+    const { classifyManagerRisk } = await import("./manager-work.functions");
+    const { protectedCategoryOf } = await import("./protected-actions");
+    const text = "Remove the search box at the top of the page";
+    expect(looksLikeOfficeCodeChange(text)).toBe(true);
+    expect(classifyManagerRisk("start_codex_build", text)).toBe("green");
+    expect(protectedCategoryOf(text)).toBeNull();
+    expect(shouldHandOffToCodex({ ...green, codeChange: looksLikeOfficeCodeChange(text) })).toBe(true);
+  });
+  it("questions and non-UI chatter are not treated as code changes", () => {
+    expect(looksLikeOfficeCodeChange("Should we remove the search box?")).toBe(false);
+    expect(looksLikeOfficeCodeChange("Order the gate hardware for Tuesday")).toBe(false);
   });
 });
