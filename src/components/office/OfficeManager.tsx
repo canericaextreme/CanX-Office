@@ -1083,7 +1083,7 @@ export function OfficeManager() {
           ? "Astra is thinking…"
           : realtimeManager.on
             ? "Astra is listening…"
-            : "Office Manager";
+            : "Talk to Astra";
 
   const primaryVoiceAction = () => {
     if (realtimeManager.on || !historyReady) return;
@@ -1100,10 +1100,11 @@ export function OfficeManager() {
           onClick={() => open ? closeManager() : setOpen(true)}
           aria-expanded={open}
           aria-controls="office-manager-panel"
-          className="fixed bottom-4 right-4 z-40 h-12 rounded-full px-5 shadow-lg"
+          aria-label={open ? "Close Astra" : "Talk to Astra"}
+          className="fixed bottom-4 right-4 z-40 h-14 rounded-full border border-rose-200/50 bg-gradient-to-r from-rose-700 to-rose-500 px-6 text-base font-black text-white shadow-[0_0_28px_rgba(244,63,94,.48)] transition hover:scale-105 hover:from-rose-600 hover:to-rose-400"
         >
           {open ? <X className="mr-1.5 h-4 w-4" /> : <Bot className="mr-1.5 h-4 w-4" />}
-          Office Manager
+          {open ? "Close Astra" : "Talk to Astra"}
         </Button>
       )}
 
