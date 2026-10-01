@@ -182,8 +182,8 @@ const rooms: OfficeRoom[] = [
     icon: Network,
     tone: "purple",
     shape: "round",
-    x: 39,
-    y: 70,
+    x: 37,
+    y: 72,
   },
   {
     number: "01",
