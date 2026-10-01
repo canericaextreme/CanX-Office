@@ -1,233 +1,104 @@
 "use client";
 
-import { ApprovalIndicator } from "./ApprovalIndicator";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ROOMS, type RoomDef } from "@/lib/office-data";
-import { SampleBadge } from "./SampleBadge";
-import { SimpleOffice } from "./SimpleOffice";
+import {
+  BarChart3, Bike, Building2, CheckCircle2, ClipboardList, CreditCard, Database,
+  FileText, GraduationCap, HeartPulse, Landmark, Mail, Microscope, Network,
+  Scale, ShieldCheck, Users, Wrench,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ApprovalIndicator } from "./ApprovalIndicator";
 
-/** Below this width the scaled floor would shrink labels past readability. */
-const MIN_FLOOR_WIDTH = 768;
+type OfficeMapRoom = {
+  number: string;
+  label: string;
+  purpose: string;
+  route: string;
+  icon: LucideIcon;
+  tone: "red" | "blue" | "purple" | "teal" | "cyan";
+  span?: string;
+};
 
-function useFloorFits() {
-  const [fits, setFits] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia(`(min-width: ${MIN_FLOOR_WIDTH}px)`);
-    const update = () => setFits(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-  return fits;
-}
+const rooms: OfficeMapRoom[] = [
+  { number: "01", label: "Reception", purpose: "Single point of instruction and next step.", route: "/", icon: Building2, tone: "red" },
+  { number: "02", label: "Owner's Desk", purpose: "Decisions, red stops, priorities and cost.", route: "/owner-desk", icon: Landmark, tone: "red" },
+  { number: "03", label: "Approvals", purpose: "Exact action, cost, risk and alternatives.", route: "/approvals", icon: CheckCircle2, tone: "red" },
+  { number: "04", label: "Idea Garage & Bike Rack", purpose: "Ideas, contenders and decision table.", route: "/idea-garage", icon: Bike, tone: "red" },
+  { number: "05", label: "Office Team", purpose: "Roles and capabilities.", route: "/office-team", icon: Users, tone: "blue" },
+  { number: "06", label: "Records", purpose: "Files, decisions and sources.", route: "/records", icon: FileText, tone: "purple" },
+  { number: "07", label: "Blueprint", purpose: "Plan, rooms and dependencies.", route: "/blueprint", icon: Network, tone: "purple" },
+  { number: "17", label: "Research", purpose: "Research, options and recommendations.", route: "/research", icon: Microscope, tone: "purple" },
+  { number: "18", label: "Training and Skills", purpose: "Approved procedures and training for consistent work.", route: "/skills", icon: GraduationCap, tone: "purple" },
+  { number: "19", label: "Family Continuity", purpose: "Knowledge kept understandable and usable by the family.", route: "/family-continuity", icon: Users, tone: "purple" },
+  { number: "14", label: "Work Board", purpose: "Tasks, blockers and priorities.", route: "/work-board", icon: ClipboardList, tone: "blue" },
+  { number: "15", label: "Build and Testing", purpose: "Briefs, checks and release gates.", route: "/build-testing", icon: Wrench, tone: "blue" },
+  { number: "16", label: "Safe Highways Project", purpose: "Programme and routing oversight.", route: "/safe-highways", icon: ShieldCheck, tone: "blue" },
+  { number: "10", label: "Communications & Outreach", purpose: "Drafts, delivery and recipient checks.", route: "/communications", icon: Mail, tone: "teal" },
+  { number: "11", label: "Legal", purpose: "Risks, agreements and compliance.", route: "/legal", icon: Scale, tone: "teal" },
+  { number: "12", label: "Subscriptions", purpose: "Renewals, API use and alternatives.", route: "/subscriptions", icon: CreditCard, tone: "teal" },
+  { number: "13", label: "Finance", purpose: "Income, expenses and receipts.", route: "/finance", icon: BarChart3, tone: "teal" },
+  { number: "08", label: "Systems", purpose: "Connections, office health, backup and recovery.", route: "/systems", icon: Database, tone: "cyan", span: "xl:col-span-3" },
+  { number: "09", label: "Office Health", purpose: "Systems, uptime and performance.", route: "/health", icon: HeartPulse, tone: "cyan", span: "xl:col-span-3" },
+];
 
-/**
- * CanX Office floor — the original isometric spatial layout with two corrections
- * requested by the owner:
- *  1. No near-black expanses: smoky charcoal-to-medium-grey floor with a
- *     translucent glass sheen.
- *  2. Room buttons and their labels are screen-facing overlays — horizontal,
- *     never skewed by the floor perspective — at readable text sizes.
- */
+const toneClasses: Record<OfficeMapRoom["tone"], string> = {
+  red: "border-rose-500/90 text-rose-300 shadow-rose-950/30",
+  blue: "border-sky-500/90 text-sky-300 shadow-sky-950/30",
+  purple: "border-violet-500/90 text-violet-300 shadow-violet-950/30",
+  teal: "border-teal-400/90 text-teal-200 shadow-teal-950/30",
+  cyan: "border-cyan-400/90 text-cyan-200 shadow-cyan-950/30",
+};
 
-const KX = 44; // isometric horizontal step
-const KY = 36; // isometric vertical step
-const STAGE_W = 1160;
-const STAGE_H = 900;
-const CX = STAGE_W / 2;
-const CY = STAGE_H / 2;
-
-const X_MIN = -7.5;
-const X_MAX = 7.5;
-const Z_MIN = -9;
-const Z_MAX = 10;
-
-function project(x: number, z: number) {
-  return { left: CX + (x - z) * KX, top: CY + (x + z) * KY };
-}
-
-function point(x: number, z: number) {
-  const p = project(x, z);
-  return `${p.left},${p.top}`;
-}
-
-function RoomMarker({
-  room,
-  hovered,
-  setHovered,
-}: {
-  room: RoomDef;
-  hovered: string | null;
-  setHovered: (id: string | null) => void;
-}) {
-  const { left, top } = project(room.position.x, room.position.z);
-  const isHovered = hovered === room.id;
-
+function RoomCard({ room }: { room: OfficeMapRoom }) {
+  const Icon = room.icon;
   return (
     <Link
       to={room.route}
       aria-label={`${room.label} — ${room.purpose}`}
-      onMouseEnter={() => setHovered(room.id)}
-      onMouseLeave={() => setHovered(null)}
-      onFocus={() => setHovered(room.id)}
-      onBlur={() => setHovered(null)}
-      className="absolute flex w-[124px] -translate-x-1/2 -translate-y-1/2 flex-col gap-1 rounded-lg border px-2.5 py-2 text-left backdrop-blur-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      style={{
-        left: `${left}px`,
-        top: `${top}px`,
-        zIndex: isHovered ? 60 : 20 + room.position.z,
-        backgroundColor: isHovered ? `${room.color}47` : `${room.color}2b`,
-        borderColor: isHovered ? room.color : `${room.color}85`,
-        boxShadow: isHovered
-          ? `0 12px 24px oklch(0 0 0 / 0.35), 0 0 0 1px ${room.color}`
-          : "0 6px 14px oklch(0 0 0 / 0.25)",
-      }}
+      className={`group relative min-h-[178px] overflow-hidden rounded-xl border-2 bg-slate-950 shadow-xl transition duration-300 hover:z-20 hover:-translate-y-3 hover:scale-[1.06] hover:shadow-2xl focus-visible:z-20 focus-visible:-translate-y-3 focus-visible:scale-[1.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${toneClasses[room.tone]} ${room.span ?? "xl:col-span-2"}`}
     >
-      <span className="flex items-center gap-2">
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-          style={{ backgroundColor: `${room.color}3d`, color: room.color }}
-        >
-          <room.icon className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <span className="text-[13px] font-semibold leading-tight text-foreground">
-          {room.shortLabel}
-        </span>
-      </span>
-      {isHovered && (
-        <span className="text-[11px] leading-snug text-foreground/90">{room.purpose}</span>
-      )}
-      {room.id === "approvals" && <ApprovalIndicator />}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_25%,rgba(255,255,255,0.16),transparent_28%),linear-gradient(135deg,rgba(30,41,59,0.45),rgba(2,6,23,0.96))]" />
+      <div className="absolute inset-x-5 bottom-5 h-12 rounded-sm border border-white/10 bg-slate-800/80 shadow-[0_14px_30px_rgba(0,0,0,0.7)] transition-transform duration-300 group-hover:scale-105">
+        <div className="absolute -top-9 left-5 h-9 w-16 rounded-t border border-white/10 bg-slate-900 shadow-[inset_0_0_16px_rgba(56,189,248,0.22)]" />
+        <div className="absolute -top-7 right-7 h-7 w-12 rounded-t border border-white/10 bg-slate-900 shadow-[inset_0_0_14px_rgba(168,85,247,0.2)]" />
+        <div className="absolute -bottom-3 left-9 h-4 w-8 rounded-b bg-slate-700" />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/25 via-slate-950/20 to-slate-950/80" />
+      <div className="relative flex h-full min-h-[178px] flex-col p-3.5">
+        <div className="flex items-start gap-3">
+          <span className="rounded-full border-2 border-current bg-slate-950/85 px-3 py-0.5 text-sm font-black tracking-wide">{room.number}</span>
+          <div className="min-w-0">
+            <h3 className="text-[17px] font-bold leading-tight text-white">{room.label}</h3>
+            <p className="mt-1 max-w-[230px] text-sm leading-snug text-slate-200">{room.purpose}</p>
+          </div>
+        </div>
+        <span className="mt-auto ml-auto flex h-11 w-11 items-center justify-center rounded-full border-2 border-current bg-slate-950/90 shadow-lg"><Icon className="h-5 w-5" aria-hidden="true" /></span>
+        {room.route === "/approvals" && <ApprovalIndicator />}
+      </div>
+      <div className="pointer-events-none absolute inset-x-3 bottom-2 translate-y-5 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-80 group-focus-visible:translate-y-0 group-focus-visible:opacity-80">Open room</div>
     </Link>
   );
 }
 
 export function Office3D() {
-  const [hovered, setHovered] = useState<string | null>(null);
-  const floorFits = useFloorFits();
-  const reception = ROOMS.find((room) => room.id === "reception");
-  const rooms = ROOMS.filter((room) => room.id !== "reception");
-
-  // On phones the scaled floor would render labels far below readable size,
-  // so the full-sized room cards are shown instead — same 20 destinations.
-  if (!floorFits) {
-    return (
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Room cards shown at full size for this screen. The office floor view appears on wider screens.
-        </p>
-        <SimpleOffice />
-      </div>
-    );
-  }
-
-
-  const floorCorners = [
-    point(X_MIN, Z_MIN),
-    point(X_MAX, Z_MIN),
-    point(X_MAX, Z_MAX),
-    point(X_MIN, Z_MAX),
-  ].join(" ");
-
-  const gridX = Array.from({ length: 16 }, (_, i) => X_MIN + i);
-  const gridZ = Array.from({ length: 20 }, (_, i) => Z_MIN + i);
-
-  const desk = project(0, 0);
-
   return (
-    <section
-      aria-labelledby="office-scene-title"
-      className="relative w-full overflow-hidden rounded-2xl border border-border bg-gradient-to-b from-canx-panel via-canx-charcoal to-canx-black"
-    >
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3">
-        <h2 id="office-scene-title" className="text-sm font-semibold text-foreground">
-          CanX Office floor
-        </h2>
-        <SampleBadge />
-        <span className="text-xs text-muted-foreground">Click any room to enter</span>
-      </div>
-
-      <div className="relative h-[660px] overflow-hidden lg:h-[780px] xl:h-[900px]">
-        <div
-          className="absolute left-1/2 top-1/2 [--scene-scale:0.72] lg:[--scene-scale:0.86] xl:[--scene-scale:1]"
-          style={{
-            width: `${STAGE_W}px`,
-            height: `${STAGE_H}px`,
-            transform: "translate(-50%, -50%) scale(var(--scene-scale))",
-          }}
-        >
-          {/* Isometric floor — smoky charcoal to medium grey, with glass sheen */}
-          <svg
-            className="absolute inset-0"
-            width={STAGE_W}
-            height={STAGE_H}
-            viewBox={`0 0 ${STAGE_W} ${STAGE_H}`}
-            aria-hidden="true"
-          >
-            <defs>
-              <linearGradient id="canx-floor" x1="0" y1="0" x2="0.7" y2="1">
-                <stop offset="0%" stopColor="oklch(0.5 0.012 260)" />
-                <stop offset="55%" stopColor="oklch(0.4 0.014 260)" />
-                <stop offset="100%" stopColor="oklch(0.33 0.014 260)" />
-              </linearGradient>
-              <linearGradient id="canx-glass" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="oklch(0.92 0.02 240 / 0.16)" />
-                <stop offset="60%" stopColor="oklch(0.8 0.02 240 / 0.04)" />
-                <stop offset="100%" stopColor="oklch(0.8 0.02 240 / 0)" />
-              </linearGradient>
-            </defs>
-            <polygon points={floorCorners} fill="url(#canx-floor)" />
-            <g stroke="oklch(0.95 0 0 / 0.16)" strokeWidth="1">
-              {gridX.map((x) => (
-                <line key={`x${x}`} x1={project(x, Z_MIN).left} y1={project(x, Z_MIN).top} x2={project(x, Z_MAX).left} y2={project(x, Z_MAX).top} />
-              ))}
-              {gridZ.map((z) => (
-                <line key={`z${z}`} x1={project(X_MIN, z).left} y1={project(X_MIN, z).top} x2={project(X_MAX, z).left} y2={project(X_MAX, z).top} />
-              ))}
-            </g>
-            <polygon points={floorCorners} fill="url(#canx-glass)" stroke="oklch(0.9 0.01 260 / 0.28)" strokeWidth="2" />
-          </svg>
-
-          {/* Reception desk plinth */}
-          <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-canx-red/70"
-            style={{
-              left: `${desk.left}px`,
-              top: `${desk.top + 26}px`,
-              width: "330px",
-              height: "150px",
-              background:
-                "linear-gradient(140deg, oklch(0.56 0.02 260 / 0.75), oklch(0.4 0.02 260 / 0.75))",
-              boxShadow: "0 18px 34px oklch(0 0 0 / 0.35)",
-              zIndex: 10,
-            }}
-          />
-
-          {reception && (
-            <Link
-              to={reception.route}
-              aria-label={`${reception.label} — ${reception.purpose}`}
-              className="absolute flex w-[210px] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-xl border-2 border-canx-red bg-canx-charcoal/90 px-4 py-3 text-center backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{
-                left: `${desk.left}px`,
-                top: `${desk.top}px`,
-                zIndex: 70,
-                boxShadow: "0 14px 30px oklch(0 0 0 / 0.4)",
-              }}
-            >
-              <span className="text-2xl font-black tracking-widest text-canx-red">CANX</span>
-              <span className="text-sm font-semibold uppercase tracking-wide text-foreground">
-                Reception
-              </span>
-              <span className="mt-1 text-[11px] text-muted-foreground">Text placeholder logo</span>
-            </Link>
-          )}
-
-          {rooms.map((room) => (
-            <RoomMarker key={room.id} room={room} hovered={hovered} setHovered={setHovered} />
-          ))}
+    <section aria-labelledby="office-scene-title" className="rounded-2xl border border-slate-700/80 bg-[#030817] p-4 shadow-2xl sm:p-5">
+      <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h2 id="office-scene-title" className="text-2xl font-black tracking-tight text-white sm:text-3xl">The CanX Office — 19 rooms, one coordinated system.</h2>
+          <p className="mt-1 text-sm text-slate-300">Choose a room to enter. Point to a room to bring it forward and see what it does.</p>
         </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Private owner review</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-10">{rooms.map((room) => <RoomCard key={room.number} room={room} />)}</div>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <Link to="/analytics" className="group flex min-h-[104px] items-center gap-5 rounded-xl border-2 border-orange-500 bg-[linear-gradient(100deg,rgba(58,24,8,0.92),rgba(88,36,12,0.72),rgba(15,23,42,0.96))] px-5 py-4 shadow-lg shadow-orange-950/30 transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-orange-400 bg-slate-950/70 text-orange-300"><BarChart3 className="h-7 w-7" /></span>
+          <div><h3 className="text-2xl font-bold text-white">Analytics</h3><p className="mt-1 text-sm text-orange-100/90">Revenue · expenses · profit/loss · progress · workload · growth · subscriptions · Safe Highways</p></div>
+        </Link>
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("canx:open-manager"))} className="flex min-h-[104px] items-center justify-center gap-4 rounded-full border border-rose-300/30 bg-gradient-to-r from-rose-700 to-rose-500 px-6 text-xl font-black text-white shadow-[0_0_30px_rgba(244,63,94,0.48)] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-950/55 text-lg">A</span>Talk to Astra
+        </button>
       </div>
     </section>
   );
