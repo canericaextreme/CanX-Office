@@ -23,7 +23,6 @@ import {
   Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { ApprovalIndicator } from "./ApprovalIndicator";
 
 type RoomTone = "red" | "blue" | "purple" | "teal" | "cyan";
 type RoomShape = "round" | "oval" | "wedge" | "wide" | "soft";
@@ -294,7 +293,6 @@ function RoomHotspot({ room }: { room: OfficeRoom }) {
         {room.purpose}
         <strong className="mt-1 block uppercase tracking-[0.12em]">Open room →</strong>
       </span>
-      {room.route === "/approvals" && <ApprovalIndicator />}
     </Link>
   );
 }
