@@ -321,7 +321,7 @@ export function Office3D() {
           <Link
             to="/brain"
             aria-label="Open CanX Brain"
-            className="group absolute left-1/2 top-[40%] z-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-200/75 bg-cyan-950/75 px-4 py-2 text-center text-white shadow-[0_0_30px_rgba(34,211,238,.38)] backdrop-blur-md transition duration-300 hover:scale-110 hover:bg-cyan-700/90 hover:shadow-[0_0_48px_rgba(34,211,238,.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            className="group absolute left-[52%] top-[40%] z-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-200/75 bg-cyan-950/75 px-4 py-2 text-center text-white shadow-[0_0_30px_rgba(34,211,238,.38)] backdrop-blur-md transition duration-300 hover:scale-110 hover:bg-cyan-700/90 hover:shadow-[0_0_48px_rgba(34,211,238,.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <span className="flex items-center gap-2">
               <Brain className="h-4 w-4 text-cyan-100" />
