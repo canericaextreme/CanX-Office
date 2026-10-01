@@ -1,6 +1,7 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Bike,
@@ -261,23 +262,84 @@ const haloClasses: Record<RoomShape, string> = {
 };
 
 const walkingPeople = [
-  { route: "office-person--family", duration: "29s", delay: "-18s" },
-  { route: "office-person--communications", duration: "37s", delay: "-7s" },
-  { route: "office-person--systems", duration: "31s", delay: "-24s" },
-  { route: "office-person--finance", duration: "41s", delay: "-14s" },
-  { route: "office-person--owner", duration: "23s", delay: "-9s" },
-  { route: "office-person--subscriptions", duration: "43s", delay: "-33s" },
-  { route: "office-person--garage", duration: "47s", delay: "-29s" },
+  { x: 50, y: 69 },
+  { x: 35, y: 61 },
+  { x: 29, y: 43 },
+  { x: 39, y: 25 },
+  { x: 58, y: 26 },
+  { x: 71, y: 42 },
+  { x: 68, y: 61 },
 ] as const;
 
 function WalkingPeople() {
+  const [positions, setPositions] = useState(() => walkingPeople.map((person) => ({ ...person })));
+  const [positionsLoaded, setPositionsLoaded] = useState(false);
+  const activeDrag = useRef<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("canx-office-people-positions-v1");
+      if (saved) {
+        const parsed = JSON.parse(saved) as Array<{ x: number; y: number }>;
+        if (
+          parsed.length === walkingPeople.length &&
+          parsed.every((position) => Number.isFinite(position.x) && Number.isFinite(position.y))
+        ) {
+          setPositions(parsed);
+        }
+      }
+    } catch {
+      // Keep the safe default positions when stored data is unavailable.
+    }
+    setPositionsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!positionsLoaded) return;
+    window.localStorage.setItem("canx-office-people-positions-v1", JSON.stringify(positions));
+  }, [positions, positionsLoaded]);
+
+  const movePerson = (index: number, clientX: number, clientY: number, container: HTMLElement) => {
+    const bounds = container.getBoundingClientRect();
+    const x = Math.min(96, Math.max(4, ((clientX - bounds.left) / bounds.width) * 100));
+    const y = Math.min(93, Math.max(7, ((clientY - bounds.top) / bounds.height) * 100));
+    setPositions((current) =>
+      current.map((position, positionIndex) =>
+        positionIndex === index ? { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) } : position,
+      ),
+    );
+  };
+
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[8] overflow-hidden">
-      {walkingPeople.map((person, index) => (
+    <div className="pointer-events-none absolute inset-0 z-[8] overflow-hidden">
+      {positions.map((person, index) => (
         <span
-          key={person.route}
-          className={`office-person absolute ${person.route}`}
-          style={{ animationDuration: person.duration, animationDelay: person.delay }}
+          key={index}
+          role="button"
+          tabIndex={0}
+          aria-label={`Move office person ${index + 1}`}
+          title="Drag to place this person"
+          className="office-person pointer-events-auto absolute cursor-grab touch-none rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 active:cursor-grabbing"
+          style={{ left: `${person.x}%`, top: `${person.y}%` }}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            activeDrag.current = index;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const container = event.currentTarget.parentElement;
+            if (container) movePerson(index, event.clientX, event.clientY, container);
+          }}
+          onPointerMove={(event) => {
+            if (activeDrag.current !== index) return;
+            const container = event.currentTarget.parentElement;
+            if (container) movePerson(index, event.clientX, event.clientY, container);
+          }}
+          onPointerUp={(event) => {
+            activeDrag.current = null;
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }}
+          onPointerCancel={() => {
+            activeDrag.current = null;
+          }}
         >
           <span
             className="office-person__sprite block"
@@ -386,12 +448,8 @@ export function Office3D() {
 
           <style>{`
             .office-person {
-              left: 50%;
-              top: 80%;
-              opacity: 0;
+              opacity: .96;
               transform: translate(-50%, -50%);
-              animation-timing-function: linear;
-              animation-iteration-count: infinite;
             }
             .office-person__sprite {
               width: 20px;
@@ -401,7 +459,7 @@ export function Office3D() {
               background-size: 700% 100%;
               filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .72));
               transform-origin: 50% 100%;
-              animation: office-walk-bob .54s ease-in-out infinite alternate;
+              animation: none;
             }
             .workboard-screen {
               transform: rotate(.8deg) skewY(-1deg);
