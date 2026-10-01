@@ -103,8 +103,8 @@ const rooms: OfficeRoom[] = [
     icon: ShieldCheck,
     tone: "blue",
     shape: "wedge",
-    x: 88,
-    y: 35,
+    x: 83,
+    y: 69,
   },
 
   {
@@ -126,8 +126,8 @@ const rooms: OfficeRoom[] = [
     icon: Users,
     tone: "blue",
     shape: "soft",
-    x: 16,
-    y: 21,
+    x: 8,
+    y: 58,
   },
   {
     number: "09",
@@ -159,8 +159,8 @@ const rooms: OfficeRoom[] = [
     icon: Mail,
     tone: "teal",
     shape: "oval",
-    x: 10,
-    y: 58,
+    x: 14,
+    y: 18,
   },
 
   {
@@ -226,8 +226,8 @@ const rooms: OfficeRoom[] = [
     icon: CreditCard,
     tone: "teal",
     shape: "soft",
-    x: 83,
-    y: 69,
+    x: 89,
+    y: 36,
   },
   {
     number: "15",
@@ -300,7 +300,7 @@ export function Office3D() {
               Private owner review
             </span>
           </div>
-          <h1 className="mt-0.5 text-xl font-black sm:text-2xl">18-room circular office</h1>
+          <h1 className="mt-0.5 text-xl font-black sm:text-2xl">20-room circular office</h1>
         </div>
         <p className="hidden max-w-lg text-right text-xs text-slate-300 md:block">
           Point to a furnished office to bring it forward. Click its name to walk in.
@@ -313,7 +313,7 @@ export function Office3D() {
       >
         <div className="relative mx-auto aspect-[1672/941] w-full overflow-hidden rounded-xl bg-slate-950">
           <img
-            src="/canx-office-circular-cutaway-v2.jpg"
+            src="/canx-office-circular-cutaway-v3.jpg"
             alt="A realistic circular office complex with furnished rooms arranged around a central atrium"
             className="absolute inset-0 h-full w-full object-cover"
           />
