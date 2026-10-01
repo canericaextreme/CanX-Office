@@ -259,6 +259,38 @@ const haloClasses: Record<RoomShape, string> = {
   soft: "h-28 w-40 rounded-[2.5rem_4rem_2rem_3.5rem]",
 };
 
+const walkingPeople = [
+  { route: "office-person--family", duration: "29s", delay: "-18s", colour: "bg-amber-300" },
+  { route: "office-person--communications", duration: "37s", delay: "-7s", colour: "bg-sky-300" },
+  { route: "office-person--systems", duration: "31s", delay: "-24s", colour: "bg-rose-300" },
+  { route: "office-person--finance", duration: "41s", delay: "-14s", colour: "bg-emerald-300" },
+  { route: "office-person--owner", duration: "23s", delay: "-9s", colour: "bg-violet-300" },
+  { route: "office-person--subscriptions", duration: "43s", delay: "-33s", colour: "bg-orange-300" },
+  { route: "office-person--garage", duration: "47s", delay: "-29s", colour: "bg-cyan-200" },
+] as const;
+
+function WalkingPeople() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] overflow-hidden">
+      {walkingPeople.map((person, index) => (
+        <span
+          key={person.route}
+          className={`office-person absolute ${person.route}`}
+          style={{ animationDuration: person.duration, animationDelay: person.delay }}
+        >
+          <span className="office-person__figure relative block h-3.5 w-2 drop-shadow-[0_1px_2px_rgba(0,0,0,.9)] sm:h-5 sm:w-3">
+            <span className={`absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full border border-slate-950/70 sm:h-2 sm:w-2 ${person.colour}`} />
+            <span className={`absolute left-1/2 top-[28%] h-[45%] w-[70%] -translate-x-1/2 rounded-t-full border border-slate-950/70 ${person.colour}`} />
+            <span className="absolute bottom-0 left-[18%] h-[38%] w-[22%] rotate-[8deg] rounded-full bg-slate-100" />
+            <span className="absolute bottom-0 right-[18%] h-[38%] w-[22%] -rotate-[8deg] rounded-full bg-slate-100" />
+          </span>
+          <span className="sr-only">Person {index + 1}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function RoomHotspot({ room }: { room: OfficeRoom }) {
   const Icon = room.icon;
   return (
@@ -314,6 +346,8 @@ export function Office3D() {
           />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(2,6,23,.08)_72%,rgba(2,6,23,.45)_100%)]" />
 
+          <WalkingPeople />
+
           <Link
             to="/brain"
             aria-label="Open CanX Brain"
@@ -331,6 +365,90 @@ export function Office3D() {
           {rooms.map((room) => (
             <RoomHotspot key={room.number} room={room} />
           ))}
+
+          <style>{`
+            .office-person {
+              left: 50%;
+              top: 80%;
+              opacity: 0;
+              transform: translate(-50%, -50%);
+              animation-timing-function: linear;
+              animation-iteration-count: infinite;
+            }
+            .office-person__figure {
+              animation: office-walk-bob .42s ease-in-out infinite alternate;
+            }
+            .office-person--family { animation-name: office-route-family; }
+            .office-person--communications { animation-name: office-route-communications; }
+            .office-person--systems { animation-name: office-route-systems; }
+            .office-person--finance { animation-name: office-route-finance; }
+            .office-person--owner { animation-name: office-route-owner; }
+            .office-person--subscriptions { animation-name: office-route-subscriptions; }
+            .office-person--garage { animation-name: office-route-garage; }
+
+            @keyframes office-walk-bob {
+              from { transform: translateY(-7%) rotate(-2deg); }
+              to { transform: translateY(7%) rotate(2deg); }
+            }
+            @keyframes office-route-family {
+              0%, 8% { left: 50%; top: 82%; opacity: 0; }
+              12% { opacity: .95; }
+              34% { left: 50%; top: 65%; }
+              60% { left: 39%; top: 55%; }
+              84% { left: 27%; top: 60%; opacity: .95; }
+              92%, 100% { left: 24%; top: 61%; opacity: 0; }
+            }
+            @keyframes office-route-communications {
+              0%, 5% { left: 48%; top: 80%; opacity: 0; }
+              10% { opacity: .9; }
+              32% { left: 45%; top: 58%; }
+              58% { left: 31%; top: 42%; }
+              84% { left: 18%; top: 23%; opacity: .9; }
+              94%, 100% { left: 14%; top: 20%; opacity: 0; }
+            }
+            @keyframes office-route-systems {
+              0%, 7% { left: 53%; top: 79%; opacity: 0; }
+              11% { opacity: .92; }
+              30% { left: 53%; top: 61%; }
+              54% { left: 49%; top: 42%; }
+              82% { left: 41%; top: 14%; opacity: .92; }
+              92%, 100% { left: 39%; top: 8%; opacity: 0; }
+            }
+            @keyframes office-route-finance {
+              0%, 9% { left: 51%; top: 82%; opacity: 0; }
+              13% { opacity: .9; }
+              34% { left: 56%; top: 64%; }
+              58% { left: 70%; top: 55%; }
+              84% { left: 87%; top: 55%; opacity: .9; }
+              94%, 100% { left: 91%; top: 55%; opacity: 0; }
+            }
+            @keyframes office-route-owner {
+              0%, 6% { left: 50%; top: 82%; opacity: 0; }
+              12% { opacity: .95; }
+              38% { left: 46%; top: 69%; }
+              72% { left: 37%; top: 68%; opacity: .95; }
+              90%, 100% { left: 33%; top: 72%; opacity: 0; }
+            }
+            @keyframes office-route-subscriptions {
+              0%, 8% { left: 52%; top: 81%; opacity: 0; }
+              12% { opacity: .9; }
+              33% { left: 58%; top: 61%; }
+              58% { left: 73%; top: 47%; }
+              84% { left: 85%; top: 38%; opacity: .9; }
+              94%, 100% { left: 89%; top: 36%; opacity: 0; }
+            }
+            @keyframes office-route-garage {
+              0%, 7% { left: 49%; top: 81%; opacity: 0; }
+              11% { opacity: .9; }
+              31% { left: 47%; top: 62%; }
+              55% { left: 40%; top: 43%; }
+              82% { left: 32%; top: 18%; opacity: .9; }
+              93%, 100% { left: 30%; top: 13%; opacity: 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .office-person { display: none; }
+            }
+          `}</style>
         </div>
 
         <Link
