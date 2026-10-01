@@ -159,8 +159,8 @@ const rooms: OfficeRoom[] = [
     icon: Mail,
     tone: "teal",
     shape: "oval",
-    x: 91,
-    y: 46,
+    x: 10,
+    y: 58,
   },
 
   {
