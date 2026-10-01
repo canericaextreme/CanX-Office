@@ -127,7 +127,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "soft",
     x: 8,
-    y: 58,
+    y: 54,
   },
   {
     number: "09",
