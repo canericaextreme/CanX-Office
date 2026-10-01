@@ -295,9 +295,6 @@ export function Office3D() {
             <p className="text-xs font-black uppercase tracking-[0.24em] text-rose-400">
               CanX Office
             </p>
-            <span className="rounded-full border border-amber-300/35 bg-amber-950/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-amber-200">
-              Private owner review
-            </span>
           </div>
           <h1 className="mt-0.5 text-xl font-black sm:text-2xl">20-room circular office</h1>
         </div>
