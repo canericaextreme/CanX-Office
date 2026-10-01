@@ -308,7 +308,7 @@ export function Office3D() {
       >
         <div className="relative mx-auto aspect-[1672/941] w-full overflow-hidden rounded-xl bg-slate-950">
           <img
-            src="/canx-office-circular-cutaway-v3.jpg"
+            src="/canx-office-circular-cutaway-v4.jpg"
             alt="A realistic circular office complex with furnished rooms arranged around a central atrium"
             className="absolute inset-0 h-full w-full object-cover"
           />
