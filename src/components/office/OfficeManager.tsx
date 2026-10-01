@@ -152,6 +152,19 @@ export function OfficeManager() {
   const [open, setOpen] = useState(false);
   /** Shrinks the window to a small floating control; the conversation stays live. */
   const [minimized, setMinimized] = useState(false);
+
+  // The reception control centre may open Astra's existing panel. This only
+  // changes the panel's visibility; it does not start voice, send a message,
+  // spend money, or alter any Manager data or permissions.
+  useEffect(() => {
+    const openFromReception = () => {
+      setOpen(true);
+      setMinimized(false);
+      setTab("now");
+    };
+    window.addEventListener("canx:open-manager", openFromReception);
+    return () => window.removeEventListener("canx:open-manager", openFromReception);
+  }, []);
   // The office underneath stays fixed while the Astra panel is open.
   useBackgroundScrollLock(open && !minimized);
   // On phones the open panel sits inside a full-viewport layer so the office is never a touch target.
