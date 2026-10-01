@@ -160,7 +160,7 @@ const rooms: OfficeRoom[] = [
     tone: "teal",
     shape: "oval",
     x: 14,
-    y: 18,
+    y: 20,
   },
 
   {
