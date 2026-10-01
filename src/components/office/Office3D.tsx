@@ -560,6 +560,7 @@ export function Office3D() {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(2,6,23,.08)_72%,rgba(2,6,23,.45)_100%)]" />
 
           <WalkingPeople />
+          <DraggableOfficeDog />
           <AmbientOfficeMotion />
 
           <Link
