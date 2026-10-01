@@ -12,6 +12,7 @@ import {
   Database,
   FileText,
   GraduationCap,
+  Globe2,
   HeartPulse,
   Landmark,
   Mail,
@@ -260,13 +261,13 @@ const haloClasses: Record<RoomShape, string> = {
 };
 
 const walkingPeople = [
-  { route: "office-person--family", duration: "29s", delay: "-18s", colour: "bg-amber-300" },
-  { route: "office-person--communications", duration: "37s", delay: "-7s", colour: "bg-sky-300" },
-  { route: "office-person--systems", duration: "31s", delay: "-24s", colour: "bg-rose-300" },
-  { route: "office-person--finance", duration: "41s", delay: "-14s", colour: "bg-emerald-300" },
-  { route: "office-person--owner", duration: "23s", delay: "-9s", colour: "bg-violet-300" },
-  { route: "office-person--subscriptions", duration: "43s", delay: "-33s", colour: "bg-orange-300" },
-  { route: "office-person--garage", duration: "47s", delay: "-29s", colour: "bg-cyan-200" },
+  { route: "office-person--family", duration: "29s", delay: "-18s" },
+  { route: "office-person--communications", duration: "37s", delay: "-7s" },
+  { route: "office-person--systems", duration: "31s", delay: "-24s" },
+  { route: "office-person--finance", duration: "41s", delay: "-14s" },
+  { route: "office-person--owner", duration: "23s", delay: "-9s" },
+  { route: "office-person--subscriptions", duration: "43s", delay: "-33s" },
+  { route: "office-person--garage", duration: "47s", delay: "-29s" },
 ] as const;
 
 function WalkingPeople() {
@@ -278,16 +279,31 @@ function WalkingPeople() {
           className={`office-person absolute ${person.route}`}
           style={{ animationDuration: person.duration, animationDelay: person.delay }}
         >
-          <span className="office-person__figure relative block h-5 w-3.5 drop-shadow-[0_0_3px_rgba(255,255,255,.95)] sm:h-8 sm:w-5">
-            <span className="absolute inset-[-18%] rounded-full bg-white/20 blur-[2px]" />
-            <span className={`absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full border border-slate-950/80 sm:h-3 sm:w-3 ${person.colour}`} />
-            <span className={`absolute left-1/2 top-[28%] h-[45%] w-[70%] -translate-x-1/2 rounded-t-full border border-slate-950/70 ${person.colour}`} />
-            <span className="absolute bottom-0 left-[18%] h-[38%] w-[22%] rotate-[8deg] rounded-full bg-slate-100" />
-            <span className="absolute bottom-0 right-[18%] h-[38%] w-[22%] -rotate-[8deg] rounded-full bg-slate-100" />
-          </span>
+          <span
+            className="office-person__sprite block"
+            style={{ backgroundPosition: `${(index / 6) * 100}% center` }}
+          />
           <span className="sr-only">Person {index + 1}</span>
         </span>
       ))}
+    </div>
+  );
+}
+
+function AmbientOfficeMotion() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[6] overflow-hidden">
+      <div className="workboard-screen absolute left-[78.8%] top-[7.8%] h-[10.2%] w-[14.2%] overflow-hidden rounded-sm border border-cyan-200/20 bg-cyan-950/10 opacity-55 mix-blend-screen">
+        <div className="workboard-grid absolute inset-0" />
+        <div className="workboard-map absolute inset-y-[10%] left-[-35%] flex w-[135%] items-center justify-around text-cyan-200/55">
+          <Globe2 className="h-[76%] w-auto" strokeWidth={1.1} />
+          <Globe2 className="h-[76%] w-auto" strokeWidth={1.1} />
+        </div>
+        <span className="workboard-scan absolute inset-y-0 w-[18%] bg-gradient-to-r from-transparent via-cyan-200/35 to-transparent" />
+      </div>
+      <span className="office-lamp office-lamp--one absolute left-[68.2%] top-[49.7%] h-[5%] w-[3%] rounded-full" />
+      <span className="office-lamp office-lamp--two absolute left-[92.2%] top-[48.3%] h-[5%] w-[3%] rounded-full" />
+      <span className="office-lamp office-lamp--three absolute left-[56.5%] top-[54.2%] h-[4.5%] w-[2.8%] rounded-full" />
     </div>
   );
 }
@@ -348,6 +364,7 @@ export function Office3D() {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(2,6,23,.08)_72%,rgba(2,6,23,.45)_100%)]" />
 
           <WalkingPeople />
+          <AmbientOfficeMotion />
 
           <Link
             to="/brain"
@@ -376,8 +393,35 @@ export function Office3D() {
               animation-timing-function: linear;
               animation-iteration-count: infinite;
             }
-            .office-person__figure {
-              animation: office-walk-bob .42s ease-in-out infinite alternate;
+            .office-person__sprite {
+              width: 20px;
+              height: 48px;
+              background-image: url('/canx-office-people-v1.png');
+              background-repeat: no-repeat;
+              background-size: 700% 100%;
+              filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .72));
+              transform-origin: 50% 100%;
+              animation: office-walk-bob .54s ease-in-out infinite alternate;
+            }
+            .workboard-screen {
+              transform: rotate(.8deg) skewY(-1deg);
+              box-shadow: 0 0 10px rgba(34, 211, 238, .16);
+            }
+            .workboard-grid {
+              background-image: linear-gradient(rgba(103,232,249,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(103,232,249,.1) 1px, transparent 1px);
+              background-size: 12% 24%;
+              animation: workboard-grid-drift 18s linear infinite;
+            }
+            .workboard-map { animation: workboard-map-drift 26s linear infinite; }
+            .workboard-scan { animation: workboard-scan 9s ease-in-out infinite; }
+            .office-lamp {
+              background: radial-gradient(circle, rgba(255,244,190,.42) 0%, rgba(251,191,36,.2) 30%, transparent 70%);
+              opacity: .15;
+              filter: blur(2px);
+              animation: office-lamp-glow 17s ease-in-out infinite;
+            }
+            .office-lamp--two { animation-delay: -6s; animation-duration: 23s; }
+            .office-lamp--three { animation-delay: -13s; animation-duration: 29s; }
             }
             .office-person--family { animation-name: office-route-family; }
             .office-person--communications { animation-name: office-route-communications; }
@@ -388,8 +432,26 @@ export function Office3D() {
             .office-person--garage { animation-name: office-route-garage; }
 
             @keyframes office-walk-bob {
-              from { transform: translateY(-7%) rotate(-2deg); }
-              to { transform: translateY(7%) rotate(2deg); }
+              from { transform: translateY(-1px) rotate(-1deg); }
+              to { transform: translateY(1px) rotate(1deg); }
+            }
+            @keyframes workboard-grid-drift {
+              from { background-position: 0 0; }
+              to { background-position: 24% 0; }
+            }
+            @keyframes workboard-map-drift {
+              from { transform: translateX(0); }
+              to { transform: translateX(50%); }
+            }
+            @keyframes workboard-scan {
+              0%, 18% { left: -24%; opacity: 0; }
+              28% { opacity: .7; }
+              72% { opacity: .7; }
+              82%, 100% { left: 110%; opacity: 0; }
+            }
+            @keyframes office-lamp-glow {
+              0%, 52%, 100% { opacity: .12; transform: scale(.9); }
+              60%, 82% { opacity: .8; transform: scale(1.18); }
             }
             @keyframes office-route-family {
               0%, 8% { left: 50%; top: 82%; opacity: 0; }
@@ -447,7 +509,11 @@ export function Office3D() {
               93%, 100% { left: 30%; top: 13%; opacity: 0; }
             }
             @media (prefers-reduced-motion: reduce) {
+              .office-person, .workboard-map, .workboard-scan, .workboard-grid, .office-lamp { animation: none; }
               .office-person { display: none; }
+            }
+            @media (min-width: 640px) {
+              .office-person__sprite { width: 26px; height: 61px; }
             }
           `}</style>
         </div>
