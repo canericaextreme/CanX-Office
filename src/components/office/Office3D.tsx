@@ -61,7 +61,7 @@ const rooms: OfficeRoom[] = [
     tone: "cyan",
     shape: "soft",
     x: 41,
-    y: 8,
+    y: 6,
   },
   {
     number: "19",
@@ -83,7 +83,7 @@ const rooms: OfficeRoom[] = [
     tone: "purple",
     shape: "wide",
     x: 60,
-    y: 9,
+    y: 7,
   },
   {
     number: "11",
@@ -128,7 +128,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "soft",
     x: 16,
-    y: 25,
+    y: 21,
   },
   {
     number: "09",
@@ -139,7 +139,7 @@ const rooms: OfficeRoom[] = [
     tone: "cyan",
     shape: "wide",
     x: 18,
-    y: 49,
+    y: 47,
   },
   {
     number: "14",
@@ -250,7 +250,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "round",
     x: 59,
-    y: 56,
+    y: 62,
   },
 ];
 
