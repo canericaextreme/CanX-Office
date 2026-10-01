@@ -127,8 +127,8 @@ const rooms: OfficeRoom[] = [
     icon: Users,
     tone: "blue",
     shape: "soft",
-    x: 20,
-    y: 27,
+    x: 16,
+    y: 25,
   },
   {
     number: "09",
