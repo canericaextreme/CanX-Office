@@ -49,8 +49,8 @@ const rooms: OfficeRoom[] = [
     icon: Bike,
     tone: "red",
     shape: "wide",
-    x: 29,
-    y: 12,
+    x: 30,
+    y: 13,
   },
   {
     number: "08",
@@ -60,8 +60,8 @@ const rooms: OfficeRoom[] = [
     icon: Database,
     tone: "cyan",
     shape: "soft",
-    x: 40,
-    y: 10,
+    x: 41,
+    y: 13,
   },
   {
     number: "19",
@@ -71,8 +71,8 @@ const rooms: OfficeRoom[] = [
     icon: Users,
     tone: "purple",
     shape: "round",
-    x: 49,
-    y: 10,
+    x: 50,
+    y: 14,
   },
   {
     number: "17",
@@ -82,8 +82,8 @@ const rooms: OfficeRoom[] = [
     icon: Microscope,
     tone: "purple",
     shape: "wide",
-    x: 59,
-    y: 11,
+    x: 60,
+    y: 14,
   },
   {
     number: "11",
@@ -94,7 +94,7 @@ const rooms: OfficeRoom[] = [
     tone: "teal",
     shape: "oval",
     x: 70,
-    y: 11,
+    y: 16,
   },
   {
     number: "16",
@@ -105,7 +105,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "wide",
     x: 85,
-    y: 17,
+    y: 23,
   },
 
   {
@@ -116,7 +116,7 @@ const rooms: OfficeRoom[] = [
     icon: CheckCircle2,
     tone: "red",
     shape: "oval",
-    x: 10,
+    x: 13,
     y: 36,
   },
   {
@@ -128,7 +128,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "soft",
     x: 20,
-    y: 31,
+    y: 27,
   },
   {
     number: "09",
@@ -139,7 +139,7 @@ const rooms: OfficeRoom[] = [
     tone: "cyan",
     shape: "wide",
     x: 18,
-    y: 46,
+    y: 49,
   },
   {
     number: "14",
@@ -150,7 +150,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "wedge",
     x: 88,
-    y: 30,
+    y: 35,
   },
   {
     number: "10",
@@ -160,8 +160,8 @@ const rooms: OfficeRoom[] = [
     icon: Mail,
     tone: "teal",
     shape: "oval",
-    x: 90,
-    y: 39,
+    x: 91,
+    y: 46,
   },
 
   {
@@ -172,7 +172,7 @@ const rooms: OfficeRoom[] = [
     icon: Landmark,
     tone: "red",
     shape: "wide",
-    x: 20,
+    x: 24,
     y: 61,
   },
   {
@@ -183,7 +183,7 @@ const rooms: OfficeRoom[] = [
     icon: Network,
     tone: "purple",
     shape: "round",
-    x: 35,
+    x: 39,
     y: 70,
   },
   {
@@ -195,7 +195,7 @@ const rooms: OfficeRoom[] = [
     tone: "red",
     shape: "wedge",
     x: 50,
-    y: 77,
+    y: 78,
   },
   {
     number: "18",
@@ -206,7 +206,7 @@ const rooms: OfficeRoom[] = [
     tone: "purple",
     shape: "wide",
     x: 66,
-    y: 69,
+    y: 70,
   },
   {
     number: "06",
@@ -216,8 +216,8 @@ const rooms: OfficeRoom[] = [
     icon: FileText,
     tone: "purple",
     shape: "soft",
-    x: 80,
-    y: 49,
+    x: 78,
+    y: 50,
   },
   {
     number: "13",
@@ -227,8 +227,8 @@ const rooms: OfficeRoom[] = [
     icon: BarChart3,
     tone: "teal",
     shape: "oval",
-    x: 89,
-    y: 57,
+    x: 91,
+    y: 59,
   },
   {
     number: "12",
@@ -238,7 +238,7 @@ const rooms: OfficeRoom[] = [
     icon: CreditCard,
     tone: "teal",
     shape: "soft",
-    x: 81,
+    x: 83,
     y: 69,
   },
   {
@@ -250,7 +250,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "round",
     x: 59,
-    y: 54,
+    y: 56,
   },
 ];
 
@@ -321,9 +321,9 @@ export function Office3D() {
 
       <section
         aria-label="Interactive circular CanX Office"
-        className="mx-auto max-w-[1700px] overflow-x-auto rounded-2xl border border-slate-600 bg-[#050913] p-2 shadow-[0_22px_70px_rgba(0,0,0,.68)]"
+        className="mx-auto w-full max-w-[1700px] overflow-hidden rounded-2xl border border-slate-600 bg-[#050913] p-2 shadow-[0_22px_70px_rgba(0,0,0,.68)]"
       >
-        <div className="relative min-w-[1120px] overflow-hidden rounded-xl bg-slate-950 aspect-[1672/941]">
+        <div className="relative mx-auto aspect-[1672/941] w-full overflow-hidden rounded-xl bg-slate-950">
           <img
             src="/canx-office-circular-cutaway-v2.jpg"
             alt="A realistic circular office complex with furnished rooms arranged around a central atrium"
@@ -352,7 +352,7 @@ export function Office3D() {
 
         <Link
           to="/analytics"
-          className="group mt-2 flex min-h-[66px] min-w-[1120px] items-center gap-4 rounded-lg border-2 border-orange-400 bg-[linear-gradient(100deg,#4a1d08,#7c2d12,#111827)] px-5 py-2 shadow-[0_0_24px_rgba(249,115,22,.18)] transition hover:-translate-y-0.5 hover:border-orange-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
+          className="group mt-2 flex min-h-[66px] w-full items-center gap-4 rounded-lg border-2 border-orange-400 bg-[linear-gradient(100deg,#4a1d08,#7c2d12,#111827)] px-5 py-2 shadow-[0_0_24px_rgba(249,115,22,.18)] transition hover:-translate-y-0.5 hover:border-orange-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-orange-300 bg-black/35 text-orange-200">
             <BarChart3 className="h-5 w-5" />
