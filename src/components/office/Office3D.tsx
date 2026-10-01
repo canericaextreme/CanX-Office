@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Bike,
@@ -271,7 +271,7 @@ const walkingPeople = [
 ] as const;
 
 function WalkingPeople() {
-  const [positions, setPositions] = useState(() => walkingPeople.map((person) => ({ ...person })));
+  const [positions, setPositions] = useState<Array<{ x: number; y: number }>>(() => walkingPeople.map((person) => ({ ...person })));
   const [positionsLoaded, setPositionsLoaded] = useState(false);
   const activeDrag = useRef<number | null>(null);
 
@@ -411,7 +411,7 @@ function DraggableOfficeDog() {
         }}
       >
         <img
-          src="/canx-office-pitbull-copper-v1.png"
+          src="/canx-office-pitbull-copper-v2.png"
           alt=""
           draggable={false}
           className="h-8 w-10 select-none object-contain drop-shadow-[0_2px_2px_rgba(0,0,0,.75)] sm:h-10 sm:w-12"
@@ -434,60 +434,20 @@ function AmbientOfficeMotion() {
 function RoomHotspot({
   room,
   position,
-  onPositionChange,
 }: {
   room: OfficeRoom;
   position: { x: number; y: number };
-  onPositionChange: (position: { x: number; y: number }) => void;
 }) {
   const Icon = room.icon;
-  const dragStart = useRef<{ x: number; y: number } | null>(null);
-  const moved = useRef(false);
 
   return (
     <Link
       to={room.route}
       aria-label={`${room.label} — ${room.purpose}`}
-      title="Drag to place this label, or click to open the room"
+      title={`Open ${room.label}`}
       draggable={false}
-      className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none select-none focus-visible:z-40 focus-visible:outline-none active:cursor-grabbing"
+      className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none focus-visible:z-40 focus-visible:outline-none"
       style={{ left: `${position.x}%`, top: `${position.y}%` }}
-      onPointerDown={(event) => {
-        dragStart.current = { x: event.clientX, y: event.clientY };
-        moved.current = false;
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }}
-      onPointerMove={(event) => {
-        if (!dragStart.current || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
-        const distance = Math.hypot(
-          event.clientX - dragStart.current.x,
-          event.clientY - dragStart.current.y,
-        );
-        if (distance < 4 && !moved.current) return;
-        moved.current = true;
-        event.preventDefault();
-        const container = event.currentTarget.parentElement;
-        if (!container) return;
-        const bounds = container.getBoundingClientRect();
-        const x = Math.min(96, Math.max(4, ((event.clientX - bounds.left) / bounds.width) * 100));
-        const y = Math.min(93, Math.max(7, ((event.clientY - bounds.top) / bounds.height) * 100));
-        onPositionChange({ x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) });
-      }}
-      onPointerUp={(event) => {
-        dragStart.current = null;
-        event.currentTarget.releasePointerCapture(event.pointerId);
-        window.setTimeout(() => {
-          moved.current = false;
-        }, 0);
-      }}
-      onPointerCancel={() => {
-        dragStart.current = null;
-        moved.current = false;
-      }}
-      onDragStart={(event) => event.preventDefault()}
-      onClick={(event) => {
-        if (moved.current) event.preventDefault();
-      }}
     >
       <span
         aria-hidden="true"
@@ -507,11 +467,47 @@ function RoomHotspot({
   );
 }
 
+const ROOF_INTRO_KEY = "canx-office-roof-intro-seen-v1";
+let roofIntroSeenInPage = false;
+
 export function Office3D() {
+  const [roofPhase, setRoofPhase] = useState<"checking" | "closed" | "lifting" | "done">("checking");
+  const [roofLoaded, setRoofLoaded] = useState(false);
+
+  const finishRoofIntro = useCallback(() => {
+    roofIntroSeenInPage = true;
+    try { window.sessionStorage.setItem(ROOF_INTRO_KEY, "1"); } catch { /* Page memory remains available. */ }
+    setRoofPhase("done");
+  }, []);
+
+  useEffect(() => {
+    let seen = roofIntroSeenInPage;
+    try { seen ||= window.sessionStorage.getItem(ROOF_INTRO_KEY) === "1"; } catch { /* Use page memory. */ }
+    if (seen || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      finishRoofIntro();
+    } else {
+      setRoofPhase("closed");
+    }
+  }, [finishRoofIntro]);
+
+  useEffect(() => {
+    if (roofPhase !== "closed") return;
+    // Never let a slow or failed image prevent entry to the office.
+    const timeout = window.setTimeout(finishRoofIntro, 6000);
+    const pause = roofLoaded ? window.setTimeout(() => setRoofPhase("lifting"), 1000) : undefined;
+    return () => { window.clearTimeout(timeout); window.clearTimeout(pause); };
+  }, [roofPhase, roofLoaded, finishRoofIntro]);
+
+  useEffect(() => {
+    if (roofPhase !== "lifting") return;
+    const timer = window.setTimeout(finishRoofIntro, 1700);
+    return () => window.clearTimeout(timer);
+  }, [roofPhase, finishRoofIntro]);
+
   const [labelPositions, setLabelPositions] = useState<Record<string, { x: number; y: number }>>(
     () => Object.fromEntries(rooms.map((room) => [room.number, { x: room.x, y: room.y }])),
   );
-  const [labelPositionsLoaded, setLabelPositionsLoaded] = useState(false);
+
 
   useEffect(() => {
     try {
@@ -526,13 +522,8 @@ export function Office3D() {
     } catch {
       // Keep the checked-in label positions when stored data is unavailable.
     }
-    setLabelPositionsLoaded(true);
   }, []);
 
-  useEffect(() => {
-    if (!labelPositionsLoaded) return;
-    window.localStorage.setItem("canx-office-label-positions-v1", JSON.stringify(labelPositions));
-  }, [labelPositions, labelPositionsLoaded]);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-[#020611] px-2 py-3 text-white sm:px-4">
@@ -561,6 +552,7 @@ export function Office3D() {
           />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(2,6,23,.08)_72%,rgba(2,6,23,.45)_100%)]" />
 
+          <div className="absolute inset-0" inert={roofPhase !== "done"}>
           <WalkingPeople />
           <DraggableOfficeDog />
           <AmbientOfficeMotion />
@@ -584,11 +576,29 @@ export function Office3D() {
               key={room.number}
               room={room}
               position={labelPositions[room.number] ?? { x: room.x, y: room.y }}
-              onPositionChange={(position) =>
-                setLabelPositions((current) => ({ ...current, [room.number]: position }))
-              }
             />
           ))}
+
+          </div>
+          {roofPhase !== "done" && (
+            <div className="absolute inset-0 z-50 overflow-hidden bg-slate-950" style={{ background: roofPhase === "lifting" ? "transparent" : undefined }}>
+              <img
+                src="/canx-office-roof-v1.jpg"
+                alt="The roof of CanX Office lifts to reveal the rooms"
+                onLoad={() => setRoofLoaded(true)}
+                onError={finishRoofIntro}
+                className="h-full w-full object-cover"
+                style={{
+                  transform: roofPhase === "lifting" ? "translateY(-9%) scale(1.05)" : "translateY(0) scale(1)",
+                  opacity: roofPhase === "lifting" ? 0 : 1,
+                  transition: "transform 1600ms ease-in-out, opacity 1600ms ease-in-out",
+                }}
+              />
+              <button type="button" onClick={finishRoofIntro} className="absolute bottom-4 right-4 rounded-lg border border-white/70 bg-slate-950/90 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                Skip introduction
+              </button>
+            </div>
+          )}
 
           <style>{`
             .office-person {
