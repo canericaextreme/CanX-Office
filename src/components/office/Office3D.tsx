@@ -61,7 +61,7 @@ const rooms: OfficeRoom[] = [
     tone: "cyan",
     shape: "soft",
     x: 41,
-    y: 10,
+    y: 8,
   },
   {
     number: "19",
@@ -83,7 +83,7 @@ const rooms: OfficeRoom[] = [
     tone: "purple",
     shape: "wide",
     x: 60,
-    y: 11,
+    y: 9,
   },
   {
     number: "11",
