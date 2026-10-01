@@ -13,7 +13,6 @@ import {
   Database,
   FileText,
   GraduationCap,
-  Globe2,
   HeartPulse,
   Landmark,
   Mail,
@@ -355,11 +354,12 @@ function WalkingPeople() {
 function AmbientOfficeMotion() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[6] overflow-hidden">
-      <div className="workboard-screen absolute left-[78.8%] top-[7.8%] h-[10.2%] w-[14.2%] overflow-hidden rounded-sm border border-cyan-200/20 bg-cyan-950/10 opacity-55 mix-blend-screen">
+      <div className="workboard-screen absolute left-[76.8%] top-[4.6%] h-[17.2%] w-[16.8%] overflow-hidden bg-cyan-950/10 opacity-40 mix-blend-screen">
         <div className="workboard-grid absolute inset-0" />
-        <div className="workboard-map absolute inset-y-[10%] left-[-35%] flex w-[135%] items-center justify-around text-cyan-200/55">
-          <Globe2 className="h-[76%] w-auto" strokeWidth={1.1} />
-          <Globe2 className="h-[76%] w-auto" strokeWidth={1.1} />
+        <div className="workboard-ticker absolute inset-x-[8%] bottom-[18%] flex h-[12%] gap-[4%]">
+          <span className="h-full w-[18%] bg-cyan-200/35" />
+          <span className="h-full w-[34%] bg-sky-200/25" />
+          <span className="h-full w-[22%] bg-teal-200/30" />
         </div>
         <span className="workboard-scan absolute inset-y-0 w-[18%] bg-gradient-to-r from-transparent via-cyan-200/35 to-transparent" />
       </div>
@@ -462,7 +462,7 @@ export function Office3D() {
               animation: none;
             }
             .workboard-screen {
-              transform: rotate(.8deg) skewY(-1deg);
+              clip-path: polygon(2% 0, 100% 27%, 96% 100%, 6% 73%);
               box-shadow: 0 0 10px rgba(34, 211, 238, .16);
             }
             .workboard-grid {
@@ -470,7 +470,7 @@ export function Office3D() {
               background-size: 12% 24%;
               animation: workboard-grid-drift 18s linear infinite;
             }
-            .workboard-map { animation: workboard-map-drift 26s linear infinite; }
+            .workboard-ticker { animation: workboard-ticker-drift 21s ease-in-out infinite; }
             .workboard-scan { animation: workboard-scan 9s ease-in-out infinite; }
             .office-lamp {
               background: radial-gradient(circle, rgba(255,244,190,.42) 0%, rgba(251,191,36,.2) 30%, transparent 70%);
@@ -497,9 +497,10 @@ export function Office3D() {
               from { background-position: 0 0; }
               to { background-position: 24% 0; }
             }
-            @keyframes workboard-map-drift {
-              from { transform: translateX(0); }
-              to { transform: translateX(50%); }
+            @keyframes workboard-ticker-drift {
+              0%, 15% { transform: translateX(-8%); opacity: .3; }
+              45%, 70% { transform: translateX(8%); opacity: .75; }
+              100% { transform: translateX(-8%); opacity: .3; }
             }
             @keyframes workboard-scan {
               0%, 18% { left: -24%; opacity: 0; }
@@ -567,7 +568,7 @@ export function Office3D() {
               93%, 100% { left: 30%; top: 13%; opacity: 0; }
             }
             @media (prefers-reduced-motion: reduce) {
-              .office-person, .workboard-map, .workboard-scan, .workboard-grid, .office-lamp { animation: none; }
+              .office-person, .workboard-ticker, .workboard-scan, .workboard-grid, .office-lamp { animation: none; }
               .office-person { display: none; }
             }
             @media (min-width: 640px) {
