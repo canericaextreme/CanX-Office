@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OfficeRouteImport } from './routes/_office'
 import { Route as OfficeIndexRouteImport } from './routes/_office/index'
+import { Route as OfficeAnalyticsRouteImport } from './routes/_office/analytics'
 import { Route as OfficeApprovalsRouteImport } from './routes/_office/approvals'
 import { Route as OfficeBlueprintRouteImport } from './routes/_office/blueprint'
 import { Route as OfficeBrainRouteImport } from './routes/_office/brain'
 import { Route as OfficeBuildTestingRouteImport } from './routes/_office/build-testing'
 import { Route as OfficeCommunicationsRouteImport } from './routes/_office/communications'
+import { Route as OfficeFamilyContinuityRouteImport } from './routes/_office/family-continuity'
 import { Route as OfficeFinanceRouteImport } from './routes/_office/finance'
 import { Route as OfficeFutureRouteImport } from './routes/_office/future'
 import { Route as OfficeHealthRouteImport } from './routes/_office/health'
@@ -25,6 +27,7 @@ import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-te
 import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
 import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
 import { Route as OfficeRecordsRouteImport } from './routes/_office/records'
+import { Route as OfficeResearchRouteImport } from './routes/_office/research'
 import { Route as OfficeRoundTableRouteImport } from './routes/_office/round-table'
 import { Route as OfficeSafeHighwaysRouteImport } from './routes/_office/safe-highways'
 import { Route as OfficeSkillsRouteImport } from './routes/_office/skills'
@@ -40,6 +43,11 @@ const OfficeRoute = OfficeRouteImport.update({
 const OfficeIndexRoute = OfficeIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeAnalyticsRoute = OfficeAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeApprovalsRoute = OfficeApprovalsRouteImport.update({
@@ -65,6 +73,11 @@ const OfficeBuildTestingRoute = OfficeBuildTestingRouteImport.update({
 const OfficeCommunicationsRoute = OfficeCommunicationsRouteImport.update({
   id: '/communications',
   path: '/communications',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeFamilyContinuityRoute = OfficeFamilyContinuityRouteImport.update({
+  id: '/family-continuity',
+  path: '/family-continuity',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeFinanceRoute = OfficeFinanceRouteImport.update({
@@ -112,6 +125,11 @@ const OfficeRecordsRoute = OfficeRecordsRouteImport.update({
   path: '/records',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeResearchRoute = OfficeResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeRoundTableRoute = OfficeRoundTableRouteImport.update({
   id: '/round-table',
   path: '/round-table',
@@ -150,11 +168,13 @@ const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof OfficeIndexRoute
+  '/analytics': typeof OfficeAnalyticsRoute
   '/approvals': typeof OfficeApprovalsRoute
   '/blueprint': typeof OfficeBlueprintRoute
   '/brain': typeof OfficeBrainRoute
   '/build-testing': typeof OfficeBuildTestingRoute
   '/communications': typeof OfficeCommunicationsRoute
+  '/family-continuity': typeof OfficeFamilyContinuityRoute
   '/finance': typeof OfficeFinanceRoute
   '/future': typeof OfficeFutureRoute
   '/health': typeof OfficeHealthRoute
@@ -164,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
   '/records': typeof OfficeRecordsRoute
+  '/research': typeof OfficeResearchRoute
   '/round-table': typeof OfficeRoundTableRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
   '/skills': typeof OfficeSkillsRoute
@@ -173,11 +194,13 @@ export interface FileRoutesByFullPath {
   '/auth/reset-password': typeof AuthResetPasswordRoute
 }
 export interface FileRoutesByTo {
+  '/analytics': typeof OfficeAnalyticsRoute
   '/approvals': typeof OfficeApprovalsRoute
   '/blueprint': typeof OfficeBlueprintRoute
   '/brain': typeof OfficeBrainRoute
   '/build-testing': typeof OfficeBuildTestingRoute
   '/communications': typeof OfficeCommunicationsRoute
+  '/family-continuity': typeof OfficeFamilyContinuityRoute
   '/finance': typeof OfficeFinanceRoute
   '/future': typeof OfficeFutureRoute
   '/health': typeof OfficeHealthRoute
@@ -187,6 +210,7 @@ export interface FileRoutesByTo {
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
   '/records': typeof OfficeRecordsRoute
+  '/research': typeof OfficeResearchRoute
   '/round-table': typeof OfficeRoundTableRoute
   '/safe-highways': typeof OfficeSafeHighwaysRoute
   '/skills': typeof OfficeSkillsRoute
@@ -199,11 +223,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_office': typeof OfficeRouteWithChildren
+  '/_office/analytics': typeof OfficeAnalyticsRoute
   '/_office/approvals': typeof OfficeApprovalsRoute
   '/_office/blueprint': typeof OfficeBlueprintRoute
   '/_office/brain': typeof OfficeBrainRoute
   '/_office/build-testing': typeof OfficeBuildTestingRoute
   '/_office/communications': typeof OfficeCommunicationsRoute
+  '/_office/family-continuity': typeof OfficeFamilyContinuityRoute
   '/_office/finance': typeof OfficeFinanceRoute
   '/_office/future': typeof OfficeFutureRoute
   '/_office/health': typeof OfficeHealthRoute
@@ -213,6 +239,7 @@ export interface FileRoutesById {
   '/_office/owner-desk': typeof OfficeOwnerDeskRoute
   '/_office/projects': typeof OfficeProjectsRoute
   '/_office/records': typeof OfficeRecordsRoute
+  '/_office/research': typeof OfficeResearchRoute
   '/_office/round-table': typeof OfficeRoundTableRoute
   '/_office/safe-highways': typeof OfficeSafeHighwaysRoute
   '/_office/skills': typeof OfficeSkillsRoute
@@ -226,11 +253,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/analytics'
     | '/approvals'
     | '/blueprint'
     | '/brain'
     | '/build-testing'
     | '/communications'
+    | '/family-continuity'
     | '/finance'
     | '/future'
     | '/health'
@@ -240,6 +269,7 @@ export interface FileRouteTypes {
     | '/owner-desk'
     | '/projects'
     | '/records'
+    | '/research'
     | '/round-table'
     | '/safe-highways'
     | '/skills'
@@ -249,11 +279,13 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/analytics'
     | '/approvals'
     | '/blueprint'
     | '/brain'
     | '/build-testing'
     | '/communications'
+    | '/family-continuity'
     | '/finance'
     | '/future'
     | '/health'
@@ -263,6 +295,7 @@ export interface FileRouteTypes {
     | '/owner-desk'
     | '/projects'
     | '/records'
+    | '/research'
     | '/round-table'
     | '/safe-highways'
     | '/skills'
@@ -274,11 +307,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_office'
+    | '/_office/analytics'
     | '/_office/approvals'
     | '/_office/blueprint'
     | '/_office/brain'
     | '/_office/build-testing'
     | '/_office/communications'
+    | '/_office/family-continuity'
     | '/_office/finance'
     | '/_office/future'
     | '/_office/health'
@@ -288,6 +323,7 @@ export interface FileRouteTypes {
     | '/_office/owner-desk'
     | '/_office/projects'
     | '/_office/records'
+    | '/_office/research'
     | '/_office/round-table'
     | '/_office/safe-highways'
     | '/_office/skills'
@@ -317,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof OfficeIndexRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/analytics': {
+      id: '/_office/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof OfficeAnalyticsRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/_office/approvals': {
@@ -352,6 +395,13 @@ declare module '@tanstack/react-router' {
       path: '/communications'
       fullPath: '/communications'
       preLoaderRoute: typeof OfficeCommunicationsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/_office/family-continuity': {
+      id: '/_office/family-continuity'
+      path: '/family-continuity'
+      fullPath: '/family-continuity'
+      preLoaderRoute: typeof OfficeFamilyContinuityRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/_office/finance': {
@@ -417,6 +467,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeRecordsRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/research': {
+      id: '/_office/research'
+      path: '/research'
+      fullPath: '/research'
+      preLoaderRoute: typeof OfficeResearchRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/round-table': {
       id: '/_office/round-table'
       path: '/round-table'
@@ -470,11 +527,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface OfficeRouteChildren {
+  OfficeAnalyticsRoute: typeof OfficeAnalyticsRoute
   OfficeApprovalsRoute: typeof OfficeApprovalsRoute
   OfficeBlueprintRoute: typeof OfficeBlueprintRoute
   OfficeBrainRoute: typeof OfficeBrainRoute
   OfficeBuildTestingRoute: typeof OfficeBuildTestingRoute
   OfficeCommunicationsRoute: typeof OfficeCommunicationsRoute
+  OfficeFamilyContinuityRoute: typeof OfficeFamilyContinuityRoute
   OfficeFinanceRoute: typeof OfficeFinanceRoute
   OfficeFutureRoute: typeof OfficeFutureRoute
   OfficeHealthRoute: typeof OfficeHealthRoute
@@ -484,6 +543,7 @@ interface OfficeRouteChildren {
   OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
   OfficeProjectsRoute: typeof OfficeProjectsRoute
   OfficeRecordsRoute: typeof OfficeRecordsRoute
+  OfficeResearchRoute: typeof OfficeResearchRoute
   OfficeRoundTableRoute: typeof OfficeRoundTableRoute
   OfficeSafeHighwaysRoute: typeof OfficeSafeHighwaysRoute
   OfficeSkillsRoute: typeof OfficeSkillsRoute
@@ -494,11 +554,13 @@ interface OfficeRouteChildren {
 }
 
 const OfficeRouteChildren: OfficeRouteChildren = {
+  OfficeAnalyticsRoute: OfficeAnalyticsRoute,
   OfficeApprovalsRoute: OfficeApprovalsRoute,
   OfficeBlueprintRoute: OfficeBlueprintRoute,
   OfficeBrainRoute: OfficeBrainRoute,
   OfficeBuildTestingRoute: OfficeBuildTestingRoute,
   OfficeCommunicationsRoute: OfficeCommunicationsRoute,
+  OfficeFamilyContinuityRoute: OfficeFamilyContinuityRoute,
   OfficeFinanceRoute: OfficeFinanceRoute,
   OfficeFutureRoute: OfficeFutureRoute,
   OfficeHealthRoute: OfficeHealthRoute,
@@ -508,6 +570,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
   OfficeProjectsRoute: OfficeProjectsRoute,
   OfficeRecordsRoute: OfficeRecordsRoute,
+  OfficeResearchRoute: OfficeResearchRoute,
   OfficeRoundTableRoute: OfficeRoundTableRoute,
   OfficeSafeHighwaysRoute: OfficeSafeHighwaysRoute,
   OfficeSkillsRoute: OfficeSkillsRoute,
