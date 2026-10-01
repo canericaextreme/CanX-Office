@@ -301,7 +301,7 @@ export function Office3D() {
           </div>
           <h1 className="mt-0.5 text-xl font-black sm:text-2xl">20-room circular office</h1>
         </div>
-        <p className="hidden max-w-lg text-right text-xl font-black italic tracking-wide sm:text-2xl text-rose-200 drop-shadow-[0_0_12px_rgba(251,113,133,.45)] md:block">
+        <p className="hidden max-w-3xl whitespace-nowrap text-right text-4xl font-black italic tracking-wide sm:text-5xl text-rose-200 drop-shadow-[0_0_12px_rgba(251,113,133,.45)] md:block">
           If you can think it, we can do it.
         </p>
       </header>
