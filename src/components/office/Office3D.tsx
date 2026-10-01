@@ -102,9 +102,9 @@ const rooms: OfficeRoom[] = [
     route: "/safe-highways",
     icon: ShieldCheck,
     tone: "blue",
-    shape: "wide",
-    x: 85,
-    y: 23,
+    shape: "wedge",
+    x: 88,
+    y: 35,
   },
 
   {
@@ -147,9 +147,9 @@ const rooms: OfficeRoom[] = [
     route: "/work-board",
     icon: ClipboardList,
     tone: "blue",
-    shape: "wedge",
-    x: 88,
-    y: 35,
+    shape: "wide",
+    x: 85,
+    y: 23,
   },
   {
     number: "10",
@@ -238,7 +238,7 @@ const rooms: OfficeRoom[] = [
     tone: "blue",
     shape: "round",
     x: 66,
-    y: 70,
+    y: 66,
   },
 ];
 
