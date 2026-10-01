@@ -1,8 +1,8 @@
 /**
  * Reception truth regression (14 September 2026 repair backlog): the live
  * command-centre view must not show the old synthetic 4 / 2 / 1 / C$300
- * figures or the SAMPLE_STATUS list, and the office ceiling must appear only
- * with truthful scope and provenance.
+ * figures or the SAMPLE_STATUS list. Private owner limits must not be written
+ * into the public client source.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -23,15 +23,9 @@ describe("Reception shows no synthetic status", () => {
     expect(reception).not.toContain("synthetic examples");
   });
 
-  it("says plainly that no counter is connected instead of guessing", () => {
-    expect(reception).toContain("No counter is connected to the");
-  });
-});
-
-describe("Reception states the office ceiling honestly", () => {
-  it("shows John's C$500 CAD ceiling with provenance and no enforcement claim", () => {
-    expect(reception).toContain("C$500 per month (CAD)");
-    expect(reception).toContain("Provenance:");
-    expect(reception).toContain("not automatically enforced");
+  it("keeps private owner limits out of the public client source", () => {
+    expect(reception).not.toContain("C$500");
+    expect(reception).not.toContain("Provenance:");
+    expect(reception).not.toContain("John");
   });
 });
