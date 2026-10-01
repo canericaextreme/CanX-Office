@@ -64,8 +64,8 @@ const rooms: OfficeRoom[] = [
   },
   {
     number: "19",
-    label: "Family Continuity",
-    purpose: "Knowledge the family can use",
+    label: "Family Continuity & Training",
+    purpose: "Family knowledge and approved working procedures",
     route: "/family-continuity",
     icon: Users,
     tone: "purple",
@@ -197,17 +197,6 @@ const rooms: OfficeRoom[] = [
     y: 78,
   },
   {
-    number: "18",
-    label: "Training & Skills",
-    purpose: "Approved working procedures",
-    route: "/skills",
-    icon: GraduationCap,
-    tone: "purple",
-    shape: "wide",
-    x: 66,
-    y: 70,
-  },
-  {
     number: "06",
     label: "Records",
     purpose: "Files, decisions and sources",
@@ -248,8 +237,8 @@ const rooms: OfficeRoom[] = [
     icon: Wrench,
     tone: "blue",
     shape: "round",
-    x: 59,
-    y: 62,
+    x: 66,
+    y: 70,
   },
 ];
 
@@ -310,7 +299,7 @@ export function Office3D() {
               Private owner review
             </span>
           </div>
-          <h1 className="mt-0.5 text-xl font-black sm:text-2xl">19-room circular office</h1>
+          <h1 className="mt-0.5 text-xl font-black sm:text-2xl">18-room circular office</h1>
         </div>
         <p className="hidden max-w-lg text-right text-xs text-slate-300 md:block">
           Point to a furnished office to bring it forward. Click its name to walk in.
