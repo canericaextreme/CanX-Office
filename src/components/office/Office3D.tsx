@@ -302,7 +302,7 @@ export function Office3D() {
           <h1 className="mt-0.5 text-xl font-black sm:text-2xl">20-room circular office</h1>
         </div>
         <p className="hidden max-w-lg text-right text-xs text-slate-300 md:block">
-          Point to a furnished office to bring it forward. Click its name to walk in.
+          If you can think it, we can do it.
         </p>
       </header>
 
