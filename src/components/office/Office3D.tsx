@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-type RoomTone = "red" | "blue" | "purple" | "teal" | "cyan";
+type RoomTone = "red" | "blue" | "purple" | "teal" | "cyan" | "lime";
 type RoomShape = "round" | "oval" | "wedge" | "wide" | "soft";
 
 type OfficeRoom = {
@@ -68,7 +68,7 @@ const rooms: OfficeRoom[] = [
     purpose: "Family knowledge and approved working procedures",
     route: "/family-continuity",
     icon: Users,
-    tone: "purple",
+    tone: "lime",
     shape: "wide",
     x: 24,
     y: 61,
@@ -248,6 +248,7 @@ const toneClasses: Record<RoomTone, string> = {
   purple: "border-violet-300/80 bg-violet-950/85 shadow-violet-500/30 group-hover:bg-violet-600",
   teal: "border-teal-200/80 bg-teal-950/85 shadow-teal-400/30 group-hover:bg-teal-600",
   cyan: "border-cyan-200/80 bg-cyan-950/85 shadow-cyan-400/30 group-hover:bg-cyan-600",
+  lime: "border-lime-100 bg-lime-500 !text-slate-950 shadow-[0_0_22px_rgba(163,230,53,.72)] group-hover:bg-lime-300 group-hover:shadow-[0_0_34px_rgba(190,242,100,.95)]",
 };
 
 const haloClasses: Record<RoomShape, string> = {
