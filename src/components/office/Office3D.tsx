@@ -414,7 +414,7 @@ function DraggableOfficeDog() {
           src="/canx-office-pitbull-copper-v1.png"
           alt=""
           draggable={false}
-          className="h-10 w-12 select-none object-contain drop-shadow-[0_2px_2px_rgba(0,0,0,.75)] sm:h-14 sm:w-16"
+          className="h-8 w-10 select-none object-contain drop-shadow-[0_2px_2px_rgba(0,0,0,.75)] sm:h-10 sm:w-12"
         />
       </span>
     </div>
@@ -449,7 +449,8 @@ function RoomHotspot({
       to={room.route}
       aria-label={`${room.label} — ${room.purpose}`}
       title="Drag to place this label, or click to open the room"
-      className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none focus-visible:z-40 focus-visible:outline-none active:cursor-grabbing"
+      draggable={false}
+      className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none select-none focus-visible:z-40 focus-visible:outline-none active:cursor-grabbing"
       style={{ left: `${position.x}%`, top: `${position.y}%` }}
       onPointerDown={(event) => {
         dragStart.current = { x: event.clientX, y: event.clientY };
@@ -483,6 +484,7 @@ function RoomHotspot({
         dragStart.current = null;
         moved.current = false;
       }}
+      onDragStart={(event) => event.preventDefault()}
       onClick={(event) => {
         if (moved.current) event.preventDefault();
       }}
