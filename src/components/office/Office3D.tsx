@@ -271,15 +271,16 @@ const walkingPeople = [
 
 function WalkingPeople() {
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] overflow-hidden">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[8] overflow-hidden">
       {walkingPeople.map((person, index) => (
         <span
           key={person.route}
           className={`office-person absolute ${person.route}`}
           style={{ animationDuration: person.duration, animationDelay: person.delay }}
         >
-          <span className="office-person__figure relative block h-3.5 w-2 drop-shadow-[0_1px_2px_rgba(0,0,0,.9)] sm:h-5 sm:w-3">
-            <span className={`absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full border border-slate-950/70 sm:h-2 sm:w-2 ${person.colour}`} />
+          <span className="office-person__figure relative block h-5 w-3.5 drop-shadow-[0_0_3px_rgba(255,255,255,.95)] sm:h-8 sm:w-5">
+            <span className="absolute inset-[-18%] rounded-full bg-white/20 blur-[2px]" />
+            <span className={`absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full border border-slate-950/80 sm:h-3 sm:w-3 ${person.colour}`} />
             <span className={`absolute left-1/2 top-[28%] h-[45%] w-[70%] -translate-x-1/2 rounded-t-full border border-slate-950/70 ${person.colour}`} />
             <span className="absolute bottom-0 left-[18%] h-[38%] w-[22%] rotate-[8deg] rounded-full bg-slate-100" />
             <span className="absolute bottom-0 right-[18%] h-[38%] w-[22%] -rotate-[8deg] rounded-full bg-slate-100" />
