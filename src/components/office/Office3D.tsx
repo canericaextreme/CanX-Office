@@ -273,9 +273,8 @@ function RoomHotspot({ room }: { room: OfficeRoom }) {
         className={`pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2 border-2 border-white/0 bg-black/0 opacity-0 shadow-2xl backdrop-brightness-110 transition duration-300 group-hover:scale-110 group-hover:border-white/75 group-hover:bg-white/10 group-hover:opacity-100 group-focus-visible:scale-110 group-focus-visible:border-white/75 group-focus-visible:bg-white/10 group-focus-visible:opacity-100 ${haloClasses[room.shape]}`}
       />
       <span
-        className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-black text-white shadow-lg backdrop-blur-md transition duration-300 group-hover:scale-110 group-hover:shadow-xl group-focus-visible:scale-110 group-focus-visible:ring-2 group-focus-visible:ring-white ${toneClasses[room.tone]}`}
+        className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-black text-white shadow-lg backdrop-blur-md transition duration-300 group-hover:scale-110 group-hover:shadow-xl group-focus-visible:scale-110 group-focus-visible:ring-2 group-focus-visible:ring-white ${toneClasses[room.tone]}`}
       >
-        <span className="rounded-full bg-black/45 px-1.5 py-0.5">{room.number}</span>
         <span className="whitespace-nowrap">{room.label}</span>
         <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
       </span>
