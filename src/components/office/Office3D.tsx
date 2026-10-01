@@ -351,18 +351,79 @@ function WalkingPeople() {
   );
 }
 
+function DraggableOfficeDog() {
+  const [position, setPosition] = useState({ x: 54, y: 63 });
+  const [positionLoaded, setPositionLoaded] = useState(false);
+  const dragging = useRef(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("canx-office-dog-position-v1");
+      if (saved) {
+        const parsed = JSON.parse(saved) as { x: number; y: number };
+        if (Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) setPosition(parsed);
+      }
+    } catch {
+      // Keep the safe default position when stored data is unavailable.
+    }
+    setPositionLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!positionLoaded) return;
+    window.localStorage.setItem("canx-office-dog-position-v1", JSON.stringify(position));
+  }, [position, positionLoaded]);
+
+  const moveDog = (clientX: number, clientY: number, container: HTMLElement) => {
+    const bounds = container.getBoundingClientRect();
+    const x = Math.min(96, Math.max(4, ((clientX - bounds.left) / bounds.width) * 100));
+    const y = Math.min(93, Math.max(7, ((clientY - bounds.top) / bounds.height) * 100));
+    setPosition({ x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) });
+  };
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[8] overflow-hidden">
+      <span
+        role="button"
+        tabIndex={0}
+        aria-label="Move the office pit bull"
+        title="Drag to place the dog"
+        className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 active:cursor-grabbing"
+        style={{ left: `${position.x}%`, top: `${position.y}%` }}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          dragging.current = true;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          const container = event.currentTarget.parentElement;
+          if (container) moveDog(event.clientX, event.clientY, container);
+        }}
+        onPointerMove={(event) => {
+          if (!dragging.current) return;
+          const container = event.currentTarget.parentElement;
+          if (container) moveDog(event.clientX, event.clientY, container);
+        }}
+        onPointerUp={(event) => {
+          dragging.current = false;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+        onPointerCancel={() => {
+          dragging.current = false;
+        }}
+      >
+        <img
+          src="/canx-office-pitbull-copper-v1.png"
+          alt=""
+          draggable={false}
+          className="h-10 w-12 select-none object-contain drop-shadow-[0_2px_2px_rgba(0,0,0,.75)] sm:h-14 sm:w-16"
+        />
+      </span>
+    </div>
+  );
+}
+
 function AmbientOfficeMotion() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[6] overflow-hidden">
-      <div className="workboard-screen absolute left-[76.8%] top-[4.6%] h-[17.2%] w-[16.8%] overflow-hidden bg-cyan-950/10 opacity-40 mix-blend-screen">
-        <div className="workboard-grid absolute inset-0" />
-        <div className="workboard-ticker absolute inset-x-[8%] bottom-[18%] flex h-[12%] gap-[4%]">
-          <span className="h-full w-[18%] bg-cyan-200/35" />
-          <span className="h-full w-[34%] bg-sky-200/25" />
-          <span className="h-full w-[22%] bg-teal-200/30" />
-        </div>
-        <span className="workboard-scan absolute inset-y-0 w-[18%] bg-gradient-to-r from-transparent via-cyan-200/35 to-transparent" />
-      </div>
       <span className="office-lamp office-lamp--one absolute left-[68.2%] top-[49.7%] h-[5%] w-[3%] rounded-full" />
       <span className="office-lamp office-lamp--two absolute left-[92.2%] top-[48.3%] h-[5%] w-[3%] rounded-full" />
       <span className="office-lamp office-lamp--three absolute left-[56.5%] top-[54.2%] h-[4.5%] w-[2.8%] rounded-full" />
@@ -370,14 +431,61 @@ function AmbientOfficeMotion() {
   );
 }
 
-function RoomHotspot({ room }: { room: OfficeRoom }) {
+function RoomHotspot({
+  room,
+  position,
+  onPositionChange,
+}: {
+  room: OfficeRoom;
+  position: { x: number; y: number };
+  onPositionChange: (position: { x: number; y: number }) => void;
+}) {
   const Icon = room.icon;
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
+
   return (
     <Link
       to={room.route}
       aria-label={`${room.label} — ${room.purpose}`}
-      className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 focus-visible:z-40 focus-visible:outline-none"
-      style={{ left: `${room.x}%`, top: `${room.y}%` }}
+      title="Drag to place this label, or click to open the room"
+      className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none focus-visible:z-40 focus-visible:outline-none active:cursor-grabbing"
+      style={{ left: `${position.x}%`, top: `${position.y}%` }}
+      onPointerDown={(event) => {
+        dragStart.current = { x: event.clientX, y: event.clientY };
+        moved.current = false;
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (!dragStart.current || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+        const distance = Math.hypot(
+          event.clientX - dragStart.current.x,
+          event.clientY - dragStart.current.y,
+        );
+        if (distance < 4 && !moved.current) return;
+        moved.current = true;
+        event.preventDefault();
+        const container = event.currentTarget.parentElement;
+        if (!container) return;
+        const bounds = container.getBoundingClientRect();
+        const x = Math.min(96, Math.max(4, ((event.clientX - bounds.left) / bounds.width) * 100));
+        const y = Math.min(93, Math.max(7, ((event.clientY - bounds.top) / bounds.height) * 100));
+        onPositionChange({ x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) });
+      }}
+      onPointerUp={(event) => {
+        dragStart.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        window.setTimeout(() => {
+          moved.current = false;
+        }, 0);
+      }}
+      onPointerCancel={() => {
+        dragStart.current = null;
+        moved.current = false;
+      }}
+      onClick={(event) => {
+        if (moved.current) event.preventDefault();
+      }}
     >
       <span
         aria-hidden="true"
@@ -398,6 +506,32 @@ function RoomHotspot({ room }: { room: OfficeRoom }) {
 }
 
 export function Office3D() {
+  const [labelPositions, setLabelPositions] = useState<Record<string, { x: number; y: number }>>(
+    () => Object.fromEntries(rooms.map((room) => [room.number, { x: room.x, y: room.y }])),
+  );
+  const [labelPositionsLoaded, setLabelPositionsLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("canx-office-label-positions-v1");
+      if (saved) {
+        const parsed = JSON.parse(saved) as Record<string, { x: number; y: number }>;
+        const isValid = rooms.every(
+          (room) => Number.isFinite(parsed[room.number]?.x) && Number.isFinite(parsed[room.number]?.y),
+        );
+        if (isValid) setLabelPositions(parsed);
+      }
+    } catch {
+      // Keep the checked-in label positions when stored data is unavailable.
+    }
+    setLabelPositionsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!labelPositionsLoaded) return;
+    window.localStorage.setItem("canx-office-label-positions-v1", JSON.stringify(labelPositions));
+  }, [labelPositions, labelPositionsLoaded]);
+
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-[#020611] px-2 py-3 text-white sm:px-4">
       <header className="mx-auto mb-3 flex max-w-[1700px] items-center justify-between gap-3 rounded-lg border border-slate-700 bg-[#0a101c] px-4 py-2.5 shadow-lg">
@@ -443,7 +577,14 @@ export function Office3D() {
           </Link>
 
           {rooms.map((room) => (
-            <RoomHotspot key={room.number} room={room} />
+            <RoomHotspot
+              key={room.number}
+              room={room}
+              position={labelPositions[room.number] ?? { x: room.x, y: room.y }}
+              onPositionChange={(position) =>
+                setLabelPositions((current) => ({ ...current, [room.number]: position }))
+              }
+            />
           ))}
 
           <style>{`
