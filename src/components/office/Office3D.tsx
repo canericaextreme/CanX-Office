@@ -59,8 +59,8 @@ const rooms: OfficeRoom[] = [
     icon: Database,
     tone: "cyan",
     shape: "soft",
-    x: 41,
-    y: 6,
+    x: 39,
+    y: 8,
   },
   {
     number: "19",
@@ -81,8 +81,8 @@ const rooms: OfficeRoom[] = [
     icon: Microscope,
     tone: "purple",
     shape: "wide",
-    x: 60,
-    y: 7,
+    x: 62,
+    y: 9,
   },
   {
     number: "11",
@@ -93,7 +93,7 @@ const rooms: OfficeRoom[] = [
     tone: "teal",
     shape: "oval",
     x: 70,
-    y: 16,
+    y: 14,
   },
   {
     number: "16",
