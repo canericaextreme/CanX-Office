@@ -1,5 +1,5 @@
 /**
- * Astra's continuous spoken conversation — SERVER ONLY, FAIL CLOSED.
+ * Elsie's continuous spoken conversation — SERVER ONLY, FAIL CLOSED.
  *
  * This is deliberately separate from the old record/transcribe/TTS chain.
  * The browser receives only a short-lived realtime client secret. Before one
@@ -46,7 +46,7 @@ export interface ManagerRealtimeDeps {
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   realtimeModel: string | undefined;
-  /** Same durable Astra memory as typed chat, for the verified owner id only. */
+  /** Same durable Elsie memory as typed chat, for the verified owner id only. */
   readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
 }
 
@@ -98,11 +98,11 @@ export function managerRealtimeInstructions(context: string, team: unknown, mode
     MANAGER_SYSTEM_PROMPT,
     "",
     "Live voice-session limits:",
-    "- You are Astra's spoken interface. EVERY user turn, including planning, advice, memory questions and ordinary conversation, goes through submit_office_request to the shared Office reasoning model. Wait for its result; do not answer independently. Sending a discussion question to the reasoning model does not authorize an action.",
+    "- You are Elsie's spoken interface. EVERY user turn, including planning, advice, memory questions and ordinary conversation, goes through submit_office_request to the shared Office reasoning model. Wait for its result; do not answer independently. Sending a discussion question to the reasoning model does not authorize an action.",
     "- Deliver the returned answer naturally, with a warm, steady voice and normal pauses. Do not add facts, promises, remembered details or completion claims. Avoid canned acknowledgments and repeated offers to help.",
     "- If John says Save this conversation, call submit_office_request. It saves only a useful office/build/ideas summary to persistent CanX Brain memory. Wait for the tool result before claiming a save. The application also checkpoints useful discussion under the standing continuity rule. Never claim a checkpoint succeeded without its returned result.",
     "- Keep listening after every answer. The conversation continues until John presses End conversation.",
-    "- For EVERY question about current office records, approvals, room contents, or any requested room inspection or small change, call submit_office_request. The startup context is a snapshot and can become stale. Never argue that an approval is still pending without checking again. For any office action requested by John, call submit_office_request. It submits his actual transcribed words to the same server controls as typed Astra. Do not invent a request or carry out an old request from saved history.",
+    "- For EVERY question about current office records, approvals, room contents, or any requested room inspection or small change, call submit_office_request. The startup context is a snapshot and can become stale. Never argue that an approval is still pending without checking again. For any office action requested by John, call submit_office_request. It submits his actual transcribed words to the same server controls as typed Elsie. Do not invent a request or carry out an old request from saved history.",
     "- To inspect a named room, call submit_office_request; the office opens the named room and returns a fresh redacted visual review. John does not need to open it or press a second button. You can inspect any directory room on request. Never claim to see a screen until the tool returns the observation.",
     "- Small changes available directly: add a room report using Add a report to [room]: [text], set conversation text size to 20/24/28/32, and existing Work Board actions. Describe unsupported layout/code changes as work still to implement, never as completed.",
     "- Speak English unless John asks otherwise. Ignore background television and unrelated voices where possible. If uncertain, ask John to repeat rather than inventing a request.",
@@ -155,7 +155,7 @@ export async function createManagerRealtimeSessionWith(
   if (!context.ok) return deny("context_unavailable", context.message);
 
   // Durable memory is read before the session is minted. A failed read is
-  // stated plainly to Astra; voice continues on the office records alone.
+  // stated plainly to Elsie; voice continues on the office records alone.
   const continuity: ContinuityRead = deps.readContinuity
     ? await deps.readContinuity(accessToken, verification.userId)
         .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
@@ -202,7 +202,7 @@ export type VoiceTurnContextResult =
   | { ok: false; instructions: null; memoryRead: false; detail: string };
 
 /**
- * Per-turn refresh for live voice. Re-reads office records and durable Astra
+ * Per-turn refresh for live voice. Re-reads office records and durable Elsie
  * memory for the server-verified owner before each spoken reply. No AI call,
  * no budget reservation. A memory failure is stated plainly in the returned
  * instructions; an office-records failure returns ok:false so the browser

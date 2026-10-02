@@ -16,7 +16,7 @@ export function MemoryHealthCard({ accessToken }: { accessToken: string }) {
   };
   return (
     <div className="rounded-lg border border-border p-2.5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Astra memory</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Elsie memory</p>
       <p role="status" className="mt-1.5 text-sm font-semibold text-foreground">
         {health ? (health.state === "connected" ? "Memory connected" : "Memory degraded") : "Not checked yet"}
       </p>

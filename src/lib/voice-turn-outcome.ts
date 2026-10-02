@@ -1,7 +1,7 @@
 /**
  * Turns an Office Manager reply into a voice-turn outcome. A usable assistant
  * answer always wins: an error detail is never rendered or spoken as if it
- * were Astra's reply, and a generic "busy" message never replaces real text.
+ * were Elsie's reply, and a generic "busy" message never replaces real text.
  */
 export type VoiceFailureStage =
   | "transcription"
@@ -43,7 +43,7 @@ export function voiceTurnOutcome(reply: VoiceReplyLike):
   return {
     kind: "failure",
     stage: stageOf(reply),
-    message: `Astra heard you, but no answer was produced. ${reply.detail?.trim() || "The office request did not complete."}`,
+    message: `Elsie heard you, but no answer was produced. ${reply.detail?.trim() || "The office request did not complete."}`,
     ...(reply.providerStatus ? { status: reply.providerStatus } : {}),
   };
 }

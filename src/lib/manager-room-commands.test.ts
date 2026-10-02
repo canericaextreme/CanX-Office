@@ -6,6 +6,10 @@ describe("direct owner room requests", () => {
   it.each(ROOMS)("can inspect $shortLabel without the owner opening it", room => {
     expect(parseRoomCommand(`Check ${room.shortLabel}`, "/")).toEqual({ kind: "look", room });
   });
+  it.each(["Elsie", "Astra", "Data"])("accepts %s as the manager name", name => {
+    expect(parseRoomCommand(`${name}, check Finance`, "/")).toMatchObject({ kind: "look", room: { id: "finance" } });
+    expect(parseRoomCommand(`Move ${name} window to the left`, "/")).toEqual({ kind: "move-panel", side: "left" });
+  });
   it("resolves the subscription watch phrasing and the open room", () => {
     expect(parseRoomCommand("Astra, please go into the subscription watch room and tell me what you see", "/")?.kind).toBe("look");
     expect(parseRoomCommand("Look at this room", "/finance")).toMatchObject({ kind: "look", room: { id: "finance" } });

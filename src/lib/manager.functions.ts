@@ -173,7 +173,7 @@ export interface ManagerDeps {
    */
   consultWorker?: (input: ConsultInput) => Promise<ConsultReply>;
   now?: () => Date;
-  /** Astra continuity read, scoped to the server-verified owner id only. */
+  /** Elsie continuity read, scoped to the server-verified owner id only. */
   readDocuments?: (token: string, request: string, previous: string) => Promise<import("./document-knowledge").DocumentContext>;
   readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
   /** Persist a completed turn for the server-verified owner id only. */
@@ -534,7 +534,7 @@ export async function computeManagerStatusWith(
   const keyPresent = Boolean(deps.openaiKey);
   const modelConfigured = Boolean(deps.model);
 
-  // "Connected" means Astra can actually complete a paid request. Use the
+  // "Connected" means Elsie can actually complete a paid request. Use the
   // same owner + authenticator gate as chat so an AAL1 session is never shown
   // as ready while the budget reservation would refuse it.
   const verification = await deps.verifyOwner(accessToken);
@@ -627,12 +627,12 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
  * Immutable system instructions. Client-supplied office context is NEVER
  * interpolated here; it is sent separately as labelled untrusted data.
  */
-export const MANAGER_SYSTEM_PROMPT = `You are Astra, the CanX Office Manager for John Cantlon's CanX Office. You run the office: you turn approved decisions into tasks, assign workers, verify results, and keep one master task list. You talk only to John and act as the single office coordinator.
+export const MANAGER_SYSTEM_PROMPT = `You are Elsie, the CanX Office Manager for John Cantlon's CanX Office. You run the office: you turn approved decisions into tasks, assign workers, verify results, and keep one master task list. You talk only to John and act as the single office coordinator.
 
 Language: always reply in English, even when John's message is a short sound or a word that looks like another language (for example a speech-to-text mistake). Use another language only when John clearly asks for it.
 
 Continuity is a standing office rule:
-- Your name is Astra. Data is the former name of this same office role. Preserve all existing records, goals, decisions, source labels and audit history; a name change is never a memory reset.
+- Your name is Elsie. Astra and Data are former names of this same office role. Use Elsie for your current identity, even when saved history uses a former name. Preserve all existing records, goals, decisions, source labels and audit history; a name change is never a memory reset.
 - Carry forward the owner's saved goals, working preferences, constraints and open ideas before recommending the next step. Explain conflicting or missing history; never invent a memory or silently replace a goal.
 - Keep the conversation natural, connected and concise. Lead with the useful answer, use plain words, and ask at most one focused question when needed. Avoid canned acknowledgments and ending every reply with an offer to help. Use relevant saved context without reciting the owner profile. Accept corrections immediately. Keep ideas distinct from commitments, research distinct from verified evidence, and plans distinct from completed work.
 - Research opportunities, niches, existing builders and competitors; include source links and relevant video evidence when available. Recommend the best available AI or combination for the task, based on capability and cost. Queue findings for review together before treating a new idea as an approved build or goal. Never claim a research or AI connection is available unless its tool result proves it.
@@ -804,8 +804,8 @@ function sanitizedProviderDetail(status?: number, stage: "provider_check" | "ass
   if (status === 401 || status === 403) return "The AI provider connection needs attention.";
   if (status === 429)
     return stage === "provider_check"
-      ? "The AI provider asked Astra to slow down during its connection check (HTTP 429). No answer was requested; wait a moment and send again."
-      : "The AI provider is rate-limiting Astra right now (HTTP 429). Your words arrived; wait a moment and send again.";
+      ? "The AI provider asked Elsie to slow down during its connection check (HTTP 429). No answer was requested; wait a moment and send again."
+      : "The AI provider is rate-limiting Elsie right now (HTTP 429). Your words arrived; wait a moment and send again.";
   if (status && status >= 500) return "The AI service could not be reached. Please try again.";
   return "The AI service could not be reached. Please try again.";
 }
@@ -906,7 +906,7 @@ async function callOpenAI(
         ...denyReply(
           "provider_error",
           "configured_unverified",
-          "Astra did not receive a usable reply. No office action was carried out. Please try again.",
+          "Elsie did not receive a usable reply. No office action was carried out. Please try again.",
           model,
         ),
         failedStage: "response_parse",
@@ -1302,7 +1302,7 @@ export async function runManagerChatWith(
   deps: ManagerDeps,
   data: ChatInput,
 ): Promise<ManagerReply> {
-  // GATE 1 — paid Astra calls use the same AAL2 owner requirement as the
+  // GATE 1 — paid Elsie calls use the same AAL2 owner requirement as the
   // database reservation. This reports an authenticator problem accurately
   // instead of mislabelling it as a spending-limit failure.
   const verification = await deps.verifyOwner(data.accessToken);
@@ -1343,8 +1343,8 @@ export async function runManagerChatWith(
     return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
   }
 
-  // GATE 3b — Astra continuity, read before any paid call, for the verified
-  // owner id only. A failed read degrades honestly: Astra is told continuity
+  // GATE 3b — Elsie continuity, read before any paid call, for the verified
+  // owner id only. A failed read degrades honestly: Elsie is told continuity
   // was NOT read and must not claim it; nothing is invented.
   const continuity: ContinuityRead = deps.readContinuity
     ? await deps.readContinuity(data.accessToken, verification.userId)

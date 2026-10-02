@@ -17,7 +17,7 @@ export async function recordVoiceTurnWith(deps: VoiceTurnDeps, input: { accessTo
   const result = await astra.recordAstraTurn(rest, owner.userId, input.user, input.answer);
   return result.saved
     ? { ok: true, message: "Spoken turn saved and read back." }
-    : { ok: false, message: "The spoken turn was not saved to Astra memory." };
+    : { ok: false, message: "The spoken turn was not saved to Elsie memory." };
 }
 
 export const recordVoiceTurn = createServerFn({ method: "POST" })

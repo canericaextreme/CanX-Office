@@ -29,7 +29,7 @@ export function BrainMemory() {
       if (!result.ok) { setStatus(result.message); return; }
       const saved = (result.data ?? []).filter((note) => note.source.startsWith("CanX Brain:"));
       setNotes(saved);
-      setStatus(saved.length ? `${saved.length} saved summaries. Astra reads these shared records when answering.` : "No conversation summaries saved yet.");
+      setStatus(saved.length ? `${saved.length} saved summaries. Elsie reads these shared records when answering.` : "No conversation summaries saved yet.");
     }).catch(() => { if (active) setStatus("Saved memory could not be read. Please reopen this room to retry."); });
     return () => { active = false; };
   }, [session.shared, session.accessToken, read, refresh]);
@@ -65,7 +65,7 @@ export function BrainMemory() {
     <CardHeader><CardTitle className="text-base">Saved conversation memory</CardTitle></CardHeader>
     <CardContent className="space-y-4">
       <p role="status" className="text-sm text-muted-foreground">{status}</p>
-      <p className="text-sm">Astra continuity rule: carry forward saved goals, decisions and ideas. Keep the existing history, accept corrections, and say when a memory is missing. Imported continuity records remain in Astra’s context alongside recent summaries.</p>
+      <p className="text-sm">Elsie continuity rule: carry forward saved goals, decisions and ideas. Keep the existing history, accept corrections, and say when a memory is missing. Imported continuity records remain in Elsie’s context alongside recent summaries.</p>
       <details className="rounded-md border border-border p-3">
         <summary className="cursor-pointer text-sm font-medium">Import conversation handover</summary>
         <p className="my-2 text-sm text-muted-foreground">Add a prepared handover file to private CanX Brain memory. This adds records; it does not replace existing history or connect ChatGPT automatically.</p>

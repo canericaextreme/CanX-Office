@@ -1,6 +1,6 @@
 /** Exact commands only: quoted, hypothetical and negative mentions do not save. */
 export function requestsConversationSave(text: string): boolean {
-  return /^(?:(?:astra|data|please)[,\s]+)*(?:save (?:this|the) conversation)(?:\s+please)?[.!?]*$/i.test(text.trim());
+  return /^(?:(?:elsie|astra|data|please)[,\s]+)*(?:save (?:this|the) conversation)(?:\s+please)?[.!?]*$/i.test(text.trim());
 }
 export interface ConversationTurn { role: "user" | "assistant"; content: string }
 export const MEMORY_NOTICE = 'Continuity rule: useful office, build and idea discussion is summarized after a pause while this window stays open. Chatter is excluded. Only a verified Brain save survives closing. Say “Save this conversation” to save now.';

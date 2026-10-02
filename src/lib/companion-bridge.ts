@@ -3,12 +3,12 @@
  *
  * The companion is self-contained: Chat is its own voice session and Work is
  * its own written panel (the "Office Work assistant"). Neither reaches the
- * Office Manager (Astra) on its own.
+ * Office Manager (Elsie) on its own.
  *
  * The one deliberate exception is the handoff below, which happens ONLY when
- * John presses a hand-off button. It carries plain text for Astra's panel to
+ * John presses a hand-off button. It carries plain text for Elsie's panel to
  * show as an editable, UNSENT draft. It never sends, saves, approves or spends.
- * Only John pressing "Send to Astra" in her panel submits it, through the
+ * Only John pressing "Send to Elsie" in her panel submits it, through the
  * normal owner/MFA/budget-guarded Manager pipeline.
  */
 
@@ -39,9 +39,9 @@ export const HANDOFF_SOURCE_LABEL: Record<HandoffSource, string> = {
 };
 
 /**
- * drafted   — placed in Astra's panel, not sent.
+ * drafted   — placed in Elsie's panel, not sent.
  * submitted — John pressed Send; waiting for the server.
- * responded — Astra answered; no office record was changed.
+ * responded — Elsie answered; no office record was changed.
  * acted     — the server reports a real action was saved (done).
  * pending_approval — the server queued something for John's approval.
  * blocked   — refused before any provider call (sign-in, MFA, limits, health, records).
@@ -68,9 +68,9 @@ export interface HandoffReceipt {
 
 export const HANDOFF_STATUS_LABEL: Record<HandoffStatus, string> = {
   drafted: "Draft — not sent",
-  submitted: "Submitted — waiting for Astra",
-  responded: "Astra responded — nothing changed",
-  acted: "Astra saved a change",
+  submitted: "Submitted — waiting for Elsie",
+  responded: "Elsie responded — nothing changed",
+  acted: "Elsie saved a change",
   pending_approval: "Waiting for your approval",
   blocked: "Blocked — nothing was sent to the AI",
   failed: "Failed — result not confirmed",
@@ -81,7 +81,7 @@ export interface ActiveHandoff {
   id: string;
   status: HandoffStatus;
   canResend: boolean;
-  /** The draft text as it was placed in Astra's panel. */
+  /** The draft text as it was placed in Elsie's panel. */
   text: string;
 }
 
@@ -199,14 +199,14 @@ export function handoffStatusFromReply(reply: ReplyLike | null | undefined): {
   const pending = actions.filter((a) => a.status === "pending").length;
   const saveNote =
     reply.persisted === true
-      ? " Saved to Astra's memory."
+      ? " Saved to Elsie's memory."
       : reply.persisted === false
-        ? " Not saved to Astra's memory — it will not be recalled after reload."
+        ? " Not saved to Elsie's memory — it will not be recalled after reload."
         : "";
   if (pending > 0)
     return { status: "pending_approval", detail: `${pending} item(s) queued for your approval.${saveNote}`, canResend: false };
   if (done > 0) return { status: "acted", detail: `${done} change(s) saved by the server.${saveNote}`, canResend: false };
-  return { status: "responded", detail: `Astra answered. No office record was changed.${saveNote}`, canResend: false };
+  return { status: "responded", detail: `Elsie answered. No office record was changed.${saveNote}`, canResend: false };
 }
 
 const SECRET_PATTERNS: RegExp[] = [
@@ -246,7 +246,7 @@ export function buildWorkHandoffDraft(turns: WorkTurnLike[], userIndex: number):
     lines.push("", `Work assistant's suggestion (unverified): ${clip(redactSecrets(recommendation), 2000)}`);
   lines.push(
     "",
-    "Astra: first restate the actionable request in plain words. Then report what you checked, what you changed (only real saved results), what remains, and the status. Treat this as an idea to discuss unless I clearly approve an action.",
+    "Elsie: first restate the actionable request in plain words. Then report what you checked, what you changed (only real saved results), what remains, and the status. Treat this as an idea to discuss unless I clearly approve an action.",
   );
   return lines.join("\n").slice(0, 4000);
 }

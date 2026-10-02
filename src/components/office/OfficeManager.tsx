@@ -153,7 +153,7 @@ export function OfficeManager() {
   /** Shrinks the window to a small floating control; the conversation stays live. */
   const [minimized, setMinimized] = useState(false);
 
-  // The reception control centre may open Astra's existing panel. This only
+  // The reception control centre may open Elsie's existing panel. This only
   // changes the panel's visibility; it does not start voice, send a message,
   // spend money, or alter any Manager data or permissions.
   useEffect(() => {
@@ -165,7 +165,7 @@ export function OfficeManager() {
     window.addEventListener("canx:open-manager", openFromReception);
     return () => window.removeEventListener("canx:open-manager", openFromReception);
   }, []);
-  // The office underneath stays fixed while the Astra panel is open.
+  // The office underneath stays fixed while the Elsie panel is open.
   useBackgroundScrollLock(open && !minimized);
   // On phones the open panel sits inside a full-viewport layer so the office is never a touch target.
   const isMobile = useIsMobile();
@@ -284,7 +284,7 @@ export function OfficeManager() {
     )
       return;
     if (!result?.ok || !result.audioBase64) {
-      // The hosted voice is preferred, but Astra must still talk if that one
+      // The hosted voice is preferred, but Elsie must still talk if that one
       // provider or model refuses the request. The device voice costs nothing.
       const started = managerVoice.speakLocally(text, () => {
         if (request === speechRequestRef.current && voiceSession === voiceSessionRef.current)
@@ -294,7 +294,7 @@ export function OfficeManager() {
         managerVoice.setPhase("error");
         setSpeechError(
           result?.detail ??
-            "Astra could not start a spoken answer. The written answer is still available.",
+            "Elsie could not start a spoken answer. The written answer is still available.",
         );
       }
       return;
@@ -352,7 +352,7 @@ export function OfficeManager() {
   const managerTeam = useMemo(() => teamForManager(loadTeam()), []);
   const persistSummary = useServerFn(saveConversationSummary);
   const historyOwner = useRef<string | null>(null);
-  // ---- Astra continuity: owner-scoped device buffer + persistence-only outbox ----
+  // ---- Elsie continuity: owner-scoped device buffer + persistence-only outbox ----
   const ownerId = session.signedIn ? session.ownerId : null;
   const snapshotRef = useRef<DeviceSnapshot | null>(null);
   const [deviceNote, setDeviceNote] = useState("");
@@ -537,7 +537,7 @@ export function OfficeManager() {
       });
     }
     setMessages(messagesRef.current);
-    // Completed spoken turns go to durable Astra memory once; turns already
+    // Completed spoken turns go to durable Elsie memory once; turns already
     // saved by the typed Manager path are skipped by the pairer.
     const turn = voicePairerRef.current.feed(role, content, providerTurnId);
     const paired = messagesRef.current.find(m => m.id === `${closing}-u`);
@@ -545,7 +545,7 @@ export function OfficeManager() {
     if (turn && token && session.stepUpComplete) {
       void saveVoiceTurn({ data: { accessToken: token, ...turn } })
         .then(result => { if (!result.ok && mountedRef.current) setHistoryStatus(result.message); })
-        .catch(() => { if (mountedRef.current) setHistoryStatus("The spoken turn was not saved to Astra memory."); });
+        .catch(() => { if (mountedRef.current) setHistoryStatus("The spoken turn was not saved to Elsie memory."); });
     }
   }, [token, session.stepUpComplete, saveVoiceTurn, queueTurn]);
   const failSpokenTurn = useCallback((providerTurnId: string) => {
@@ -573,7 +573,7 @@ export function OfficeManager() {
         setFullScreen(false);
         panel.moveToSide(command.side);
         roomOutcomeRef.current = "display";
-        return `Moved Astra’s window to the ${command.side} side of this screen. You can drag it back.`;
+        return `Moved Elsie’s window to the ${command.side} side of this screen. You can drag it back.`;
       }
       if (command.kind === "text-size") {
         changeTextSize(command.size);
@@ -628,7 +628,7 @@ export function OfficeManager() {
       const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
       // Skip the separate voice save only when the server confirmed its own save.
       if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);
-      // A failure detail is never returned as if it were Astra's answer.
+      // A failure detail is never returned as if it were Elsie's answer.
       const outcome = voiceTurnOutcome(reply);
       if (outcome.kind === "failure") throw new VoiceTurnError(outcome.stage, outcome.message, outcome.status);
       const result = outcome.text;
@@ -731,7 +731,7 @@ export function OfficeManager() {
     const latestMessage = messageNodes.item(messageNodes.length - 1);
     if (!latestMessage) return;
     // Status cards and speaker controls sit after the transcript. Scrolling to
-    // scrollHeight hid Astra's newest answer above those controls, which made a
+    // scrollHeight hid Elsie's newest answer above those controls, which made a
     // successful reply look empty. Keep the latest message inside the viewport.
     const paneRect = pane.getBoundingClientRect();
     const messageRect = latestMessage.getBoundingClientRect();
@@ -789,7 +789,7 @@ export function OfficeManager() {
     }
     const handoffId = decision.kind === "attach" ? decision.id : undefined;
     if (!session.stepUpComplete || !token) {
-      setError("Enter the six-digit authenticator code below before talking with Astra.");
+      setError("Enter the six-digit authenticator code below before talking with Elsie.");
       if (handoffId) reportHandoff(handoffId, { status: "blocked", detail: "Authenticator step not complete. Nothing was sent.", canResend: true });
       return;
     }
@@ -851,7 +851,7 @@ export function OfficeManager() {
         messagesRef.current = [...messagesRef.current, directMessage];
         setMessages(current => [...current, directMessage]);
         queueTurn(turnId, text, direct, "text");
-        setDelivery("Room request returned a result — see Astra's answer.");
+        setDelivery("Room request returned a result — see Elsie's answer.");
         if (handoffId) reportHandoff(handoffId, handoffStatusFromRoomOutcome(roomOutcomeRef.current));
         if (realtimeManager.on) realtimeManager.say(direct);
         return;
@@ -887,7 +887,7 @@ export function OfficeManager() {
         if (voiceSession === voiceSessionRef.current) managerVoice.setPhase("error");
       } else {
         setComposerCollapsed(true);
-        setDelivery("Received — Astra returned a reply. This does not mean the requested work is complete.");
+        setDelivery("Received — Elsie returned a reply. This does not mean the requested work is complete.");
         const answerId = `${turnId}-a`;
         const answer = reply.text || "(The provider returned an empty answer.)";
         if (realtimeManager.on) realtimeManager.say(answer);
@@ -1000,7 +1000,7 @@ export function OfficeManager() {
     if (realtimeManager.error) recordVoiceDiag("fallback", "fallback", "switched to record-and-reply");
     if (sendingRef.current) return;
     if (!session.stepUpComplete) {
-      setError("Enter the six-digit authenticator code below before talking with Astra.");
+      setError("Enter the six-digit authenticator code below before talking with Elsie.");
       return;
     }
     cancelVoiceActivity();
@@ -1034,7 +1034,7 @@ export function OfficeManager() {
 
   // Text-only handoff from the companion's Work window: an explicit click
   // prefills a draft here for review. Nothing is sent, saved or approved
-  // until John presses Send to Astra.
+  // until John presses Send to Elsie.
   useEffect(() => {
     const onHandoff = (event: Event) => {
       const detail = (event as CustomEvent<ManagerHandoff>).detail;
@@ -1076,14 +1076,14 @@ export function OfficeManager() {
   // Plain words for the small floating control, so the state is never a colour alone.
   const liveState =
     realtimeManager.phase === "connecting"
-      ? "Connecting Astra…"
+      ? "Connecting Elsie…"
       : realtimeManager.phase === "speaking"
-        ? "Astra is speaking…"
+        ? "Elsie is speaking…"
         : realtimeManager.phase === "thinking"
-          ? "Astra is thinking…"
+          ? "Elsie is thinking…"
           : realtimeManager.on
-            ? "Astra is listening…"
-            : "Talk to Astra";
+            ? "Elsie is listening…"
+            : "Talk to Elsie";
 
   const primaryVoiceAction = () => {
     if (realtimeManager.on || !historyReady) return;
@@ -1100,11 +1100,11 @@ export function OfficeManager() {
           onClick={() => open ? closeManager() : setOpen(true)}
           aria-expanded={open}
           aria-controls="office-manager-panel"
-          aria-label={open ? "Close Astra" : "Talk to Astra"}
+          aria-label={open ? "Close Elsie" : "Talk to Elsie"}
           className="fixed bottom-4 right-4 z-40 h-14 rounded-full border border-rose-200/50 bg-gradient-to-r from-rose-700 to-rose-500 px-6 text-base font-black text-white shadow-[0_0_28px_rgba(244,63,94,.48)] transition hover:scale-105 hover:from-rose-600 hover:to-rose-400"
         >
           {open ? <X className="mr-1.5 h-4 w-4" /> : <Bot className="mr-1.5 h-4 w-4" />}
-          {open ? "Close Astra" : "Talk to Astra"}
+          {open ? "Close Elsie" : "Talk to Elsie"}
         </Button>
       )}
 
@@ -1259,13 +1259,13 @@ export function OfficeManager() {
                     pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
                 }}
                 className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4"
-                aria-label="Conversation with Astra"
+                aria-label="Conversation with Elsie"
                 aria-live="polite"
                 style={{ fontSize: textSize, lineHeight: 1.5 }}
               >
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    Talk to Astra about today's priorities, your projects, or the next task. Ask Astra
+                    Talk to Elsie about today's priorities, your projects, or the next task. Ask Elsie
                     to create or assign work, then check the Work Board. Spending and protected
                     actions still need your approval.
                   </p>
@@ -1280,7 +1280,7 @@ export function OfficeManager() {
                       <p className="mb-1 text-sm font-semibold text-foreground">
                         {message.role === "office"
                           ? "Office notice — save and action results"
-                          : "Astra — Office Manager"}
+                          : "Elsie — Office Manager"}
                       </p>
                     )}
                     <div
@@ -1300,7 +1300,7 @@ export function OfficeManager() {
                     )}
                     {message.role === "user" && !answeredIds.has(message.id) && !pendingVoiceIds.has(message.id) && !(busy && message === messages[messages.length - 1]) && (
                       <p className="mt-0.5 text-sm text-canx-yellow">
-                        Not answered — Astra did not receive or finish this. It is not used as history; send it again if needed.
+                        Not answered — Elsie did not receive or finish this. It is not used as history; send it again if needed.
                       </p>
                     )}
                     {message.checked && <CheckedReceipt receipt={message.checked} />}
@@ -1354,7 +1354,7 @@ export function OfficeManager() {
                     <p className="text-muted-foreground">Source: {HANDOFF_SOURCE_LABEL[handoff.source]}</p>
                     {handoff.detail && <p className="mt-1">{handoff.detail}</p>}
                     <p className="mt-1 text-muted-foreground">
-                      The request is in the message box below — edit it if you like. The Work assistant cannot act on its own; only your Send reaches Astra.
+                      The request is in the message box below — edit it if you like. The Work assistant cannot act on its own; only your Send reaches Elsie.
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {handoffSendable(handoff) && (
@@ -1364,7 +1364,7 @@ export function OfficeManager() {
                           disabled={busy || !draft.trim()}
                           onClick={() => void send()}
                         >
-                          Send to Astra
+                          Send to Elsie
                         </Button>
                       )}
                       <Button size="sm" variant="outline" onClick={() => setHandoff(null)}>
@@ -1373,24 +1373,24 @@ export function OfficeManager() {
                     </div>
                   </section>
                 )}
-                <section aria-label="Talk with Astra" className="space-y-3">
+                <section aria-label="Talk with Elsie" className="space-y-3">
                   <p role="status" aria-live="polite" className="text-sm font-semibold">
                     {realtimeManager.error || error
-                      ? "Astra needs attention — see the message below."
+                      ? "Elsie needs attention — see the message below."
                       : realtimeManager.phase === "connecting"
-                        ? "Connecting Astra…"
+                        ? "Connecting Elsie…"
                         : realtimeManager.phase === "speaking"
-                          ? "Astra is speaking… you can interrupt."
+                          ? "Elsie is speaking… you can interrupt."
                           : realtimeManager.phase === "thinking"
-                            ? "Astra is thinking…"
+                            ? "Elsie is thinking…"
                             : realtimeManager.on
-                              ? "Astra is listening — just speak naturally."
-                              : "Talk with Astra"}
+                              ? "Elsie is listening — just speak naturally."
+                              : "Talk with Elsie"}
                   </p>
                   {session.signedIn && !session.stepUpComplete && (
                     <div className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
                       <p className="text-sm font-semibold text-foreground">
-                        Confirm your authenticator to talk with Astra
+                        Confirm your authenticator to talk with Elsie
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Enter the current six-digit code from your authenticator app. This completes
@@ -1402,7 +1402,7 @@ export function OfficeManager() {
                           autoComplete="one-time-code"
                           value={mfaCode}
                           placeholder="123456"
-                          aria-label="Six-digit authenticator code for Astra"
+                          aria-label="Six-digit authenticator code for Elsie"
                           onChange={(event) =>
                             setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
                           }
@@ -1456,7 +1456,7 @@ export function OfficeManager() {
                         {([
                           ["mic", "1. Microphone", ["connecting", "listening", "hearing"]],
                           ["words", "2. Your words recognized", ["recognized"]],
-                          ["astra", "3. Astra answers", ["thinking", "speaking"]],
+                          ["astra", "3. Elsie answers", ["thinking", "speaking"]],
                         ] as const).map(([key, label, active]) => {
                           const isActive = (active as readonly string[]).includes(realtimeManager.stage);
                           const isDone =
@@ -1540,7 +1540,7 @@ export function OfficeManager() {
                       // Replacing the handoff text detaches it: a different request
                       // is never attributed to the old handoff id.
                       if (handoff && handoffSendable(handoff) && !handoffStillApplies(handoff.text, next)) {
-                        publishHandoffReceipt({ id: handoff.id, status: "withdrawn", detail: "The draft in Astra's panel was replaced. Nothing was sent.", at: new Date().toISOString() });
+                        publishHandoffReceipt({ id: handoff.id, status: "withdrawn", detail: "The draft in Elsie's panel was replaced. Nothing was sent.", at: new Date().toISOString() });
                         setHandoff(null);
                       }
                     }}
@@ -1569,7 +1569,7 @@ export function OfficeManager() {
                     onClick={primaryVoiceAction}
                     disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}
                   >
-                    <Mic className="mr-2 h-5 w-5" /> Talk to Astra
+                    <Mic className="mr-2 h-5 w-5" /> Talk to Elsie
                   </Button>
                   <div role="group" aria-label="Voice style" className="flex w-full gap-1 text-xs">
                     <Button type="button" size="sm" variant={liveVoiceMode === "relay" ? "default" : "outline"} className="h-9 flex-1"
@@ -1582,7 +1582,7 @@ export function OfficeManager() {
                     </Button>
                   </div>
                   {liveVoiceMode === "direct" && !realtimeManager.on && (
-                    <p className="w-full text-xs text-muted-foreground">Live voice: Astra hears your voice directly and replies straight away. Office records, saving and changes still go through the protected Office checks.</p>
+                    <p className="w-full text-xs text-muted-foreground">Live voice: Elsie hears your voice directly and replies straight away. Office records, saving and changes still go through the protected Office checks.</p>
                   )}
                   {realtimeManager.error && !realtimeManager.on && !voiceMode && (
                     <Button type="button" variant="outline" className="h-11 w-full" onClick={startVoiceMode}>
@@ -1602,14 +1602,14 @@ export function OfficeManager() {
                       size="sm"
                       className="h-9 shrink-0 px-2.5"
                       onClick={realtimeManager.stop}
-                      aria-label="End the voice conversation with Astra"
+                      aria-label="End the voice conversation with Elsie"
                     >
                       <PhoneOff className="mr-1.5 h-4 w-4" aria-hidden="true" /> End conversation
                     </Button>
                   )}
                   </div>
                   <p role="status" className="mt-2 text-sm">
-                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation when you are done." : "Ready: type a message or choose Talk to Astra."}
+                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation when you are done." : "Ready: type a message or choose Talk to Elsie."}
                   </p>
                 </div>
               </div>

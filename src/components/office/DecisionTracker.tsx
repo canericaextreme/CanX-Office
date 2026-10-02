@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Tracked companion → Astra requests, read from the owner's manager_tasks.
+ * Tracked companion → Elsie requests, read from the owner's manager_tasks.
  * The SAME list (task id, stage, worker, real result/evidence) is shown in the
- * companion window and in Astra's panel. It survives reload because it is
+ * companion window and in Elsie's panel. It survives reload because it is
  * read from the office records, not from window events.
  */
 
@@ -57,9 +57,9 @@ export function DecisionTracker({ accessToken, compact = false }: { accessToken:
   const shown = (items ?? []).slice(0, compact ? 3 : 8);
 
   return (
-    <section data-testid="canx-decision-tracker" aria-label="Tracked requests to Astra" className="rounded-lg border border-border p-2">
+    <section data-testid="canx-decision-tracker" aria-label="Tracked requests to Elsie" className="rounded-lg border border-border p-2">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tracked requests to Astra</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tracked requests to Elsie</h3>
         <button
           type="button"
           onClick={() => void refresh()}

@@ -259,7 +259,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     "office_notes?select=title,detail,source,provenance,created_at&source=like.CanX%20Brain%3A*&order=created_at.desc&limit=30"
   ).catch(() => null);
   if (!memoryResponse?.ok || !Array.isArray(memoryResponse.body)) {
-    return { ok: false, message: "Astra could not load its saved Brain memory. Please try again; no history was guessed." };
+    return { ok: false, message: "Elsie could not load its saved Brain memory. Please try again; no history was guessed." };
   }
 
   // Stable goals and the handover must not fall out of the recent-summary window.
@@ -267,7 +267,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     "office_notes?select=title,detail,source,provenance,created_at&source=eq.CanX%20Brain%3A%20continuity&order=created_at.desc&limit=20"
   ).catch(() => null);
   if (!continuityResponse?.ok || !Array.isArray(continuityResponse.body)) {
-    return { ok: false, message: "Astra could not load the continuity records. No history was guessed." };
+    return { ok: false, message: "Elsie could not load the continuity records. No history was guessed." };
   }
 
   const roundTableResponse = await rest(

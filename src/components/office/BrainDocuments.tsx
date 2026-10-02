@@ -28,7 +28,7 @@ export function BrainDocuments(){
  };
  return <section className="rounded-xl border border-border bg-card p-5 space-y-3">
   <h2 className="text-lg font-semibold">Project documents</h2>
-  <p>Save complete document text for Astra to search after reconnecting. Each changed file is a separate version. Keep your original file for pictures and formatting.</p>
+  <p>Save complete document text for Elsie to search after reconnecting. Each changed file is a separate version. Keep your original file for pictures and formatting.</p>
   <label className="block">Project <input className="ml-2 rounded border p-2 bg-background" value={project} maxLength={160} onChange={e=>setProject(e.target.value)} placeholder="Book or project name"/></label>
   <label className="block">Import document <input className="block mt-2" type="file" accept=".docx,.txt,.md" disabled={busy||!session.stepUpComplete} onChange={e=>{const f=e.target.files?.[0];if(f)void upload(f);e.target.value='';}}/></label>
   {!session.stepUpComplete&&<p>Complete owner verification to import documents.</p>}
@@ -37,7 +37,7 @@ export function BrainDocuments(){
   {docs.map(d=><article key={d.id} className="border-t pt-3 space-y-1">
    <h3 className="font-semibold">{d.title}</h3><p>{d.project} · {d.character_count.toLocaleString()} characters · {d.chunk_count} sections · {new Date(d.created_at).toLocaleString()}</p>
    <p className="text-sm">Version {d.content_hash.slice(0,12)}</p>
-   <button className="rounded border px-3 py-2" onClick={()=>sendManagerHandoff({text:`Use document ${d.id} (${d.title}, version ${d.content_hash}). Read the whole document and tell me what source coverage you received.`,room:'Brain',path:'/brain'})}>Read with Astra</button>
+   <button className="rounded border px-3 py-2" onClick={()=>sendManagerHandoff({text:`Use document ${d.id} (${d.title}, version ${d.content_hash}). Read the whole document and tell me what source coverage you received.`,room:'Brain',path:'/brain'})}>Read with Elsie</button>
   </article>)}
  </section>;
 }

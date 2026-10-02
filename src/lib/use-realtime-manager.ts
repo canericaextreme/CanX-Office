@@ -32,7 +32,7 @@ export interface DirectToolOutput { ok: boolean; result: string; note: string }
 
 /**
  * Runs one direct-mode Office tool call through the SAME guarded request path
- * as typed Astra. The returned object is what the live voice model may say:
+ * as typed Elsie. The returned object is what the live voice model may say:
  * failures are explicit so it never claims an unconfirmed save or action.
  */
 export async function directToolOutput(
@@ -100,7 +100,7 @@ export function useRealtimeManager(
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const [activity, setActivity] = useState("Voice has not started.");
-  // Live step indicator: microphone → words recognized → Astra's answer.
+  // Live step indicator: microphone → words recognized → Elsie's answer.
   const [stage, setStage] = useState<VoiceStage>("idle");
   const micMutedRef = useRef(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -179,11 +179,11 @@ export function useRealtimeManager(
       setPlaybackBlocked(false);
       setPlaybackError(null);
       setError(null);
-      setActivity("Astra's speaker is ready. Listening for your words…");
+      setActivity("Elsie's speaker is ready. Listening for your words…");
     } catch {
       if (generation !== generationRef.current) return;
       setPlaybackBlocked(true);
-      setPlaybackError("Your browser blocked Astra's sound. Written answers will still remain visible; tap Enable sound to hear them.");
+      setPlaybackError("Your browser blocked Elsie's sound. Written answers will still remain visible; tap Enable sound to hear them.");
       setActivity("Browser blocked sound. Tap Enable sound.");
     }
   }, []);
@@ -224,7 +224,7 @@ export function useRealtimeManager(
     if (activeRef.current) return;
     if (!accessToken) {
       setPhase("error");
-      setError("Sign in and complete the authenticator check before talking with Astra.");
+      setError("Sign in and complete the authenticator check before talking with Elsie.");
       return;
     }
     teardown();
@@ -254,7 +254,7 @@ export function useRealtimeManager(
       setError(message);
       setActivity(message);
     };
-    const timeout = setTimeout(() => fail("Astra's voice connection timed out. Please try again."), 30_000);
+    const timeout = setTimeout(() => fail("Elsie's voice connection timed out. Please try again."), 30_000);
 
     // Tracks what actually happened so a silent turn gets an honest reason.
     const hearing = {
@@ -281,11 +281,11 @@ export function useRealtimeManager(
             if (peak > 6) this.lastSoundAt = now;
             if (channelRef.current?.readyState !== "open") return;
             if (!this.lastSoundAt && now - startedAt > 15_000)
-              warn("mic_silent", "The microphone light is on, but no sound is reaching Astra from this device. Check that the right microphone is selected and no other app or Bluetooth device is holding it.");
+              warn("mic_silent", "The microphone light is on, but no sound is reaching Elsie from this device. Check that the right microphone is selected and no other app or Bluetooth device is holding it.");
             else if (this.lastSoundAt && !this.providerHeardAt && now - startedAt > 20_000 && now - this.lastSoundAt < 3_000)
               warn("speech_not_detected", "Your microphone is picking up sound, but the voice service has not detected speech yet. Try speaking closer to the phone, or press End conversation and start again.");
             else if (this.committedAt && this.transcriptAt < this.committedAt && now - this.committedAt > 10_000)
-              warn("transcript_missing", "Astra heard you speak but did not receive your words. Please say it again; nothing was sent to the Office.");
+              warn("transcript_missing", "Elsie heard you speak but did not receive your words. Please say it again; nothing was sent to the Office.");
           }, 1000);
           hearingCleanupRef.current = () => { clearInterval(this.timer); void ctx.close().catch(() => undefined); };
         } catch { /* The hearing check is optional; voice continues without it. */ }
@@ -308,16 +308,16 @@ export function useRealtimeManager(
       micRef.current = mic;
       mic.getTracks().forEach(track => {
         track.enabled = !micMutedRef.current;
-        track.onmute = () => { if (current()) setError("Your phone or browser paused the microphone (another app may be using it). Astra cannot hear you until it resumes."); };
+        track.onmute = () => { if (current()) setError("Your phone or browser paused the microphone (another app may be using it). Elsie cannot hear you until it resumes."); };
         track.onunmute = () => { if (current()) setError(null); };
-        track.onended = () => fail("The microphone was switched off by the device. Press Talk to Astra to start again.");
+        track.onended = () => fail("The microphone was switched off by the device. Press Talk to Elsie to start again.");
       });
       hearing.attach(mic);
       connectStage = "office session";
       const session = await mintSession({ data: { accessToken, team, mode: sessionMode } });
       if (!current()) return;
       if (!session.ok || !session.clientSecret || !session.model) {
-        fail(session.detail || "Astra's voice conversation could not be started.");
+        fail(session.detail || "Elsie's voice conversation could not be started.");
         return;
       }
       connectStage = "voice connection";
@@ -326,12 +326,12 @@ export function useRealtimeManager(
       pc.ontrack = (event) => {
         if (!current()) return;
         audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
-        setActivity("Astra's speaker connected. Listening for your words…");
+        setActivity("Elsie's speaker connected. Listening for your words…");
         void playAudio(audio, generation);
       };
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === "failed" || pc.connectionState === "closed")
-          fail("Astra's voice connection ended. Press Start conversation to reconnect.");
+          fail("Elsie's voice connection ended. Press Start conversation to reconnect.");
       };
       mic.getTracks().forEach((track) => pc.addTrack(track, mic));
 
@@ -345,7 +345,7 @@ export function useRealtimeManager(
         setStage("listening");
         setActivity("Listening for your words…");
       };
-      channel.onclose = () => fail("Astra's voice connection ended. Press Start conversation to reconnect.");
+      channel.onclose = () => fail("Elsie's voice connection ended. Press Start conversation to reconnect.");
       let outputPlaying = false;
       let answerAwaitingPlayback = false;
       const handledInputs = new Set<string>();
@@ -359,7 +359,7 @@ export function useRealtimeManager(
         console.info("[astra-voice]", { stage: "assistant_request_started", turn: inputId });
         setPhase("thinking");
         setStage("thinking");
-        setActivity("Astra heard your request and is preparing an answer…");
+        setActivity("Elsie heard your request and is preparing an answer…");
         let output = "";
         const requestStartedAt = Date.now();
         try { output = (await requestRef.current(request)).trim(); }
@@ -371,7 +371,7 @@ export function useRealtimeManager(
           turnFailedRef.current?.(inputId);
           if (current()) {
             setPhase("listening");
-            setError(known?.userMessage ?? "Astra received your words, but the Office answer did not finish. Please send that request again.");
+            setError(known?.userMessage ?? "Elsie received your words, but the Office answer did not finish. Please send that request again.");
             setActivity("The Office answer did not finish. Your spoken request remains visible.");
           }
           return;
@@ -381,7 +381,7 @@ export function useRealtimeManager(
           turnFailedRef.current?.(inputId);
           if (current()) {
             setPhase("listening");
-            setError("Astra received your words, but no usable answer came back. Please send that request again.");
+            setError("Elsie received your words, but no usable answer came back. Please send that request again.");
           }
           return;
         }
@@ -395,12 +395,12 @@ export function useRealtimeManager(
           return;
         }
         if (!sendEvent(spokenOfficeAnswer(output))) {
-          setPlaybackError("Astra's written answer is available, but it could not be sent to the speaker.");
+          setPlaybackError("Elsie's written answer is available, but it could not be sent to the speaker.");
           console.warn("[astra-voice]", { stage: "playback_send_failed", turn: inputId });
           return;
         }
         answerAwaitingPlayback = true;
-        setActivity("Answer ready. Waiting for Astra to speak…");
+        setActivity("Answer ready. Waiting for Elsie to speak…");
       };
       const handledCalls = new Set<string>();
       const savedResponses = new Set<string>();
@@ -413,7 +413,7 @@ export function useRealtimeManager(
         if (!output.ok) turnFailedRef.current?.(turnId);
         sendEvent({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) } });
         sendEvent({ type: "response.create" });
-        setActivity(output.ok ? "Office answer received. Astra is replying…" : "The Office request did not finish. Astra will say so.");
+        setActivity(output.ok ? "Office answer received. Elsie is replying…" : "The Office request did not finish. Elsie will say so.");
       };
       channel.onmessage = (event) => {
         if (!current()) return;
@@ -428,7 +428,7 @@ export function useRealtimeManager(
           recordVoiceDiag("failure", sessionMode, "provider " + (code ?? "unknown"));
           if (code === "input_audio_buffer_commit_empty") {
             setPhase("listening");
-            setError("Astra did not catch that. Please speak again; the microphone is still on.");
+            setError("Elsie did not catch that. Please speak again; the microphone is still on.");
             return;
           }
           const hint = code === "rate_limit_exceeded"
@@ -437,7 +437,7 @@ export function useRealtimeManager(
               ? "The voice service has no remaining credit. Check the provider account."
               : "The voice service could not continue this conversation. Press Start conversation to reconnect.";
           if (answerAwaitingPlayback) {
-            setPlaybackError("Astra's written answer is available, but live voice could not finish playing it.");
+            setPlaybackError("Elsie's written answer is available, but live voice could not finish playing it.");
             console.warn("[astra-voice]", { stage: "playback_response_failed", code: code ?? "unknown" });
           } else {
             console.warn("[astra-voice]", { stage: "voice_connection_failed", code: code ?? "unknown" });
@@ -449,7 +449,7 @@ export function useRealtimeManager(
           for (const item of payload.response?.output ?? []) {
             if (item.type === "function_call" && item.name === "submit_office_request" && item.call_id) {
               setPhase("thinking");
-              setActivity("Astra is checking the Office…");
+              setActivity("Elsie is checking the Office…");
               void runDirectTool(item.call_id, item.arguments ?? "");
             }
           }
@@ -458,7 +458,7 @@ export function useRealtimeManager(
           currentInputId = payload.item_id;
           setActivity("Heard your voice. Checking the Office…");
         }
-        if (payload.type === "input_audio_buffer.speech_started" && outputPlaying) recordVoiceDiag("interruption", sessionMode, "spoke over Astra");
+        if (payload.type === "input_audio_buffer.speech_started" && outputPlaying) recordVoiceDiag("interruption", sessionMode, "spoke over Elsie");
         if (payload.type === "input_audio_buffer.speech_stopped") speechEndedAt = Date.now();
         if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setStage("hearing"); setActivity("Hearing you speak…"); }
         if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
@@ -470,7 +470,7 @@ export function useRealtimeManager(
           console.warn("[astra-voice]", { stage: "transcription_failed", turn: payload.item_id ?? "unknown" });
           setPhase("listening");
           setStage("listening");
-          setError("Astra heard you, but your words could not be turned into text. Please say it again; nothing was sent to the Office.");
+          setError("Elsie heard you, but your words could not be turned into text. Please say it again; nothing was sent to the Office.");
           return;
         }
         if (payload.type === "output_audio_buffer.started" && speechEndedAt) {
@@ -480,7 +480,7 @@ export function useRealtimeManager(
         if (payload.type === "output_audio_buffer.started") {
           outputPlaying = true;
           setStage("speaking");
-          setActivity("Astra is speaking. If you hear nothing, check your output device or tap Enable sound.");
+          setActivity("Elsie is speaking. If you hear nothing, check your output device or tap Enable sound.");
         }
         if (payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared") {
           outputPlaying = false;
@@ -506,7 +506,7 @@ export function useRealtimeManager(
           console.info("[astra-voice]", { stage: "transcript_received", turn: payload.item_id ?? "unknown" });
           if (payload.item_id && sessionMode === "relay") void executeRequest(payload.item_id, text);
         }
-        // Direct mode: the live model's own spoken words are Astra's reply.
+        // Direct mode: the live model's own spoken words are Elsie's reply.
         // Save each spoken response once, paired with the turn that caused it.
         if (sessionMode === "direct" && payload.type === "response.output_audio_transcript.done") {
           const key = payload.response_id ?? `${currentInputId}:${text}`;
@@ -557,8 +557,8 @@ export function useRealtimeManager(
               ? "The device could not open its microphone. Check whether another app is using it."
               : "The browser could not open the microphone. Check this device's microphone settings."
         : connectStage === "office session"
-          ? "Astra could not reach the office server to start voice. Check your connection and sign-in, then try again."
-          : "Astra opened the microphone but could not connect to live voice. Check your network and try again.";
+          ? "Elsie could not reach the office server to start voice. Check your connection and sign-in, then try again."
+          : "Elsie opened the microphone but could not connect to live voice. Check your network and try again.";
       fail(detail);
     } finally {
       // An SDP answer is not proof that the voice event channel opened.

@@ -106,7 +106,7 @@ export function CompanionWorkPanel({
     const inflight = loadLocal<DecisionDraft>(COMPANION_INFLIGHT_KEY);
     if (inflight?.correlationId) {
       setDecision(inflight);
-      setDecisionNote("A request from before the reload was not confirmed. Press Send to Astra — it checks for a saved copy first.");
+      setDecisionNote("A request from before the reload was not confirmed. Press Send to Elsie — it checks for a saved copy first.");
     }
     restoredRef.current = true;
   }, []);
@@ -156,7 +156,7 @@ export function CompanionWorkPanel({
   const trackHandoff = (id: string) =>
     setReceipts((current) => ({
       ...current,
-      [id]: { id, status: "drafted", detail: "Placed in Astra's panel for your review.", at: new Date().toISOString() },
+      [id]: { id, status: "drafted", detail: "Placed in Elsie's panel for your review.", at: new Date().toISOString() },
     }));
 
   const handToAstra = () => {
@@ -321,7 +321,7 @@ export function CompanionWorkPanel({
           <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
             {turns.length === 0 && !observation && (
               <p className="text-sm text-muted-foreground">
-                Talk a decision through here. When ready, press "Send to Astra…" under your message to create one tracked task. This window cannot change office records itself.
+                Talk a decision through here. When ready, press "Send to Elsie…" under your message to create one tracked task. This window cannot change office records itself.
               </p>
             )}
             {turns.map((turn, index) => (
@@ -350,7 +350,7 @@ export function CompanionWorkPanel({
                     className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                    Send to Astra…
+                    Send to Elsie…
                   </button>
                 )}
               </div>
@@ -359,10 +359,10 @@ export function CompanionWorkPanel({
             {decision && (
               <article
                 data-testid="canx-decision-review"
-                aria-label="Review the tracked request to Astra"
+                aria-label="Review the tracked request to Elsie"
                 className="rounded-lg border border-canx-yellow/50 bg-canx-yellow/5 p-3 text-xs"
               >
-                <h3 className="font-semibold uppercase tracking-wide text-muted-foreground">Tracked request to Astra</h3>
+                <h3 className="font-semibold uppercase tracking-wide text-muted-foreground">Tracked request to Elsie</h3>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Source: {decision.source}. Ref {decision.correlationId}. Edit anything before sending.
                 </p>
@@ -404,7 +404,7 @@ export function CompanionWorkPanel({
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <SendIcon className="h-4 w-4" aria-hidden="true" />
-                    {sending ? "Sending…" : "Send to Astra"}
+                    {sending ? "Sending…" : "Send to Elsie"}
                   </button>
                   <button
                     type="button"
@@ -417,7 +417,7 @@ export function CompanionWorkPanel({
                     }}
                     className="inline-flex min-h-9 items-center rounded-md border border-border px-3 font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    Discuss in Astra's panel instead
+                    Discuss in Elsie's panel instead
                   </button>
                   <button
                     type="button"
@@ -445,11 +445,11 @@ export function CompanionWorkPanel({
             {review && (
               <article
                 data-testid="canx-work-handoff-review"
-                aria-label="Review the handoff to Astra"
+                aria-label="Review the handoff to Elsie"
                 className="rounded-lg border border-canx-yellow/50 bg-canx-yellow/5 p-3"
               >
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Review before handing to Astra
+                  Review before handing to Elsie
                 </h3>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Source: {HANDOFF_SOURCE_LABEL.work_discussion}. Only this one request and the reply after it are
@@ -473,7 +473,7 @@ export function CompanionWorkPanel({
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <SendIcon className="h-4 w-4" aria-hidden="true" />
-                    Place draft in Astra's panel
+                    Place draft in Elsie's panel
                   </button>
                   <button
                     type="button"
@@ -484,7 +484,7 @@ export function CompanionWorkPanel({
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  This only places a draft. Astra does nothing until you press Send in her panel.
+                  This only places a draft. Elsie does nothing until you press Send in her panel.
                 </p>
               </article>
             )}

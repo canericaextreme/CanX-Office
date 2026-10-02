@@ -210,12 +210,12 @@ export async function reserveAiCallWith(
       // Only expose allowlisted error categories, never raw database details.
       const failure = await response.json().catch(() => null) as { code?: string } | null;
       const message = failure?.code === "PGRST202"
-        ? "Astra cannot speak yet: the database's AI budget-check function is missing or unavailable. The office database setup needs repair."
+        ? "Elsie cannot speak yet: the database's AI budget-check function is missing or unavailable. The office database setup needs repair."
         : failure?.code === "42501" || response.status === 403
-          ? "Astra cannot speak yet: the database refused access to the AI budget check. Owner permissions and two-step verification need checking."
+          ? "Elsie cannot speak yet: the database refused access to the AI budget check. Owner permissions and two-step verification need checking."
           : response.status === 401
-            ? "Your office sign-in has expired or was refused. Sign in again before trying Astra."
-            : "Astra cannot speak yet: the office could not reach its spending and rate-limit check. No paid AI call was made.";
+            ? "Your office sign-in has expired or was refused. Sign in again before trying Elsie."
+            : "Elsie cannot speak yet: the office could not reach its spending and rate-limit check. No paid AI call was made.";
       return { allowed: false, reason: "unavailable", message };
     }
     const row = (await response.json()) as
@@ -231,11 +231,11 @@ export async function reserveAiCallWith(
           reason === "budget_limit"
             ? "The CanX AI spending limit for this period has been reached."
             : reason === "rate_limit"
-              ? "Astra's own office safety limit on AI calls per minute was reached. This is not the AI provider. Wait about a minute, then send again."
+              ? "Elsie's own office safety limit on AI calls per minute was reached. This is not the AI provider. Wait about a minute, then send again."
               : result?.reason === "not_permitted"
-                ? "Astra cannot speak yet: the database did not accept this session for paid AI calls. Check owner access and complete two-step verification, then try again."
+                ? "Elsie cannot speak yet: the database did not accept this session for paid AI calls. Check owner access and complete two-step verification, then try again."
                 : result?.reason === "unavailable"
-                  ? "Astra cannot speak yet: the database has no usable AI spending limits for this owner. The budget setup needs repair."
+                  ? "Elsie cannot speak yet: the database has no usable AI spending limits for this owner. The budget setup needs repair."
                   : "Spending and rate limits could not be checked, so the AI call was refused.",
       };
     }

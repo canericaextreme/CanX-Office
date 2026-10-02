@@ -1,5 +1,5 @@
 /**
- * Companion → Astra decision handoffs — SERVER side.
+ * Companion → Elsie decision handoffs — SERVER side.
  *
  * - Verified owner only (same owner/MFA check and RLS as the Work Board).
  * - One task per correlation id: the server looks for an existing task with the
@@ -125,7 +125,7 @@ export async function submitDecisionWith(
   const v = await deps.verifyOwner(input.accessToken);
   if (!v.ok) return fail("auth_not_ready", v.message);
   if (!isCorrelationId(input.correlationId)) return fail("invalid_input", "The request id is missing or malformed.");
-  if (!input.request.trim()) return fail("invalid_input", "Write the request before sending it to Astra.");
+  if (!input.request.trim()) return fail("invalid_input", "Write the request before sending it to Elsie.");
   if (input.workerId && !workerName(input.workerId)) return fail("invalid_input", "That worker does not exist.");
   const token = input.accessToken;
 
@@ -149,7 +149,7 @@ export async function submitDecisionWith(
   if (!created) {
     const again = await findByCorrelation(deps, token, v.userId, input.correlationId);
     created = again.ok ? again.task : null;
-    if (!created) return fail("not_saved", "Astra could not confirm the task was saved. Nothing is being tracked yet — press Send again; it checks for a saved copy first.");
+    if (!created) return fail("not_saved", "Elsie could not confirm the task was saved. Nothing is being tracked yet — press Send again; it checks for a saved copy first.");
   }
   const readback = await readTask(deps, token, created.id);
   if (!readback || correlationFromDetail(readback.detail) !== input.correlationId) {

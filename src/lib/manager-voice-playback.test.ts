@@ -55,10 +55,10 @@ describe("Android-style refusal becomes a visible manual-play state", () => {
 
   it("explains NotAllowedError in plain words with no provider detail", () => {
     expect(playbackRefusalMessage("NotAllowedError")).toBe(
-      "Your phone blocked Astra's voice until you tap. Press Play Astra's answer to hear it.",
+      "Your phone blocked Elsie's voice until you tap. Press Play Elsie's answer to hear it.",
     );
     expect(playbackRefusalMessage("NotSupportedError")).toContain("could not play that voice file");
-    expect(playbackRefusalMessage(null)).toContain("Press Play Astra's answer");
+    expect(playbackRefusalMessage(null)).toContain("Press Play Elsie's answer");
     for (const name of ["NotAllowedError", "NotSupportedError", null]) {
       expect(playbackRefusalMessage(name)).not.toMatch(/openai|api|token|key/i);
     }
@@ -69,7 +69,7 @@ describe("Android-style refusal becomes a visible manual-play state", () => {
     expect(manager).toContain("managerVoice.report.blockedReason");
     const primary = block(manager, "const primaryVoiceAction");
     expect(primary).not.toContain("managerVoice.hasPendingAudio");
-    expect(primary).not.toContain("Play Astra's answer");
+    expect(primary).not.toContain("Play Elsie's answer");
   });
 
   it("keeps the written answer regardless of sound", () => {

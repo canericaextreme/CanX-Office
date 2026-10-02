@@ -71,7 +71,7 @@ describe("handoff status comes only from the real server result", () => {
     expect(handoffStatusFromReply({ ok: true, actionResults: [{ status: "stopped" }] }).status).toBe("responded");
   });
   it("states persistence honestly", () => {
-    expect(handoffStatusFromReply({ ok: true, persisted: true }).detail).toContain("Saved to Astra's memory");
+    expect(handoffStatusFromReply({ ok: true, persisted: true }).detail).toContain("Saved to Elsie's memory");
     expect(handoffStatusFromReply({ ok: true, persisted: false }).detail).toContain("Not saved");
     expect(handoffStatusFromReply({ ok: true }).detail).not.toMatch(/saved to astra/i);
   });
@@ -100,7 +100,7 @@ describe("wiring", () => {
     expect(panel).toContain("CanX Office companion (OpenAI)</h2>");
     expect(panel).toContain("Not your external ChatGPT");
   });
-  it("Astra's panel sends a handoff only from John's Send press, through the normal pipeline", () => {
+  it("Elsie's panel sends a handoff only from John's Send press, through the normal pipeline", () => {
     expect(manager).toContain('data-testid="astra-handoff-send"');
     expect(manager).toContain("resolveHandoffForSend(handoff, text)");
     expect(manager).not.toContain("send(undefined, handoff.id)");
