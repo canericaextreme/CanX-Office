@@ -60,6 +60,24 @@ afterEach(() => {
   hooks.cleanups.forEach((cleanup) => cleanup()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 describe("Astra realtime connection lifecycle", () => {
+  it("routes the dedicated builder tool through the fixed read-only command once", async () => {
+    const transcript = vi.fn();
+    const action = vi.fn().mockResolvedValue("Builder connected. Latest run succeeded. No build was started.");
+    const voice = useRealtimeManager("token", [], transcript, action, undefined, "direct");
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "u1" });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "Is the builder connected?" });
+    emit({ type: "response.created", response: { id: "r1" } });
+    const result = { type: "response.done", response: { id: "r1", status: "completed", output: [
+      { type: "function_call", name: "check_codex_builds", call_id: "c1", arguments: "{}" },
+    ] } };
+    emit(result); emit(result); await flush();
+    expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection");
+    expect(transcript).toHaveBeenCalledWith("assistant", "Builder connected. Latest run succeeded. No build was started.", "u1");
+    expect(channel.send).toHaveBeenCalledWith(expect.stringContaining('"type":"function_call_output"'));
+  });
   it("keeps a direct Office result until delayed question transcription arrives", async () => {
     const transcript = vi.fn();
     const action = vi.fn().mockResolvedValue("Builder connected. Run 5 succeeded.");

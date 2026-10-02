@@ -24,6 +24,8 @@ describe("Astra direct speech-to-speech (preview)", () => {
     expect(s.audio.input.transcription.model).toBeTruthy();
     expect(s.output_modalities).toEqual(["audio"]);
     expect(s.tools[0]!.name).toBe("submit_office_request");
+    expect(s.tools[1]!.name).toBe("check_codex_builds");
+    expect(s.tools[1]!.parameters.properties).toEqual({});
     expect((s.tools[0]!.parameters as { required?: string[] }).required).toEqual(["request"]);
   });
 

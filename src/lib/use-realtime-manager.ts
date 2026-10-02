@@ -464,7 +464,7 @@ export function useRealtimeManager(
         if (sessionMode === "direct" && payload.type === "response.done") {
           const responseId = payload.response?.id ?? "";
           const turnId = responseTurns.get(responseId) ?? currentInputId;
-          const calls = (payload.response?.output ?? []).filter(item => item.type === "function_call" && item.name === "submit_office_request" && item.call_id);
+          const calls = (payload.response?.output ?? []).filter(item => item.type === "function_call" && (item.name === "submit_office_request" || item.name === "check_codex_builds") && item.call_id);
           // Preliminary speech in a tool response is not the Office answer.
           // Wait for the guarded tool result before closing this written turn.
           if (!calls.length && payload.response?.status !== "cancelled") {
@@ -475,10 +475,14 @@ export function useRealtimeManager(
             saveDirectAnswer(turnId, text);
           }
           for (const item of payload.response?.output ?? []) {
-            if (item.type === "function_call" && item.name === "submit_office_request" && item.call_id) {
+            if (item.type === "function_call" && (item.name === "submit_office_request" || item.name === "check_codex_builds") && item.call_id) {
               setPhase("thinking");
               setActivity("Elsie is checking the Office…");
-              void runDirectTool(item.call_id, item.arguments ?? "", turnId);
+              // The read-only tool uses a fixed command, so model paraphrasing
+              // cannot send a status check into general paid Office reasoning.
+              const args = item.name === "check_codex_builds"
+                ? JSON.stringify({ request: "Check builder connection" }) : item.arguments ?? "";
+              void runDirectTool(item.call_id, args, turnId);
             }
           }
         }
