@@ -20,7 +20,8 @@ describe("Astra mobile viewport-covering layer", () => {
     expect(src).toContain('"inset-0 h-screen h-[100svh] h-[100dvh] w-screen max-h-none max-w-none resize-none rounded-none"');
     expect(src).toContain('"h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] max-w-[calc(100vw-16px)] resize rounded-xl"');
     expect(src).toContain('minimized ? "hidden" : "flex"');
-    expect(src).toContain('className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4"');
+    // The reading-space update reserves a quarter of the viewport for messages.
+    expect(src).toContain('className="min-h-[25dvh] flex-1 select-text space-y-4 overflow-y-auto overscroll-contain p-4"');
   });
   it("falls back to the unchanged floating panel on desktop and when inactive", () => {
     expect(src).toContain(': "contents"}');

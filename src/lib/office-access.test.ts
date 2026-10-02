@@ -53,7 +53,8 @@ describe("office entry gate", () => {
   });
 
   it("shows the sign-in screen when there is no valid session", () => {
-    expect(gate).toContain("Sign in to open the office");
+    expect(gate).toContain('if (session.state !== "owner") return <OfficeSignInScreen');
+    expect(gate).toContain("Sign in to CanX Office");
     expect(gate).toContain("session.signIn(");
   });
 
