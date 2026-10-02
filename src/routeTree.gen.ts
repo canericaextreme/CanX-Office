@@ -25,6 +25,7 @@ import { Route as OfficeIdeaGarageRouteImport } from './routes/_office/idea-gara
 import { Route as OfficeLegalRouteImport } from './routes/_office/legal'
 import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-team'
 import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
+import { Route as OfficeProductStudioRouteImport } from './routes/_office/product-studio'
 import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
 import { Route as OfficeRecordsRouteImport } from './routes/_office/records'
 import { Route as OfficeResearchRouteImport } from './routes/_office/research'
@@ -115,6 +116,11 @@ const OfficeOwnerDeskRoute = OfficeOwnerDeskRouteImport.update({
   path: '/owner-desk',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeProductStudioRoute = OfficeProductStudioRouteImport.update({
+  id: '/product-studio',
+  path: '/product-studio',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeProjectsRoute = OfficeProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/legal': typeof OfficeLegalRoute
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
+  '/product-studio': typeof OfficeProductStudioRoute
   '/projects': typeof OfficeProjectsRoute
   '/records': typeof OfficeRecordsRoute
   '/research': typeof OfficeResearchRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/legal': typeof OfficeLegalRoute
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
+  '/product-studio': typeof OfficeProductStudioRoute
   '/projects': typeof OfficeProjectsRoute
   '/records': typeof OfficeRecordsRoute
   '/research': typeof OfficeResearchRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/_office/legal': typeof OfficeLegalRoute
   '/_office/office-team': typeof OfficeOfficeTeamRoute
   '/_office/owner-desk': typeof OfficeOwnerDeskRoute
+  '/_office/product-studio': typeof OfficeProductStudioRoute
   '/_office/projects': typeof OfficeProjectsRoute
   '/_office/records': typeof OfficeRecordsRoute
   '/_office/research': typeof OfficeResearchRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/legal'
     | '/office-team'
     | '/owner-desk'
+    | '/product-studio'
     | '/projects'
     | '/records'
     | '/research'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/legal'
     | '/office-team'
     | '/owner-desk'
+    | '/product-studio'
     | '/projects'
     | '/records'
     | '/research'
@@ -321,6 +332,7 @@ export interface FileRouteTypes {
     | '/_office/legal'
     | '/_office/office-team'
     | '/_office/owner-desk'
+    | '/_office/product-studio'
     | '/_office/projects'
     | '/_office/records'
     | '/_office/research'
@@ -453,6 +465,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeOwnerDeskRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/product-studio': {
+      id: '/_office/product-studio'
+      path: '/product-studio'
+      fullPath: '/product-studio'
+      preLoaderRoute: typeof OfficeProductStudioRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/projects': {
       id: '/_office/projects'
       path: '/projects'
@@ -541,6 +560,7 @@ interface OfficeRouteChildren {
   OfficeLegalRoute: typeof OfficeLegalRoute
   OfficeOfficeTeamRoute: typeof OfficeOfficeTeamRoute
   OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
+  OfficeProductStudioRoute: typeof OfficeProductStudioRoute
   OfficeProjectsRoute: typeof OfficeProjectsRoute
   OfficeRecordsRoute: typeof OfficeRecordsRoute
   OfficeResearchRoute: typeof OfficeResearchRoute
@@ -568,6 +588,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeLegalRoute: OfficeLegalRoute,
   OfficeOfficeTeamRoute: OfficeOfficeTeamRoute,
   OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
+  OfficeProductStudioRoute: OfficeProductStudioRoute,
   OfficeProjectsRoute: OfficeProjectsRoute,
   OfficeRecordsRoute: OfficeRecordsRoute,
   OfficeResearchRoute: OfficeResearchRoute,
