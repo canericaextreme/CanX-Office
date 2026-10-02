@@ -3,6 +3,48 @@ import { codexBuildsWith, type CodexBuildDeps } from './codex-builds.server';
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 const setup = (): CodexBuildDeps => ({ enabled: true, githubToken: 'private-github-key', verify: vi.fn().mockResolvedValue({ ok: true, userId: 'owner', aal: 'aal2', email: '' }), fetch: vi.fn() });
 describe('Astra to Codex connection', () => {
+  it('checks the installed workflow without dispatching a build, even while a run is active', async () => {
+    const d = setup();
+    vi.mocked(d.fetch).mockResolvedValueOnce(json({ workflow_runs: [{ id: 42, display_title: 'Connection smoke test', status: 'in_progress' }] }));
+
+    const result = await codexBuildsWith(d, 'private-owner-session');
+
+    expect(result.ok).toBe(true);
+    expect(result.runs).toEqual([{ id: 42, title: 'Connection smoke test', state: 'in_progress', url: 'https://github.com/canericaextreme/CanX-Office/actions/runs/42' }]);
+    expect(d.fetch).toHaveBeenCalledOnce();
+    const [url, init] = vi.mocked(d.fetch).mock.calls[0]!;
+    expect(url).toBe('https://api.github.com/repos/canericaextreme/CanX-Office/actions/workflows/canx-codex.yml/runs?per_page=30&event=workflow_dispatch');
+    expect(init?.method ?? 'GET').toBe('GET');
+    expect(init?.body).toBeUndefined();
+    expect(JSON.stringify(init)).not.toContain('private-owner-session');
+  });
+  it('accepts an installed workflow with no previous builds', async () => {
+    const d = setup();
+    vi.mocked(d.fetch).mockResolvedValueOnce(json({ workflow_runs: [] }));
+    expect(await codexBuildsWith(d, 'owner')).toMatchObject({ ok: true, runs: [] });
+    expect(d.fetch).toHaveBeenCalledOnce();
+  });
+  it.each([401, 403, 404, 500])('reports an unsuccessful connection check for GitHub HTTP %s', async status => {
+    const d = setup();
+    vi.mocked(d.fetch).mockResolvedValueOnce(json({ message: 'private upstream detail' }, status));
+    const result = await codexBuildsWith(d, 'owner');
+    expect(result.ok).toBe(false);
+    expect(result.detail).toContain('workflow could not be read');
+    expect(result.detail).not.toContain('private upstream detail');
+    expect(d.fetch).toHaveBeenCalledOnce();
+  });
+  it('does not report a malformed workflow response as connected', async () => {
+    const d = setup();
+    vi.mocked(d.fetch).mockResolvedValueOnce(json({ workflow_runs: null }));
+    expect(await codexBuildsWith(d, 'owner')).toEqual({ ok: false, detail: 'The Codex run list was not readable.' });
+    expect(d.fetch).toHaveBeenCalledOnce();
+  });
+  it('reports a network failure without leaking details or retrying', async () => {
+    const d = setup();
+    vi.mocked(d.fetch).mockRejectedValueOnce(Error('private upstream detail'));
+    expect(await codexBuildsWith(d, 'owner')).toEqual({ ok: false, detail: 'Codex status is unavailable right now.' });
+    expect(d.fetch).toHaveBeenCalledOnce();
+  });
   it('refuses unauthenticated callers before accessing GitHub', async () => {
     const d = setup(); vi.mocked(d.verify).mockResolvedValue({ ok: false, reason: 'mfa_required', message: 'MFA required' });
     expect((await codexBuildsWith(d, 'bad', 'Build an office widget')).ok).toBe(false);
