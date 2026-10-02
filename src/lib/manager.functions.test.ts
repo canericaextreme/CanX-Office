@@ -556,7 +556,7 @@ describe("direct read-only builder connection check", () => {
   it("returns real status without a change number or AI request", async () => {
     const checkCodexStatus = vi.fn().mockResolvedValue({ ok: true, detail: "Live status", runs: [] });
     const d = deps({ verifyOwner: async () => OWNER, checkCodexStatus, openaiKey: undefined });
-    const result = await runManagerChatWith(d, { accessToken: "t", messages: [{ role: "user", content: "Check builder connection" }] });
+    const result = await runManagerChatWith(d, { accessToken: "t", messages: [{ role: "user", content: "Check the builder connection and tell me the latest build status. Don't start a build." }] });
     expect(checkCodexStatus).toHaveBeenCalledExactlyOnceWith("t");
     expect(result.text).toContain("No recorded Codex build runs");
     expect(result.toolCalls).toEqual([]);
