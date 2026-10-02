@@ -16,6 +16,31 @@ function setup(overrides: Partial<ManagerTask> = {}) {
   return { deps, rest, build, task: () => task };
 }
 describe('saved task execution', () => {
+  it('executes the actual help-text task with an internal builder instruction exactly once', async () => {
+    const h = setup({
+      title: 'Add Work Board help text explaining assigned-job execution',
+      detail: 'Add the help text “Assigned jobs start when a worker begins execution” to the Work Board. Send to the builder once only. Keep the task open until build and test evidence verify the change. Report the build link and actual status; do not treat assignment as execution.',
+    });
+    expect((await executeTaskWith(h.deps, 'token', id)).ok).toBe(true);
+    expect(h.build).toHaveBeenCalledWith('token', `${h.task().title}\n${h.task().detail}`);
+    expect(JSON.parse(h.task().evidence).runId).toBe(42);
+    await executeTaskWith(h.deps, 'token', id);
+    expect(h.build).toHaveBeenCalledOnce();
+  });
+  it.each([
+    'Send to the builder once only. Send an email to a customer.',
+    'Send to the builder once only. Publish the change.',
+    'Send to the builder once only. Delete customer records.',
+    'Send to the builder once only. Buy a subscription.',
+    'Send to the builder and email a customer.',
+    'Send to the builder once only. Grant administrator permission.',
+    'Send to the builder once only. Change the API_key.',
+  ])('retains protected-action rejection after internal routing: %s', async detail => {
+    const h = setup({ detail: `Add help text to the page. ${detail}` });
+    expect((await executeTaskWith(h.deps, 'token', id)).ok).toBe(false);
+    expect(h.build).not.toHaveBeenCalled();
+    expect(h.rest.mock.calls.every(call => call[1] === 'GET')).toBe(true);
+  });
   it('claims before one submission, stores its exact run, and never resubmits the task', async () => {
     const h = setup();
     const result = await executeTaskWith(h.deps, 'token', id);

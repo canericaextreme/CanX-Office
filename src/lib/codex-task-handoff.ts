@@ -5,6 +5,19 @@
  */
 import type { CodexBuildResult } from "./codex-builds.server";
 import type { RiskLevel } from "./manager-work.functions";
+import { protectedCategoryOf } from "./protected-actions";
+
+/** Ignore only standalone routing instructions to our fixed internal builder.
+ * Keep the original request intact for execution, and retain every other
+ * protected-action check (including external sends in the same request).
+ */
+export function officeBuildProtectedCategory(request: string): string | null {
+  const scope = request.replace(
+    /(^|[.!?\n])([ \t]*)(?:send|submit) (?:it |this task |the task )?to (?:the )?(?:builder|codex)(?: (?:once(?: only)?|only once))?[ \t]*(?=[.!?\n]|$)/gi,
+    "$1$2",
+  );
+  return protectedCategoryOf(scope);
+}
 
 export interface CodexHandoffGate {
   codeChange: boolean;
