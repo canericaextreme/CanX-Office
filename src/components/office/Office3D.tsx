@@ -450,7 +450,6 @@ function RoomHotspot({
     <Link
       to={room.route}
       aria-label={`${room.label} — ${room.purpose}`}
-      title={`Open ${room.label}`}
       draggable={false}
       className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none focus-visible:z-40 focus-visible:outline-none"
       style={{ left: `${position.x}%`, top: `${position.y}%` }}
