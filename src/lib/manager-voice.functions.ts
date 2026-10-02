@@ -84,6 +84,7 @@ export const transcribeManagerAudio = createServerFn({ method: "POST" })
     const extension = data.mimeType === "audio/mp4" ? "mp4" : data.mimeType === "audio/mpeg" ? "mp3" : data.mimeType === "audio/wav" ? "wav" : data.mimeType === "audio/ogg" ? "ogg" : "webm";
     const body = new FormData();
     body.append("model", readSetting(process.env["OPENAI_TRANSCRIBE_MODEL"]) ?? "gpt-4o-mini-transcribe");
+    body.append("language", "en");
     const audioBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     body.append("file", new Blob([audioBuffer], { type: data.mimeType }), `manager-turn.${extension}`);
     const controller = new AbortController();

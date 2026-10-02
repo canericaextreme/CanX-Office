@@ -1204,6 +1204,34 @@ export function OfficeManager() {
               </button>
             ))}
 
+              <div role="status" aria-label="AI connection status" className="min-w-0 max-w-full px-2 py-1 text-xs sm:max-w-sm">
+                {status === null ? (
+                  <span className="text-muted-foreground">Checking the connection…</span>
+                ) : (
+                  <span className={status.connected ? "text-foreground" : "text-muted-foreground"}>
+                    <span
+                      className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${
+                        status.connected
+                          ? "bg-emerald-500"
+                          : status.state === "auth_unavailable"
+                            ? "bg-red-500"
+                            : "bg-amber-500"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {status.connected
+                      ? `AI connected — OpenAI (${status.model}).`
+                      : status.state === "auth_unavailable"
+                        ? status.keyPresent
+                          ? "AI blocked — a key is present but unusable without verified owner sign-in with two-step verification. Nothing here is an AI answer."
+                          : "AI not connected — verified owner sign-in with two-step verification is required first. Nothing here is an AI answer."
+                        : status.state === "configured_unverified"
+                          ? "AI configured but unverified — no live check has passed. Nothing here is an AI answer."
+                          : "AI not connected. Nothing here is an AI answer."}
+                  </span>
+                )}
+              </div>
+
             <Button
               variant="ghost"
               size="sm"
@@ -1237,33 +1265,7 @@ export function OfficeManager() {
                 <DecisionTracker accessToken={token || null} compact />
               </details>
               {copyStatus && <p role="status" className="shrink-0 px-3 py-1 text-sm">{copyStatus}</p>}
-              <div className="shrink-0 border-b border-border px-3 py-2 text-xs">
-                {status === null ? (
-                  <span className="text-muted-foreground">Checking the connection…</span>
-                ) : (
-                  <span className={status.connected ? "text-foreground" : "text-muted-foreground"}>
-                    <span
-                      className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${
-                        status.connected
-                          ? "bg-emerald-500"
-                          : status.state === "auth_unavailable"
-                            ? "bg-red-500"
-                            : "bg-amber-500"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    {status.connected
-                      ? `AI connected — OpenAI (${status.model}).`
-                      : status.state === "auth_unavailable"
-                        ? status.keyPresent
-                          ? "AI blocked — a key is present but unusable without verified owner sign-in with two-step verification. Nothing here is an AI answer."
-                          : "AI not connected — verified owner sign-in with two-step verification is required first. Nothing here is an AI answer."
-                        : status.state === "configured_unverified"
-                          ? "AI configured but unverified — no live check has passed. Nothing here is an AI answer."
-                          : "AI not connected. Nothing here is an AI answer."}
-                  </span>
-                )}
-              </div>
+
 
               <div
                 ref={messagesScrollRef}
