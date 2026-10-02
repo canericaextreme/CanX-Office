@@ -22,6 +22,7 @@ export function CodexBuildPanel() {
     <p>Describe a change here or ask Elsie to send it to Codex. Codex prepares a draft change with test results. Claude can review the returned evidence through Elsie. Publishing is a separate step.</p>
     <label className="block" htmlFor="codex-build-request">What should Codex build or fix?</label>
     <textarea id="codex-build-request" className="min-h-28 w-full rounded border bg-background p-3" value={request} maxLength={6000} onChange={e => setRequest(e.target.value)} />
+    <p className="text-sm text-muted-foreground">Describe the change you want made to CanX Office.</p>
     <div className="flex flex-wrap gap-2">
       <Button disabled={busy || !session.stepUpComplete || request.trim().length < 10} onClick={() => void act(true)}>Send build to Codex</Button>
       <Button variant="outline" disabled={busy || !session.stepUpComplete} onClick={() => void act(false)}>Check connection and builds</Button>
