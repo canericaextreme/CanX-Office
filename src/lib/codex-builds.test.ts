@@ -50,6 +50,7 @@ describe('Astra to Codex connection', () => {
     const d = setup(); vi.mocked(d.fetch).mockResolvedValueOnce(json({ workflow_runs: [] })).mockResolvedValueOnce(json({ workflow_run_id: 42 }));
     const result = await codexBuildsWith(d, 'private-owner-session', 'Build a clearer office task list');
     expect(result.ok).toBe(true); expect(result.detail).toContain('Nothing has been published');
+    expect(result.runs?.[0]).toMatchObject({ id: 42, state: 'queued', url: 'https://github.com/canericaextreme/CanX-Office/actions/runs/42' });
     const [url, init] = vi.mocked(d.fetch).mock.calls[1]!;
     expect(url).toBe('https://api.github.com/repos/canericaextreme/CanX-Office/actions/workflows/canx-codex.yml/dispatches');
     expect(JSON.parse(String(init?.body))).toEqual({ ref: 'main', inputs: { request: 'Build a clearer office task list' } });
@@ -71,5 +72,21 @@ describe('Astra to Codex connection', () => {
   it('only fetches evidence from this office workflow branch', async () => {
     const d = setup(); vi.mocked(d.fetch).mockResolvedValueOnce(json({ head: { ref: 'main', repo: { full_name: 'attacker/repo' } } }));
     expect((await codexBuildsWith(d, 'owner', undefined, 4)).ok).toBe(false); expect(d.fetch).toHaveBeenCalledOnce();
+  });
+  it('reads an exact linked run and its draft without dispatching or claiming publication', async () => {
+    const d = setup();
+    vi.mocked(d.fetch).mockResolvedValueOnce(json({ id: 42, path: '.github/workflows/canx-codex.yml', event: 'workflow_dispatch', status: 'completed', conclusion: 'success' }))
+      .mockResolvedValueOnce(json([{ number: 51, head: { ref: 'codex/office-42', repo: { full_name: 'canericaextreme/CanX-Office' } } }]));
+    const result = await codexBuildsWith(d, 'owner', undefined, undefined, 42);
+    expect(result.detail).toContain('Draft change #51');
+    expect(result.detail).toContain('deployment remain unverified');
+    expect(result.runs?.[0]?.state).toBe('success');
+    for (const [, init] of vi.mocked(d.fetch).mock.calls) expect(init?.method ?? 'GET').toBe('GET');
+  });
+  it('rejects a linked run from another workflow', async () => {
+    const d = setup();
+    vi.mocked(d.fetch).mockResolvedValueOnce(json({ id: 42, path: '.github/workflows/other.yml', event: 'workflow_dispatch' }));
+    expect((await codexBuildsWith(d, 'owner', undefined, undefined, 42)).ok).toBe(false);
+    expect(d.fetch).toHaveBeenCalledOnce();
   });
 });

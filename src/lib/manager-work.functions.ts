@@ -430,10 +430,10 @@ export async function assignManagerTaskWith(deps: WorkbenchDeps, input: AssignTa
   if (!taskResult.ok || !taskResult.data?.[0]) return fail("not_found", "Task not found.");
   const before = taskResult.data[0];
   if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
+  if (before.status === "done" || before.status === "cancelled") return fail("invalid_input", "A finished task cannot be reassigned.");
 
   const [updated] = await Promise.all([
     deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
-      status: "in_progress",
       worker,
       updated_at: new Date().toISOString(),
     }),
@@ -450,7 +450,7 @@ export async function assignManagerTaskWith(deps: WorkbenchDeps, input: AssignTa
     _entity: "manager_tasks",
     _entity_id: input.taskId,
     _before: { status: before.status, worker: before.worker },
-    _after: { status: "in_progress", worker },
+    _after: { status: before.status, worker },
   }).catch(() => undefined);
 
   return updated.data[0];

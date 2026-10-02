@@ -19,7 +19,7 @@ async function api(deps: CodexBuildDeps, path: string, init: RequestInit = {}) {
   } });
 }
 const denied = (detail: string): CodexBuildResult => ({ ok: false, detail });
-export async function codexBuildsWith(deps: CodexBuildDeps, token: string, request?: string, prNumber?: number): Promise<CodexBuildResult> {
+export async function codexBuildsWith(deps: CodexBuildDeps, token: string, request?: string, prNumber?: number, runId?: number): Promise<CodexBuildResult> {
   const owner = await deps.verify(token);
   if (!owner.ok) return denied(owner.message);
   if (!deps.githubToken || !deps.enabled) {
@@ -31,7 +31,27 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
   }
   if (request !== undefined && (request.trim().length < 10 || request.length > 6000)) return denied('Describe the build in 10–6,000 characters.');
   if (prNumber !== undefined && (!Number.isSafeInteger(prNumber) || prNumber < 1)) return denied('Choose a valid Codex change number.');
+  if (runId !== undefined && (!Number.isSafeInteger(runId) || runId < 1 || request !== undefined || prNumber !== undefined)) return denied('Choose one valid run to check.');
   try {
+    if (runId !== undefined) {
+      const response = await api(deps, `/actions/runs/${runId}`);
+      if (!response.ok) return denied('Could not read the task’s linked build. Nothing was retried.');
+      const run = await response.json();
+      if (run.id !== runId || run.path !== `.github/workflows/${CODEX_WORKFLOW}` || run.event !== 'workflow_dispatch') return denied('That run is not an Office Codex build.');
+      const state = run.status === 'completed' ? plain(run.conclusion) : plain(run.status);
+      const url = `https://github.com/${CODEX_REPO}/actions/runs/${runId}`;
+      let detail = `Task build ${runId}: ${state}.`;
+      if (state === 'success') {
+        detail += ' Candidate typecheck, tests and build passed. Review and deployment remain unverified.';
+        const prs = await api(deps, `/pulls?state=all&head=canericaextreme:codex/office-${runId}&per_page=10`);
+        if (prs.ok) {
+          const body = await prs.json();
+          const pr = Array.isArray(body) ? body.find(p => p.head?.ref === `codex/office-${runId}` && p.head?.repo?.full_name === CODEX_REPO) : undefined;
+          if (pr && Number.isSafeInteger(pr.number)) detail += ` Draft change #${pr.number}: https://github.com/${CODEX_REPO}/pull/${pr.number}.`;
+        }
+      }
+      return { ok: true, detail, runs: [{ id: runId, title: plain(run.display_title), state, url }] };
+    }
     if (prNumber !== undefined) {
       const response = await api(deps, `/pulls/${prNumber}`);
       if (!response.ok) return denied('Could not read that Codex change.');
@@ -58,7 +78,17 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
     if (runs.some((r: {state: string}) => ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(r.state))) return denied('A Codex build is already queued or running. Check its result before starting another.');
     const sent = await api(deps, `/actions/workflows/${CODEX_WORKFLOW}/dispatches`, { method: 'POST', body: JSON.stringify({ ref: 'main', inputs: { request: request.trim() } }) });
     if (!sent.ok) return denied('GitHub did not accept the Codex build. Check Actions access and the workflow configuration.');
-    return { ok: true, detail: 'GitHub accepted the Codex build request. Check Build & Testing for its run and draft changes. Nothing has been published.' };
+    // The current GitHub API returns the exact dispatched run. Never attach
+    // an unrelated "latest" run to a task, and never redispatch on parse failure.
+    const accepted = 'GitHub accepted the Codex build request. Nothing has been published.';
+    try {
+      const body = await sent.json();
+      if (Number.isSafeInteger(body.workflow_run_id) && body.workflow_run_id > 0) {
+        const id = body.workflow_run_id;
+        return { ok: true, detail: accepted, runs: [{ id, title: 'Task build', state: 'queued', url: `https://github.com/${CODEX_REPO}/actions/runs/${id}` }] };
+      }
+    } catch { /* Older API responses may be empty. Submission still accepted. */ }
+    return { ok: true, detail: accepted + ' No run identifier was returned; check Build & Testing manually before any further submission.' };
   } catch (error) {
     // Never expose exception messages: header errors can contain credentials.
     const name = error instanceof Error ? error.name : '';

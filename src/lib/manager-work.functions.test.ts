@@ -155,6 +155,7 @@ describe("task lifecycle", () => {
     const result = await assignManagerTaskWith(deps, { accessToken: "token", taskId: "t1", worker: "Claude" });
     expect(result).toEqual(updated);
     expect(rest).toHaveBeenCalledWith("token", "POST", "manager_assignments", expect.objectContaining({ worker: "Claude" }));
+    expect(rest.mock.calls.find(c => c[1] === "PATCH")?.[3]).not.toHaveProperty("status");
   });
 
   it("verifyManagerTaskWith marks a task done and logs the change", async () => {

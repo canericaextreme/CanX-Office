@@ -19,6 +19,7 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { DEFAULT_TEAM, loadTeam, type TeamMember } from "@/lib/office-team";
+import { taskExecutionEvidence } from "@/lib/task-execution-evidence";
 
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
@@ -264,7 +265,8 @@ function WorkBoard() {
                 </dl>
                 {task.detail && <p className="mt-2 text-xs text-muted-foreground">{task.detail}</p>}
                 <p className="mt-1 text-xs text-canx-green">Result: {task.result?.trim() || "Not recorded"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Evidence: {task.evidence?.trim() || "Not recorded"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Evidence: {taskExecutionEvidence(task.evidence)?.label ?? (task.evidence?.trim() || "Not recorded")}</p>
+                {taskExecutionEvidence(task.evidence)?.url && <a className="text-xs underline" href={taskExecutionEvidence(task.evidence)!.url} target="_blank" rel="noopener noreferrer">Open this task’s build</a>}
                 {taskAssignments.length > 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {taskAssignments.length} assignment{taskAssignments.length === 1 ? "" : "s"} recorded · latest{" "}
@@ -444,7 +446,8 @@ function WorkBoard() {
                     <Input
                       id={`edit-evidence-${task.id}`}
                       className="h-11"
-                      value={edit.evidence}
+                      value={taskExecutionEvidence(edit.evidence)?.label ?? edit.evidence}
+                      readOnly={Boolean(taskExecutionEvidence(edit.evidence))}
                       onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, evidence: e.target.value } }))}
                     />
                     <Button
