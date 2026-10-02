@@ -403,21 +403,34 @@ export function useRealtimeManager(
         setActivity("Answer ready. Waiting for Elsie to speak…");
       };
       const handledCalls = new Set<string>();
-      const savedResponses = new Set<string>();
-      const runDirectTool = async (callId: string, rawArgs: string) => {
-        if (!callId || handledCalls.has(callId)) return;
+      const writtenTurns = new Set<string>();
+      const transcribedInputs = new Set<string>();
+      const pendingAnswers = new Map<string, string>();
+      const responseTurns = new Map<string, string>();
+      const spokenResponses = new Map<string, string>();
+      const saveDirectAnswer = (turnId: string, text: string) => {
+        if (!turnId || !text.trim() || writtenTurns.has(turnId)) return;
+        // Input transcription and the spoken response arrive independently.
+        // Never discard an answer just because its question text arrived late.
+        if (!transcribedInputs.has(turnId)) { pendingAnswers.set(turnId, text); return; }
+        writtenTurns.add(turnId);
+        pendingAnswers.delete(turnId);
+        transcriptRef.current("assistant", text, turnId);
+      };
+      const runDirectTool = async (callId: string, rawArgs: string, turnId: string) => {
+        if (!callId || !turnId || turnId !== currentInputId || handledCalls.has(callId)) return;
         handledCalls.add(callId);
-        const turnId = currentInputId;
         const output = await directToolOutput(rawArgs, requestRef.current);
+        // Preserve the authoritative result even if playback is interrupted.
+        saveDirectAnswer(turnId, output.ok ? output.result : output.note);
         if (!current() || channel.readyState !== "open") return;
-        if (!output.ok) turnFailedRef.current?.(turnId);
         sendEvent({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) } });
         sendEvent({ type: "response.create" });
         setActivity(output.ok ? "Office answer received. Elsie is replying…" : "The Office request did not finish. Elsie will say so.");
       };
       channel.onmessage = (event) => {
         if (!current()) return;
-        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string; arguments?: string }[] }; response_id?: string };
+        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string; arguments?: string; content?: { transcript?: string; text?: string }[] }[] }; response_id?: string };
         try { payload = JSON.parse(String(event.data)) as typeof payload; }
         catch { return; }
         if (payload.type === "error" || (payload.type === "response.done" && payload.response?.status === "failed")) {
@@ -445,12 +458,27 @@ export function useRealtimeManager(
           fail(hint);
           return;
         }
+        if (sessionMode === "direct" && payload.type === "response.created" && payload.response?.id) {
+          responseTurns.set(payload.response.id, currentInputId);
+        }
         if (sessionMode === "direct" && payload.type === "response.done") {
+          const responseId = payload.response?.id ?? "";
+          const turnId = responseTurns.get(responseId) ?? currentInputId;
+          const calls = (payload.response?.output ?? []).filter(item => item.type === "function_call" && item.name === "submit_office_request" && item.call_id);
+          // Preliminary speech in a tool response is not the Office answer.
+          // Wait for the guarded tool result before closing this written turn.
+          if (!calls.length && payload.response?.status !== "cancelled") {
+            const text = spokenResponses.get(responseId) ?? (payload.response?.output ?? [])
+              .filter(item => item.type === "message")
+              .flatMap(item => item.content ?? [])
+              .map(part => part.transcript ?? part.text ?? "").join("\n").trim();
+            saveDirectAnswer(turnId, text);
+          }
           for (const item of payload.response?.output ?? []) {
             if (item.type === "function_call" && item.name === "submit_office_request" && item.call_id) {
               setPhase("thinking");
               setActivity("Elsie is checking the Office…");
-              void runDirectTool(item.call_id, item.arguments ?? "");
+              void runDirectTool(item.call_id, item.arguments ?? "", turnId);
             }
           }
         }
@@ -503,17 +531,18 @@ export function useRealtimeManager(
           setStage("recognized");
           setActivity("Heard: " + text.slice(0, 140));
           transcriptRef.current("user", text, payload.item_id);
+          if (sessionMode === "direct" && payload.item_id) {
+            transcribedInputs.add(payload.item_id);
+            const answer = pendingAnswers.get(payload.item_id);
+            if (answer) saveDirectAnswer(payload.item_id, answer);
+          }
           console.info("[astra-voice]", { stage: "transcript_received", turn: payload.item_id ?? "unknown" });
           if (payload.item_id && sessionMode === "relay") void executeRequest(payload.item_id, text);
         }
         // Direct mode: the live model's own spoken words are Elsie's reply.
         // Save each spoken response once, paired with the turn that caused it.
-        if (sessionMode === "direct" && payload.type === "response.output_audio_transcript.done") {
-          const key = payload.response_id ?? `${currentInputId}:${text}`;
-          if (!savedResponses.has(key)) {
-            savedResponses.add(key);
-            transcriptRef.current("assistant", text, currentInputId || undefined);
-          }
+        if (sessionMode === "direct" && (payload.type === "response.output_audio_transcript.done" || payload.type === "response.audio_transcript.done")) {
+          if (payload.response_id) spokenResponses.set(payload.response_id, text);
         }
         // Audio transcripts are playback diagnostics only. The canonical
         // Office answer was already saved above, so these provider echoes must
