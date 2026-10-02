@@ -550,3 +550,29 @@ describe("Astra action destinations", () => {
     expect(reply.text).not.toContain("Queued for approval:");
   });
 });
+
+
+describe("direct read-only builder connection check", () => {
+  it("returns real status without a change number or AI request", async () => {
+    const checkCodexStatus = vi.fn().mockResolvedValue({ ok: true, detail: "Live status", runs: [] });
+    const d = deps({ verifyOwner: async () => OWNER, checkCodexStatus, openaiKey: undefined });
+    const result = await runManagerChatWith(d, { accessToken: "t", messages: [{ role: "user", content: "Check builder connection" }] });
+    expect(checkCodexStatus).toHaveBeenCalledExactlyOnceWith("t");
+    expect(result.text).toContain("No recorded Codex build runs");
+    expect(result.toolCalls).toEqual([]);
+    expect(d.fetchImpl).not.toHaveBeenCalled();
+  });
+  it("reports the actual connection failure as a readable answer", async () => {
+    const checkCodexStatus = vi.fn().mockResolvedValue({ ok: false, detail: "Connection disabled" });
+    const result = await runManagerChatWith(deps({ verifyOwner: async () => OWNER, checkCodexStatus }), { accessToken: "t", messages: [{ role: "user", content: "Use check_codex_builds and tell me the exact connection status or error. Don't start a build." }] });
+    expect(checkCodexStatus).toHaveBeenCalledExactlyOnceWith("t");
+    expect(result.text).toContain("Connection disabled");
+    expect(result.actionResults[0]?.status).toBe("stopped");
+  });
+  it("keeps owner verification before the status operation", async () => {
+    const checkCodexStatus = vi.fn();
+    const result = await runManagerChatWith(deps({ checkCodexStatus }), { accessToken: "bad", messages: [{ role: "user", content: "Check builder connection" }] });
+    expect(result.ok).toBe(false);
+    expect(checkCodexStatus).not.toHaveBeenCalled();
+  });
+});
