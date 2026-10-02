@@ -241,6 +241,7 @@ export function useRealtimeManager(
     setPhase("connecting");
     setStage("connecting");
     setActivity("Connecting the microphone and speaker…");
+    const connectionStartedAt = Date.now();
     let speechEndedAt = 0;
     let connectStage = "microphone";
     const fail = (message: string) => {
@@ -337,13 +338,27 @@ export function useRealtimeManager(
 
       const channel = pc.createDataChannel("oai-events");
       channelRef.current = channel;
+      let sessionReady = false;
+      let greetingSent = false;
+      let greetingResponseId = "";
+      let greetingSoundRecorded = false;
+      const greetWhenReady = () => {
+        if (!current() || !sessionReady || greetingSent || channel.readyState !== "open") return;
+        const greeting = spokenOfficeAnswer("What can I do for you?");
+        if (!sendEvent({ ...greeting, response: { ...greeting.response, metadata: { startup_greeting: "true" } } })) return;
+        greetingSent = true;
+        setPhase("thinking");
+        setStage("thinking");
+        setActivity("Elsie is ready and preparing her greeting…");
+      };
       channel.onopen = () => {
         if (!current()) return;
         clearTimeout(timeout);
-        recordVoiceDiag("connected", sessionMode, "voice channel open");
+        recordVoiceDiag("connected", sessionMode, "button to voice channel open", Date.now() - connectionStartedAt);
         setPhase("listening");
         setStage("listening");
         setActivity("Listening for your words…");
+        greetWhenReady();
       };
       channel.onclose = () => fail("Elsie's voice connection ended. Press Start conversation to reconnect.");
       let outputPlaying = false;
@@ -430,9 +445,16 @@ export function useRealtimeManager(
       };
       channel.onmessage = (event) => {
         if (!current()) return;
-        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string; arguments?: string; content?: { transcript?: string; text?: string }[] }[] }; response_id?: string };
+        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string; startup_greeting?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string; arguments?: string; content?: { transcript?: string; text?: string }[] }[] }; response_id?: string };
         try { payload = JSON.parse(String(event.data)) as typeof payload; }
         catch { return; }
+        if (payload.type === "session.created") {
+          sessionReady = true;
+          greetWhenReady();
+        }
+        if (payload.type === "response.created" && payload.response?.metadata?.startup_greeting === "true") {
+          greetingResponseId = payload.response.id ?? "";
+        }
         if (payload.type === "error" || (payload.type === "response.done" && payload.response?.status === "failed")) {
           const code = payload.error?.code ?? payload.response?.status_details?.error?.code;
           // These command/turn errors do not invalidate the connection. Do not
@@ -459,7 +481,9 @@ export function useRealtimeManager(
           return;
         }
         if (sessionMode === "direct" && payload.type === "response.created" && payload.response?.id) {
-          responseTurns.set(payload.response.id, currentInputId);
+          // A greeting is not an answer to an Office request, even if John
+          // starts talking before the greeting's response event arrives.
+          responseTurns.set(payload.response.id, payload.response.metadata?.startup_greeting === "true" ? "" : currentInputId);
         }
         if (sessionMode === "direct" && payload.type === "response.done") {
           const responseId = payload.response?.id ?? "";
@@ -508,6 +532,10 @@ export function useRealtimeManager(
         if (payload.type === "output_audio_buffer.started" && speechEndedAt) {
           recordVoiceDiag("latency", sessionMode, "end of speech to first sound", Date.now() - speechEndedAt);
           speechEndedAt = 0;
+        }
+        if (payload.type === "output_audio_buffer.started" && greetingResponseId && payload.response_id === greetingResponseId && !greetingSoundRecorded) {
+          greetingSoundRecorded = true;
+          recordVoiceDiag("connected", sessionMode, "button to greeting audio started", Date.now() - connectionStartedAt);
         }
         if (payload.type === "output_audio_buffer.started") {
           outputPlaying = true;
