@@ -268,6 +268,10 @@ const walkingPeople = [
   { x: 58, y: 26 },
   { x: 71, y: 42 },
   { x: 68, y: 61 },
+  { x: 43, y: 73 },
+  { x: 23, y: 53 },
+  { x: 63, y: 32 },
+  { x: 77, y: 54 },
 ] as const;
 
 function WalkingPeople() {
@@ -281,10 +285,12 @@ function WalkingPeople() {
       if (saved) {
         const parsed = JSON.parse(saved) as Array<{ x: number; y: number }>;
         if (
-          parsed.length === walkingPeople.length &&
+          Array.isArray(parsed) && parsed.length > 0 && parsed.length <= walkingPeople.length &&
           parsed.every((position) => Number.isFinite(position.x) && Number.isFinite(position.y))
         ) {
-          setPositions(parsed);
+          // Keep the positions John already chose; new figures start in
+          // their default places when an older seven-person layout is read.
+          setPositions(walkingPeople.map((person, index) => parsed[index] ?? { ...person }));
         }
       }
     } catch {
@@ -342,7 +348,7 @@ function WalkingPeople() {
         >
           <span
             className="office-person__sprite block"
-            style={{ backgroundPosition: `${(index / 6) * 100}% center` }}
+            style={{ backgroundPosition: `${((index % 7) / 6) * 100}% center` }}
           />
           <span className="sr-only">Person {index + 1}</span>
         </span>
