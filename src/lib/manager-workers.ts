@@ -11,7 +11,7 @@
  * comes back to the Manager as labelled evidence, and the Manager may disagree.
  */
 
-import type { RoomId } from "@/lib/office-data";
+import { ROOMS, type RoomId } from "@/lib/office-data";
 
 export type WorkerConnectionState =
   /** A real consultation can be requested right now. */
@@ -136,7 +136,8 @@ export const MAX_WORKER_QUESTION = 1200;
 
 /**
  * Strict argument validation. An unknown worker id, or a room that does not
- * match the seat, is refused outright — never guessed at or corrected.
+ * match the seat, is refused outright. Official display labels and stable room
+ * ids identify the same room; unknown names are never guessed at.
  */
 export function validateConsultRequest(input: {
   workerId?: unknown;
@@ -153,7 +154,10 @@ export function validateConsultRequest(input: {
     };
   }
   const room = typeof input.room === "string" ? input.room.trim().slice(0, 60) : "";
-  if (room && room !== seat.roomId) {
+  const roomKey = room.toLowerCase();
+  const matches = ROOMS.filter(candidate => candidate.id.toLowerCase() === roomKey || candidate.label.toLowerCase() === roomKey);
+  const canonicalRoom = matches.length === 1 ? matches[0]?.id : null;
+  if (room && canonicalRoom !== seat.roomId) {
     return {
       ok: false,
       message: `${seat.name} works in ${seat.roomId}, not ${room}. The consultation was refused rather than sent to the wrong room.`,
