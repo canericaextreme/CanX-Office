@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ContinuityRead } from "./astra-continuity";
 import {
   createManagerRealtimeSessionWith,
   managerRealtimeInstructions,
@@ -30,6 +31,26 @@ function deps(overrides: Partial<ManagerRealtimeDeps> = {}): ManagerRealtimeDeps
 }
 
 describe("Elsie continuous voice", () => {
+  it("overlaps verified Office and continuity reads and waits for both before reserving or minting", async () => {
+    let finishContext!: (v: { ok: true; text: string }) => void;
+    let finishMemory!: (v: ContinuityRead) => void;
+    const context = new Promise<{ ok: true; text: string }>(r => { finishContext = r; });
+    const memory = new Promise<ContinuityRead>(r => { finishMemory = r; });
+    const buildContext = vi.fn(() => context);
+    const readContinuity = vi.fn(() => memory);
+    const reserve = vi.fn(async () => ({ allowed: true as const, reservationId: "r", remainingToday: 1 }));
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ value: "ek_test" })));
+    const pending = createManagerRealtimeSessionWith(deps({ buildContext, readContinuity, reserve, fetchImpl: fetchImpl as typeof fetch }), "token", []);
+    await Promise.resolve(); await Promise.resolve();
+    expect(buildContext).toHaveBeenCalledOnce(); expect(readContinuity).toHaveBeenCalledOnce();
+    expect(reserve).not.toHaveBeenCalled(); expect(fetchImpl).not.toHaveBeenCalled();
+    finishContext({ ok: true, text: "Office ready" });
+    await Promise.resolve(); await Promise.resolve();
+    expect(reserve).not.toHaveBeenCalled();
+    finishMemory({ ok: true, text: "Memory ready", counts: { memory: 1, summaries: 0, recent: 0 } });
+    expect((await pending).ok).toBe(true);
+    expect(reserve).toHaveBeenCalledOnce(); expect(fetchImpl).toHaveBeenCalledOnce();
+  });
   it("has one persistent conversation control instead of push-to-talk", () => {
     expect(managerSource).toContain('Talk to Elsie');
     expect(managerSource).toContain("The microphone stays open");

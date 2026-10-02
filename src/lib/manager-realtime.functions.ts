@@ -151,18 +151,21 @@ export async function createManagerRealtimeSessionWith(
   if (!deps.openaiKey)
     return deny("not_configured", "No CanX-owned AI key is configured on the server.");
 
-  const context = await deps.buildContext(accessToken, verification).catch(() => ({
+  // Both reads use the already-verified owner and are independent. Start
+  // them together, but still require Office records before any paid session.
+  const contextPending = deps.buildContext(accessToken, verification).catch(() => ({
     ok: false as const,
     message: "The office records could not be read for this conversation.",
   }));
-  if (!context.ok) return deny("context_unavailable", context.message);
-
   // Durable memory is read before the session is minted. A failed read is
   // stated plainly to Elsie; voice continues on the office records alone.
-  const continuity: ContinuityRead = deps.readContinuity
-    ? await deps.readContinuity(accessToken, verification.userId)
+  const continuityPending: Promise<ContinuityRead> = deps.readContinuity
+    ? deps.readContinuity(accessToken, verification.userId)
         .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
-    : { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." };
+    : Promise.resolve({ ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." });
+  const context = await contextPending;
+  if (!context.ok) return deny("context_unavailable", context.message);
+  const continuity = await continuityPending;
   const fullContext = `${context.text}\n\n${continuity.text}`;
 
   const budget = await deps.reserve(accessToken, ESTIMATED_CENTS_PER_SESSION_START);
