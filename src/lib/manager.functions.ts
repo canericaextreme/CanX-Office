@@ -46,7 +46,7 @@ import {
   type RiskLevel,
   type WorkbenchDeps,
 } from "@/lib/manager-work.functions";
-import { looksLikeOfficeCodeChange, shouldHandOffToCodex } from "@/lib/codex-task-handoff";
+import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from "@/lib/codex-task-handoff";
 import { isCodexStatusCommand } from "./codex-status-command";
 import { executeTaskWith } from "./task-execution.server";
 
@@ -1143,7 +1143,7 @@ async function executeToolCalls(
             codeChange: call.arguments["code_change"] === true || looksLikeOfficeCodeChange(currentRequest),
             taskRisk,
             classifiedRisk: classifyManagerRisk("start_codex_build", buildText),
-            protectedCategory: protectedCategoryOf(buildText),
+            protectedCategory: officeBuildProtectedCategory(buildText),
             alreadySubmitted: codexSubmitted,
           })) {
             codexSubmitted = true;

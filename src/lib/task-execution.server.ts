@@ -1,8 +1,7 @@
 /** Existing-task execution through the fixed Office builder. No background loop. */
 import type { CodexBuildResult } from './codex-builds.server';
 import { firstRow, classifyManagerRisk, type ManagerTask, type WorkbenchDeps } from './manager-work.functions';
-import { looksLikeOfficeCodeChange, shouldHandOffToCodex } from './codex-task-handoff';
-import { protectedCategoryOf } from './protected-actions';
+import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from './codex-task-handoff';
 
 interface Execution { kind: 'codex-task-v1'; attempt: string; runId?: number; state: string; prior: string; }
 export interface TaskExecutionDeps {
@@ -42,7 +41,7 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   if ((task.project && task.project.toLowerCase() !== 'canx office') || !shouldHandOffToCodex({
     codeChange: looksLikeOfficeCodeChange(request), taskRisk: task.risk,
     classifiedRisk: classifyManagerRisk('start_codex_build', request),
-    protectedCategory: protectedCategoryOf(request), alreadySubmitted: false,
+    protectedCategory: officeBuildProtectedCategory(request), alreadySubmitted: false,
   })) return { ok: false, detail: 'This executor supports green CanX Office code changes only. This task needs its appropriate tool or approval; assigning a room does not execute it.' };
   const pending: Execution = { kind: 'codex-task-v1', attempt: crypto.randomUUID(), state: 'submission_unconfirmed', prior: task.evidence.slice(0, 700) };
   // Compare-and-set before dispatch prevents two conversations from executing
