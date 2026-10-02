@@ -12,27 +12,34 @@
  * session, and this screen reports the server's answer.
  */
 
-import { useState, type ReactNode } from "react";
-import { Building2, LogIn, ShieldCheck } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useOwnerSession } from "@/lib/owner-session";
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card/90 p-6 shadow-xl backdrop-blur">
-        <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Building2 className="h-6 w-6" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-lg font-semibold leading-tight">CanX Office</p>
-            <p className="text-xs text-muted-foreground">Canerica Extreme</p>
+    <div className="dark flex min-h-svh flex-col bg-black px-5 py-8 text-white sm:px-10">
+      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col items-center justify-center gap-8 lg:flex-row lg:gap-12">
+        <div className="w-full max-w-5xl flex-1">
+          <div className="relative aspect-[2/1] w-full overflow-hidden">
+            <img
+              src="/canx-logo.png"
+              alt="CanX — Canerica Extreme"
+              width={1600}
+              height={1600}
+              fetchPriority="high"
+              className="absolute left-0 top-1/2 w-full max-w-none -translate-y-1/2"
+            />
           </div>
         </div>
-        {children}
-      </div>
+        <section aria-label="CanX Office entrance" className="w-full max-w-md shrink-0 rounded-2xl border border-white/15 bg-[#101014] p-6 shadow-[0_0_60px_rgba(220,38,38,.08)] sm:p-8 lg:w-[380px]">
+          <p className="mb-6 text-sm font-semibold uppercase tracking-[0.24em] text-red-400">CanX Office</p>
+          {children}
+        </section>
+      </main>
+      <p className="mx-auto mt-8 text-center text-sm text-zinc-400">A CanX Initiative</p>
     </div>
   );
 }
@@ -48,7 +55,7 @@ export function OfficeOpeningScreen() {
   );
 }
 
-export function OfficeSignInScreen() {
+export function OfficeSignInScreen({ onSignedIn }: { onSignedIn?: () => void } = {}) {
   const session = useOwnerSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,6 +70,7 @@ export function OfficeSignInScreen() {
     setError(null);
     const problem = await session.signIn(email.trim(), password);
     if (problem) setError(problem);
+    else onSignedIn?.();
     setBusy(false);
   };
 
@@ -151,10 +159,9 @@ export function OfficeSignInScreen() {
 
   return (
     <Shell>
-      <h1 className="text-base font-semibold">Sign in to open the office</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Your usual CanX owner email and password. Your authenticator is only asked for when you do something
-        protected, such as an approval, a purchase, or publishing.
+      <h1 className="text-2xl font-semibold">Welcome to your office</h1>
+      <p className="mt-2 text-base text-zinc-400">
+        Sign in with your email and password.
       </p>
 
       <form
@@ -164,25 +171,31 @@ export function OfficeSignInScreen() {
           if (!busy && email && password) void submit();
         }}
       >
+        <label htmlFor="office-email" className="block text-sm font-medium text-zinc-200">Email</label>
         <Input
+          id="office-email"
           type="email"
           autoComplete="email"
           value={email}
-          placeholder="Owner email"
+          placeholder="you@example.com"
+          required
           aria-label="Owner email"
           onChange={(event) => setEmail(event.target.value)}
         />
+        <label htmlFor="office-password" className="block text-sm font-medium text-zinc-200">Password</label>
         <Input
+          id="office-password"
           type="password"
           autoComplete="current-password"
           value={password}
           placeholder="Password"
+          required
           aria-label="Password"
           onChange={(event) => setPassword(event.target.value)}
         />
-        <Button type="submit" size="lg" className="w-full" disabled={busy || !email || !password}>
+        <Button type="submit" size="lg" className="w-full bg-red-600 text-white hover:bg-red-500" disabled={busy || !email || !password}>
           <LogIn className="mr-2 h-4 w-4" aria-hidden="true" />
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? "Signing in…" : "Sign in to CanX Office"}
         </Button>
       </form>
 
@@ -218,10 +231,9 @@ export function OfficeSignInScreen() {
         </p>
       )}
 
-      <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
+      <p className="mt-5 flex items-start gap-2 text-sm text-zinc-400">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        Your sign-in is checked on the server every time. CanX Office does not store your password; Supabase keeps a
-        browser session so you can stay signed in.
+        Private access to CanX Office.
       </p>
     </Shell>
   );
@@ -235,7 +247,39 @@ export function OfficeSignInScreen() {
  */
 export function OfficeGate({ children }: { children: ReactNode }) {
   const session = useOwnerSession();
-  if (session.state === "checking") return <OfficeOpeningScreen />;
-  if (session.state === "owner") return <>{children}</>;
-  return <OfficeSignInScreen />;
+  const [entranceChecked, setEntranceChecked] = useState(false);
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    try {
+      setEntered(window.sessionStorage.getItem("canx-office-logo-entrance-v1") === "1");
+    } catch { /* The entrance still works when browser storage is unavailable. */ }
+    setEntranceChecked(true);
+  }, []);
+
+  useEffect(() => {
+    if (session.state === "checking" || session.state === "owner") return;
+    setEntered(false);
+    try { window.sessionStorage.removeItem("canx-office-logo-entrance-v1"); } catch { /* Keep page state. */ }
+  }, [session.state]);
+
+  const enterOffice = () => {
+    setEntered(true);
+    try { window.sessionStorage.setItem("canx-office-logo-entrance-v1", "1"); } catch { /* Keep page state. */ }
+  };
+
+  if (session.state === "checking" || !entranceChecked) return <OfficeOpeningScreen />;
+  if (session.state !== "owner") return <OfficeSignInScreen onSignedIn={enterOffice} />;
+  if (!entered) {
+    return (
+      <Shell>
+        <h1 className="text-2xl font-semibold">Welcome back</h1>
+        <p className="mt-2 text-base text-zinc-400">You’re signed in and ready to go.</p>
+        <Button size="lg" className="mt-6 w-full bg-red-600 text-white hover:bg-red-500" onClick={enterOffice}>
+          Enter CanX Office
+        </Button>
+      </Shell>
+    );
+  }
+  return <>{children}</>;
 }

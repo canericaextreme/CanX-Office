@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Bike,
@@ -467,43 +467,7 @@ function RoomHotspot({
   );
 }
 
-const ROOF_INTRO_KEY = "canx-office-roof-intro-seen-v1";
-let roofIntroSeenInPage = false;
-
 export function Office3D() {
-  const [roofPhase, setRoofPhase] = useState<"checking" | "closed" | "lifting" | "done">("checking");
-  const [roofLoaded, setRoofLoaded] = useState(false);
-
-  const finishRoofIntro = useCallback(() => {
-    roofIntroSeenInPage = true;
-    try { window.sessionStorage.setItem(ROOF_INTRO_KEY, "1"); } catch { /* Page memory remains available. */ }
-    setRoofPhase("done");
-  }, []);
-
-  useEffect(() => {
-    let seen = roofIntroSeenInPage;
-    try { seen ||= window.sessionStorage.getItem(ROOF_INTRO_KEY) === "1"; } catch { /* Use page memory. */ }
-    if (seen || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      finishRoofIntro();
-    } else {
-      setRoofPhase("closed");
-    }
-  }, [finishRoofIntro]);
-
-  useEffect(() => {
-    if (roofPhase !== "closed") return;
-    // Never let a slow or failed image prevent entry to the office.
-    const timeout = window.setTimeout(finishRoofIntro, 6000);
-    const pause = roofLoaded ? window.setTimeout(() => setRoofPhase("lifting"), 1000) : undefined;
-    return () => { window.clearTimeout(timeout); window.clearTimeout(pause); };
-  }, [roofPhase, roofLoaded, finishRoofIntro]);
-
-  useEffect(() => {
-    if (roofPhase !== "lifting") return;
-    const timer = window.setTimeout(finishRoofIntro, 1700);
-    return () => window.clearTimeout(timer);
-  }, [roofPhase, finishRoofIntro]);
-
   const [labelPositions, setLabelPositions] = useState<Record<string, { x: number; y: number }>>(
     () => Object.fromEntries(rooms.map((room) => [room.number, { x: room.x, y: room.y }])),
   );
@@ -552,7 +516,7 @@ export function Office3D() {
           />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(2,6,23,.08)_72%,rgba(2,6,23,.45)_100%)]" />
 
-          <div className="absolute inset-0" inert={roofPhase !== "done"}>
+          <div className="absolute inset-0">
           <WalkingPeople />
           <DraggableOfficeDog />
           <AmbientOfficeMotion />
@@ -580,26 +544,6 @@ export function Office3D() {
           ))}
 
           </div>
-          {roofPhase !== "done" && (
-            <div className="absolute inset-0 z-50 overflow-hidden bg-slate-950" style={{ background: roofPhase === "lifting" ? "transparent" : undefined }}>
-              <img
-                src="/canx-office-roof-v1.jpg"
-                alt="The roof of CanX Office lifts to reveal the rooms"
-                onLoad={() => setRoofLoaded(true)}
-                onError={finishRoofIntro}
-                className="h-full w-full object-cover"
-                style={{
-                  transform: roofPhase === "lifting" ? "translateY(-9%) scale(1.05)" : "translateY(0) scale(1)",
-                  opacity: roofPhase === "lifting" ? 0 : 1,
-                  transition: "transform 1600ms ease-in-out, opacity 1600ms ease-in-out",
-                }}
-              />
-              <button type="button" onClick={finishRoofIntro} className="absolute bottom-4 right-4 rounded-lg border border-white/70 bg-slate-950/90 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-                Skip introduction
-              </button>
-            </div>
-          )}
-
           <style>{`
             .office-person {
               opacity: .96;
