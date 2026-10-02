@@ -60,6 +60,48 @@ afterEach(() => {
   hooks.cleanups.forEach((cleanup) => cleanup()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 describe("Astra realtime connection lifecycle", () => {
+  it.each(["direct", "relay"] as const)("greets once after channel and session are ready in %s mode without Office work", async (mode) => {
+    const transcript = vi.fn();
+    const action = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, action, undefined, mode);
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    channel.onopen?.();
+    expect(channel.send).not.toHaveBeenCalled();
+    emit({ type: "session.created" });
+    emit({ type: "session.created" }); channel.onopen?.();
+    expect(channel.send).toHaveBeenCalledTimes(1);
+    const greeting = JSON.parse(channel.send.mock.calls[0]![0]);
+    expect(greeting.response).toMatchObject({ conversation: "none", tool_choice: "none", input: [], metadata: { startup_greeting: "true" } });
+    expect(greeting.response.instructions).toContain("What can I do for you?");
+    // Greeting events must not complete a user turn that arrives meanwhile.
+    emit({ type: "input_audio_buffer.committed", item_id: "u1" });
+    emit({ type: "response.created", response: { id: "g1", metadata: { startup_greeting: "true" } } });
+    emit({ type: "response.done", response: { id: "g1", status: "completed", output: [{ type: "message", content: [{ transcript: "What can I do for you?" }] }] } });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "Hello" });
+    expect(transcript).not.toHaveBeenCalledWith("assistant", "What can I do for you?", "u1");
+    if (mode === "direct") expect(action).not.toHaveBeenCalled();
+  });
+  it("waits for the channel when session readiness arrives first and greets again only on a new connection", async () => {
+    const voice = useRealtimeManager("token", [], vi.fn(), vi.fn(), undefined, "direct");
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    channel.readyState = "connecting";
+    channel.onmessage?.({ data: JSON.stringify({ type: "session.created" }) });
+    expect(channel.send).not.toHaveBeenCalled();
+    channel.readyState = "open"; channel.onopen?.();
+    expect(channel.send).toHaveBeenCalledTimes(1);
+    const lateReady = channel.onmessage;
+    voice.stop();
+    lateReady?.({ data: JSON.stringify({ type: "session.created" }) });
+    expect(channel.send).toHaveBeenCalledTimes(1);
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("answer"));
+    voice.start(); await flush();
+    const next = Peer.instances[1]!.channel;
+    next.onmessage?.({ data: JSON.stringify({ type: "session.created" }) });
+    expect(next.send).toHaveBeenCalledTimes(1);
+  });
   it("routes the dedicated builder tool through the fixed read-only command once", async () => {
     const transcript = vi.fn();
     const action = vi.fn().mockResolvedValue("Builder connected. Latest run succeeded. No build was started.");
