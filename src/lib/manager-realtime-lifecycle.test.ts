@@ -240,7 +240,24 @@ describe("Astra realtime connection lifecycle", () => {
     const pending = deferred<unknown>(); hooks.mint.mockReturnValue(pending.promise);
     const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush(); voice.stop();
     pending.resolve({ ok: true, clientSecret: "late", model: "test" }); await flush();
-    expect(Peer.instances).toHaveLength(0); expect(hooks.states[0]).toBe("idle");
+    expect(Peer.instances).toHaveLength(1); expect(Peer.instances[0]!.close).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled(); expect(hooks.states[0]).toBe("idle");
+  });
+  it("prepares local WebRTC while the server session is pending, but sends no SDP until verified", async () => {
+    const pending = deferred<unknown>(); hooks.mint.mockReturnValue(pending.promise);
+    useRealtimeManager("token", [], vi.fn()).start(); await flush();
+    expect(Peer.instances[0]!.setLocalDescription).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled();
+    pending.resolve({ ok: true, clientSecret: "ephemeral-test", model: "test" }); await flush();
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+  it("closes prepared WebRTC without sending SDP when session verification fails", async () => {
+    hooks.mint.mockResolvedValueOnce({ ok: false, detail: "Owner verification required." });
+    useRealtimeManager("token", [], vi.fn()).start(); await flush();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(Peer.instances[0]!.close).toHaveBeenCalledOnce();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(hooks.states[2]).toBe("Owner verification required.");
   });
   it("ignores a delayed SDP answer after End", async () => {
     const pending = deferred<Response>(); vi.mocked(fetch).mockReturnValue(pending.promise);
