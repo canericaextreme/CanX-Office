@@ -186,6 +186,9 @@ function WorkBoard() {
               )}
             </div>
           </div>
+          <p className="text-sm text-muted-foreground">
+            Assigned jobs start when a worker begins execution
+          </p>
         </CardHeader>
         <CardContent className="space-y-3">
           {notice && (
