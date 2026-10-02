@@ -139,7 +139,7 @@ export const speakManagerText = createServerFn({ method: "POST" })
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model,
-          voice: "alloy",
+          voice: "shimmer",
           input: data.text,
           ...(model === "tts-1" ? {} : { instructions: "Speak warmly, clearly, and naturally as John's professional CanX Office Manager." }),
           response_format: "mp3",

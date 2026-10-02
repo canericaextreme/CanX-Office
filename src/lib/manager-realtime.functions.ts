@@ -119,6 +119,7 @@ export function managerRealtimeInstructions(context: string, team: unknown, mode
 
 export function managerRealtimeSessionBody(model: string, instructions: string, mode: ManagerVoiceMode = "relay") {
   const body = realtimeSessionBody(model, instructions);
+  body.session.audio.output.voice = "shimmer";
   if (mode === "direct") {
     return { session: { ...body.session,
       output_modalities: ["audio"],

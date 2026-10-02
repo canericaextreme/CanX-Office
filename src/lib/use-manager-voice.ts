@@ -393,6 +393,8 @@ export function useManagerVoice(onTurn: (audioBase64: string, mimeType: string) 
     utterance.pitch = 1;
     const voices = window.speechSynthesis.getVoices();
     utterance.voice = voices.find((voice) =>
+      /^en(-|_)/i.test(voice.lang) && /\b(zira|samantha|victoria|karen|moira|tessa|susan|hazel|jenny|aria|sonia|libby)\b|\bfemale\b/i.test(voice.name),
+    ) ?? voices.find((voice) =>
       /^en(-|_)/i.test(voice.lang) && /natural|google|microsoft/i.test(voice.name),
     ) ?? voices.find((voice) => /^en(-|_)/i.test(voice.lang)) ?? null;
     utterance.onstart = () => {
