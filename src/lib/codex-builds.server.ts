@@ -22,7 +22,13 @@ const denied = (detail: string): CodexBuildResult => ({ ok: false, detail });
 export async function codexBuildsWith(deps: CodexBuildDeps, token: string, request?: string, prNumber?: number): Promise<CodexBuildResult> {
   const owner = await deps.verify(token);
   if (!owner.ok) return denied(owner.message);
-  if (!deps.githubToken || !deps.enabled) return denied(missing);
+  if (!deps.githubToken || !deps.enabled) {
+    const reasons = [
+      ...(!deps.githubToken ? ['The Office server cannot read CANX_CODEX_GITHUB_TOKEN.'] : []),
+      ...(!deps.enabled ? ['CANX_CODEX_ENABLED is missing or is not exactly lowercase true on the Office server.'] : []),
+    ];
+    return denied(missing + ' Configuration check: ' + reasons.join(' '));
+  }
   if (request !== undefined && (request.trim().length < 10 || request.length > 6000)) return denied('Describe the build in 10–6,000 characters.');
   if (prNumber !== undefined && (!Number.isSafeInteger(prNumber) || prNumber < 1)) return denied('Choose a valid Codex change number.');
   try {
