@@ -624,7 +624,7 @@ export function OfficeManager() {
   };
   const roomCommandRef = useRef(runRoomCommand);
   roomCommandRef.current = runRoomCommand;
-  const [liveVoiceMode, setLiveVoiceMode] = useState<"relay" | "direct">("direct");
+  const [liveVoiceMode, setLiveVoiceMode] = useState<"relay" | "direct">("relay");
   const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
     useCallback(async (request: string) => {
       if (requestsConversationSave(request)) return saveConversationNow();

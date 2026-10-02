@@ -60,6 +60,73 @@ afterEach(() => {
   hooks.cleanups.forEach((cleanup) => cleanup()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 describe("Astra realtime connection lifecycle", () => {
+  it("keeps a direct Office result until delayed question transcription arrives", async () => {
+    const transcript = vi.fn();
+    const action = vi.fn().mockResolvedValue("Builder connected. Run 5 succeeded.");
+    const voice = useRealtimeManager("token", [], transcript, action, undefined, "direct");
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "u1" });
+    emit({ type: "response.created", response: { id: "r1" } });
+    const done = { type: "response.done", response: { id: "r1", status: "completed", output: [
+      { type: "function_call", name: "submit_office_request", call_id: "c1", arguments: JSON.stringify({ request: "Check builder connection" }) },
+    ] } };
+    emit(done); emit(done); await flush();
+    expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection");
+    expect(transcript).not.toHaveBeenCalled();
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "Check builder connection" });
+    expect(transcript.mock.calls).toEqual([
+      ["user", "Check builder connection", "u1"],
+      ["assistant", "Builder connected. Run 5 succeeded.", "u1"],
+    ]);
+    emit({ type: "response.done", response: { id: "r2", status: "completed", output: [
+      { type: "message", content: [{ transcript: "A spoken summary" }] },
+    ] } });
+    expect(transcript.mock.calls.filter(call => call[0] === "assistant")).toHaveLength(1);
+  });
+  it("does not let preliminary direct speech replace the checked Office answer", async () => {
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, vi.fn().mockResolvedValue("Checked result"), undefined, "direct");
+    voice.start(); await flush();
+    const emit = (data: unknown) => Peer.instances[0]!.channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "u1" });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "Check status" });
+    emit({ type: "response.created", response: { id: "r1" } });
+    emit({ type: "response.output_audio_transcript.done", response_id: "r1", transcript: "I'll check that." });
+    emit({ type: "response.done", response: { id: "r1", output: [
+      { type: "function_call", name: "submit_office_request", call_id: "c1", arguments: JSON.stringify({ request: "Check status" }) },
+    ] } });
+    await flush();
+    expect(transcript.mock.calls.filter(call => call[0] === "assistant")).toEqual([["assistant", "Checked result", "u1"]]);
+  });
+  it("pairs an ordinary direct reply with its original turn even after another question", async () => {
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, vi.fn(), undefined, "direct");
+    voice.start(); await flush();
+    const emit = (data: unknown) => Peer.instances[0]!.channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "u1" });
+    emit({ type: "response.created", response: { id: "r1" } });
+    emit({ type: "input_audio_buffer.committed", item_id: "u2" });
+    emit({ type: "response.audio_transcript.done", response_id: "r1", transcript: "First answer" });
+    emit({ type: "response.done", response: { id: "r1", status: "completed" } });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "First question" });
+    expect(transcript.mock.calls).toEqual([["user", "First question", "u1"], ["assistant", "First answer", "u1"]]);
+  });
+  it("keeps direct written results after the speaker is stopped", async () => {
+    const result = deferred<string>();
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, () => result.promise, undefined, "direct");
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "u1" });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "Check status" });
+    emit({ type: "response.done", response: { output: [{ type: "function_call", name: "submit_office_request", call_id: "c1", arguments: JSON.stringify({ request: "Check status" }) }] } });
+    voice.stop(); result.resolve("Checked result"); await flush();
+    expect(transcript).toHaveBeenCalledWith("assistant", "Checked result", "u1");
+    expect(channel.send).not.toHaveBeenCalled();
+  });
   it("keeps connecting after SDP until the event channel opens", async () => {
     const answer = deferred<Response>(); vi.mocked(fetch).mockReturnValue(answer.promise);
     useRealtimeManager("token", [], vi.fn()).start(); await flush();
