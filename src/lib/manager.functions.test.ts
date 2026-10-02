@@ -36,6 +36,13 @@ function deps(overrides: Partial<ManagerDeps> = {}): ManagerDeps {
 const CHAT = { accessToken: "t", messages: [{ role: "user" as const, content: "hello" }] };
 
 describe("access control — no paid call without a verified owner", () => {
+  it("preserves the executable tools and code-change flag through argument filtering", () => {
+    expect(sanitizeToolArgs('start_codex_build', '{}')).toEqual({});
+    expect(sanitizeToolArgs('check_codex_builds', '{"change_number":123}')).toEqual({ change_number: 123 });
+    expect(sanitizeToolArgs('execute_task', '{"task_id":"saved-task","request":"injected replacement"}')).toEqual({ task_id: 'saved-task' });
+    expect(sanitizeToolArgs('check_task_execution', '{"task_id":"saved-task"}')).toEqual({ task_id: 'saved-task' });
+    expect(sanitizeToolArgs('create_task', '{"title":"Change room label","code_change":true}')).toMatchObject({ code_change: true });
+  });
   const cases: OwnerDenyReason[] = [
     "backend_not_configured",
     "no_session",
@@ -411,6 +418,8 @@ describe("live office context replaces anything the browser sends", () => {
     expect(parsed.input[0]?.content).toContain("LIVE OFFICE CONTEXT");
     expect(parsed.tools.map((tool) => tool.name)).toEqual([
       "start_codex_build",
+      "execute_task",
+      "check_task_execution",
       "check_codex_builds",
       "preview_appearance",
       "propose_task",
