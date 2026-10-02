@@ -314,13 +314,18 @@ export function useRealtimeManager(
         track.onended = () => fail("The microphone was switched off by the device. Press Talk to Elsie to start again.");
       });
       hearing.attach(mic);
+      recordVoiceDiag("connected", sessionMode, "button to microphone ready", Date.now() - connectionStartedAt);
       connectStage = "office session";
-      const session = await mintSession({ data: { accessToken, team, mode: sessionMode } });
-      if (!current()) return;
-      if (!session.ok || !session.clientSecret || !session.model) {
-        fail(session.detail || "Elsie's voice conversation could not be started.");
-        return;
-      }
+      // Prepare local WebRTC while the server verifies the owner, reads
+      // context and checks budget. No SDP is sent until those checks pass.
+      // Handle rejection immediately, including when John closes early.
+      const sessionPending = mintSession({ data: { accessToken, team, mode: sessionMode } }).then(
+        session => {
+          if (current()) recordVoiceDiag("connected", sessionMode, "button to office session ready", Date.now() - connectionStartedAt);
+          return { session, error: null };
+        },
+        error => ({ session: null, error }),
+      );
       connectStage = "voice connection";
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
@@ -587,6 +592,17 @@ export function useRealtimeManager(
       if (!current()) return;
       await waitForIceGatheringComplete(pc);
       if (!current()) return;
+      recordVoiceDiag("connected", sessionMode, "button to local voice setup ready", Date.now() - connectionStartedAt);
+      connectStage = "office session";
+      const minted = await sessionPending;
+      if (!current()) return;
+      if (!minted.session) throw minted.error;
+      const session = minted.session;
+      if (!session.ok || !session.clientSecret || !session.model) {
+        fail(session.detail || "Elsie's voice conversation could not be started.");
+        return;
+      }
+      connectStage = "voice connection";
       const localSdp = pc.localDescription?.sdp;
       if (!localSdp) throw new Error("Missing local SDP offer");
       const answer = await fetch(
