@@ -59,5 +59,21 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
     const sent = await api(deps, `/actions/workflows/${CODEX_WORKFLOW}/dispatches`, { method: 'POST', body: JSON.stringify({ ref: 'main', inputs: { request: request.trim() } }) });
     if (!sent.ok) return denied('GitHub did not accept the Codex build. Check Actions access and the workflow configuration.');
     return { ok: true, detail: 'GitHub accepted the Codex build request. Check Build & Testing for its run and draft changes. Nothing has been published.' };
-  } catch { return denied(request === undefined ? 'Codex status is unavailable right now.' : 'The build submission could not be confirmed. Check Build & Testing before trying again; the request may already be running.'); }
+  } catch (error) {
+    // Never expose exception messages: header errors can contain credentials.
+    const name = error instanceof Error ? error.name : '';
+    const message = error instanceof Error ? error.message : '';
+    const reason = /header|bytestring|character/i.test(message)
+      ? 'The saved GitHub token could not be used as an HTTP header. Check for extra lines or non-token text in its value.'
+      : name === 'TimeoutError' || name === 'AbortError'
+        ? 'The GitHub request timed out or was interrupted.'
+        : name === 'SyntaxError'
+          ? 'The GitHub response could not be read as JSON.'
+          : name === 'TypeError'
+            ? 'The Office server encountered a request or response processing error.'
+            : 'The Office server encountered an unexpected error while reading GitHub status.';
+    return denied(request === undefined
+      ? 'Codex status is unavailable. Connection diagnostic: ' + reason
+      : 'The build submission could not be confirmed. Check Build & Testing before trying again; the request may already be running.');
+  }
 }
