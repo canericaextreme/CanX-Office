@@ -199,6 +199,15 @@ export function OfficeManager() {
   const [fullScreen, setFullScreen] = useState(true);
   const [textSize, setTextSize] = useState(20);
   const [delivery, setDelivery] = useState("");
+  const [copyStatus, setCopyStatus] = useState("");
+  const copyConversationText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus("Copied — ready to paste.");
+    } catch {
+      setCopyStatus("Copy was blocked by the browser. Select the reply text and press Ctrl+C.");
+    }
+  };
   /** One reviewed handoff from the Office Work assistant. Session memory only. */
   const [handoff, setHandoff] = useState<{
     id: string;
@@ -226,7 +235,7 @@ export function OfficeManager() {
     try { localStorage.setItem("canx-manager-text-size", String(size)); } catch { /* Optional preference. */ }
   };
   const [composerHeight, setComposerHeight] = useState(120);
-  const [composerCollapsed, setComposerCollapsed] = useState(false);
+  const [composerCollapsed, setComposerCollapsed] = useState(true);
   const dividerDrag = useRef<{ y: number; height: number } | null>(null);
   const resizeComposer = (height: number) => {
     setComposerHeight(Math.max(60, Math.min(height, window.innerHeight * 0.4)));
@@ -1177,6 +1186,9 @@ export function OfficeManager() {
                 {[20, 24, 28, 32].map(size => <option key={size} value={size}>{size}px</option>)}
               </select>
             </label>
+            {tab === "now" && <Button variant="outline" size="sm" disabled={!messages.length} onClick={() => void copyConversationText(messages.map(message => `${message.role === "user" ? "John" : message.role === "office" ? "Office notice" : "Elsie"}: ${message.content}`).join("\n\n"))}>
+              Copy conversation
+            </Button>}
             {CONSOLE_VIEWS.map((view) => (
               <button
                 key={view.id}
@@ -1220,9 +1232,11 @@ export function OfficeManager() {
 
           {tab === "now" && (
             <>
-              <div className="max-h-40 shrink-0 overflow-y-auto overscroll-contain border-b border-border px-3 py-2">
+              <details className="max-h-40 shrink-0 overflow-y-auto overscroll-contain border-b border-border px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">Decisions and approvals</summary>
                 <DecisionTracker accessToken={token || null} compact />
-              </div>
+              </details>
+              {copyStatus && <p role="status" className="shrink-0 px-3 py-1 text-sm">{copyStatus}</p>}
               <div className="shrink-0 border-b border-border px-3 py-2 text-xs">
                 {status === null ? (
                   <span className="text-muted-foreground">Checking the connection…</span>
@@ -1258,7 +1272,7 @@ export function OfficeManager() {
                   followMessagesRef.current =
                     pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
                 }}
-                className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4"
+                className="min-h-[25dvh] flex-1 select-text space-y-4 overflow-y-auto overscroll-contain p-4"
                 aria-label="Conversation with Elsie"
                 aria-live="polite"
                 style={{ fontSize: textSize, lineHeight: 1.5 }}
@@ -1292,6 +1306,9 @@ export function OfficeManager() {
                     >
                       {message.content}
                     </div>
+                    {message.role === "assistant" && <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void copyConversationText(message.content)}>
+                      Copy reply
+                    </Button>}
                     {message.restored && (
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {message.fromAccount ? "Restored from your CanX account checkpoint" : "Restored from this device"}
@@ -1495,7 +1512,7 @@ export function OfficeManager() {
                 )}
               </div>
 
-              <div className="shrink-0 border-t border-border bg-card px-3 pb-2">
+              <div className="max-h-[35dvh] shrink-0 overflow-y-auto overscroll-contain border-t border-border bg-card px-3 pb-2">
                 <div
                   role="separator" aria-label="Resize writing area" aria-orientation="horizontal"
                   aria-valuemin={60} aria-valuemax={600} aria-valuenow={composerHeight} tabIndex={0}
