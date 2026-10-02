@@ -3,6 +3,39 @@ import { codexBuildsWith, type CodexBuildDeps } from './codex-builds.server';
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 const setup = (): CodexBuildDeps => ({ enabled: true, githubToken: 'private-github-key', verify: vi.fn().mockResolvedValue({ ok: true, userId: 'owner', aal: 'aal2', email: '' }), fetch: vi.fn() });
 describe('Astra to Codex connection', () => {
+  it('checks the connection without dispatching a build when no runs exist', async () => {
+    const d = setup();
+    vi.mocked(d.fetch).mockResolvedValueOnce(json({ workflow_runs: [] }));
+
+    const result = await codexBuildsWith(d, 'owner');
+
+    expect(result.ok).toBe(true);
+    expect(result.runs).toEqual([]);
+    expect(d.fetch).toHaveBeenCalledOnce();
+    const [url, init] = vi.mocked(d.fetch).mock.calls[0]!;
+    expect(url).toBe('https://api.github.com/repos/canericaextreme/CanX-Office/actions/workflows/canx-codex.yml/runs?per_page=30&event=workflow_dispatch');
+    expect(init?.method ?? 'GET').toBe('GET');
+    expect(init?.body).toBeUndefined();
+  });
+  it('reports a merged change without claiming deployment is verified', async () => {
+    const d = setup();
+    vi.mocked(d.fetch)
+      .mockResolvedValueOnce(json({ number: 42, merged: true, head: {
+        ref: 'codex/office-42', sha: 'merged-head', repo: { full_name: 'canericaextreme/CanX-Office' },
+      } }))
+      .mockResolvedValueOnce(json([]));
+
+    const result = await codexBuildsWith(d, 'owner', undefined, 42);
+
+    expect(result.ok).toBe(true);
+    expect(result.detail).toContain('merged; deployment is unverified');
+    expect(JSON.parse(result.evidence!)).toMatchObject({ number: 42, merged: true, head: 'merged-head' });
+    expect(d.fetch).toHaveBeenCalledTimes(2);
+    for (const [, init] of vi.mocked(d.fetch).mock.calls) {
+      expect(init?.method ?? 'GET').toBe('GET');
+      expect(init?.body).toBeUndefined();
+    }
+  });
   it('refuses unauthenticated callers before accessing GitHub', async () => {
     const d = setup(); vi.mocked(d.verify).mockResolvedValue({ ok: false, reason: 'mfa_required', message: 'MFA required' });
     expect((await codexBuildsWith(d, 'bad', 'Build an office widget')).ok).toBe(false);
