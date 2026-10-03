@@ -70,7 +70,7 @@ function Skills() {
       <section className="mb-4 space-y-1 rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
         <p><b className="text-foreground">Registry version:</b> {SKILLS_REGISTRY_VERSION} · <b className="text-foreground">Source:</b> {MASTER_SOURCE}</p>
         <p><b className="text-foreground">Storage:</b> {STORAGE_DECISION}</p>
-        <p>Part of <Link to="/family-continuity" className="text-primary hover:underline">Family Continuity &amp; Training</Link>. Elsie loads the core skills through a fixed router in typed chat; live voice uses its existing instructions unchanged. No skill runs on a schedule. A durable record of which skill ran is not wired yet.</p>
+        <p>Part of <Link to="/family-continuity" className="text-primary hover:underline">Family Continuity, Skills &amp; Training</Link>. Elsie loads the core skills through a fixed router in typed chat; live voice uses its existing instructions unchanged. No skill runs on a schedule. A durable record of which skill ran is not wired yet.</p>
       </section>
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search skills" aria-label="Search skills" className="mb-4 max-w-sm" />
       {GROUPS.map(([kind, title]) => {

@@ -62,7 +62,7 @@ export const OFFICE_MAP_ROOMS: OfficeRoom[] = [
   },
   {
     number: "19",
-    label: "Family Continuity & Training",
+    label: "Family Continuity, Skills & Training",
     purpose: "Family knowledge and approved working procedures",
     route: "/family-continuity",
     icon: Users,
