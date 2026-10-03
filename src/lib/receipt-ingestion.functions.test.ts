@@ -68,7 +68,7 @@ describe("owner-only Gmail receipt sync", () => {
     });
     deps.atomicWrite.mockImplementation(async (_token, _owner, receipts) => ({ ok: true, filed: receipts, duplicates: 0, allReceipts: receipts }));
     const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
-    expect(deps.fetchCandidates).toHaveBeenCalledWith(settings, "yesterday", false);
+    expect(deps.fetchCandidates).toHaveBeenCalledWith(settings, "yesterday", false, expect.any(String));
     expect(result.ok).toBe(true);
     expect(result.filed).toBe(1);
     expect(result.needsReview).toBe(3);
@@ -86,7 +86,7 @@ describe("owner-only Gmail receipt sync", () => {
     const deps = base();
     deps.fetchCandidates.mockRejectedValue(new Error("gmail_authorization_required"));
     const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "rescan and review receipts" });
-    expect(deps.fetchCandidates).toHaveBeenCalledWith(settings, null, true);
+    expect(deps.fetchCandidates).toHaveBeenCalledWith(settings, null, true, expect.any(String));
     expect(result.code).toBe("gmail_authorization_required");
     expect(deps.atomicWrite).not.toHaveBeenCalled();
   });
@@ -138,8 +138,8 @@ describe("owner-only Gmail receipt sync", () => {
     deps.gmailAccounts.mockReturnValue([settings, second]);
     deps.readState.mockResolvedValue({ ok: true, checkpoint: "yesterday", receipts: [] });
     await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
-    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(1, settings, null, false);
-    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(2, second, null, false);
+    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(1, settings, null, false, expect.any(String));
+    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(2, second, null, false, expect.any(String));
   });
 
   it("keeps the old checkpoint after a partial failure so a retry misses nothing", async () => {
@@ -154,7 +154,7 @@ describe("owner-only Gmail receipt sync", () => {
     expect(deps.atomicWrite.mock.calls[0]?.[3]).toBe("yesterday");
     deps.fetchCandidates.mockReset().mockResolvedValue({ documents: [], checkpoint: "later", unsupported: 0 });
     await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
-    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(2, second, null, false);
+    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(2, second, null, false, expect.any(String));
   });
 
   it("keeps candidates from every mailbox instead of truncating to the first", async () => {
