@@ -48,6 +48,7 @@ import {
 } from "@/lib/manager-work.functions";
 import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from "@/lib/codex-task-handoff";
 import { isCodexStatusCommand } from "./codex-status-command";
+import { normalizeWorkerId } from "./manager-workers";
 import { executeTaskWith } from "./task-execution.server";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
@@ -1123,7 +1124,7 @@ async function executeToolCalls(
         } else {
           // A spoken command may name the worker in the same breath. The task
           // is only reported as assigned when the assignment itself succeeded.
-          const worker = String(call.arguments["worker"] ?? "").trim();
+          const worker = normalizeWorkerId(String(call.arguments["worker"] ?? ""));
           let assignedTo: string | null = null;
           let assignFailed: string | null = null;
           if (worker) {
@@ -1171,7 +1172,7 @@ async function executeToolCalls(
         const result = await assignManagerTaskWith(workbench, {
           accessToken,
           taskId: String(call.arguments["task_id"] ?? ""),
-          worker: String(call.arguments["worker"] ?? ""),
+          worker: normalizeWorkerId(String(call.arguments["worker"] ?? "")),
         });
         if (isManagerError(result)) {
           actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
