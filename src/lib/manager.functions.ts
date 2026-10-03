@@ -22,7 +22,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { routeSkills } from "@/lib/office-skills";
-import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
+import { isExplicitReceiptSyncRequest, receiptSyncOutcome, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 import { parseMailRuleCommand, type MailRuleCommand } from "@/lib/mail-preferences";
 import { runMailRuleCommandWith } from "@/lib/mail-rule-command";
 import { protectedCategoryOf } from "@/lib/protected-actions";
@@ -1642,7 +1642,7 @@ export const managerChat = createServerFn({ method: "POST" })
         model: null,
         text: result.ok
           ? [
-              result.message,
+              receiptSyncOutcome(result),
               ...result.receipts.map(
                 (receipt) =>
                   `${receipt.vendor}: ${receipt.total ?? "total unknown"} ${receipt.currency ?? "currency not stated"}; ${receipt.paymentStatus}; ${receipt.dueDate ? `due ${receipt.dueDate}` : receipt.expectedRenewalDate ? `expected renewal ${receipt.expectedRenewalDate} (${receipt.expectedRenewalBasis})` : "no due date stated"}.`,
@@ -1656,7 +1656,7 @@ export const managerChat = createServerFn({ method: "POST" })
         toolCalls: [],
         actionResults: [],
       };
-      if (!result.ok) reply.detail = result.message;
+      if (!result.ok) reply.detail = receiptSyncOutcome(result);
       return reply;
     }
     return runManagerChatWith(await realDeps(), request);

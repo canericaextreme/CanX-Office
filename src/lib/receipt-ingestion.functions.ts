@@ -27,6 +27,7 @@ const NOUNS = String.raw`(?:receipts?|invoices?|subscriptions?|renewals?|billing
 const VERBS = String.raw`(?:review|retrieve|check|find|sync|file|import)`;
 const EXPLICIT_RECEIPT_SYNC_INTENT = new RegExp(String.raw`\b${VERBS}\b[^.\n]{0,80}\b${NOUNS}\b|\b${NOUNS}\b[^.\n]{0,80}\b${VERBS}\b`, "i");
 const RESCAN_INTENT = /\b(?:rescan|scan again|full scan|re-scan)\b/i;
+const NORMAL_EMAIL_CHECK = /^(?:(?:elsie|astra|data)[, :]*)?(?:please\s+)?(?:(?:can|would)\s+you\s+)?check\s+(?:(?:both|the)\s+mailboxes|(?:my|the)\s+emails?)\s*[?.!]*$/i;
 
 export function isExplicitReceiptSyncRequest(message: string): boolean {
   // Only a short, dedicated command may bypass the general conversation.
@@ -34,8 +35,16 @@ export function isExplicitReceiptSyncRequest(message: string): boolean {
   const command = message.trim();
   if (command.length > 240 || /[\r\n]/.test(command)) return false;
   if (/\b(?:do not|don’t|don't|never|without)\b/i.test(command)) return false;
+  if (NORMAL_EMAIL_CHECK.test(command)) return true;
   return /^(?:(?:elsie|astra|data)[, :]*)?(?:please\s+)?(?:review|retrieve|check|find|sync|file|import|rescan)\b/i.test(command)
     && EXPLICIT_RECEIPT_SYNC_INTENT.test(command);
+}
+
+export function receiptSyncOutcome(result: ReceiptSyncResult): string {
+  const scope = "Scope: billing and renewal keywords plus known service senders, one bounded page per linked mailbox — not the whole inbox.";
+  const status = !result.ok ? "Stopped — the check failed." : result.partial || result.mailboxesFailed ? "Partial — not all matching mail was checked." : "Finished — complete within this check's scope.";
+  const mailboxes = (result.mailboxes ?? []).map((m) => `${m.mailbox}: ${m.status === "read" ? `${m.documents} matching item(s) read${m.partial ? " — partial" : ""}` : m.status === "authorization_required" ? "access refused — re-authorise" : "could not be read"}.`);
+  return [status, scope, result.message, ...mailboxes].join("\n");
 }
 
 export type ReceiptSyncCode =
@@ -318,10 +327,16 @@ export async function runReceiptSyncWith(
   };
   if (failedAccounts === accounts.length) {
     await finishCheck(false);
-    return deny(
-      authFailure ? "gmail_authorization_required" : "gmail_unavailable",
-      "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
-    );
+    return {
+      ...deny(
+        authFailure ? "gmail_authorization_required" : "gmail_unavailable",
+        "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
+      ),
+      partial: true,
+      mailboxesChecked: 0,
+      mailboxesFailed: failedAccounts,
+      mailboxes: checks,
+    };
   }
   // Never advance the checkpoint after a partial failure, so a retry still
   // sees everything the failed mailbox missed. A capped page also keeps it.

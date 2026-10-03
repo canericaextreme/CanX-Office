@@ -10,7 +10,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import type { OwnerDenyReason } from "@/lib/canx-backend.server";
-import { parseReceiptImport, toExportDocument, type FinanceReceipt } from "@/lib/finance-receipts";
+import { mergeReceipts, parseReceiptImport, toExportDocument, type FinanceReceipt } from "@/lib/finance-receipts";
 
 export interface FinanceResult<T> {
   ok: boolean;
@@ -50,11 +50,16 @@ export const listPrivateReceipts = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: tokenOf(input) }))
   .handler(async ({ data }): Promise<FinanceResult<string>> =>
     withOwner<string>(data.accessToken, async ({ config, token, rest }) => {
-      const response = await rest(config, token, "finance_receipts?select=doc&order=created_at.desc&limit=1");
+      const response = await rest(config, token, "finance_receipts?select=doc,ingested_receipts&order=created_at.desc&limit=1");
       if (!response.ok) return fail("backend_error", "The private receipts could not be read.");
-      const rows = Array.isArray(response.body) ? (response.body as Array<{ doc?: unknown }>) : [];
+      const rows = Array.isArray(response.body) ? (response.body as Array<{ doc?: unknown; ingested_receipts?: unknown }>) : [];
       const doc = rows[0]?.doc ?? null;
-      return { ok: true, reason: null, message: "", data: doc ? JSON.stringify(doc) : "" };
+      if (!doc && !Array.isArray(rows[0]?.ingested_receipts)) return { ok: true, reason: null, message: "", data: "" };
+      const parsed = doc ? parseReceiptImport(JSON.stringify(doc)) : { ok: false, receipts: [] as FinanceReceipt[] };
+      const ingestedDoc = JSON.stringify(toExportDocument(Array.isArray(rows[0]?.ingested_receipts) ? rows[0].ingested_receipts as FinanceReceipt[] : []));
+      const ingested = parseReceiptImport(ingestedDoc);
+      const merged = mergeReceipts(parsed.ok ? parsed.receipts : [], ingested.ok ? ingested.receipts : []).merged;
+      return { ok: true, reason: null, message: "", data: JSON.stringify(toExportDocument(merged)) };
     }),
   );
 
