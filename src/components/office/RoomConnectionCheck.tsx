@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { deleteSharedNote, saveSharedNotes } from "@/lib/records.functions";
-import { ROOM_TARGETS, type RoomSnapshot } from "@/lib/room-snapshot";
+import { ROOM_TARGETS, MAP_ROOM_TARGETS, NUMBERED_ROOM_TARGETS, type RoomSnapshot } from "@/lib/room-snapshot";
 import { viewedSnapshot } from "@/lib/room-snapshot-store";
 import { roomReportSource } from "@/lib/manager-room-commands";
 import { currentBuildVersion } from "@/lib/office-health";
