@@ -98,6 +98,7 @@ export function SubscriptionManager() {
         <StatusBadge tone={saved ? "green" : "yellow"} label={saved ? "Saved in CanX account" : "Starter list — not saved"} />
       </CardHeader>
       <CardContent className="space-y-4" aria-live="polite">
+        <WeeklySubscriptionCards view={weekly} lastCheck={lastCheck} />
         {state === "loading" && <p className="text-sm text-muted-foreground">Loading subscriptions…</p>}
         {state === "error" && <p className="text-sm text-destructive">{message || "Subscriptions could not be read."}</p>}
         {message && state === "ready" && <p className="text-xs text-muted-foreground">{message}</p>}
