@@ -123,7 +123,7 @@ describe("mail preference server path", () => {
   });
 
   it("Elsie saves only via the validated owner path and reports readback", async () => {
-    const change = vi.fn(async (_t: string, _o: string, c: PreferenceChange) => ({ ok: true, preferences: applyPreferenceChange(EMPTY_PREFERENCES, c, at, "elsie-instruction") }));
+    const change = vi.fn(async (_t: string, _o: string, c: PreferenceChange, _by: string) => ({ ok: true, preferences: applyPreferenceChange(EMPTY_PREFERENCES, c, at, "elsie-instruction") }));
     const deps: MailPreferenceDeps = { verifyOwner: async () => owner, read: async () => EMPTY_PREFERENCES, change };
     const out = await runMailRuleCommandWith(deps, "t", { kind: "set", sender: "news@shop.com", action: "ignore" });
     expect(out.ok).toBe(true);
