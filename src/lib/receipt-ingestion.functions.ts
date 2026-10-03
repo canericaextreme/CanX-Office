@@ -343,6 +343,15 @@ export async function runReceiptSyncWith(
       const checked = { slot, mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read" as const, partial: mbPartial, documents: result.documents.length, hasMore: Boolean(result.nextPageToken) };
       checks.push(checked);
       checkBySlot.set(slot, checked);
+      if ((result.fetchFailures ?? 0) > 0 || result.documentCapHit) {
+        for (let remaining = slot + 1; remaining < accounts.length; remaining += 1) {
+          const stopped = { slot: remaining, mailbox: `Linked mailbox ${remaining + 1}`, status: "failed" as const, partial: true, documents: 0 };
+          checks.push(stopped);
+          checkBySlot.set(remaining, stopped);
+          failedAccounts += 1;
+        }
+        break;
+      }
     } catch (error) {
       canContinueNow = false;
       failedAccounts += 1;
@@ -351,6 +360,13 @@ export async function runReceiptSyncWith(
       const checked = { slot, mailbox: `Linked mailbox ${slot + 1}`, status: auth ? "authorization_required" as const : "failed" as const, partial: true, documents: 0 };
       checks.push(checked);
       checkBySlot.set(slot, checked);
+      for (let remaining = slot + 1; remaining < accounts.length; remaining += 1) {
+        const stopped = { slot: remaining, mailbox: `Linked mailbox ${remaining + 1}`, status: "failed" as const, partial: true, documents: 0 };
+        checks.push(stopped);
+        checkBySlot.set(remaining, stopped);
+        failedAccounts += 1;
+      }
+      break;
     }
   }
   const scope = datedMode

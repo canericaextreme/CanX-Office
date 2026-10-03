@@ -37,7 +37,7 @@ export function CheckEmailsResult({ state }: { state: CheckState }) {
       <p className="mt-1 text-foreground">Receipts/invoices: {r.filed} new filed in Finance, {r.duplicatesSkipped} duplicates skipped, {r.sentToReview ?? 0} sent to review. Notices/evidence: {r.subscriptionEvidenceAdded ?? 0} new, {r.subscriptionEvidenceDuplicates ?? 0} already recorded.{r.ignoredByPreference ? ` Skipped by your Ignore choices: ${r.ignoredByPreference}.` : ""}</p>
       <ul className="mt-1 text-muted-foreground">
         {(r.mailboxes ?? []).map((m, i) => (
-          <li key={`${m.mailbox}-${i}`}>{m.mailbox}: {m.status === "read" ? `${m.documents} item(s) read${m.partial ? " — limit reached, more mail not checked" : ""}` : m.status === "authorization_required" ? "access refused — re-authorise" : "could not be read"}</li>
+          <li key={`${m.mailbox}-${i}`}>{m.mailbox}: {m.status === "read" ? `${m.documents} item(s) read${m.partial ? " — page incomplete; scan stopped safely" : ""}` : m.status === "authorization_required" ? "access refused — re-authorise" : "could not be read or was not attempted after an earlier failure"}</li>
         ))}
       </ul>
       <p className="mt-1 text-muted-foreground">{r.message}</p>

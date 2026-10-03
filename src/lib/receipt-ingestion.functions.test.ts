@@ -218,4 +218,15 @@ describe("owner-only Gmail receipt sync", () => {
     expect(result.canContinueNow).toBe(false);
     expect((saveScanProgress.mock.calls as unknown[][])[0]?.[2]).toEqual({});
   });
+
+  it("does not fetch a later mailbox after an incomplete fetch page", async () => {
+    const deps = base();
+    deps.gmailAccounts = () => [{ apiKey: "a" }, { apiKey: "b" }];
+    deps.saveScanProgress = vi.fn(async () => true);
+    deps.fetchCandidates.mockResolvedValue({ documents: [], checkpoint: "now", unsupported: 0, mailbox: "a@gmail.com", partial: true, fetchFailures: 1 });
+    const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "check receipts", fromDate: "2026-08-15" });
+    expect(deps.fetchCandidates).toHaveBeenCalledTimes(1);
+    expect(result.mailboxesFailed).toBe(1);
+    expect(result.canContinueNow).toBe(false);
+  });
 });
