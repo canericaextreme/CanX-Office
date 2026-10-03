@@ -232,8 +232,36 @@ describe("rendering", () => {
       evidence: [ev({}), ev({ messageId: "m2", from: "news@shop.com", matchStatus: "unknown" }), ev({ messageId: "abc123def", from: "who@x.com", matchStatus: "unknown" })],
       prefs: p, filter: "all", onFilter: () => {}, onChange: () => {}, busy: false, note: "",
     }));
-    for (const s of ["All<!-- --> (", "Related<!-- --> (", "Needs review<!-- --> (", "Ignored<!-- --> (", "Why:", "Apply to future emails from <!-- -->who@x.com", "Sender rules (<!-- -->1<!-- -->)", "Change to <!-- -->Keep", "Remove", "Open in Gmail"]) expect(html).toContain(s);
+    for (const s of ["All<!-- --> (", "Related<!-- --> (", "Needs review<!-- --> (", "Ignored<!-- --> (", "Why:", "Ignore future emails from <!-- -->who@x.com", "Sender rules (<!-- -->1<!-- -->)", "Change to <!-- -->Keep", "Remove", "Open in Gmail"]) expect(html).toContain(s);
     expect(html).toContain('data-review-category="ignored"');
     expect(html).toContain('data-review-category="needs-review"');
+  });
+});
+
+describe("strict mail rule commands (review fixes)", () => {
+  it("rejects qualified/compound/question/quoted/two-address requests", () => {
+    for (const t of [
+      "ignore emails from billing@example.com but only promotions",
+      "ignore emails from a@x.com and b@y.com",
+      "ignore emails from a@x.com, keep b@y.com",
+      "ignore emails from billing@example.com?",
+      "ignore emails from \"billing@example.com\"",
+      "ignore emails from billing@example.com if they are ads",
+      "stop ignoring a@x.com and b@y.com",
+      "ignore emails from promotions",
+    ]) expect(parseMailRuleCommand(t)).toEqual({ kind: "needs-address" });
+    expect(parseMailRuleCommand("ignore this email")).toBeNull();
+    expect(parseMailRuleCommand("e.g. ignore emails from x@y.com is an example")).toBeNull();
+  });
+  it("accepts plain exact commands", () => {
+    expect(parseMailRuleCommand("Keep future emails from Billing@Example.com.")).toEqual({ kind: "set", sender: "billing@example.com", action: "keep" });
+    expect(parseMailRuleCommand("please ignore emails from news@shop.com")).toEqual({ kind: "set", sender: "news@shop.com", action: "ignore" });
+    expect(parseMailRuleCommand("remove the rule for news@shop.com")).toEqual({ kind: "remove", sender: "news@shop.com" });
+  });
+  it("formats malformed saved dates safely", async () => {
+    const { safeRuleDate } = await import("@/components/office/MailReviewPanel");
+    expect(safeRuleDate("not-a-date")).toBe("date unknown");
+    expect(safeRuleDate(undefined)).toBe("date unknown");
+    expect(safeRuleDate("2026-10-03T10:00:00Z")).toBe("2026-10-03");
   });
 });
