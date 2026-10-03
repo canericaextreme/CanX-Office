@@ -147,3 +147,5 @@
 
 - [x] Mail review filter (All/Related/Needs review/Ignored), Keep/Ignore + exact-sender rules, applied in ingestion, Elsie explicit-instruction path; stronger running sweep + static reduced-motion label (preview, 2026-10-03)
 - [ ] Signed-in check of Saved mail review and running sweep on John's phone — blocked: needs John's signed-in session
+
+- [ ] Room connection: John runs the all-room check signed-in on the current preview build (needs owner sign-in + MFA)
