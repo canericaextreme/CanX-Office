@@ -3,14 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
-import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
+import { checkRoomReportPresence, getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { deleteSharedNote, saveSharedNotes } from "@/lib/records.functions";
 import { ROOM_TARGETS, MAP_ROOM_TARGETS, NUMBERED_ROOM_TARGETS, type RoomSnapshot } from "@/lib/room-snapshot";
 import { viewedSnapshot } from "@/lib/room-snapshot-store";
 import { roomReportSource } from "@/lib/manager-room-commands";
 import { currentBuildVersion } from "@/lib/office-health";
-import { evaluateSnapshot, failedRecord, loadRoomChecks, saveRoomChecks, statusForBuild, type RoomCheckRecord } from "@/lib/room-connection-check";
+import { evaluateSnapshot, failedRecord, runReportSaveTest, loadRoomChecks, saveRoomChecks, statusForBuild, type RoomCheckRecord } from "@/lib/room-connection-check";
 
 const BADGE: Record<string, string> = {
   verified: "text-emerald-600 dark:text-emerald-400",
@@ -30,6 +30,7 @@ export function RoomConnectionCheck() {
   const snapshotFn = useServerFn(getRoomSnapshot);
   const saveFn = useServerFn(saveSharedNotes);
   const deleteFn = useServerFn(deleteSharedNote);
+  const presenceFn = useServerFn(checkRoomReportPresence);
   const [records, setRecords] = useState<Record<string, RoomCheckRecord>>(() => (typeof window === "undefined" ? {} : loadRoomChecks()));
   const [running, setRunning] = useState<string | null>(null);
   const buildId = currentBuildVersion();
@@ -42,20 +43,17 @@ export function RoomConnectionCheck() {
   };
 
   const saveTest = async (snap: RoomSnapshot): Promise<RoomCheckRecord["action"]> => {
-    const before = snap.sources.find((s) => s.key === "reports");
-    if (!before || before.status !== "read") return { ran: true, ok: false, detail: "Room reports could not be read before the test." };
     const id = crypto.randomUUID();
-    const title = `[TEST] Room connection check ${new Date().toISOString()} — temporary, auto-removed`;
-    const saved = await saveFn({ data: { accessToken: token ?? "", notes: [{ id, kind: "decision", title, detail: "TEST RECORD from the owner-run room connection check in Build & Testing. Not a real report; it is deleted right after being re-read. If you see it, the removal failed — it is safe to delete.", owner: "John", provenance: "john", source: roomReportSource(snap.roomId), createdAt: new Date().toISOString() }] } }).catch(() => null);
-    if (!saved?.ok || saved.data?.saved !== 1) return { ran: true, ok: false, detail: "Temporary report was not saved." };
-    const afterSave = await read(snap.route);
-    const seen = typeof afterSave !== "string" && afterSave.sources.some((s) => s.key === "reports" && s.status === "read" && s.count === (before.count ?? 0) + 1 && s.items.includes(title));
-    const removed = await deleteFn({ data: { accessToken: token ?? "", id } }).catch(() => null);
-    const afterDelete = await read(snap.route);
-    const gone = typeof afterDelete !== "string" && afterDelete.sources.some((s) => s.key === "reports" && s.status === "read" && s.count === (before.count ?? 0) && !s.items.includes(title));
-    if (!seen) return { ran: true, ok: false, detail: removed?.ok ? "Saved but not seen on re-read; temporary report removed." : "Saved but not seen on re-read, and removal was not confirmed — check Records." };
-    if (!removed?.ok || !gone) return { ran: true, ok: false, detail: "Seen on re-read, but removal was not confirmed — check Records for a '[TEST] Room connection check' report and delete it." };
-    return { ran: true, ok: true, detail: "Saved, re-read, removed and re-read." };
+    const now = new Date().toISOString();
+    const title = `[TEST] Room connection check ${now} — temporary, auto-removed`;
+    return runReportSaveTest({
+      save: async () => {
+        const saved = await saveFn({ data: { accessToken: token ?? "", notes: [{ id, kind: "decision", title, detail: "TEST RECORD from the owner-run room connection check in Build & Testing. Not a real report; it is deleted right after being re-read. If you see it, the removal failed — it is safe to delete.", owner: "John", provenance: "john", source: roomReportSource(snap.roomId), createdAt: now }] } });
+        return !!saved?.ok && saved.data?.saved === 1;
+      },
+      presence: async () => (await presenceFn({ data: { accessToken: token ?? "", route: snap.route, id } })).presence,
+      remove: async () => !!(await deleteFn({ data: { accessToken: token ?? "", id } }))?.ok,
+    });
   };
 
   const run = async (withSaveTest: boolean) => {

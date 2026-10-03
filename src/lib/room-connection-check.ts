@@ -104,3 +104,37 @@ export function loadRoomChecks(storage: Storage | undefined = typeof localStorag
 export function saveRoomChecks(all: Record<string, RoomCheckRecord>, storage: Storage | undefined = typeof localStorage === "undefined" ? undefined : localStorage) {
   try { storage?.setItem(STORE, JSON.stringify(all)); } catch { /* storage full or blocked: results stay on screen only */ }
 }
+
+/** Exact-ID presence of one temporary room report, read under the owner's own permissions. */
+export type ReportPresence = "present" | "absent" | "failed";
+
+/**
+ * Reversible save test by STABLE RECORD ID. Never compares formatted display
+ * titles (the snapshot appends a date and may truncate) and never relies on
+ * aggregate count deltas (lists are bounded; other records may change at the
+ * same time). Removal is always attempted once a save was requested, even if
+ * a read fails in between. Read failures are reported separately.
+ */
+export async function runReportSaveTest(deps: {
+  save: () => Promise<boolean>;
+  presence: () => Promise<ReportPresence>;
+  remove: () => Promise<boolean>;
+}): Promise<RoomCheckRecord["action"]> {
+  const saved = await deps.save().catch(() => false);
+  if (!saved) {
+    // The save may still have landed; make sure nothing is left behind.
+    const leftover = await deps.presence().catch((): ReportPresence => "failed");
+    if (leftover !== "absent") await deps.remove().catch(() => false);
+    return { ran: true, ok: false, detail: "Temporary report was not confirmed as saved." };
+  }
+  const afterSave = await deps.presence().catch((): ReportPresence => "failed");
+  const removed = await deps.remove().catch(() => false);
+  const afterDelete = await deps.presence().catch((): ReportPresence => "failed");
+  const cleanup = !removed || afterDelete === "failed"
+    ? " Removal could not be confirmed — check Records for a '[TEST] Room connection check' report and delete it."
+    : afterDelete === "present" ? " The temporary report is still there after removal — delete it from Records." : " Temporary report removed.";
+  if (afterSave === "failed") return { ran: true, ok: false, detail: `Saved, but the re-read by record ID failed.${cleanup}` };
+  if (afterSave === "absent") return { ran: true, ok: false, detail: `Saved, but the record ID was not found on re-read.${cleanup}` };
+  if (!removed || afterDelete !== "absent") return { ran: true, ok: false, detail: `Seen on re-read by record ID.${cleanup}` };
+  return { ran: true, ok: true, detail: "Saved, re-read by record ID, removed, and confirmed gone." };
+}
