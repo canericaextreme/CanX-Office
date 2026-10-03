@@ -229,10 +229,10 @@ describe("rendering", () => {
   it("review view shows filters, why, source link and sender rules", () => {
     const p = set(EMPTY_PREFERENCES, { op: "set-sender", sender: "news@shop.com", action: "ignore" });
     const html = renderToString(React.createElement(MailReviewView, {
-      evidence: [ev({}), ev({ messageId: "m2", from: "news@shop.com", matchStatus: "unknown" }), ev({ messageId: "m3", from: "who@x.com", matchStatus: "unknown" })],
+      evidence: [ev({}), ev({ messageId: "m2", from: "news@shop.com", matchStatus: "unknown" }), ev({ messageId: "abc123def", from: "who@x.com", matchStatus: "unknown" })],
       prefs: p, filter: "all", onFilter: () => {}, onChange: () => {}, busy: false, note: "",
     }));
-    for (const s of ["All<!-- --> (", "Related<!-- --> (", "Needs review<!-- --> (", "Ignored<!-- --> (", "Why:", "Apply to future emails from <!-- -->who@x.com", "Sender rules (<!-- -->1<!-- -->)", "Change to Keep", "Remove"]) expect(html).toContain(s);
+    for (const s of ["All<!-- --> (", "Related<!-- --> (", "Needs review<!-- --> (", "Ignored<!-- --> (", "Why:", "Apply to future emails from <!-- -->who@x.com", "Sender rules (<!-- -->1<!-- -->)", "Change to <!-- -->Keep", "Remove", "Open in Gmail"]) expect(html).toContain(s);
     expect(html).toContain('data-review-category="ignored"');
     expect(html).toContain('data-review-category="needs-review"');
   });
