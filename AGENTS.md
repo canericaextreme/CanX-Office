@@ -21,3 +21,8 @@
 - Every supported body/attachment from a fetched page is processed (no document truncation); attachment fetch failures or the per-page document cap keep the page position, and lastCheck.complete is written only after receipt, evidence and continuation writes verify. Why: dropped parts were silently skipped.
 - Receipt ingestion calls the deployed `ingest_finance_receipts` RPC in sequential batches of at most 25 (`finance-ingest-batches.ts`) with the existing checkpoint; the checkpoint advances only via a final candidate-free call after all batches, evidence and continuation verify, and readback must find every candidate fingerprint. Why: the SQL rejects >25 candidates.
 - Mail evidence never overwrites John's confirmed cost or renewal date; unknown/conflicting senders are filed only as needs-review, personal-scoped services are not filed. Why: no automatic office-expense or tax claims.
+
+## Office Skills
+- Canonical skill instructions and the registry live in `src/lib/office-skills.ts` (versioned, with provenance from John's skills map); never fetched from a ChatGPT Skill Library at runtime. Why: Elsie must stay independent of ChatGPT and Lovable.
+- Typed Elsie chat appends `routeSkills()` output (fixed keyword router; router + owner-decision filter always, at most 3 core task skills) to the system instructions; outlines/drafts are never loaded, and skills grant no tools. Live voice instructions are unchanged. Why: runtime linkage without new permissions.
+- Rooms only link to skills (`RoomSkillsLink`); editable instructions exist only on /skills, reached from Family Continuity & Training. Why: one master copy, no duplicates.
