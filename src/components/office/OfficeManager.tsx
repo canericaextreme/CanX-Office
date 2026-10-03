@@ -61,6 +61,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { loadTeam, teamForManager } from "@/lib/office-team";
+import { currentBuildVersion } from "@/lib/office-health";
+import { roomReplyNote } from "@/lib/room-snapshot";
+import { requestRoomRefresh, viewedSnapshot } from "@/lib/room-snapshot-store";
 import {
   getManagerStatus,
   managerChat,
