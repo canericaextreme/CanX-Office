@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { BarChart3, Brain, Building2, ChevronLeft, FileText, FolderKanban, Home, LayoutGrid, List, Search, Users } from "lucide-react";
+import { BarChart3, Bot, Brain, Building2, ChevronLeft, FileText, FolderKanban, Home, LayoutGrid, List, Search, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,6 +116,8 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto" onCloseAutoFocus={event => { if (synopsis) event.preventDefault(); }}>
             <p className="px-2 py-1.5 text-xs text-muted-foreground">Clockwise from Reception</p>
             {roomMenu.map((room, index) => <DropdownMenuItem key={room.number} onSelect={() => setSynopsis({ route: room.route, label: room.label })} className="flex cursor-pointer items-center gap-2"><span className="w-5 shrink-0 text-xs text-muted-foreground">{index + 1}</span><room.icon className="h-4 w-4 shrink-0 text-primary" /><span>{room.label}</span></DropdownMenuItem>)}
+            <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Office Manager</p>
+            <DropdownMenuItem onSelect={() => setSynopsis({ route: 'elsie', label: 'Elsie — Office Manager' })} className="flex cursor-pointer items-center gap-2"><Bot className="h-4 w-4 text-primary" />Elsie — Office Manager</DropdownMenuItem>
             <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Centre and control wall</p>
             <DropdownMenuItem onSelect={() => setSynopsis({ route: "/brain", label: "CanX Brain" })} className="flex cursor-pointer items-center gap-2"><Brain className="h-4 w-4 text-primary" />CanX Brain</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setSynopsis({ route: "/analytics", label: "Analytics Control Wall" })} className="flex cursor-pointer items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Analytics Control Wall</DropdownMenuItem>
