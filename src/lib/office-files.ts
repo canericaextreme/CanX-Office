@@ -1,7 +1,7 @@
 import { ROOMS } from './office-data';
 export const FILE_BUCKET = 'office-files';
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
-export const FILE_ROOMS = [...ROOMS.map(r => ({ id: r.id as string, label: r.shortLabel })), { id: 'family-continuity', label: 'Family Continuity' }, { id: 'analytics', label: 'Analytics' }, { id: 'round-table', label: 'Round Table' }, { id: 'research', label: 'Research' }];
+export const FILE_ROOMS = [...ROOMS.map(r => ({ id: r.id as string, label: r.shortLabel })), { id: 'family-continuity', label: 'Family Continuity, Skills & Training' }, { id: 'analytics', label: 'Analytics' }, { id: 'round-table', label: 'Round Table' }, { id: 'research', label: 'Research' }];
 export const FILE_FOLDERS = ['Start Here', 'Family and Legacy', 'Journals and Talks', 'CanX Projects', 'Finance', 'Rules and Decisions'];
 export interface OfficeFile { source_url?: string; id: string; filename: string; room: string; folder: string; object_path: string; content_hash: string; size_bytes: number; mime_type: string; created_at: string }
 export function validateOfficeFile(v: { filename: string; room: string; folder: string; size_bytes: number; content_hash: string }) {
