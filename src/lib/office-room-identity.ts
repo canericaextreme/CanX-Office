@@ -81,7 +81,7 @@ const EXTRA_ALIASES: Record<string, string[]> = {
 export function namedRoomIdentity(text: string): OfficeRoomIdentity | null {
   const words = ` ${normalize(text)} `;
   const hits = OFFICE_ROOM_IDENTITIES.flatMap((room) =>
-    [room.shortLabel, room.id, ...room.label.split(/\s*[/,&]\s*|\s+and\s+/), room.label, ...(EXTRA_ALIASES[room.id] ?? [])]
+    [room.shortLabel, room.id, ...room.label.split(" / "), room.label, ...(EXTRA_ALIASES[room.id] ?? [])]
       .map((a) => normalize(a)).filter((a) => a.length > 2).map((alias) => ({ room, alias })))
     .filter(({ alias }) => words.includes(` ${alias} `))
     .sort((a, b) => b.alias.length - a.alias.length);
