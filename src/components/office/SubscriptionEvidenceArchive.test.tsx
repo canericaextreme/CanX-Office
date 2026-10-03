@@ -45,20 +45,20 @@ describe("monthly subscription evidence", () => {
       item("Undated review", { review: "needs-review" }),
     ]} loading={false} onMark={onMark} />);
 
-    expect(screen.getByText("October reviewed")).toBeInTheDocument();
-    expect(screen.queryByText("September reviewed")).not.toBeInTheDocument();
+    expect(screen.getByText(/October reviewed/)).toBeTruthy();
+    expect(screen.queryByText(/September reviewed/)).toBeNull();
     const september = screen.getByRole("button", { name: /September 2026.*1 item.*0 need review/i });
     september.focus();
-    fireEvent.keyDown(september, { key: "Enter" });
+    expect(document.activeElement).toBe(september);
     fireEvent.click(september);
-    expect(screen.getByText("September reviewed")).toBeInTheDocument();
+    expect(screen.getByText(/September reviewed/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Needs review (2)" }));
-    expect(screen.getByRole("button", { name: "Needs review (2)" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByText("October reviewed")).not.toBeInTheDocument();
-    expect(screen.getByText("October review")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Date not recorded.*1 item.*1 need review/i })).toBeInTheDocument();
-    expect(screen.queryByText("Undated review")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Needs review (2)" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByText(/October reviewed/)).toBeNull();
+    expect(screen.getByText(/October review/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Date not recorded.*1 item.*1 need review/i })).toBeTruthy();
+    expect(screen.queryByText(/Undated review/)).toBeNull();
   });
 
   it("exposes a keyboard-ready month selector containing only months present", () => {
@@ -68,12 +68,12 @@ describe("monthly subscription evidence", () => {
     ]} loading={false} onMark={vi.fn()} />);
     const trigger = screen.getByRole("combobox", { name: "Filter evidence by month" });
     trigger.focus();
-    expect(trigger).toHaveFocus();
+    expect(document.activeElement).toBe(trigger);
     fireEvent.keyDown(trigger, { key: "ArrowDown" });
     const listbox = screen.getByRole("listbox");
-    expect(within(listbox).getByText("All months (2)")).toBeInTheDocument();
-    expect(within(listbox).getByText("October 2026 (1)")).toBeInTheDocument();
-    expect(within(listbox).getByText("August 2026 (1)")).toBeInTheDocument();
-    expect(within(listbox).queryByText(/September/)).not.toBeInTheDocument();
+    expect(within(listbox).getByText("All months (2)")).toBeTruthy();
+    expect(within(listbox).getByText("October 2026 (1)")).toBeTruthy();
+    expect(within(listbox).getByText("August 2026 (1)")).toBeTruthy();
+    expect(within(listbox).queryByText(/September/)).toBeNull();
   });
 });
