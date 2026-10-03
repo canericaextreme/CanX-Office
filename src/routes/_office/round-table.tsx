@@ -1,5 +1,6 @@
 "use client";
 
+import { OfficeFiles } from "@/components/office/OfficeFiles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Download, Plus, RotateCcw, Save, Trash2, Upload } from "lucide-react";
@@ -214,7 +215,7 @@ function RoundTablePage() {
       <div className="mx-auto max-w-5xl px-4 py-6">
         <header className="mb-6 border-b border-border pb-5">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold text-foreground">Monday round table — draft</h1>
+            <OfficeFiles room="round-table" /><h1 className="text-2xl font-semibold text-foreground">Monday round table — draft</h1>
             <span className="rounded-full border border-canx-yellow/60 bg-canx-yellow/15 px-2 py-0.5 text-xs font-semibold text-canx-yellow">
               Not scheduled
             </span>
