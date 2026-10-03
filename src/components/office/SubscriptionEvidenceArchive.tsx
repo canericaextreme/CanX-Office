@@ -54,6 +54,7 @@ function EvidenceLinks({ evidence }: { evidence: SubscriptionEvidence }) {
 
 function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
   const tone = TONES[evidence.kind];
+  const Icon = tone.Icon;
   const date = evidenceDate(evidence);
   const dateLabel = date.basis === "source-email"
     ? `Source email received ${formatZoned(evidence.receivedAt ?? "")} (${OFFICE_TIMEZONE})`
@@ -64,7 +65,7 @@ function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; on
     <li className={`rounded-md border border-border/60 border-l-4 ${tone.border} bg-muted/15 p-3 text-xs`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2">
-          <span className={`mt-0.5 rounded-md p-1.5 ${tone.icon}`}><tone.Icon className="h-4 w-4" aria-hidden /></span>
+          <span className={`mt-0.5 rounded-md p-1.5 ${tone.icon}`}><Icon className="h-4 w-4" aria-hidden /></span>
           <div>
             <div className="font-medium text-foreground">{LABELS[evidence.kind]} · {evidence.vendor || "Unknown sender"}</div>
             <div className="text-muted-foreground">{money(evidence.amount, evidence.currency)} · {dateLabel}</div>
@@ -104,6 +105,16 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
     setMonth(value);
     setOpenMonths(value === "all" ? (allGroups[0] ? [allGroups[0].key] : []) : [value]);
   };
+  const toggleReview = () => {
+    const next = !reviewOnly;
+    setReviewOnly(next);
+    if (next) {
+      const firstReviewMonth = allGroups.find((group) => group.needsReview > 0);
+      setOpenMonths(firstReviewMonth ? [firstReviewMonth.key] : []);
+    } else {
+      setOpenMonths(month === "all" ? (allGroups[0] ? [allGroups[0].key] : []) : [month]);
+    }
+  };
 
   return (
     <section aria-label="Billing evidence from email">
@@ -123,7 +134,7 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
               </SelectContent>
             </Select>
           </label>
-          <Button variant={reviewOnly ? "default" : "outline"} aria-pressed={reviewOnly} onClick={() => setReviewOnly((value) => !value)}>
+          <Button variant={reviewOnly ? "default" : "outline"} aria-pressed={reviewOnly} onClick={toggleReview}>
             <AlertTriangle className="h-4 w-4" aria-hidden /> Needs review ({reviewCount})
           </Button>
         </div>

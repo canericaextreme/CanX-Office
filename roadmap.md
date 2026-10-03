@@ -3,7 +3,7 @@
 ## Monthly subscription evidence organizer (2026-10-03)
 - [x] Group saved email evidence by honest Whitehorse month with newest month open and undated evidence kept separate.
 - [x] Add accessible month and needs-review filters plus coordinated type/status accents without implying payment.
-- [ ] Verify populated interactions, date boundaries, full tests, types and preview build without data writes or publication.
+- [x] Verify populated interactions, date boundaries, full tests, types and preview build without data writes or publication.
 
 ## Finance evidence label correction (2026-10-03)
 - [x] Stop describing saved receipt/invoice email evidence as a filed or paid Finance receipt without verified linkage.
