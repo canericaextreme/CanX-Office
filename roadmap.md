@@ -1,5 +1,11 @@
 # Phase 1 bright office completion
 
+## Finance navigation and normal email commands (2026-10-03)
+- [ ] Make Income, Expenses, Receipts and Tax prep open as accessible Finance sections with clear back navigation.
+- [ ] Open real receipt details and show truthful empty states without changing records or permissions.
+- [ ] Route explicit short email-check commands through the existing scoped receipt/subscription check; keep questions, negations and hypotheticals read-only.
+- [ ] Verify interactions, routing, tests, types and build in preview only; no live Gmail, paid provider call or publication.
+
 ## Active email-check status sheen (2026-10-03)
 - [x] Show a gentle translucent yellow sweep only while the email check is actively running.
 - [x] Keep completed partial results steady, clearly labelled, and verify reduced-motion/stopped-state behavior.
