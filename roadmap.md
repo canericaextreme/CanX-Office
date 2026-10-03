@@ -55,7 +55,7 @@
 - [x] Add additive migration `0004_finance_receipt_ingestion.sql` with atomic locking, idempotent dedupe, checkpointing, audit counts, and verified read-back.
 - [x] Preserve legacy receipt JSON and the existing 12 records without rewriting them.
 - [x] Focused tests: 16 passed across 3 files. Full suite: 159 passed across 12 files. TypeScript and production build passed.
-- [ ] Blocked on one setup action: create/link a distinct CanX Google Mail connection and apply migration 0004 to the existing CanX database. Safehighways remains unused.
+- [x] Gmail connections linked (canericaextreme + canerica14, read-only) and migration 0004 applied 2026-10-03 via Supabase MCP to project gmsjjiprtulxojhkmbqb; columns, RPC grants and RLS verified. Applied SQL recorded verbatim in docs/migrations/0004_finance_receipt_ingestion.sql. Remaining: signed-in preview trial of the receipt check. Safehighways remains unused.
 
 ## Connections & readiness work (2026-09-09)
 - Systems room rebuilt as an honest two-group connection inventory (ChatGPT-verified accounts snapshot vs connections this office needs). Nothing shows connected unless checked live.
