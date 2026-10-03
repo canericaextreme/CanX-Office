@@ -184,10 +184,14 @@ export async function runReceiptSyncWith(
   const written = await deps.atomicWrite(input.accessToken, owner.userId, parsed, fetched.checkpoint);
   if (!written.ok) return deny("write_unverified", "The Finance write could not be verified, so no receipt is reported as filed. Check the CanX database and retry.");
   const summary = safeIngestionSummary(written.allReceipts, written.filed, written.duplicates, malformed + written.filed.length);
+  const partialNote =
+    failedAccounts > 0
+      ? ` ${failedAccounts} linked mailbox${failedAccounts === 1 ? "" : "es"} could not be read this time; re-authorize it and run again to include it.`
+      : "";
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review.`,
+    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review.${partialNote}`,
     ...summary,
   };
 }
