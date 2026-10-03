@@ -35,7 +35,7 @@ describe("AI Workers subscription verification", () => {
 
   it("no longer calls Supabase proposed and marks its billing unverified", () => {
     expect(subscriptionsSource).not.toContain("Supabase (proposed)");
-    expect(subscriptionsSource).toContain("Billing not verified here.");
+    expect(subscriptionsSource).toContain("billing not verified here.");
   });
 
   it("labels the C$100 Manager AI figure as an internal policy limit", () => {

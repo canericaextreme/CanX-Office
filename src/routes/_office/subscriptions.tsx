@@ -30,9 +30,14 @@ export const Route = createFileRoute("/_office/subscriptions")({
   component: Subscriptions,
 });
 
+/**
+ * Static historical infrastructure notes — NOT a live or verified list.
+ * The authoritative subscription list is the saved SubscriptionManager list
+ * above. These entries predate it and their status is unknown / not current.
+ */
 const SUBS = [
-  { name: "Lovable", cost: "Credits", status: "green" as const, note: "Development platform" },
-  { name: "Supabase", cost: "Unverified", status: "yellow" as const, note: "CanX-owned database and sign-in. Billing not verified here." },
+  { name: "Lovable", cost: "Unknown — not verified", status: "grey" as const, note: "Development platform. Static record; billing not verified here." },
+  { name: "Supabase", cost: "Unknown — not verified", status: "grey" as const, note: "CanX-owned database and sign-in. Static record; billing not verified here." },
   { name: "Email sending", cost: "Unknown", status: "grey" as const, note: "Not connected" },
 ];
 
@@ -58,9 +63,12 @@ function Subscriptions() {
       <SubscriptionManager />
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-base">Provider status</CardTitle>
+          <CardTitle className="text-base">Previous provider records</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Static historical notes kept for the record. Verification status is unknown and not current — these are not live checks. Your saved subscription list above is the authoritative list.
+          </p>
           {SUBS.map((sub) => (
             <div key={sub.name} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
               <div>
