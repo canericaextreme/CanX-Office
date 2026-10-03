@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_office/owner-desk")({
 function OwnersDesk() {
   const { memory, error, isOwner, sessionMessage } = useManagerMemory();
 
-  const tasks = memory?.tasks.filter((task) => task.status === "open" || task.status === "in_progress") ?? null;
+  const tasks = memory?.tasks.filter((task) => task.status === "open" || task.status === "in_progress" || task.status === "waiting") ?? null;
   const approvals = memory?.approvals ?? null;
   const budget = memory?.budget ?? null;
   const changes = memory?.changes ?? null;
@@ -51,13 +51,15 @@ function OwnersDesk() {
                           tone={
                             item.status === "done"
                               ? "green"
+                              : item.status === "waiting"
+                                ? "yellow"
                               : item.status === "in_progress"
                                 ? "blue"
                                 : item.status === "cancelled"
                                   ? "red"
                                   : "grey"
                           }
-                          label={item.status.replace("_", " ")}
+                          label={item.status === "waiting" ? `Waiting — ${item.waiting_reason || "reason not recorded"}` : item.status === "in_progress" ? "Assigned — activity unconfirmed" : item.status.replace("_", " ")}
                         />
                         <span className="font-medium">{item.title}</span>
                       </div>
