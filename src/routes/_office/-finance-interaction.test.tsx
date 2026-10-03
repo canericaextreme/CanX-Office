@@ -17,7 +17,7 @@ const receipt: FinanceReceipt = {
   subtotal: 90, tax: 10, total: 100, currency: "CAD", currencySymbol: "$", category: "Software",
   reviewStatus: "needs-review", paymentStatus: "unknown", businessUsePercent: 75, notes: "Owner note",
   sourceMessageIds: ["m1"], sourceUrl: "https://example.test/source", duplicateCount: 1,
-  sourceEmailText: "Stored source evidence", importedAt: "2026-10-02T00:00:00Z",
+  sourceEmailText: "Stored source evidence", receivedAt: "2026-10-01T18:30:00Z", importedAt: "2026-10-02T00:00:00Z",
 };
 
 const saveFixture = (receipts: FinanceReceipt[]) => localStorage.setItem("canx-finance-receipts", JSON.stringify({ kind: RECEIPTS_KIND, schemaVersion: RECEIPTS_SCHEMA_VERSION, exportedAt: "2026-10-03T00:00:00Z", receipts }));
@@ -58,6 +58,8 @@ describe("Finance category navigation", () => {
     expect(screen.getByText(/Order: O-7/)).toBeTruthy();
     expect(screen.getByText("Stored source evidence")).toBeTruthy();
     expect(screen.getByDisplayValue("Owner note")).toBeTruthy();
+    expect(screen.getByText(/Source email received:/).parentElement?.textContent).toContain("2026");
+    expect(screen.getByText(/Imported\/filed:/).parentElement?.textContent).toContain("America\/Whitehorse");
   });
 
   it("Receipts opens even when empty", () => {
