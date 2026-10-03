@@ -45,7 +45,7 @@ export function MailReviewView({
       <div>
         <h3 className="text-sm font-semibold">Saved mail review</h3>
         <p className="text-xs text-muted-foreground">
-          Your Keep/Ignore choices are saved rules, not AI learning. Ignore hides one email only. A sender rule is a separate button and only affects future mail from that exact address. Nothing here deletes saved evidence or Finance records, and unknown mail stays in Needs review.
+          Elsie remembers the choices you save. “Ignore this email” skips that one email only. “Ignore future emails from…” is a separate button for that exact address. Removing a rule or undoing a choice affects later checks only — older skipped mail isn’t brought back automatically and may need a fresh check. Nothing here deletes saved emails or Finance records, and unknown mail stays in Needs review.
         </p>
       </div>
       <div role="tablist" aria-label="Filter saved mail" className="flex flex-wrap gap-2">
@@ -84,7 +84,7 @@ export function MailReviewView({
                   {msg ? <Button size="sm" variant="ghost" className="min-h-10" disabled={busy} onClick={() => onChange({ op: "clear-message", mailbox: e.mailbox, messageId: e.messageId })}>Undo choice</Button> : null}
                   {sender && rule?.action !== "ignore" ? (
                     <Button size="sm" variant="ghost" className="min-h-10" disabled={busy} onClick={() => onChange({ op: "set-sender", sender, action: "ignore", fromMessage: { mailbox: e.mailbox, messageId: e.messageId, subject: e.subject } })}>
-                      Apply to future emails from {sender}
+                      Ignore future emails from {sender}
                     </Button>
                   ) : null}
                 </div>
@@ -100,7 +100,7 @@ export function MailReviewView({
             {prefs.senders.map((s) => (
               <li key={s.sender} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/50 p-2 text-xs">
                 <span className="break-words">
-                  <strong>{s.action === "ignore" ? "Ignore" : "Keep"}</strong> future mail from {s.sender} · set {s.createdAt ? new Date(s.createdAt).toISOString().slice(0, 10) : "date unknown"} by {s.source === "elsie-instruction" ? "Elsie on your instruction" : "you"}
+                  <strong>{s.action === "ignore" ? "Ignore" : "Keep"}</strong> future mail from {s.sender} · set {safeRuleDate(s.createdAt)} by {s.source === "elsie-instruction" ? "Elsie on your instruction" : "you"}
                   {s.fromMessage?.subject ? ` · from “${s.fromMessage.subject}”` : ""}
                 </span>
                 <span className="flex gap-2">
