@@ -126,7 +126,7 @@ describe("Gmail continuation", () => {
     await runReceiptSyncWith(deps, { accessToken: "t", request: "check receipts" });
     expect((deps.fetchCandidates as ReturnType<typeof vi.fn>).mock.calls[0]![4]).toEqual({ "a@x.com": "P2" });
     const again = syncDeps({ readState: async () => ({ ok: true, checkpoint: "cp", receipts: [], continuation: { "a@x.com": { token: "P2", query: queryKey, savedAt: "" } } }) });
-    await runReceiptSyncWith(again.deps, { accessToken: "t", request: "rescan receipts" });
+    await runReceiptSyncWith(again.deps, { accessToken: "t", request: "review receipts, full scan" });
     expect((again.deps.fetchCandidates as ReturnType<typeof vi.fn>).mock.calls[0]![4]).toEqual({});
   });
 
