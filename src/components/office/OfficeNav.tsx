@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Building2, ChevronLeft, FileText, FolderKanban, Home, LayoutGrid, List, Search, Users } from "lucide-react";
+import { BarChart3, Brain, Building2, ChevronLeft, FileText, FolderKanban, Home, LayoutGrid, List, Search, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AccountMenu } from "@/components/office/AccountMenu";
 import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
+import { OFFICE_MAP_ROOMS, clockwiseOfficeRooms, readOfficeLabelPositions } from '@/lib/office-map';
 import type { OfficeViewMode } from "@/hooks/use-office-view";
 
 interface OfficeNavProps { viewMode: OfficeViewMode; onToggleView: () => void; }
@@ -25,6 +26,8 @@ const SEARCH_ITEMS: SearchResult[] = [
 export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const [roomMenu, setRoomMenu] = useState(() => clockwiseOfficeRooms());
+  const otherRooms = ROOMS.filter(room => room.id !== 'brain' && !OFFICE_MAP_ROOMS.some(mapped => mapped.route === room.route));
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -104,10 +107,17 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
           <span className="hidden sm:inline">{viewMode === "3d" ? "Simple" : "Office"}</span>
         </Button>
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={isOpen => { if (isOpen) setRoomMenu(clockwiseOfficeRooms(readOfficeLabelPositions())); }}>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="All rooms"><Building2 className="h-5 w-5" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto">
-            {ROOMS.map((room) => <DropdownMenuItem key={room.id} asChild><Link to={room.route} className="flex cursor-pointer items-center gap-2"><room.icon className="h-4 w-4 text-primary" /><span className="truncate">{room.shortLabel}</span></Link></DropdownMenuItem>)}
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">Clockwise from Reception</p>
+            {roomMenu.map((room, index) => <DropdownMenuItem key={room.number} asChild><Link to={room.route} className="flex cursor-pointer items-center gap-2"><span className="w-5 shrink-0 text-xs text-muted-foreground">{index + 1}</span><room.icon className="h-4 w-4 shrink-0 text-primary" /><span>{room.label}</span></Link></DropdownMenuItem>)}
+            <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Centre and control wall</p>
+            <DropdownMenuItem asChild><Link to="/brain" className="flex cursor-pointer items-center gap-2"><Brain className="h-4 w-4 text-primary" />CanX Brain</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link to="/analytics" className="flex cursor-pointer items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Analytics Control Wall</Link></DropdownMenuItem>
+            <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Other Office pages</p>
+            {otherRooms.map(room => <DropdownMenuItem key={room.id} asChild><Link to={room.route} className="flex cursor-pointer items-center gap-2"><room.icon className="h-4 w-4 text-primary" /><span>{room.shortLabel}</span></Link></DropdownMenuItem>)}
+            <DropdownMenuItem asChild><Link to="/round-table" className="flex cursor-pointer items-center gap-2"><Users className="h-4 w-4 text-primary" />Round Table</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         {/* Reachable from every room, without adding a destination. */}
