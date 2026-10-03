@@ -14,6 +14,7 @@ import {
   type SubscriptionEvidence,
   type SubscriptionRecord,
 } from "@/lib/subscriptions";
+import { CheckEmailsNow } from "@/components/office/CheckEmailsNow";
 import { WeeklySubscriptionCards } from "@/components/office/WeeklySubscriptionCards";
 import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
 
@@ -98,6 +99,7 @@ export function SubscriptionManager() {
         <StatusBadge tone={saved ? "green" : "yellow"} label={saved ? "Saved in CanX account" : "Starter list — not saved"} />
       </CardHeader>
       <CardContent className="space-y-4" aria-live="polite">
+        <CheckEmailsNow accessToken={owner.accessToken ?? null} onVerified={load} />
         <WeeklySubscriptionCards view={weekly} lastCheck={lastCheck} />
         {state === "loading" && <p className="text-sm text-muted-foreground">Loading subscriptions…</p>}
         {state === "error" && <p className="text-sm text-destructive">{message || "Subscriptions could not be read."}</p>}

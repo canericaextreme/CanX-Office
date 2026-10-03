@@ -74,6 +74,8 @@ export interface ReceiptSyncResult {
   subscriptionEvidenceDuplicates?: number;
   sentToReview?: number;
   notFiledPersonal?: number;
+  /** Per-mailbox outcome of this run (address, status, capped, items read). */
+  mailboxes?: MailboxCheck[];
 }
 
 const deny = (code: ReceiptSyncCode, message: string): ReceiptSyncResult => ({
@@ -345,6 +347,7 @@ export async function runReceiptSyncWith(
     subscriptionEvidenceDuplicates: evidenceDuplicates,
     sentToReview,
     notFiledPersonal,
+    mailboxes: checks,
   };
 }
 
