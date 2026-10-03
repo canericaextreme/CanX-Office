@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/office/StatusBadge";
@@ -13,7 +13,7 @@ import {
 import { getMailPreferences, setMailPreference } from "@/lib/mail-preferences.functions";
 
 const FILTERS: Array<{ id: ReviewFilter; label: string }> = [
-  { id: "all", label: "All" },
+  { id: "all", label: "All active" },
   { id: "related", label: "Related" },
   { id: "needs-review", label: "Needs review" },
   { id: "ignored", label: "Ignored" },
@@ -119,28 +119,44 @@ export function MailReviewView({
   );
 }
 
-export function MailReviewPanel({ accessToken, evidence }: { accessToken: string | null; evidence: SubscriptionEvidence[] }) {
-  const [prefs, setPrefs] = useState<MailPreferences | null>(null);
+export type PrefsLoad = { state: "loading" } | { state: "ready"; prefs: MailPreferences } | { state: "error"; message: string };
+
+/** Loads mail preferences once for the whole Subscriptions room (single shared state). */
+export function useMailPreferences(accessToken: string | null) {
+  const [load, setLoad] = useState<PrefsLoad>({ state: "loading" });
+  useEffect(() => {
+    if (!accessToken) return;
+    let live = true;
+    setLoad({ state: "loading" });
+    getMailPreferences({ data: { accessToken } })
+      .then((r) => { if (live) setLoad(r.ok && r.data ? { state: "ready", prefs: r.data } : { state: "error", message: r.message }); })
+      .catch(() => { if (live) setLoad({ state: "error", message: "Mail preferences could not be read." }); });
+    return () => { live = false; };
+  }, [accessToken]);
+  return [load, setLoad] as const;
+}
+
+/** Controlled panel: prefs are owned by SubscriptionManager; updated only after a verified save. */
+export function MailReviewPanel({ accessToken, evidence, prefs, onPrefs }: {
+  accessToken: string | null;
+  evidence: SubscriptionEvidence[];
+  prefs: PrefsLoad;
+  onPrefs: (p: MailPreferences) => void;
+}) {
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  const load = useCallback(() => {
-    if (!accessToken) return;
-    getMailPreferences({ data: { accessToken } })
-      .then((r) => (r.ok && r.data ? setPrefs(r.data) : setNote(r.message)))
-      .catch(() => setNote("Mail preferences could not be read."));
-  }, [accessToken]);
-  useEffect(load, [load]);
-  if (!prefs) return note ? <p className="text-xs text-destructive">{note}</p> : null;
+  if (prefs.state === "loading") return <p className="text-xs text-muted-foreground">Loading your saved mail choices…</p>;
+  if (prefs.state === "error") return <p className="text-xs text-destructive">{prefs.message} Your Ignore choices could not be applied, so ignored emails may still appear below.</p>;
   const change = async (c: Record<string, unknown>) => {
     if (!accessToken) return;
     setBusy(true);
     const r = await setMailPreference({ data: { accessToken, change: c } }).catch(() => null);
     setBusy(false);
-    if (r?.ok && r.data) { setPrefs(r.data); setNote(r.message); }
+    if (r?.ok && r.data) { onPrefs(r.data); setNote(r.message); }
     else setNote(r?.message ?? "The choice could not be saved, so it is not in effect.");
   };
-  return <MailReviewView evidence={evidence} prefs={prefs} filter={filter} onFilter={setFilter} onChange={(c) => void change(c)} busy={busy} note={note} />;
+  return <MailReviewView evidence={evidence} prefs={prefs.prefs} filter={filter} onFilter={setFilter} onChange={(c) => void change(c)} busy={busy} note={note} />;
 }
 
 /** Never throws on malformed saved dates (avoids the last-check style crash). */
