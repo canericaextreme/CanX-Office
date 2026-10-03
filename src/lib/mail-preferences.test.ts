@@ -4,6 +4,7 @@ import { renderToString } from "react-dom/server";
 import {
   applyPreferenceChange,
   cleanMailPreferences,
+  visibleEvidence,
   EMPTY_PREFERENCES,
   normalizeSender,
   parseMailRuleCommand,
