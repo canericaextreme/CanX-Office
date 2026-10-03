@@ -114,10 +114,10 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
         <DropdownMenu onOpenChange={isOpen => { if (isOpen) setRoomMenu(clockwiseOfficeRooms(readOfficeLabelPositions())); }}>
           <DropdownMenuTrigger asChild><Button ref={synopsisTrigger} variant="ghost" size="sm" aria-label="Room synopsis" className="shrink-0 gap-2"><Building2 className="h-5 w-5" /><span>Synopsis</span></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto" onCloseAutoFocus={event => { if (synopsis) event.preventDefault(); }}>
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">Clockwise from Reception</p>
-            {roomMenu.map((room, index) => <DropdownMenuItem key={room.number} onSelect={() => setSynopsis({ route: room.route, label: room.label })} className="flex cursor-pointer items-center gap-2"><span className="w-5 shrink-0 text-xs text-muted-foreground">{index + 1}</span><room.icon className="h-4 w-4 shrink-0 text-primary" /><span>{room.label}</span></DropdownMenuItem>)}
-            <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Office Manager</p>
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">Office Manager</p>
             <DropdownMenuItem onSelect={() => setSynopsis({ route: 'elsie', label: 'Elsie — Office Manager' })} className="flex cursor-pointer items-center gap-2"><Bot className="h-4 w-4 text-primary" />Elsie — Office Manager</DropdownMenuItem>
+            <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Clockwise from Reception</p>
+            {roomMenu.map((room, index) => <DropdownMenuItem key={room.number} onSelect={() => setSynopsis({ route: room.route, label: room.label })} className="flex cursor-pointer items-center gap-2"><span className="w-5 shrink-0 text-xs text-muted-foreground">{index + 1}</span><room.icon className="h-4 w-4 shrink-0 text-primary" /><span>{room.label}</span></DropdownMenuItem>)}
             <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Centre and control wall</p>
             <DropdownMenuItem onSelect={() => setSynopsis({ route: "/brain", label: "CanX Brain" })} className="flex cursor-pointer items-center gap-2"><Brain className="h-4 w-4 text-primary" />CanX Brain</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setSynopsis({ route: "/analytics", label: "Analytics Control Wall" })} className="flex cursor-pointer items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Analytics Control Wall</DropdownMenuItem>
