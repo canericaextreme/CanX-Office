@@ -36,7 +36,7 @@ describe("Brain category cards open a category view", () => {
         const heading = screen.getByRole("heading", { level: 3, name: new RegExp(CATEGORY_LABELS[c].replace("&", "\\&")) });
         expect(document.activeElement).toBe(heading);
         expect(screen.queryByRole("navigation", { name: "Brain categories" })).toBeNull(); // cards no longer above
-        const list = screen.getByRole("list");
+        const list = screen.getByRole("list", { name: `${CATEGORY_LABELS[c]} items` });
         for (const other of items) {
           if (other.category === c) expect(within(list).getByText(other.title)).toBeTruthy();
           else expect(screen.queryByText(other.title)).toBeNull();

@@ -174,7 +174,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
           {!index && loading && <p role="status" className="text-sm text-[var(--brain-room-muted)]">Reading this category…</p>}
           {!index && !loading && <p className="text-sm text-[var(--brain-room-muted)]">{error ? "This category can't be shown because the Brain index couldn't be read." : "Sign in as the owner to see what's in this category."}</p>}
           {index && (
-            <ul className="space-y-2">
+            <ul aria-label={cat ? `${CATEGORY_LABELS[cat]} items` : "Search results"} className="space-y-2">
               {shown.length === 0 && <li className="text-sm text-[var(--brain-room-muted)]">{query ? "Nothing matches that search." : cat ? `Nothing is filed under ${CATEGORY_LABELS[cat]} yet.` : "Nothing here yet."}</li>}
               {shown.map(row)}
               {shown.length === 200 && <li className="text-xs text-[var(--brain-room-muted)]">Showing the first 200; narrow the search to see more.</li>}
