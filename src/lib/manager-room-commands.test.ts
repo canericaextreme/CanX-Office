@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ROOMS } from "./office-data";
+import { OFFICE_ROOM_IDENTITIES } from "./office-room-identity";
 import { parseRoomCommand } from "./manager-room-commands";
 
 describe("direct owner room requests", () => {
-  it.each(ROOMS)("can inspect $shortLabel without the owner opening it", room => {
-    expect(parseRoomCommand(`Check ${room.shortLabel}`, "/")).toEqual({ kind: "look", room });
+  it.each(OFFICE_ROOM_IDENTITIES)("can inspect $shortLabel without the owner opening it", room => {
+    expect(parseRoomCommand(`Check ${room.shortLabel}`, "/")).toMatchObject({ kind: "look", room: { id: room.id, route: room.route } });
   });
   it.each(["Elsie", "Astra", "Data"])("accepts %s as the manager name", name => {
     expect(parseRoomCommand(`${name}, check Finance`, "/")).toMatchObject({ kind: "look", room: { id: "finance" } });
