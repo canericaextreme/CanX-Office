@@ -40,6 +40,9 @@ function db(over: Record<string, unknown[] | "fail"> = {}) {
     let rows = (v ?? []) as Array<Record<string, unknown>>;
     if (path.includes("room=neq.finance")) rows = rows.filter((r) => r["room"] !== "finance");
     if (init?.method === "POST") return { ok: true, status: 201, body: null };
+    // Return ONLY the columns the real request selected, like PostgREST does.
+    const sel = /[?&]select=([^&]+)/.exec(path)?.[1]?.split(",");
+    if (sel) rows = rows.map((r) => Object.fromEntries(sel.filter((c) => c in r).map((c) => [c, r[c]])));
     return { ok: true, status: 200, body: rows };
   };
   return { rest, tables, calls };
@@ -144,5 +147,33 @@ describe("Elsie retrieval and the shared Brain snapshot", () => {
     expect(src).toMatch(/could not be confirmed on re-read/);
     expect(src).not.toMatch(/office_files\?|DELETE|PATCH/);
     vi.fn();
+  });
+});
+
+describe("Brain review corrections", () => {
+  const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  const imp = (n: number, name: string) => ({ id: `lovable-project:${uuid(n)}`, kind: "decision", title: name, provenance: "john", source: "Lovable project import", created_at: String(n), detail: JSON.stringify({ version: 1, provider: "Lovable", projectId: uuid(n), name, category: "Highway Safety", room: "/projects" }) });
+  it("the real notes request selects detail, so saved category labels survive reload", async () => {
+    const d = db();
+    (d.tables.office_notes as unknown[]).push({ id: "lab1", kind: "decision", title: "file:f1", detail: "knowledge", source: "Brain index: category", provenance: "john", created_at: "9" });
+    const idx = await read(d);
+    expect(d.calls.find((c) => c.startsWith("office_notes"))).toMatch(/select=[^&]*\bdetail\b/);
+    expect(idx.items.find((i) => i.key === "file:f1")).toMatchObject({ category: "knowledge", manual: true });
+  });
+  it("imported Lovable projects are Projects (not Memory) and duplicate names stay distinct", async () => {
+    const d = db();
+    (d.tables.office_notes as unknown[]).push(imp(1, "Safe Highways"), imp(2, "Safe Highways"));
+    const idx = await read(d);
+    const projs = idx.items.filter((i) => i.key.startsWith("project:0000"));
+    expect(projs.map((p) => p.key).sort()).toEqual([`project:${uuid(1)}`, `project:${uuid(2)}`]);
+    expect(projs.every((p) => p.category === "projects")).toBe(true);
+    expect(idx.items.some((i) => i.kind === "note" && i.title === "Safe Highways")).toBe(false);
+  });
+  it("sources that hit their read limit say shown/up to, never all", async () => {
+    const many = Array.from({ length: 500 }, (_, i) => ({ id: `x${i}`, filename: `f${i}`, room: "legal", created_at: "1" }));
+    const idx = await read(db({ office_files: many }));
+    const src = idx.sources.find((s) => s.key === "files")!;
+    expect(src.detail).toMatch(/showing up to 500/);
+    expect(src.label).not.toMatch(/\ball\b/i);
   });
 });
