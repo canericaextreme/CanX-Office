@@ -133,6 +133,25 @@ export async function saveGmailScanConfig(token: string, ownerId: string, next: 
   return res.ok;
 }
 
+/** Saves the dated scan state and mailbox cursors as one verified CAS change. */
+export async function saveGmailScanProgress(
+  token: string,
+  ownerId: string,
+  continuation: Record<string, { token: string; query: string; savedAt: string }>,
+  scan: GmailScanConfig,
+) {
+  const backend = await import("./canx-backend.server");
+  const { sameContent } = await import("./finance-doc-cas.server");
+  const res = await cas(
+    backend,
+    token,
+    ownerId,
+    (d) => ({ ...d, gmailContinuation: continuation, gmailScanConfig: scan }),
+    (d) => sameContent(d["gmailContinuation"] ?? {}, continuation) && sameContent(d["gmailScanConfig"], scan),
+  );
+  return res.ok;
+}
+
 /** Owner mail Keep/Ignore preferences (compare-and-swap, change-verified, other keys preserved). */
 export async function readMailPreferences(token: string) {
   const backend = await import("./canx-backend.server");

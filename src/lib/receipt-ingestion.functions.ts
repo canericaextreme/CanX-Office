@@ -11,6 +11,13 @@ import {
 } from "./receipt-ingestion";
 import type { FinanceReceipt } from "./finance-receipts";
 import {
+  cleanGmailScanConfig,
+  datedGmailQuery,
+  DEFAULT_GMAIL_SCAN_FROM_DATE,
+  validScanDate,
+  type GmailScanConfig,
+} from "./gmail-scan-window";
+import {
   buildGmailQuery,
   classifyDocument,
   matchService,
@@ -88,6 +95,10 @@ export interface ReceiptSyncResult {
   ignoredByPreference?: number;
   /** Per-mailbox outcome of this run (address, status, capped, items read). */
   mailboxes?: MailboxCheck[];
+  fromDate?: string;
+  endAt?: string;
+  scanStatus?: "paused" | "complete" | "failed";
+  hasMore?: boolean;
 }
 
 const deny = (code: ReceiptSyncCode, message: string): ReceiptSyncResult => ({
@@ -130,12 +141,14 @@ export interface SyncDeps {
     continuation?: GmailContinuation;
     /** John's saved Keep/Ignore choices (owner-only Finance doc). */
     mailPreferences?: import("./mail-preferences").MailPreferences;
+    scanConfig?: GmailScanConfig | null;
     /** Safe classified reason when ok is false. */
     failure?: import("./finance-read-diagnosis").FinanceReadFailure;
   }>;
   fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean, query?: string, pageTokens?: Record<string, string>, preferences?: import("./mail-preferences").MailPreferences | null) => Promise<GmailFetchResult>;
   /** Saves the per-mailbox continuation (compare-and-swap). Absent = first-page-only. */
   saveContinuation?: (token: string, ownerId: string, next: GmailContinuation) => Promise<boolean>;
+  saveScanProgress?: (token: string, ownerId: string, next: GmailContinuation, scan: GmailScanConfig) => Promise<boolean>;
   /** Appends subscription evidence to the owner's Finance document, verified by readback. */
   recordLastCheck?: (token: string, ownerId: string, check: LastCheck) => Promise<boolean>;
   writeEvidence?: (token: string, ownerId: string, evidence: SubscriptionEvidence[]) => Promise<{ ok: boolean; added: number; duplicates: number }>;
@@ -167,7 +180,7 @@ async function realDeps(): Promise<SyncDeps> {
       const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
       const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];
       const subs = await import("./subscriptions");
-      const doc = (row?.doc ?? {}) as { subscriptions?: unknown; subscriptionEvidence?: unknown; gmailContinuation?: unknown; mailPreferences?: unknown };
+       const doc = (row?.doc ?? {}) as { subscriptions?: unknown; subscriptionEvidence?: unknown; gmailContinuation?: unknown; mailPreferences?: unknown; gmailScanConfig?: unknown };
       const mp = await import("./mail-preferences");
       return {
         ok: true,
@@ -177,6 +190,7 @@ async function realDeps(): Promise<SyncDeps> {
         evidence: subs.cleanEvidenceList(doc.subscriptionEvidence),
         continuation: cleanContinuation(doc.gmailContinuation),
         mailPreferences: mp.cleanMailPreferences(doc.mailPreferences),
+         scanConfig: cleanGmailScanConfig(doc.gmailScanConfig),
       };
     },
     fetchCandidates: (settings, checkpoint, rescan, query, pageTokens, preferences) =>
@@ -184,6 +198,10 @@ async function realDeps(): Promise<SyncDeps> {
     saveContinuation: async (token, ownerId, next) => {
       const store = await import("./subscriptions-store.server");
       return store.saveGmailContinuation(token, ownerId, next);
+    },
+    saveScanProgress: async (token, ownerId, next, scan) => {
+      const store = await import("./subscriptions-store.server");
+      return store.saveGmailScanProgress(token, ownerId, next, scan);
     },
     recordLastCheck: async (token, ownerId, check) => {
       const store = await import("./subscriptions-store.server");
@@ -228,13 +246,13 @@ async function realDeps(): Promise<SyncDeps> {
   };
 }
 
-export async function runReceiptSync(input: { accessToken: string; request: string }) {
+export async function runReceiptSync(input: { accessToken: string; request: string; fromDate?: string }) {
   return runReceiptSyncWith(await realDeps(), input);
 }
 
 export async function runReceiptSyncWith(
   deps: SyncDeps,
-  input: { accessToken: string; request: string },
+  input: { accessToken: string; request: string; fromDate?: string },
 ): Promise<ReceiptSyncResult> {
   if (!isExplicitReceiptSyncRequest(input.request)) {
     return deny("invalid_request", "Ask explicitly to review, retrieve, check, sync, file, or import receipts or invoices.");
@@ -251,15 +269,22 @@ export async function runReceiptSyncWith(
   const state = await deps.readState(input.accessToken);
   if (!state.ok) return deny("database_unavailable", financeReadMessage(state.failure ?? "unexpected_response"));
   const subscriptions = state.subscriptions ?? [];
-  const query = buildGmailQuery(subscriptions);
+  const fromDate = input.fromDate || state.scanConfig?.fromDate || DEFAULT_GMAIL_SCAN_FROM_DATE;
+  if (!validScanDate(fromDate)) return deny("invalid_request", "Enter a valid From date in YYYY-MM-DD format.");
+  const requestedStart = new Date(`${fromDate}T00:00:00Z`);
+  if (requestedStart.getTime() > Date.now() + 86_400_000) return deny("invalid_request", "The From date cannot be in the future.");
+  const priorScan = state.scanConfig;
+  const continuing = priorScan?.fromDate === fromDate && priorScan.status === "paused";
+  const endAt = continuing ? priorScan.endAt : new Date().toISOString();
+  const query = datedGmailQuery(buildGmailQuery(subscriptions), fromDate, endAt);
+  if (!query) return deny("invalid_request", "The From date could not be used, so no email was checked.");
 
   const rescan = RESCAN_INTENT.test(input.request);
   // One shared Finance checkpoint cannot describe several mailboxes: a newly
   // linked or previously failed mailbox would skip older receipts. With more
   // than one mailbox, search the full past-year window (25 per mailbox) and
   // rely on fingerprint dedup instead of a date checkpoint.
-  const multi = accounts.length > 1;
-  const sharedCheckpoint = multi ? null : state.checkpoint;
+  const sharedCheckpoint = null;
   const documents: GmailFetchResult["documents"] = [];
   let unsupported = 0;
   let checkpoint = state.checkpoint ?? "";
@@ -268,10 +293,10 @@ export async function runReceiptSyncWith(
   let partial = false;
   const checks: MailboxCheck[] = [];
   // Continuation is only valid for the identical Gmail query; a rescan starts at page 1.
-  const queryKey = `${query}|${rescan ? "rescan" : sharedCheckpoint ?? ""}`;
+  const queryKey = `dated|${fromDate}|${endAt}|${query}`;
   const priorContinuation = state.continuation ?? {};
   const pageTokens: Record<string, string> = {};
-  if (!rescan && deps.saveContinuation) {
+  if (!rescan && deps.saveScanProgress && continuing && priorScan.queryKey === queryKey) {
     for (const [mb, c] of Object.entries(priorContinuation)) if (c.query === queryKey) pageTokens[mb] = c.token;
   }
   const nextContinuation: GmailContinuation = { ...priorContinuation };
@@ -281,7 +306,9 @@ export async function runReceiptSyncWith(
   let needsReviewDocs = 0; // supported but unreadable documents (images/OCR, oversized)
   let capHit = false;
   let ignoredByPreference = 0;
+  const completedSlots = new Set(continuing && priorScan.queryKey === queryKey ? priorScan.completedSlots : []);
   for (const [slot, account] of accounts.entries()) {
+    if (completedSlots.has(slot)) continue;
     try {
       const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query, pageTokens, state.mailPreferences ?? null);
       ignoredByPreference += result.ignored ?? 0;
@@ -303,7 +330,8 @@ export async function runReceiptSyncWith(
       checkpoint = result.checkpoint;
       const mbPartial = Boolean(result.partial) || Boolean(result.fetchFailures) || Boolean(result.needsReview) || Boolean(result.documentCapHit);
       if (mbPartial) partial = true;
-      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: mbPartial, documents: result.documents.length });
+      if (!result.nextPageToken && !(result.fetchFailures ?? 0) && !result.documentCapHit) completedSlots.add(slot);
+      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: mbPartial, documents: result.documents.length, hasMore: Boolean(result.nextPageToken) });
     } catch (error) {
       failedAccounts += 1;
       const auth = error instanceof Error && error.message === "gmail_authorization_required";
@@ -311,7 +339,7 @@ export async function runReceiptSyncWith(
       checks.push({ mailbox: `Linked mailbox ${slot + 1}`, status: auth ? "authorization_required" : "failed", partial: true, documents: 0 });
     }
   }
-  const scope = `Past year, one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox per check (all readable bodies and attachments in those messages)${deps.saveContinuation ? "; later checks continue to older pages" : " (first page only — no continuation)"}${continuedAny ? "; this check continued from an earlier one, so newer mail may need a fresh check" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`;
+  const scope = `${fromDate} through ${endAt} (frozen for this run), one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per unfinished mailbox per step${deps.saveScanProgress ? "; verified pages resume safely" : " (first page only — no saved continuation)"}${continuedAny ? "; resumed from saved positions" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`;
   // The last check is recorded only after every write has been attempted, and is
   // "complete" only when everything was fetched, handled and saved and verified.
   const finishCheck = async (writesVerified: boolean) => {
@@ -444,15 +472,17 @@ export async function runReceiptSyncWith(
       ? ` ${failedAccounts} linked mailbox${failedAccounts === 1 ? "" : "es"} could not be read this time; re-authorize it and run again to include it.`
       : "";
   let continuationNote = "";
-  let continuationOk = !deps.saveContinuation; // nothing to save = no failure
-  if (deps.saveContinuation && !evidenceNote) {
-    const savedPos = await deps.saveContinuation(input.accessToken, owner.userId, nextContinuation).catch(() => false);
+  const hasMore = completedSlots.size < accounts.length;
+  let continuationOk = !deps.saveScanProgress; // nothing to save = no failure
+  if (deps.saveScanProgress && !evidenceNote) {
+    const scan: GmailScanConfig = { fromDate, endAt, queryKey, completedSlots: [...completedSlots], status: hasMore ? "paused" : "complete", savedAt: new Date().toISOString() };
+    const savedPos = await deps.saveScanProgress(input.accessToken, owner.userId, nextContinuation, scan).catch(() => false);
     continuationOk = savedPos;
     if (!savedPos) continuationNote = " The position for older mail could not be saved, so the next check will repeat this page.";
-  } else if (deps.saveContinuation && evidenceNote) {
+  } else if (deps.saveScanProgress && evidenceNote) {
     continuationNote = " Because evidence was not saved, the next check will repeat this page.";
   }
-  if (partial && Object.keys(nextContinuation).length > 0) continuationNote += " Run the check again to continue with older matching mail.";
+  if (hasMore && Object.keys(nextContinuation).length > 0) continuationNote += " More matching mail remains in this dated scan.";
   if (rejectedAny) continuationNote += " A saved position had expired, so the first page was read again.";
   let writesVerified = !evidenceNote && continuationOk;
   let checkpointNote = "";
@@ -485,6 +515,10 @@ export async function runReceiptSyncWith(
     notFiledPersonal,
     ignoredByPreference,
     mailboxes: checks,
+    fromDate,
+    endAt,
+    scanStatus: finalPartial || hasMore ? "paused" : "complete",
+    hasMore,
   };
 }
 
@@ -528,10 +562,11 @@ function toEvidence(
 }
 
 function validate(input: unknown) {
-  const row = input as { accessToken?: unknown; request?: unknown } | undefined;
+  const row = input as { accessToken?: unknown; request?: unknown; fromDate?: unknown } | undefined;
   return {
     accessToken: typeof row?.accessToken === "string" ? row.accessToken.slice(0, 4_000) : "",
     request: typeof row?.request === "string" ? row.request.slice(0, 2_000) : "",
+    fromDate: typeof row?.fromDate === "string" ? row.fromDate.slice(0, 10) : undefined,
   };
 }
 

@@ -10,6 +10,8 @@ export interface GmailScanConfig {
   endAt: string;
   status: GmailScanStatus;
   savedAt: string;
+  queryKey: string;
+  completedSlots: number[];
 }
 
 export function validScanDate(value: unknown): value is string {
@@ -27,6 +29,10 @@ export function cleanGmailScanConfig(input: unknown): GmailScanConfig | null {
     endAt: new Date(row.endAt).toISOString(),
     status: row.status === "complete" || row.status === "failed" ? row.status : "paused",
     savedAt: typeof row.savedAt === "string" && !Number.isNaN(Date.parse(row.savedAt)) ? new Date(row.savedAt).toISOString() : "",
+    queryKey: typeof row.queryKey === "string" ? row.queryKey.slice(0, 1600) : "",
+    completedSlots: Array.isArray(row.completedSlots)
+      ? [...new Set(row.completedSlots.filter((slot): slot is number => Number.isInteger(slot) && slot >= 0 && slot < 5))]
+      : [],
   };
 }
 
