@@ -307,6 +307,7 @@ export async function runReceiptSyncWith(
   let capHit = false;
   let ignoredByPreference = 0;
   const completedSlots = new Set(continuing && priorScan.queryKey === queryKey ? priorScan.completedSlots : []);
+  const checkBySlot = new Map<number, MailboxCheck>((continuing && priorScan.queryKey === queryKey ? priorScan.mailboxes : []).flatMap((check) => typeof check.slot === "number" ? [[check.slot, check]] : []));
   for (const [slot, account] of accounts.entries()) {
     if (completedSlots.has(slot)) continue;
     try {
@@ -331,12 +332,16 @@ export async function runReceiptSyncWith(
       const mbPartial = Boolean(result.partial) || Boolean(result.fetchFailures) || Boolean(result.needsReview) || Boolean(result.documentCapHit);
       if (mbPartial) partial = true;
       if (!result.nextPageToken && !(result.fetchFailures ?? 0) && !result.documentCapHit) completedSlots.add(slot);
-      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: mbPartial, documents: result.documents.length, hasMore: Boolean(result.nextPageToken) });
+      const checked = { slot, mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read" as const, partial: mbPartial, documents: result.documents.length, hasMore: Boolean(result.nextPageToken) };
+      checks.push(checked);
+      checkBySlot.set(slot, checked);
     } catch (error) {
       failedAccounts += 1;
       const auth = error instanceof Error && error.message === "gmail_authorization_required";
       if (auth) authFailure = true;
-      checks.push({ mailbox: `Linked mailbox ${slot + 1}`, status: auth ? "authorization_required" : "failed", partial: true, documents: 0 });
+      const checked = { slot, mailbox: `Linked mailbox ${slot + 1}`, status: auth ? "authorization_required" as const : "failed" as const, partial: true, documents: 0 };
+      checks.push(checked);
+      checkBySlot.set(slot, checked);
     }
   }
   const scope = `${fromDate} through ${endAt} (frozen for this run), one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per unfinished mailbox per step${deps.saveScanProgress ? "; verified pages resume safely" : " (first page only — no saved continuation)"}${continuedAny ? "; resumed from saved positions" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`;
@@ -354,6 +359,10 @@ export async function runReceiptSyncWith(
     return { check, saved };
   };
   if (failedAccounts === accounts.length) {
+    if (deps.saveScanProgress) {
+      const failedScan: GmailScanConfig = { fromDate, endAt, queryKey, completedSlots: [...completedSlots], status: "failed", savedAt: new Date().toISOString(), mailboxes: [...checkBySlot.values()] };
+      await deps.saveScanProgress(input.accessToken, owner.userId, priorContinuation, failedScan).catch(() => false);
+    }
     await finishCheck(false);
     return {
       ...deny(
@@ -475,7 +484,7 @@ export async function runReceiptSyncWith(
   const hasMore = completedSlots.size < accounts.length;
   let continuationOk = !deps.saveScanProgress; // nothing to save = no failure
   if (deps.saveScanProgress && !evidenceNote) {
-    const scan: GmailScanConfig = { fromDate, endAt, queryKey, completedSlots: [...completedSlots], status: hasMore ? "paused" : "complete", savedAt: new Date().toISOString() };
+    const scan: GmailScanConfig = { fromDate, endAt, queryKey, completedSlots: [...completedSlots], status: hasMore ? "paused" : "complete", savedAt: new Date().toISOString(), mailboxes: [...checkBySlot.values()] };
     const savedPos = await deps.saveScanProgress(input.accessToken, owner.userId, nextContinuation, scan).catch(() => false);
     continuationOk = savedPos;
     if (!savedPos) continuationNote = " The position for older mail could not be saved, so the next check will repeat this page.";
@@ -514,7 +523,7 @@ export async function runReceiptSyncWith(
     sentToReview,
     notFiledPersonal,
     ignoredByPreference,
-    mailboxes: checks,
+    mailboxes: [...checkBySlot.values()],
     fromDate,
     endAt,
     scanStatus: finalPartial || hasMore ? "paused" : "complete",

@@ -4,6 +4,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { cleanSubscriptionList, type LastCheck, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
+import type { GmailScanConfig } from "./gmail-scan-window";
 
 export interface SubscriptionsResult<T> {
   ok: boolean;
@@ -25,7 +26,7 @@ async function owner(accessToken: string) {
 
 export const listSubscriptions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: token(input) }))
-  .handler(async ({ data }): Promise<SubscriptionsResult<{ saved: boolean; subscriptions: SubscriptionRecord[]; evidence: SubscriptionEvidence[]; lastCheck: LastCheck | null }>> => {
+  .handler(async ({ data }): Promise<SubscriptionsResult<{ saved: boolean; subscriptions: SubscriptionRecord[]; evidence: SubscriptionEvidence[]; lastCheck: LastCheck | null; scanConfig: GmailScanConfig | null }>> => {
     const who = await owner(data.accessToken);
     if (!who.ok) return { ok: false, message: who.message, data: null };
     const store = await import("./subscriptions-store.server");

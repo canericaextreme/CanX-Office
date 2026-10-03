@@ -1,4 +1,4 @@
-import { OFFICE_TIMEZONE } from "./subscriptions";
+import { OFFICE_TIMEZONE, type MailboxCheck } from "./subscriptions";
 
 export const DEFAULT_GMAIL_SCAN_FROM_DATE = "2026-08-15";
 export const HISTORICAL_SCAN_STEPS_PER_START = 4;
@@ -12,6 +12,7 @@ export interface GmailScanConfig {
   savedAt: string;
   queryKey: string;
   completedSlots: number[];
+  mailboxes: MailboxCheck[];
 }
 
 export function validScanDate(value: unknown): value is string {
@@ -33,6 +34,18 @@ export function cleanGmailScanConfig(input: unknown): GmailScanConfig | null {
     completedSlots: Array.isArray(row.completedSlots)
       ? [...new Set(row.completedSlots.filter((slot): slot is number => Number.isInteger(slot) && slot >= 0 && slot < 5))]
       : [],
+    mailboxes: Array.isArray(row.mailboxes) ? row.mailboxes.slice(0, 5).flatMap((item) => {
+      const mailbox = item as Partial<MailboxCheck>;
+      if (typeof mailbox.mailbox !== "string") return [];
+      return [{
+        mailbox: mailbox.mailbox.slice(0, 200),
+        status: mailbox.status === "read" || mailbox.status === "authorization_required" ? mailbox.status : "failed",
+        partial: mailbox.partial === true,
+        documents: typeof mailbox.documents === "number" ? mailbox.documents : 0,
+        ...(typeof mailbox.slot === "number" ? { slot: mailbox.slot } : {}),
+        ...(mailbox.hasMore === true ? { hasMore: true } : {}),
+      }];
+    }) : [],
   };
 }
 

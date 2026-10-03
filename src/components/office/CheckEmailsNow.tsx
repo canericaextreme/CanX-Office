@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/office/StatusBadge";
 import { syncGmailReceipts } from "@/lib/receipt-ingestion.functions";
 import { createCheckEmailsController, type CheckState } from "@/lib/check-emails-now";
+import { DEFAULT_GMAIL_SCAN_FROM_DATE, validScanDate, type GmailScanConfig } from "@/lib/gmail-scan-window";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function CheckEmailsResult({ state }: { state: CheckState }) {
   if (state.phase === "idle") return null;
@@ -42,15 +45,16 @@ export function CheckEmailsResult({ state }: { state: CheckState }) {
   );
 }
 
-export function CheckEmailsNow({ accessToken, onVerified }: { accessToken: string | null; onVerified: () => void }) {
+export function CheckEmailsNow({ accessToken, onVerified, savedScan }: { accessToken: string | null; onVerified: () => void; savedScan?: GmailScanConfig | null }) {
   const [state, setState] = useState<CheckState>({ phase: "idle" });
+  const [fromDate, setFromDate] = useState(savedScan?.fromDate ?? DEFAULT_GMAIL_SCAN_FROM_DATE);
   const controller = useMemo(
     () => createCheckEmailsController({
-      run: (request) => syncGmailReceipts({ data: { accessToken: accessToken ?? "", request } }),
+      run: (request, requestedFrom) => syncGmailReceipts({ data: { accessToken: accessToken ?? "", request, fromDate: requestedFrom ?? fromDate } }),
       onState: setState,
       onVerified,
     }),
-    [accessToken, onVerified],
+    [accessToken, fromDate, onVerified],
   );
   const running = state.phase === "running";
   return (
@@ -61,6 +65,20 @@ export function CheckEmailsNow({ accessToken, onVerified }: { accessToken: strin
           {running ? "Checking…" : "Check emails now"}
         </Button>
         <span className="text-xs text-muted-foreground">Same check as asking Elsie. Needs owner sign-in with two-step verification. Read-only: nothing is sent or deleted; runs only when pressed.</span>
+      </div>
+      <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <Label htmlFor="historical-mail-from">From date</Label>
+            <Input id="historical-mail-from" type="date" value={fromDate} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setFromDate(event.target.value)} className="h-11 w-48" />
+          </div>
+          <Button variant="outline" onClick={() => void controller.start(fromDate, true)} disabled={running || !accessToken || !validScanDate(fromDate)} aria-busy={running}>
+            {running ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <MailSearch className="h-4 w-4" aria-hidden />}
+            {running ? "Scanning…" : "Scan from this date"}
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">Includes the whole selected day in America/Whitehorse through the frozen start time. Checks only billing, renewal, receipt, subscription, and known-service mail in both linked mailboxes. It processes up to four verified page steps per press, then pauses safely if more remains.</p>
+        {savedScan ? <p className="mt-1 text-xs text-foreground">Saved dated scan: {savedScan.fromDate} · {savedScan.status === "complete" ? "complete within scope" : savedScan.status === "failed" ? "failed — resume after fixing the issue" : "paused — ready to resume"}.</p> : null}
       </div>
       <CheckEmailsResult state={state} />
     </section>
