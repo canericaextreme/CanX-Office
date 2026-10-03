@@ -11,6 +11,7 @@ import { BudgetPanel } from "@/components/office/BudgetPanel";
 import { OwnerSignIn } from "@/components/office/OwnerSignIn";
 import { useOwnerSession } from "@/lib/owner-session";
 import { listPrivateReceipts, savePrivateReceipts } from "@/lib/finance.functions";
+import { formatZoned, OFFICE_TIMEZONE } from "@/lib/subscriptions";
 import {
   currencyLabel,
   currencyKey,
@@ -52,6 +53,10 @@ interface Preview {
 }
 
 type FinanceSection = "income" | "expenses" | "receipts" | "tax";
+
+const evidenceTime = (value: string | undefined) => value && !Number.isNaN(Date.parse(value))
+  ? formatZoned(value)
+  : "Not recorded";
 
 const SECTION_LABELS: Record<FinanceSection, string> = {
   income: "Income",
@@ -394,6 +399,10 @@ export function Finance() {
                   {openId === r.id && <div id={`receipt-${r.id}`} className="mt-3 border-t border-border pt-3">
                     <p className="text-xs text-muted-foreground">Order: {r.orderNumber || "Not stated"} · Subtotal: {r.subtotal === null ? "Not stated" : `${r.currencySymbol}${r.subtotal}`} · Tax: {r.tax === null ? "Not stated" : `${r.currencySymbol}${r.tax}`}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Evidence: {r.sourceMessageIds.length} source message{r.sourceMessageIds.length === 1 ? "" : "s"}{r.duplicateCount > 1 ? ` · ${r.duplicateCount} copies merged into this one record` : ""}</p>
+                     <dl className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                       <div><dt className="inline font-semibold text-foreground">Source email received: </dt><dd className="inline">{evidenceTime(r.receivedAt)}{r.receivedAt ? ` (${OFFICE_TIMEZONE})` : ""}</dd></div>
+                       <div><dt className="inline font-semibold text-foreground">Imported/filed: </dt><dd className="inline">{evidenceTime(r.importedAt)}{r.importedAt ? ` (${OFFICE_TIMEZONE})` : ""}</dd></div>
+                     </dl>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
                       <Label className="text-xs" htmlFor={`cat-${r.id}`}>Category</Label>
