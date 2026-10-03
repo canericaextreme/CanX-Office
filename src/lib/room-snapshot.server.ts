@@ -112,21 +112,22 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       if (!files || !links) return failed(def);
       const merged = [...files.map((f) => ({ t: text(f["filename"]), at: text(f["created_at"], 40) })), ...links.map((l) => ({ t: text(l["title"]), at: text(l["created_at"], 40) }))]
         .sort((a, b) => b.at.localeCompare(a.at));
-      return result(def, { count: merged.length, items: merged.slice(0, MAX_ITEMS).map((m) => m.t), latestAt: merged[0]?.at || null, detail: all ? (req.aal === "aal2" ? "all rooms (Brain shows every saved file)" : "all rooms except Finance (needs two-step verification)") : "" });
+      const capped = files.length >= 100 || links.length >= 100;
+      return result(def, { count: merged.length, capped, items: merged.slice(0, MAX_ITEMS).map((m) => `${m.t} (${m.at.slice(0, 10)})`), latestAt: merged[0]?.at || null, detail: (capped ? "showing up to 100 files and 100 links; more may exist; names and dates only, file contents not read. " : "names and dates only; file contents not read. ") + (all ? (req.aal === "aal2" ? "all rooms (Brain shows every saved file)" : "all rooms except Finance (needs two-step verification)") : "") });
     }
     case "reports":
-      return fromRows(def, await rows(req, `office_notes?select=id,title,created_at&source=eq.${encodeURIComponent(roomReportSource(req.target.id))}&order=created_at.desc&limit=100`), (r) => text(r["title"]), "created_at");
+      return fromRows(def, await rows(req, `office_notes?select=id,title,created_at&source=eq.${encodeURIComponent(roomReportSource(req.target.id))}&order=created_at.desc&limit=100`), (r) => `${text(r["title"])} (${text(r["created_at"], 10)})`, "created_at", 100);
     case "tasks":
       return fromRows(def, await rows(req, "manager_tasks?select=title,status,project,updated_at&order=updated_at.desc&limit=100"),
-        (r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}${req.target.route === "/projects" ? ` (${text(r["project"], 60) || "no project"})` : ""}`, "updated_at");
+        (r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}${text(r["project"], 60) ? ` · project ${text(r["project"], 60)}` : ""} · updated ${text(r["updated_at"], 16)}`, "updated_at", 100);
     case "approvals":
       return fromRows(def, await rows(req, "manager_approvals?select=title,status,created_at&order=created_at.desc&limit=100"), (r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}`, "created_at", 100);
     case "changes":
       return fromRows(def, await rows(req, "manager_changes?select=action,entity,at&entity=neq.manager_conversation&order=at.desc&limit=30"), (r) => `${text(r["action"], 60)} on ${text(r["entity"], 60)}`, "at", 30);
     case "notes":
-      return fromRows(def, (await rows(req, "office_notes?select=title,source,provenance,created_at&order=created_at.desc&limit=200"))?.filter((r) => r["provenance"] !== "sample" && !text(r["source"]).startsWith("CanX Brain:")) ?? null, (r) => text(r["title"]), "created_at", 200);
+      return (async () => { const raw = await rows(req, "office_notes?select=title,source,provenance,created_at&order=created_at.desc&limit=200"); const r = fromRows(def, raw?.filter((x) => x["provenance"] !== "sample" && !text(x["source"]).startsWith("CanX Brain:")) ?? null, (x) => `${text(x["title"])} (${text(x["created_at"], 10)})`, "created_at"); return raw && raw.length >= 200 ? { ...r, capped: true, detail: "read the latest 200 notes; older ones may exist" } : r; })();
     case "decisions":
-      return fromRows(def, (await rows(req, "office_notes?select=title,source,provenance,created_at&kind=eq.decision&order=created_at.desc&limit=200"))?.filter((r) => r["provenance"] !== "sample" && !text(r["source"]).startsWith("CanX Brain:")) ?? null, (r) => text(r["title"]), "created_at", 200);
+      return (async () => { const raw = await rows(req, "office_notes?select=title,source,provenance,created_at&kind=eq.decision&order=created_at.desc&limit=200"); const r = fromRows(def, raw?.filter((x) => x["provenance"] !== "sample" && !text(x["source"]).startsWith("CanX Brain:")) ?? null, (x) => `${text(x["title"])} (${text(x["created_at"], 10)})`, "created_at"); return raw && raw.length >= 200 ? { ...r, capped: true, detail: "read the latest 200 notes; older ones may exist" } : r; })();
     case "brain-memory":
       return fromRows(def, await rows(req, "office_notes?select=title,created_at&source=like.CanX%20Brain%3A*&order=created_at.desc&limit=100"), (r) => text(r["title"]), "created_at", 100);
     case "round-tables":
