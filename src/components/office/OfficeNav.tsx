@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ROOM_SYNOPSES } from '@/lib/room-synopses';
 import { AccountMenu } from "@/components/office/AccountMenu";
 import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
@@ -26,6 +28,8 @@ const SEARCH_ITEMS: SearchResult[] = [
 export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const [synopsis, setSynopsis] = useState<{ route: string; label: string } | null>(null);
+  const synopsisTrigger = useRef<HTMLButtonElement>(null);
   const [roomMenu, setRoomMenu] = useState(() => clockwiseOfficeRooms());
   const otherRooms = ROOMS.filter(room => room.id !== 'brain' && !OFFICE_MAP_ROOMS.some(mapped => mapped.route === room.route));
   const [search, setSearch] = useState("");
@@ -108,18 +112,28 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           <span className="hidden sm:inline">{viewMode === "3d" ? "Simple" : "Office"}</span>
         </Button>
         <DropdownMenu onOpenChange={isOpen => { if (isOpen) setRoomMenu(clockwiseOfficeRooms(readOfficeLabelPositions())); }}>
-          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="All rooms"><Building2 className="h-5 w-5" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto">
+          <DropdownMenuTrigger asChild><Button ref={synopsisTrigger} variant="ghost" size="sm" aria-label="Room synopsis" className="shrink-0 gap-2"><Building2 className="h-5 w-5" /><span>Synopsis</span></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto" onCloseAutoFocus={event => { if (synopsis) event.preventDefault(); }}>
             <p className="px-2 py-1.5 text-xs text-muted-foreground">Clockwise from Reception</p>
-            {roomMenu.map((room, index) => <DropdownMenuItem key={room.number} asChild><Link to={room.route} className="flex cursor-pointer items-center gap-2"><span className="w-5 shrink-0 text-xs text-muted-foreground">{index + 1}</span><room.icon className="h-4 w-4 shrink-0 text-primary" /><span>{room.label}</span></Link></DropdownMenuItem>)}
+            {roomMenu.map((room, index) => <DropdownMenuItem key={room.number} onSelect={() => setSynopsis({ route: room.route, label: room.label })} className="flex cursor-pointer items-center gap-2"><span className="w-5 shrink-0 text-xs text-muted-foreground">{index + 1}</span><room.icon className="h-4 w-4 shrink-0 text-primary" /><span>{room.label}</span></DropdownMenuItem>)}
             <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Centre and control wall</p>
-            <DropdownMenuItem asChild><Link to="/brain" className="flex cursor-pointer items-center gap-2"><Brain className="h-4 w-4 text-primary" />CanX Brain</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link to="/analytics" className="flex cursor-pointer items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Analytics Control Wall</Link></DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSynopsis({ route: "/brain", label: "CanX Brain" })} className="flex cursor-pointer items-center gap-2"><Brain className="h-4 w-4 text-primary" />CanX Brain</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSynopsis({ route: "/analytics", label: "Analytics Control Wall" })} className="flex cursor-pointer items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Analytics Control Wall</DropdownMenuItem>
             <p className="mt-2 border-t px-2 py-1.5 text-xs text-muted-foreground">Other Office pages</p>
-            {otherRooms.map(room => <DropdownMenuItem key={room.id} asChild><Link to={room.route} className="flex cursor-pointer items-center gap-2"><room.icon className="h-4 w-4 text-primary" /><span>{room.shortLabel}</span></Link></DropdownMenuItem>)}
-            <DropdownMenuItem asChild><Link to="/round-table" className="flex cursor-pointer items-center gap-2"><Users className="h-4 w-4 text-primary" />Round Table</Link></DropdownMenuItem>
+            {otherRooms.map(room => <DropdownMenuItem key={room.id} onSelect={() => setSynopsis({ route: room.route, label: room.shortLabel })} className="flex cursor-pointer items-center gap-2"><room.icon className="h-4 w-4 text-primary" /><span>{room.shortLabel}</span></DropdownMenuItem>)}
+            <DropdownMenuItem onSelect={() => setSynopsis({ route: "/round-table", label: "Round Table" })} className="flex cursor-pointer items-center gap-2"><Users className="h-4 w-4 text-primary" />Round Table</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Dialog open={Boolean(synopsis)} onOpenChange={isOpen => { if (!isOpen) setSynopsis(null); }}>
+          <DialogContent onCloseAutoFocus={event => { event.preventDefault(); synopsisTrigger.current?.focus(); }}>
+            <DialogHeader>
+              <DialogTitle>{synopsis?.label}</DialogTitle>
+              <DialogDescription className="pt-3 text-base leading-relaxed text-foreground">
+                {synopsis ? ROOM_SYNOPSES[synopsis.route] : ''}
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
         {/* Reachable from every room, without adding a destination. */}
         <SecondEyesPanel />
         <AccountMenu />
