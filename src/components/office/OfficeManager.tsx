@@ -30,7 +30,7 @@ import {
   type TurnMode,
 } from "@/lib/astra-device-continuity";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { captureOfficeView } from "@/lib/office-observe";
 import { observeCurrentRoom } from "@/lib/manager-observe.functions";
@@ -770,6 +770,30 @@ export function OfficeManager() {
     const messageRect = latestMessage.getBoundingClientRect();
     pane.scrollTop += messageRect.bottom - paneRect.bottom + 16;
   }, [messages, busy]);
+
+  // Every time Elsie opens (or returns to the Now tab), start at the latest
+  // message — including long or restored history — then resume follow-only-
+  // when-near-bottom. Runs after layout and again on the next frames so a
+  // saved transcript that renders late still lands at the bottom.
+  useLayoutEffect(() => {
+    if (!open || tab !== "now") return;
+    followMessagesRef.current = true;
+    const toLatest = () => {
+      const pane = messagesScrollRef.current;
+      if (!pane || !followMessagesRef.current) return;
+      const nodes = pane.querySelectorAll<HTMLElement>("[data-astra-message]");
+      const latest = nodes.item(nodes.length - 1);
+      if (latest) {
+        const paneRect = pane.getBoundingClientRect();
+        const rect = latest.getBoundingClientRect();
+        pane.scrollTop += rect.bottom - paneRect.bottom + 16;
+      }
+    };
+    toLatest();
+    const f1 = requestAnimationFrame(() => { toLatest(); });
+    const t1 = setTimeout(toLatest, 250);
+    return () => { cancelAnimationFrame(f1); clearTimeout(t1); };
+  }, [open, tab, messages.length > 0]);
 
   const addNote = useCallback(
     (note: OfficeNote) => {
