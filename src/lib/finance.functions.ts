@@ -78,23 +78,27 @@ export const savePrivateReceipts = createServerFn({ method: "POST" })
         return fail("invalid_data", "The receipts were not in the expected shape, so nothing was changed.");
       }
       const receipts: FinanceReceipt[] = parsed.receipts;
-      // Keep subscription records and evidence stored in the same private
-      // document; a receipt save must never silently drop them.
-      const current = await rest(config, token, "finance_receipts?select=doc&limit=1");
-      if (!current.ok) return fail("backend_error", "The private receipts could not be read before saving, so nothing was changed.");
-      const prior = (Array.isArray(current.body) ? (current.body[0] as { doc?: Record<string, unknown> } | undefined)?.doc : undefined) ?? {};
-      const preserved: Record<string, unknown> = {};
-      if (prior["subscriptions"] !== undefined) preserved["subscriptions"] = prior["subscriptions"];
-      if (prior["subscriptionLastCheck"] !== undefined) preserved["subscriptionLastCheck"] = prior["subscriptionLastCheck"];
-      if (prior["subscriptionEvidence"] !== undefined) preserved["subscriptionEvidence"] = prior["subscriptionEvidence"];
-      const response = await rest(config, token, "finance_receipts?on_conflict=owner_id", {
-        method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify([
-          { owner_id: userId, doc: { ...toExportDocument(receipts), ...preserved }, updated_at: new Date().toISOString() },
-        ]),
+      // Compare-and-swap: receipts come from this save; every other key
+      // (subscriptions, evidence, last check, future keys) is taken from the
+      // LATEST stored doc on each attempt, so a concurrent save is never lost.
+      const { casUpdateFinanceDoc, sameContent } = await import("@/lib/finance-doc-cas.server");
+      const exported = toExportDocument(receipts) as unknown as Record<string, unknown>;
+      const result = await casUpdateFinanceDoc({
+        rest: rest as never,
+        config,
+        token,
+        ownerId: userId,
+        mutate: (latest) => ({ ...latest, ...exported }),
+        verify: (written) => sameContent(written["receipts"], exported["receipts"]),
       });
-      if (!response.ok) return fail("backend_error", "The private receipts could not be saved.");
+      if (!result.ok) {
+        return fail(
+          "backend_error",
+          result.reason === "conflict"
+            ? "Another save changed Finance at the same moment and kept winning, so these receipts were NOT saved. Reload and try again."
+            : "The private receipts could not be saved and verified.",
+        );
+      }
       await rest(config, token, "office_audit", {
         method: "POST",
         headers: { Prefer: "return=minimal" },

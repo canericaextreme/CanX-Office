@@ -89,3 +89,13 @@ export async function casUpdateFinanceDoc(opts: {
   }
   return { ok: false, reason: "conflict", attempts: max };
 }
+
+/** Key-order-independent JSON (jsonb reorders object keys). */
+export function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value as Doc).sort().map((k) => `${JSON.stringify(k)}:${canonical((value as Doc)[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+export const sameContent = (a: unknown, b: unknown) => canonical(a) === canonical(b);
