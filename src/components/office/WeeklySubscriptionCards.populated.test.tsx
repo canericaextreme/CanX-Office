@@ -23,7 +23,7 @@ it("formatZoned never throws for a real instant (Intl option conflict regression
 
 it("Subscriptions renders after a completed check with a saved last-check time", () => {
   const lastCheck = cleanLastCheck({ at: "2026-10-03T19:35:48.000Z", scope: "past year", complete: false, mailboxes: result.mailboxes });
-  const ev = { id: "ev-1", kind: "receipt", matchStatus: "unverified-sender", subscriptionId: null, candidateIds: [], vendor: "Sintra", amount: 20, currency: "USD", documentDate: "2026-10-02", renewalDate: "", renewalBasis: "", mailbox: "canerica14@gmail.com", messageId: "18f0a1b2c3d4", attachmentIdentity: "", from: "", subject: "", fingerprint: "f", receivedAt: new Date().toISOString(), recordedAt: new Date().toISOString(), review: "needs-review" } as SubscriptionEvidence;
+  const ev = { id: "ev-1", kind: "renewal-notice", matchStatus: "unverified-sender", subscriptionId: null, candidateIds: [], vendor: "Sintra", amount: 20, currency: "USD", documentDate: "2026-10-02", renewalDate: "", renewalBasis: "", mailbox: "canerica14@gmail.com", messageId: "18f0a1b2c3d4", attachmentIdentity: "", from: "", subject: "", fingerprint: "f", receivedAt: new Date().toISOString(), recordedAt: new Date().toISOString(), review: "needs-review" } as SubscriptionEvidence;
   const html = renderToString(<>
     <CheckEmailsResult state={{ phase: "done", result }} />
     <WeeklySubscriptionCards view={weeklyView(STARTER_SUBSCRIPTIONS, [ev])} lastCheck={lastCheck} />
