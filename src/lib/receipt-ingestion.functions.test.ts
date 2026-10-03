@@ -216,6 +216,6 @@ describe("owner-only Gmail receipt sync", () => {
     const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "check receipts", fromDate: "2026-08-15" });
     expect(result.hasMore).toBe(true);
     expect(result.canContinueNow).toBe(false);
-    expect(saveScanProgress.mock.calls[0]?.[2]).toEqual({});
+    expect((saveScanProgress.mock.calls as unknown[][])[0]?.[2]).toEqual({});
   });
 });

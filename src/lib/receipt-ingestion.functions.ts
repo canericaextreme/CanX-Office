@@ -589,7 +589,7 @@ function validate(input: unknown) {
   return {
     accessToken: typeof row?.accessToken === "string" ? row.accessToken.slice(0, 4_000) : "",
     request: typeof row?.request === "string" ? row.request.slice(0, 2_000) : "",
-    fromDate: typeof row?.fromDate === "string" ? row.fromDate.slice(0, 10) : undefined,
+    ...(typeof row?.fromDate === "string" ? { fromDate: row.fromDate.slice(0, 10) } : {}),
   };
 }
 
