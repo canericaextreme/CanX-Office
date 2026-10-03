@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  NUMBERED_ROOM_TARGETS, ROOM_TARGETS, assembleSnapshot, fingerprintSources, reconcile, roomReplyNote,
+  NUMBERED_ROOM_TARGETS, MAP_ROOM_TARGETS, ROOM_TARGETS, GENERAL_ROOM_PROCEDURE, assembleSnapshot, fingerprintSources, reconcile, roomReplyNote,
   roomTargetForRoute, snapshotForModel, snapshotRef, unknownRoomSkillIds, type RoomSnapshot,
 } from "./room-snapshot";
 import { readRoomSnapshotWith, type SnapshotRest } from "./room-snapshot.server";
 import { evaluateSnapshot, skillRouteMatches, statusForBuild } from "./room-connection-check";
 import { routeSkillsForRoom, routeSkills } from "./office-skills";
 import { roomsForRequest, runManagerChatWith, type ManagerDeps } from "./manager.functions";
+import { OFFICE_MAP_ROOMS } from "./office-map";
+import { roomIdentityForRoute, namedRoomIdentity } from "./office-room-identity";
+import { parseRoomCommand } from "./manager-room-commands";
 import type { BackendConfig } from "./canx-backend.server";
 
 const CONFIG = { url: "https://x.supabase.co", publishableKey: "pk" } as BackendConfig;
@@ -30,8 +33,11 @@ const read = (route: string, rest: SnapshotRest, aal = "aal2", at = "2026-10-03T
   readRoomSnapshotWith({ config: CONFIG, token: "t", aal, target: roomTargetForRoute(route)!, buildId: "b1", rest, now: () => new Date(at) });
 
 describe("room coverage", () => {
-  it("covers all 19 numbered rooms plus auxiliary destinations, each with files and reports", () => {
-    expect(NUMBERED_ROOM_TARGETS).toHaveLength(19);
+  it("covers exactly the office-map rooms (Future #20 reserved) plus auxiliary pages, each with files and reports", () => {
+    expect(MAP_ROOM_TARGETS.map((t) => t.route).sort()).toEqual(OFFICE_MAP_ROOMS.map((r) => r.route).sort());
+    expect(MAP_ROOM_TARGETS.find((t) => t.number === "20")).toMatchObject({ route: "/future", reserved: true });
+    expect(NUMBERED_ROOM_TARGETS.every((t) => !t.reserved && Number(t.number) <= 19)).toBe(true);
+    expect(NUMBERED_ROOM_TARGETS).toHaveLength(OFFICE_MAP_ROOMS.length - 1);
     for (const r of ["/brain", "/projects", "/skills", "/round-table", "/analytics"]) expect(roomTargetForRoute(r), r).not.toBeNull();
     for (const t of ROOM_TARGETS) {
       expect(t.sources.find((s) => s.key === "files")?.kind, t.route).toBe("live");
@@ -200,5 +206,36 @@ describe("Elsie reads the room fresh for every typed or voice request", () => {
     const src = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
     expect(src.match(/currentRoute: sentRoute/g)?.length).toBe(2);
     expect(src).toMatch(/route open NOW, not at call start/);
+  });
+});
+
+describe("canonical room identity", () => {
+  it("Research and Family Continuity keep their own identity and files (never Reception)", () => {
+    expect(roomIdentityForRoute("/research")).toMatchObject({ id: "research", number: "17" });
+    expect(roomIdentityForRoute("/family-continuity")).toMatchObject({ id: "family-continuity", number: "19" });
+    expect(roomIdentityForRoute("/nowhere")).toBeNull();
+    expect(roomTargetForRoute("/research")?.id).toBe("research");
+  });
+  it("'this room' commands in Research act on Research", () => {
+    expect(parseRoomCommand("add a report to this room: check sources", "/research")).toMatchObject({ kind: "report", room: { id: "research" } });
+    expect(parseRoomCommand("what do you see", "/family-continuity")).toMatchObject({ kind: "look", room: { route: "/family-continuity" } });
+    expect(parseRoomCommand("what do you see", "/nowhere")).toBeNull();
+    expect(namedRoomIdentity("look at research")?.route).toBe("/research");
+    expect(namedRoomIdentity("open finance")?.route).toBe("/finance");
+  });
+  it("RoomShell no longer falls back to Reception", () => {
+    const src = readFileSync("src/components/office/RoomShell.tsx", "utf8");
+    expect(src).not.toMatch(/ROOMS\[0\]|roomByRoute/);
+    expect(readFileSync("src/components/office/RoomReports.tsx", "utf8")).not.toMatch(/roomByRoute/);
+  });
+  it("rooms without a specialist skill get the built-in procedure, not a fake skill", () => {
+    const snap = assembleSnapshot(roomTargetForRoute("/legal")!, [], "2026-10-03T00:00:00Z", "b");
+    expect(snapshotForModel(snap, "current")).toContain(GENERAL_ROOM_PROCEDURE);
+    expect(snapshotForModel(assembleSnapshot(roomTargetForRoute("/future")!, [], "x", "b"), "current")).not.toContain(GENERAL_ROOM_PROCEDURE);
+  });
+  it("owner save test records are labelled TEST and need two-step sign-in", () => {
+    const src = readFileSync("src/components/office/RoomConnectionCheck.tsx", "utf8");
+    expect(src).toMatch(/\[TEST\] Room connection check/);
+    expect(src).toMatch(/session\.stepUpComplete \? session\.accessToken : null/);
   });
 });
