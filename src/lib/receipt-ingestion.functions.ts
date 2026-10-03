@@ -312,7 +312,7 @@ export async function runReceiptSyncWith(
   let malformed = unsupported;
   let sentToReview = 0;
   let notFiledPersonal = 0;
-  for (const document of documents.slice(0, MAX_GMAIL_CANDIDATES * accounts.length)) {
+  for (const document of documents) {
     const kind = classifyDocument(document.text, document.subject ?? "");
     const match = matchService(document.from ?? "", `${document.subject ?? ""}\n${document.text}`, subscriptions);
     const result = parseReceiptCandidate(document);
@@ -363,7 +363,10 @@ export async function runReceiptSyncWith(
     parsed.push(enriched);
   }
   const written = await deps.atomicWrite(input.accessToken, owner.userId, parsed, nextCheckpoint);
-  if (!written.ok) return deny("write_unverified", "The Finance write could not be verified, so no receipt is reported as filed. Check the CanX database and retry.");
+  if (!written.ok) {
+    await finishCheck(false);
+    return deny("write_unverified", "The Finance write could not be verified, so no receipt is reported as filed. Check the CanX database and retry.");
+  }
 
   let evidenceAdded = 0;
   let evidenceDuplicates = 0;
