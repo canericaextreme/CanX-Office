@@ -390,24 +390,32 @@ export async function runReceiptSyncWith(
       ? ` ${failedAccounts} linked mailbox${failedAccounts === 1 ? "" : "es"} could not be read this time; re-authorize it and run again to include it.`
       : "";
   let continuationNote = "";
+  let continuationOk = !deps.saveContinuation; // nothing to save = no failure
   if (deps.saveContinuation && !evidenceNote) {
     const savedPos = await deps.saveContinuation(input.accessToken, owner.userId, nextContinuation).catch(() => false);
+    continuationOk = savedPos;
     if (!savedPos) continuationNote = " The position for older mail could not be saved, so the next check will repeat this page.";
   } else if (deps.saveContinuation && evidenceNote) {
     continuationNote = " Because evidence was not saved, the next check will repeat this page.";
   }
   if (partial && Object.keys(nextContinuation).length > 0) continuationNote += " Run the check again to continue with older matching mail.";
   if (rejectedAny) continuationNote += " A saved position had expired, so the first page was read again.";
+  const writesVerified = !evidenceNote && continuationOk;
+  const { saved: lastCheckSaved } = await finishCheck(writesVerified);
+  const finalPartial = partial || !writesVerified;
   const checkNote = deps.recordLastCheck && !lastCheckSaved ? " The last-check time could not be saved." : "";
   const capNote = partial
-    ? ` Partial check: Gmail had more matching mail than the ${MAX_GMAIL_CANDIDATES} per mailbox read this time, so not all mail was checked.`
+    ? ` Partial check: not all matching mail was checked this time (more pages remain${unprocessed ? `, ${unprocessed} message or attachment fetch(es) failed and will be retried` : ""}${capHit ? ", the per-check document limit was reached" : ""}).`
+    : "";
+  const reviewNote = needsReviewDocs > 0
+    ? ` ${needsReviewDocs} attachment(s) (for example image receipts) could not be read automatically and need your review in the original email.`
     : "";
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${evidenceNote}${continuationNote}${checkNote}`,
+    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkNote}`,
     ...summary,
-    partial,
+    partial: finalPartial,
     mailboxesChecked: accounts.length - failedAccounts,
     mailboxesFailed: failedAccounts,
     subscriptionEvidenceAdded: evidenceAdded,
