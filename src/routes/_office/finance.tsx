@@ -201,9 +201,9 @@ export function Finance() {
             <nav aria-label="Finance categories" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {([
                 { id: "income", label: "Income", value: "Unknown", note: "No reconciled income source", icon: BadgeDollarSign, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
-                { id: "expenses", label: "Expenses", value: "Unknown", note: "No reconciled payment source", icon: Landmark, border: "border-t-canx-blue", iconTone: "bg-canx-blue/10 text-canx-blue" },
+                { id: "expenses", label: "Expenses", value: "Unknown", note: "No reconciled payment source", icon: Landmark, border: "border-t-finance-teal", iconTone: "bg-finance-teal/10 text-finance-teal" },
                 { id: "receipts", label: "Receipts", value: String(summary.receipts), note: `${summary.needsReview} need review`, icon: ReceiptText, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
-                { id: "tax", label: "Tax prep", value: "Not started", note: "Records only — no tax advice", icon: FileText, border: "border-t-canx-blue", iconTone: "bg-canx-blue/10 text-canx-blue" },
+                { id: "tax", label: "Tax prep", value: "Not started", note: "Records only — no tax advice", icon: FileText, border: "border-t-finance-navy", iconTone: "bg-finance-navy/10 text-finance-navy" },
               ] as const).map((item) => {
                 const Icon = item.icon;
                 return (
@@ -244,7 +244,7 @@ export function Finance() {
 
         {section === "expenses" && (
           <>
-            <Card className="border-t-4 border-t-canx-blue bg-card">
+            <Card className="border-t-4 border-t-finance-teal bg-card">
               <CardHeader><CardTitle className="text-base">Expense records</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
                 <p>No connected payment source or reconciled expense total is available in Finance.</p>
@@ -256,7 +256,7 @@ export function Finance() {
         )}
 
         {section === "tax" && (
-          <Card className="border-t-4 border-t-canx-blue bg-card">
+          <Card className="border-t-4 border-t-finance-navy bg-card">
             <CardHeader><CardTitle className="text-base">Tax preparation records</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <p>Tax preparation has not started. This Office does not provide tax advice or determine tax treatment.</p>

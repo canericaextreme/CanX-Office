@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runReceiptSyncWith, isExplicitReceiptSyncRequest, type SyncDeps } from "./receipt-ingestion.functions";
+import { runReceiptSyncWith, isExplicitReceiptSyncRequest, receiptSyncOutcome, type ReceiptSyncResult, type SyncDeps } from "./receipt-ingestion.functions";
 import type { OwnerVerification } from "./canx-backend.server";
 
 const owner: OwnerVerification = { ok: true, userId: "owner", email: "", aal: "aal2" };
@@ -28,6 +28,27 @@ describe("owner-only Gmail receipt sync", () => {
     expect(result.code).toBe("invalid_request");
     expect(deps.fetchCandidates).not.toHaveBeenCalled();
     expect(deps.atomicWrite).not.toHaveBeenCalled();
+  });
+
+  it("accepts only dedicated normal email-check commands, not status, negation, hypotheticals or discussion", () => {
+    for (const command of ["check my email", "check the emails", "check both mailboxes", "can you check my email", "Elsie, please check both mailboxes?"]) {
+      expect(isExplicitReceiptSyncRequest(command), command).toBe(true);
+    }
+    for (const command of ["Have you checked email?", "Do not check my email", "If I asked you to check my email, what would happen?", "Explain how you check the emails", "Can you check my email and then publish the report?"]) {
+      expect(isExplicitReceiptSyncRequest(command), command).toBe(false);
+    }
+  });
+
+  it("describes the bounded scope, stopped state and every returned mailbox honestly", () => {
+    const failed: ReceiptSyncResult = { ok: false, code: "gmail_unavailable", message: "Nothing was filed.", filed: 0, duplicatesSkipped: 0, needsReview: 0, receipts: [], totalsByCurrency: [], partial: true, mailboxesFailed: 2, mailboxesChecked: 0, mailboxes: [
+      { mailbox: "Mailbox one", status: "failed", partial: true, documents: 0 },
+      { mailbox: "Mailbox two", status: "authorization_required", partial: true, documents: 0 },
+    ] };
+    const text = receiptSyncOutcome(failed);
+    expect(text).toContain("Stopped — the check failed");
+    expect(text).toContain("not the whole inbox");
+    expect(text).toContain("Mailbox one: could not be read");
+    expect(text).toContain("Mailbox two: access refused");
   });
 
   it("fails before Gmail or writes when owner/AAL2 fails", async () => {

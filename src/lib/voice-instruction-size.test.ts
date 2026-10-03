@@ -48,4 +48,13 @@ describe("live voice instructions stay within a UTF-8 byte budget", () => {
     expect(boundUtf8("😀😀😀", 9)).toEqual({ text: "😀😀", omittedBytes: 4 });
     expect(boundUtf8("é", 1)).toEqual({ text: "", omittedBytes: 2 });
   });
+  it("tells both voice modes to route explicit email checks without widening inbox access", () => {
+    for (const mode of ["relay", "direct"] as const) {
+      const instructions = managerRealtimeInstructions("office", [], mode, "memory");
+      expect(instructions).toContain("explicit short request to check email or both mailboxes");
+      expect(instructions).toContain("bounded billing/renewal/service-sender check");
+      expect(instructions).toContain("A status question does not start a check");
+      expect(total(instructions, mode)).toBeLessThanOrEqual(VOICE_TOTAL_MAX_BYTES);
+    }
+  });
 });

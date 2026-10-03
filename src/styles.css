@@ -47,6 +47,8 @@
   --color-canx-green: var(--canx-green);
   --color-canx-blue: var(--canx-blue);
   --color-canx-grey: var(--canx-grey);
+  --color-finance-teal: var(--finance-teal);
+  --color-finance-navy: var(--finance-navy);
   --color-office-wall: var(--office-wall);
   --color-office-glass: var(--office-glass);
   --color-office-wood: var(--office-wood);
@@ -73,6 +75,8 @@
   --canx-green: oklch(0.72 0.16 148);
   --canx-blue: oklch(0.68 0.14 248);
   --canx-grey: oklch(0.72 0.01 260);
+  --finance-teal: oklch(0.67 0.11 185);
+  --finance-navy: oklch(0.62 0.09 245);
   --office-wall: oklch(0.4 0.012 260);
   --office-glass: oklch(0.72 0.02 240 / 0.16);
   --office-wood: oklch(0.6 0.07 67);

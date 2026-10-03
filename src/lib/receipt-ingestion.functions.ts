@@ -327,10 +327,16 @@ export async function runReceiptSyncWith(
   };
   if (failedAccounts === accounts.length) {
     await finishCheck(false);
-    return deny(
-      authFailure ? "gmail_authorization_required" : "gmail_unavailable",
-      "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
-    );
+    return {
+      ...deny(
+        authFailure ? "gmail_authorization_required" : "gmail_unavailable",
+        "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
+      ),
+      partial: true,
+      mailboxesChecked: 0,
+      mailboxesFailed: failedAccounts,
+      mailboxes: checks,
+    };
   }
   // Never advance the checkpoint after a partial failure, so a retry still
   // sees everything the failed mailbox missed. A capped page also keeps it.
