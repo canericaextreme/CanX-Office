@@ -67,11 +67,12 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
   const id = encodeURIComponent(req.target.id);
   switch (def.key) {
     case "project-register": {
-      const { readRegisterWith } = await import("./project-register.functions");
-      const reg = await readRegisterWith((p, i) => req.rest(req.config, req.token, p, i));
-      if (!reg) return failed(def);
-      const { countProjectCategories } = await import("./project-register");
-      return result(def, { count: reg.projects.length, items: Object.entries(countProjectCategories(reg.projects)).map(([k, v]) => `${k}: ${v}`), latestAt: reg.projects.map((p) => p.sourceCheckedOn ?? "").sort().at(-1) || null, detail: "metadata only; health not tested, live data not connected unless a record says so" });
+      const { readLocatorsWith } = await import("./project-register.functions");
+      const loc = await readLocatorsWith((p, i) => req.rest(req.config, req.token, p, i));
+      if (!loc) return failed(def);
+      const stages: Record<string, number> = {};
+      for (const l of loc.locators) stages[l.stage] = (stages[l.stage] ?? 0) + 1;
+      return result(def, { count: loc.locators.length, items: [...Object.entries(stages).map(([k, v]) => `stage ${k}: ${v}`), ...loc.locators.slice(0, 15).map((l) => `${l.project.name} [${l.project.projectId.slice(0, 8)}] · ${l.stage} · next: ${l.nextMove}`)], latestAt: loc.tasksReadAt, detail: `metadata + John's plans + Work Board${loc.tasksReadAt ? "" : " (tasks NOT read)"}; stage unknown means not verified` });
     }
     case "brain-index": {
       const { readBrainIndexWith } = await import("./brain-index.server");
