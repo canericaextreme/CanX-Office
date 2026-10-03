@@ -484,6 +484,27 @@ export function routeSkills(latestUserText: string): SkillSelection {
   };
 }
 
+/**
+ * Same deterministic router, plus the instruction-ready core skills linked to
+ * the room John has open (or explicitly named). Outlines/drafts are never
+ * loaded; at most MAX_TASK_SKILLS task skills, request triggers first.
+ */
+export function routeSkillsForRoom(latestUserText: string, route: string | null | undefined): SkillSelection {
+  const base = routeSkills(latestUserText);
+  if (!route) return base;
+  const ids = base.skills.map((s) => s.id);
+  for (const s of skillsForRoute(route)) {
+    if (ids.length - ALWAYS.length >= MAX_TASK_SKILLS) break;
+    if (s.kind === "core" && s.instructionReady && !ids.includes(s.id)) ids.push(s.id);
+  }
+  const chosen = ids.map((id) => OFFICE_SKILLS.find((s) => s.id === id)!).filter((s) => s && s.kind === "core" && s.instructionReady);
+  return {
+    registryVersion: SKILLS_REGISTRY_VERSION,
+    skills: chosen.map((s) => ({ id: s.id, name: s.name, version: s.version })),
+    instructions: renderSkillInstructions(chosen),
+  };
+}
+
 export function renderSkillInstructions(skills: OfficeSkill[]): string {
   const blocks = skills.map((s) =>
     [
