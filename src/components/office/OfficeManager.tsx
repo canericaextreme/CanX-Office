@@ -646,13 +646,13 @@ export function OfficeManager() {
       // A failure detail is never returned as if it were Elsie's answer.
       const outcome = voiceTurnOutcome(reply);
       if (outcome.kind === "failure") throw new VoiceTurnError(outcome.stage, outcome.message, outcome.status);
-      const result = outcome.text;
+      const result = voiceRoomNote ? `${outcome.text}\n\n${voiceRoomNote}` : outcome.text;
       // The spoken transcript appends the reply once and updates messagesRef.
       // Appending here too created duplicate replies and stale thread history.
       if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       return result;
-    }, [token, managerTeam, sendChat, saveConversationNow]),
+    }, [token, managerTeam, sendChat, saveConversationNow, router]),
     failSpokenTurn,
     liveVoiceMode,
   );
