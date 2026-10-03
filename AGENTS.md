@@ -24,5 +24,5 @@
 
 ## Office Skills
 - Canonical skill instructions and the registry live in `src/lib/office-skills.ts` (versioned, with provenance from John's skills map); never fetched from a ChatGPT Skill Library at runtime. Why: Elsie must stay independent of ChatGPT and Lovable.
-- Typed Elsie chat appends `routeSkills()` output (fixed keyword router; router + owner-decision filter always, at most 3 core task skills) to the system instructions; outlines/drafts are never loaded, and skills grant no tools. Live voice instructions are unchanged. Why: runtime linkage without new permissions.
+- Typed Elsie chat appends `routeSkills()` output (fixed keyword router; router + owner-decision filter always, at most 3 core task skills) to the system instructions; outlines/drafts are never loaded, and skills grant no tools. Live voice sessions embed only the always-on core skills (`voiceSessionSkillGuidance`, fixed at session mint); task skills reach voice per turn via submit_office_request → the same `routeSkills` chat path. Why: Realtime has no safe per-turn instruction hook; no new tools or permissions.
 - Rooms only link to skills (`RoomSkillsLink`); editable instructions exist only on /skills, reached from Family Continuity & Training. Why: one master copy, no duplicates.
