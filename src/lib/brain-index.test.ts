@@ -186,7 +186,7 @@ describe("Brain recent activity", () => {
       { ...base, key: "old", title: "old", at: "2026-09-29T00:00:00Z" },
       { ...base, key: "a", title: "a", at: "2026-10-02T10:00:00Z" },
       { ...base, key: "b", title: "b", at: "2026-10-03T20:00:00Z" },
-      { ...base, key: "bad", title: "bad", at: "7" === "7" ? "not a date" : null },
+      { ...base, key: "bad", title: "bad", at: "not a date" },
       { ...base, key: "none", title: "none", at: null },
       { ...base, key: "future", title: "future", at: "2026-10-09T00:00:00Z" },
     ];
