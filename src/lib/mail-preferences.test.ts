@@ -234,7 +234,7 @@ describe("rendering", () => {
       prefs: p, filter: "all", onFilter: () => {}, onChange: () => {}, busy: false, note: "",
     }));
     for (const s of ["All active<!-- --> (", "Related<!-- --> (", "Needs review<!-- --> (", "Ignored<!-- --> (", "Why:", "Ignore future emails from <!-- -->who@x.com", "Sender rules (<!-- -->1<!-- -->)", "Change to <!-- -->Keep", "Remove", "Open in Gmail"]) expect(html).toContain(s);
-    expect(html).toContain('data-review-category="ignored"');
+    expect(html).not.toContain('data-review-category="ignored"');
     expect(html).toContain('data-review-category="needs-review"');
   });
 });
@@ -284,7 +284,7 @@ describe("ignored emails disappear from main views", () => {
     ev({ messageId: "ign1", mailbox: "canerica14@gmail.com", from: "promo@shop.com", matchStatus: "unknown" }),
   ];
   it("hides after save and after refresh (prefs rebuilt from saved doc), only Ignored tab shows them, Undo restores", async () => {
-    const after = set(EMPTY_PREFERENCES, { op: "set-message", choice: "ignore", mailbox: evs()[1]!.mailbox, messageId: "ign1" });
+    const after = set(EMPTY_PREFERENCES, { op: "set-message", choice: "ignore", mailbox: evs()[1]!.mailbox, messageId: "ign1", from: "promo@shop.com", subject: "" });
     // Refresh: preferences reloaded from the saved document shape.
     const reloaded = cleanMailPreferences(JSON.parse(JSON.stringify(after)));
     for (const p of [after, reloaded]) {
@@ -302,7 +302,7 @@ describe("ignored emails disappear from main views", () => {
   it("sender ignore hides from parent-derived lists; Keep on one email wins", () => {
     let p = set(EMPTY_PREFERENCES, { op: "set-sender", sender: "promo@shop.com", action: "ignore" });
     expect(visibleEvidence(evs(), p)).toHaveLength(1);
-    p = set(p, { op: "set-message", choice: "keep", mailbox: "canerica14@gmail.com", messageId: "ign1" });
+    p = set(p, { op: "set-message", choice: "keep", mailbox: "canerica14@gmail.com", messageId: "ign1", from: "promo@shop.com", subject: "" });
     expect(visibleEvidence(evs(), p).map((e) => e.messageId)).toEqual(["keep1", "ign1"]);
   });
   it("loading and failed reads never pretend anything is hidden or saved", async () => {
