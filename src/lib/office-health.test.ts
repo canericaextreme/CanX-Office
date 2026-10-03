@@ -16,12 +16,12 @@ describe("office health release gate", () => {
   it("ignores results from an older version", () => expect(evaluateReleaseGate(all("verified", { version: "old.js" }), V).state).toBe("untested"));
   it("verifies only when every room passed signed-in on this version", () => expect(evaluateReleaseGate(all("verified"), V).state).toBe("verified"));
   it("a single failed room fails the gate with a next step", () => {
-    const r = all("verified"); r.push({ ...r[0], status: "failed", at: at(59) });
+    const r = all("verified"); r.push({ ...r[0]!, status: "failed", at: at(59) });
     const g = evaluateReleaseGate(r, V);
     expect(g.state).toBe("failed"); expect(g.label).toMatch(/Brain/); expect(g.label).toMatch(/recovery point/);
   });
   it("a later pass supersedes an earlier failure (history kept)", () => {
-    const r = all("verified"); r.unshift({ ...r[0], status: "failed", at: "2026-01-01T00:00:00.000Z" });
+    const r = all("verified"); r.unshift({ ...r[0]!, status: "failed", at: "2026-01-01T00:00:00.000Z" });
     expect(evaluateReleaseGate(r, V).state).toBe("verified");
   });
   it("monitoring is honestly unscheduled", () => expect(HEALTH_SCHEDULE.configured).toBe(false));
