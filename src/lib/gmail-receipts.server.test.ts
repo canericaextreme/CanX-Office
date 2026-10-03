@@ -31,7 +31,7 @@ describe("linked Gmail accounts", () => {
   it("returns one account per linked connection key, in order", () => {
     vi.stubEnv("LOVABLE_API_KEY", "lov");
     vi.stubEnv("GOOGLE_MAIL_API_KEY", "first");
-    vi.stubEnv("GOOGLE_MAIL_API_KEY_2", "second");
+    vi.stubEnv("GOOGLE_MAIL_API_KEY_1", "second");
     const accounts = readGmailAccounts();
     expect(accounts).toHaveLength(2);
     expect(accounts[0]?.connectionApiKey).toBe("first");
@@ -41,8 +41,8 @@ describe("linked Gmail accounts", () => {
   it("never invents accounts for keys that do not exist", () => {
     vi.stubEnv("LOVABLE_API_KEY", "lov");
     vi.stubEnv("GOOGLE_MAIL_API_KEY", "first");
+    vi.stubEnv("GOOGLE_MAIL_API_KEY_1", "");
     vi.stubEnv("GOOGLE_MAIL_API_KEY_2", "");
-    vi.stubEnv("GOOGLE_MAIL_API_KEY_3", "");
     expect(readGmailAccounts()).toHaveLength(1);
   });
 });
