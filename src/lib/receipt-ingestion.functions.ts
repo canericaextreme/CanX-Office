@@ -1,3 +1,4 @@
+import { financeReadMessage } from "./finance-read-diagnosis";
 import { createServerFn } from "@tanstack/react-start";
 import type { OwnerVerification } from "./canx-backend.server";
 import type { GmailFetchResult, GmailSettings } from "./gmail-receipts.server";
@@ -116,6 +117,8 @@ export interface SyncDeps {
     evidence?: SubscriptionEvidence[];
     /** Per-mailbox Gmail continuation saved in the owner-only Finance doc. */
     continuation?: GmailContinuation;
+    /** Safe classified reason when ok is false. */
+    failure?: import("./finance-read-diagnosis").FinanceReadFailure;
   }>;
   fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean, query?: string, pageTokens?: Record<string, string>) => Promise<GmailFetchResult>;
   /** Saves the per-mailbox continuation (compare-and-swap). Absent = first-page-only. */
@@ -139,9 +142,14 @@ async function realDeps(): Promise<SyncDeps> {
     gmailAccounts: gmail.readGmailAccounts,
     readState: async (token) => {
       const config = backend.readBackendConfig();
-      if (!config) return { ok: false, checkpoint: null, receipts: [] };
+      const diag = await import("./finance-read-diagnosis");
+      if (!config) return { ok: false, checkpoint: null, receipts: [], failure: "backend_not_configured" };
       const response = await backend.restRequest(config, token, "finance_receipts?select=doc,gmail_sync_checkpoint,ingested_receipts&limit=1");
-      if (!response.ok) return { ok: false, checkpoint: null, receipts: [] };
+      if (!response.ok) {
+        const failure = diag.classifyFinanceRead(response.status || 0, response.body);
+        console.error("[receipt-sync] finance read failed", response.status, failure);
+        return { ok: false, checkpoint: null, receipts: [], failure };
+      }
       const row = Array.isArray(response.body) ? (response.body[0] as { doc?: { receipts?: unknown }; gmail_sync_checkpoint?: string; ingested_receipts?: unknown }) : null;
       const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
       const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];
@@ -226,7 +234,7 @@ export async function runReceiptSyncWith(
     );
   }
   const state = await deps.readState(input.accessToken);
-  if (!state.ok) return deny("database_unavailable", "Finance records could not be read, so Gmail was not contacted and nothing was filed.");
+  if (!state.ok) return deny("database_unavailable", financeReadMessage(state.failure ?? "unexpected_response"));
   const subscriptions = state.subscriptions ?? [];
   const query = buildGmailQuery(subscriptions);
 
