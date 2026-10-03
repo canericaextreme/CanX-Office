@@ -243,13 +243,21 @@ export async function createManagerRealtimeSessionWith(
   const context = await contextPending;
   if (!context.ok) return deny("context_unavailable", context.message);
   const continuity = await continuityPending;
-  const fullContext = `${context.text}\n\n${continuity.text}`;
 
+  let instructions: string;
+  try {
+    instructions = managerRealtimeInstructions(context.text, team, mode, continuity.text);
+  } catch (e) {
+    if (e instanceof VoiceInstructionBudgetError) {
+      console.error("[canx-voice] mandatory rules exceed budget", e.mandatoryBytes, e.toolBytes);
+      return deny("provider_error", "Elsie's voice rules are too long to start a session. Nothing was charged.");
+    }
+    throw e;
+  }
   const budget = await deps.reserve(accessToken, ESTIMATED_CENTS_PER_SESSION_START);
   if (!budget.allowed) return deny("limit_blocked", budget.message);
 
   const model = deps.realtimeModel ?? DEFAULT_REALTIME_MODEL;
-  const instructions = managerRealtimeInstructions(fullContext, team, mode);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MINT_TIMEOUT_MS);
   try {
@@ -262,7 +270,7 @@ export async function createManagerRealtimeSessionWith(
     if (!response.ok) {
       await deps.settle(accessToken, budget.reservationId, "failed");
       const body: unknown = await response.json().catch(() => null);
-      console.error("[canx-voice] session setup refused", response.status, safeProviderErrorFields(body), voiceInstructionStats(instructions));
+      console.error("[canx-voice] session setup refused", response.status, safeProviderErrorFields(body), voiceInstructionStats(instructions, mode));
       return deny("provider_error", voiceProviderFailure(response.status, body, response.headers.get("retry-after"), "session setup"));
     }
     const payload = (await response.json()) as { value?: string };
@@ -309,7 +317,7 @@ export async function refreshManagerVoiceContextWith(
     : { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." };
   return {
     ok: true,
-    instructions: managerRealtimeInstructions(`${context.text}\n\n${continuity.text}`, team, mode),
+    instructions: managerRealtimeInstructions(context.text, team, mode, continuity.text),
     memoryRead: continuity.ok,
     detail: continuity.ok ? "" : continuity.message,
   };
