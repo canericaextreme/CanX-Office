@@ -149,3 +149,4 @@
 - [ ] Signed-in check of Saved mail review and running sweep on John's phone — blocked: needs John's signed-in session
 
 - [ ] Room connection: John runs the all-room check signed-in on the current preview build (needs owner sign-in + MFA)
+- [ ] Brain categories: John opens Brain signed-in and confirms categories, counts and one re-file (needs owner sign-in + MFA)

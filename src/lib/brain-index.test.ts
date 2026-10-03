@@ -96,7 +96,7 @@ describe("permission boundaries", () => {
 describe("manual categories persist and reload", () => {
   it("a saved label re-files the item on the next read; originals unchanged; orphans kept", async () => {
     const d = db();
-    (d.tables.office_notes as unknown[]).push(
+    (d.tables["office_notes"] as unknown[]).push(
       { id: categoryNoteId("file:f1"), kind: "decision", title: "file:f1", detail: "knowledge", source: CATEGORY_NOTE_SOURCE, provenance: "john", created_at: "9" },
       { id: categoryNoteId("file:gone"), kind: "decision", title: "file:gone", detail: "memory", source: CATEGORY_NOTE_SOURCE, provenance: "john", created_at: "9" },
       { id: categoryNoteId("note:n5"), kind: "decision", title: "note:n5", detail: "discussions", source: CATEGORY_NOTE_SOURCE, provenance: "john", created_at: "9" },
