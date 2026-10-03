@@ -23,7 +23,7 @@ it("home shows category shelves and only last-3-day activity, not a full item li
   expect(html).toContain("New lease.pdf");
   expect(html).toContain("Budget decision");
   expect(html).not.toContain("Old archive.pdf"); // older items live in their category / search
-  expect(html.indexOf("Budget decision")).toBeLessThan(html.indexOf("New lease.pdf") === -1 ? Infinity : html.lastIndexOf("New lease.pdf") + 1);
+  expect(html.indexOf("New lease.pdf")).toBeLessThan(html.indexOf("Budget decision")); // newest first
 });
 
 it("clear empty state when nothing in the last three days; unsorted shelf kept when present", () => {
