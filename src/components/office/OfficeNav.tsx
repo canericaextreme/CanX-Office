@@ -66,7 +66,7 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
       <div className="mx-auto flex min-h-16 max-w-screen-2xl items-center gap-2 px-3 sm:gap-3 sm:px-5">
         <Button variant="ghost" size="icon" aria-label="Back to previous CanX Office screen" onClick={goBack}><ChevronLeft className="h-5 w-5" /></Button>
-        <Button variant="ghost" size="icon" asChild aria-label="Home / Reception"><Link to="/"><Home className="h-5 w-5" /></Link></Button>
+        <Button variant="ghost" size="icon" asChild aria-label="Home / Reception" className="h-11 w-11 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-6"><Link to="/"><Home className="h-6 w-6" /></Link></Button>
 
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />

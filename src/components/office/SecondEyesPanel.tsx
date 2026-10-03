@@ -258,8 +258,8 @@ export function SecondEyesPanel() {
           variant="ghost"
           size="icon"
           aria-label="Claude — Second Eyes, independent review"
-          title="Claude — Second Eyes"
-          className="relative shrink-0"
+          title="Ask Elsie about Claude"
+          className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
         >
           <Eye className="h-5 w-5" />
           <span
