@@ -66,6 +66,13 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
   if (def.needsTwoStep && req.aal !== "aal2") return result(def, { status: "denied", detail: "needs two-step verification" });
   const id = encodeURIComponent(req.target.id);
   switch (def.key) {
+    case "project-register": {
+      const { readRegisterWith } = await import("./project-register.functions");
+      const reg = await readRegisterWith((p, i) => req.rest(req.config, req.token, p, i));
+      if (!reg) return failed(def);
+      const { countProjectCategories } = await import("./project-register");
+      return result(def, { count: reg.projects.length, items: Object.entries(countProjectCategories(reg.projects)).map(([k, v]) => `${k}: ${v}`), latestAt: reg.projects.map((p) => p.sourceCheckedOn ?? "").sort().at(-1) || null, detail: "metadata only; health not tested, live data not connected unless a record says so" });
+    }
     case "brain-index": {
       const { readBrainIndexWith } = await import("./brain-index.server");
       const { countByCategory, CATEGORY_LABELS } = await import("./brain-index");

@@ -29,7 +29,7 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
     get(`office_files?select=id,filename,room,folder,mime_type,size_bytes,content_hash,created_at${finFilter}&order=created_at.desc&limit=500`),
     get(`office_links?select=id,title,room,folder,created_at${finFilter}&order=created_at.desc&limit=500`),
     get("knowledge_documents?select=id,title,project,filename,content_hash,character_count,chunk_count,created_at&order=created_at.desc&limit=200"),
-    twoStep ? get("office_notes?select=id,kind,title,source,provenance,created_at&order=created_at.desc&limit=1000") : Promise.resolve(null),
+    twoStep ? get("office_notes?select=id,kind,title,detail,source,provenance,created_at&order=created_at.desc&limit=1000") : Promise.resolve(null),
     get("manager_tasks?select=id,title,project,status,updated_at&order=updated_at.desc&limit=300"),
   ]);
   const items: BrainItem[] = [];
@@ -82,11 +82,22 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
     sources.push({ key: "categories", label: "Your manual categories", status: notes ? "read" : "failed", count: notes ? labelCount : null, detail: "" });
   }
 
+  // Projects: the owner's saved project register (imported records), then names on tasks/documents.
+  if (twoStep && notes) {
+    const { buildRegister } = await import("./project-register");
+    const reg = buildRegister(notes);
+    sources.push({ key: "projects", label: "Project register (saved Lovable project records)", status: "read", count: reg.projects.length, detail: "metadata as checked on each record's date; projects themselves untouched" });
+    for (const p of reg.projects) items.push({
+      key: `project:${p.projectId}`, kind: "project", title: p.name, room: "project-rooms", folder: p.category, at: p.sourceCheckedOn,
+      provenance: `${p.provider} project register · category ${p.category}${p.categoryManual ? " (filed by John)" : ""}`, version: p.latestCommit ? `commit ${p.latestCommit.slice(0, 7)}` : null,
+      access: `register entry · health ${p.health} · live data ${p.liveDataAccess}`, defaultCategory: "projects", category: "projects", manual: false, route: "/projects",
+    });
+  } else if (!twoStep) sources.push({ key: "projects", label: "Project register (saved Lovable project records)", status: "denied", count: null, detail: "needs two-step verification" });
   // Projects: a derived view from explicit project names on tasks and documents.
   const projects = new Map<string, { tasks: number; docs: number; at: string }>();
   for (const r of tasks ?? []) { const p = t(r["project"], 120); if (!p) continue; const e = projects.get(p) ?? { tasks: 0, docs: 0, at: "" }; e.tasks++; e.at = e.at || t(r["updated_at"], 40); projects.set(p, e); }
   for (const d of docs ?? []) { const p = t(d["project"], 120); if (!p) continue; const e = projects.get(p) ?? { tasks: 0, docs: 0, at: "" }; e.docs++; e.at = e.at || t(d["created_at"], 40); projects.set(p, e); }
-  sources.push({ key: "projects", label: "Projects named on tasks and documents", status: tasks ? "read" : "failed", count: projects.size, detail: tasks ? "" : "Work Board tasks could not be read; only document projects shown" });
+  sources.push({ key: "projects", label: "Project names on tasks and documents", status: tasks ? "read" : "failed", count: projects.size, detail: tasks ? "" : "Work Board tasks could not be read; only document projects shown" });
   for (const [name, e] of projects) items.push({
     key: `project:${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60)}`, kind: "project", title: name, room: "project-rooms", folder: null, at: e.at || null,
     provenance: `Derived from ${e.tasks} Work Board task(s) and ${e.docs} document(s)`, version: null, access: "links to its tasks and documents",
