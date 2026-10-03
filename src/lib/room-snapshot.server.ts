@@ -144,8 +144,10 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
         // Counts only — vendors and amounts are not part of the snapshot.
         const { mergeReceipts } = await import("./finance-receipts");
         const ingested = doc ? (doc["__ingested"] as Row[] | null) : [];
-        const merged = mergeReceipts(arr("receipts") as never, (ingested ?? []) as never).merged;
-        return result(def, { count: merged.length, latestAt: updated, detail: `filed receipts (saved + email-ingested, de-duplicated as in Finance); vendor names and amounts withheld${ingested === null ? "; email-ingested receipts could NOT be read, so this count may be low" : ""}` });
+        let total: number;
+        try { total = mergeReceipts(arr("receipts") as never, (ingested ?? []) as never).merged.length; }
+        catch { total = arr("receipts").length + (ingested ?? []).length; }
+        return result(def, { count: total, latestAt: updated, detail: `filed receipts (saved + email-ingested, de-duplicated as in Finance); vendor names and amounts withheld${ingested === null ? "; email-ingested receipts could NOT be read, so this count may be low" : ""}` });
       }
       if (def.key === "subscriptions") {
         const subs = arr("subscriptions");
