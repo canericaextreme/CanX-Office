@@ -1265,6 +1265,7 @@ export function OfficeManager() {
                 </div>
               </details>
             )}
+            <OfficeFiles compact onSaved={file => setDraft(current => `${current}${current ? "\n" : ""}I saved ${file.filename} in ${file.room} / ${file.folder} (file ${file.id}).`)} />
             <Button variant="ghost" size="sm" className="ml-auto" onClick={closeManager}>
               <X className="mr-1 h-4 w-4" /> Close
             </Button>
@@ -1545,7 +1546,7 @@ export function OfficeManager() {
                   }}
                 ><span className="h-1.5 w-20 rounded-full bg-muted-foreground" /></div>
                 <div className="flex items-center justify-between gap-2 pb-1">
-                  <OfficeFiles compact onSaved={file => setDraft(current => `${current}${current ? "\n" : ""}I saved ${file.filename} in ${file.room} / ${file.folder} (file ${file.id}).`)} />
+                  <span className="text-sm">Drag divider: more reading or writing space</span>
                   <Button size="sm" variant="outline" onClick={() => setComposerCollapsed(value => !value)}>
                     {composerCollapsed ? "Show text box" : "Hide text box"}
                   </Button>

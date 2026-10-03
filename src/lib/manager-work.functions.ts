@@ -20,7 +20,8 @@ export interface ManagerTask {
   owner_id: string;
   title: string;
   detail: string;
-  status: "open" | "in_progress" | "done" | "cancelled";
+  status: "open" | "in_progress" | "waiting" | "done" | "cancelled";
+  waiting_reason?: string | undefined;
   risk: RiskLevel;
   worker: string;
   result: string;
@@ -333,7 +334,8 @@ export interface UpdateTaskInput {
   project?: string;
   result?: string | undefined;
   evidence?: string | undefined;
-  status?: "open" | "in_progress";
+  status?: "open" | "in_progress" | "waiting" | undefined;
+  waiting_reason?: string | undefined;
 }
 
 /** Edit a task's title, details, project or risk. Never changes ownership or history. */
@@ -358,7 +360,12 @@ export async function updateManagerTaskWith(deps: WorkbenchDeps, input: UpdateTa
   if (input.result !== undefined) patch["result"] = cleanString(input.result, 2000);
   if (input.evidence !== undefined) patch["evidence"] = cleanString(input.evidence, 2000);
   // Only open/in-progress may be set here; "done" still requires verify_task.
-  if (input.status === "open" || input.status === "in_progress") patch["status"] = input.status;
+  if (input.status === "waiting") {
+    const reason = cleanString(input.waiting_reason, 300);
+    if (!reason) return fail("invalid_input", "Say what this task is waiting for.");
+    if (before.status === "done" || before.status === "cancelled") return fail("invalid_input", "Finished tasks cannot be put on hold.");
+    patch["status"] = "waiting"; patch["waiting_reason"] = reason;
+  } else if (input.status === "open" || input.status === "in_progress") { patch["status"] = input.status; patch["waiting_reason"] = ""; }
 
   const updated = await deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, patch);
   const row = firstRow<ManagerTask>(updated.data);
@@ -777,6 +784,8 @@ export const updateManagerTask = createServerFn({ method: "POST" })
       project: cleanString(raw?.project, 160),
       result: raw?.result === undefined ? undefined : cleanString(raw?.result, 2000),
       evidence: raw?.evidence === undefined ? undefined : cleanString(raw?.evidence, 2000),
+      status: raw?.status,
+      waiting_reason: raw?.waiting_reason === undefined ? undefined : cleanString(raw.waiting_reason,300),
     };
   })
   .handler(async ({ data }) => updateManagerTaskWith(await realDeps(), data));

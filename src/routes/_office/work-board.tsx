@@ -71,8 +71,10 @@ function taskStatus(task: ManagerTask): TaskStatus {
   switch (task.status) {
     case "done":
       return { tone: "green", label: "Green — done", reason: null };
+    case "waiting":
+      return { tone: "yellow", label: "Waiting", reason: task.waiting_reason || "Waiting reason not recorded." };
     case "in_progress":
-      return { tone: "blue", label: "Blue — actively moving", reason: null };
+      return { tone: "blue", label: "Assigned — activity unconfirmed", reason: "Assignment alone does not confirm that work is running." };
     case "cancelled":
       return { tone: "red", label: "Red — cancelled", reason: null };
     case "open":
@@ -100,6 +102,7 @@ function WorkBoard() {
   const [detail, setDetail] = useState("");
   const [project, setProject] = useState("");
   const [risk, setRisk] = useState<RiskLevel>("green");
+  const [waitingReason, setWaitingReason] = useState<Record<string,string>>({});
   const [worker, setWorker] = useState<Record<string, string>>({});
   const [team, setTeam] = useState<TeamMember[]>(DEFAULT_TEAM);
   useEffect(() => {
@@ -266,6 +269,11 @@ function WorkBoard() {
                     <dd className="inline">{when(task.updated_at)}</dd>
                   </div>
                 </dl>
+                {isOwner && (task.status === "open" || task.status === "in_progress" || task.status === "waiting") && <div className="mt-3 flex flex-wrap gap-2">
+                  <Input className="max-w-sm" aria-label={`What ${task.title} is waiting for`} placeholder="Waiting for approval, information or verification" value={waitingReason[task.id] ?? task.waiting_reason ?? ''} onChange={e => setWaitingReason(current => ({...current,[task.id]:e.target.value}))} />
+                  <Button variant="outline" disabled={busy===task.id || !accessToken || !(waitingReason[task.id] ?? task.waiting_reason ?? '').trim()} onClick={()=>run(task.id,()=>editTask({data:{accessToken:accessToken!,taskId:task.id,title:task.title,detail:task.detail,project:task.project??'',risk:task.risk,status:'waiting',waiting_reason:waitingReason[task.id] ?? task.waiting_reason ?? ''}}),'Saved waiting status.')}>Mark waiting</Button>
+                  {task.status==='waiting' && <Button variant="outline" disabled={busy===task.id || !accessToken} onClick={()=>run(task.id,()=>editTask({data:{accessToken:accessToken!,taskId:task.id,title:task.title,detail:task.detail,project:task.project??'',risk:task.risk,status:'open'}}),'Returned to planned work.')}>Return to planned</Button>}
+                </div>}
                 {task.detail && <p className="mt-2 text-xs text-muted-foreground">{task.detail}</p>}
                 <p className="mt-1 text-xs text-canx-green">Result: {task.result?.trim() || "Not recorded"}</p>
                 <p className="mt-1 text-xs text-muted-foreground">Evidence: {taskExecutionEvidence(task.evidence)?.label ?? (task.evidence?.trim() || "Not recorded")}</p>
