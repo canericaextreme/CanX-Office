@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOwnerSession } from "@/lib/owner-session";
 import {
   ESTIMATED_CENTS_BY_SCOPE,
@@ -253,12 +254,14 @@ export function SecondEyesPanel() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
+      <TooltipProvider delayDuration={250}>
+      <Tooltip>
       <SheetTrigger asChild>
+        <TooltipTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           aria-label="Claude — Second Eyes, independent review"
-          title="Ask Elsie about Claude"
           className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
         >
           <Eye className="h-5 w-5" />
@@ -267,7 +270,13 @@ export function SecondEyesPanel() {
             className={`absolute bottom-1 right-1 h-2 w-2 rounded-full border ${TONE_CLASS[tone]}`}
           />
         </Button>
+        </TooltipTrigger>
       </SheetTrigger>
+      <TooltipContent side="bottom" align="end" collisionPadding={12} className="w-48 max-w-[calc(100vw-2rem)] whitespace-normal break-words border border-slate-600 bg-slate-950 px-3 py-2 text-center text-sm leading-relaxed text-white">
+        Ask Elsie about Claude
+      </TooltipContent>
+      </Tooltip>
+      </TooltipProvider>
 
       <SheetContent
         side="right"
