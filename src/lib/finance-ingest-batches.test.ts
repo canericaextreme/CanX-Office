@@ -9,16 +9,17 @@ function fakeDb(opts: { failBatchOnce?: number; failBatchAlways?: number } = {})
   const rows: FinanceReceipt[] = [];
   let checkpoint = "OLD";
   let call = 0;
+  const seen = new Map<string, number>();
   const failedOnce = new Set<number>();
   const checkpoints: string[] = [];
   const rpc = vi.fn(async (candidates: IngestibleReceipt[], cp: string) => {
     if (candidates.length > 25) throw new Error("invalid candidates"); // the real SQL limit
-    const idx = call++;
-    const batchNo = candidates.length ? idx : -1;
+    const key = candidates[0]?.contentFingerprint ?? "";
+    if (key && !seen.has(key)) seen.set(key, call++);
+    const batchNo = key ? seen.get(key)! : -1;
     if (opts.failBatchAlways !== undefined && batchNo === opts.failBatchAlways) return { ok: false, filed: [], duplicates: 0 };
     if (opts.failBatchOnce !== undefined && batchNo === opts.failBatchOnce && !failedOnce.has(batchNo)) {
       failedOnce.add(batchNo);
-      call--; // retry targets the same batch index
       return { ok: false, filed: [], duplicates: 0 };
     }
     const filed: IngestibleReceipt[] = [];
