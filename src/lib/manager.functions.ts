@@ -21,6 +21,7 @@ import { CONTINUITY_UNAVAILABLE, type ContinuityRead } from "./astra-continuity"
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
+import { routeSkills } from "@/lib/office-skills";
 import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 import { protectedCategoryOf } from "@/lib/protected-actions";
 import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
@@ -126,6 +127,8 @@ export interface ManagerReply {
    * the time they were read, gaps and failed reads, and the exact model.
    */
   checked?: VerificationReceipt;
+  /** Office Skills the deterministic router loaded for this turn (id/version only; no content). */
+  skillsUsed?: { registryVersion: string; skills: Array<{ id: string; name: string; version: string }> };
   /** Labelled worker answers returned during this turn, with their evidence. */
   consultations?: ConsultReply[];
   /**
@@ -849,6 +852,8 @@ async function callOpenAI(
   const model = deps.model!;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const latestUser = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const skillSelection = routeSkills(latestUser);
   try {
     const response = await deps.fetchImpl("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -857,7 +862,7 @@ async function callOpenAI(
       body: JSON.stringify({
         model,
         store: false,
-        instructions: MANAGER_SYSTEM_PROMPT,
+        instructions: `${MANAGER_SYSTEM_PROMPT}\n\n${skillSelection.instructions}`,
         input: [
           liveContextMessage(contextText),
           ...data.messages.map((m) => ({ role: m.role, content: m.content })),
@@ -934,6 +939,7 @@ async function callOpenAI(
       text,
       toolCalls,
       actionResults: [],
+      skillsUsed: { registryVersion: skillSelection.registryVersion, skills: skillSelection.skills },
     };
   } finally {
     clearTimeout(timer);
