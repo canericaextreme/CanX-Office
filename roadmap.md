@@ -1,9 +1,9 @@
 # Phase 1 bright office completion
 
 ## Dated Finance email catch-up (2026-10-03)
-- [ ] Add an editable 2026-08-15 From date and an explicit bounded historical scan for both linked mailboxes.
-- [ ] Freeze each run end, use inclusive America/Whitehorse boundaries, and persist only verified query-keyed per-mailbox progress.
-- [ ] Keep ordinary button and Elsie requests within the saved date scope, with honest running, paused, failed and complete states.
+- [x] Add an editable 2026-08-15 From date and an explicit bounded historical scan for both linked mailboxes.
+- [x] Freeze each run end, use inclusive America/Whitehorse boundaries, and persist only verified query-keyed per-mailbox progress.
+- [x] Keep ordinary button and Elsie requests within the saved date scope, with honest running, paused, failed and complete states.
 - [ ] Verify date edges, multi-page completion/resume, query rekeying, duplicates and fail-closed behavior; run full checks without live Gmail or publication.
 
 ## Finance readback and receipt timestamps (2026-10-03)

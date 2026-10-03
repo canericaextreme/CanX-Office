@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, MailSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/office/StatusBadge";
@@ -49,6 +49,9 @@ export function CheckEmailsResult({ state }: { state: CheckState }) {
 export function CheckEmailsNow({ accessToken, onVerified, savedScan }: { accessToken: string | null; onVerified: () => void; savedScan?: GmailScanConfig | null }) {
   const [state, setState] = useState<CheckState>({ phase: "idle" });
   const [fromDate, setFromDate] = useState(savedScan?.fromDate ?? DEFAULT_GMAIL_SCAN_FROM_DATE);
+  useEffect(() => {
+    if (savedScan?.fromDate) setFromDate(savedScan.fromDate);
+  }, [savedScan?.fromDate]);
   const controller = useMemo(
     () => createCheckEmailsController({
       run: (request, requestedFrom) => syncGmailReceipts({ data: { accessToken: accessToken ?? "", request, fromDate: requestedFrom ?? fromDate } }),

@@ -48,7 +48,9 @@ export function isExplicitReceiptSyncRequest(message: string): boolean {
 }
 
 export function receiptSyncOutcome(result: ReceiptSyncResult): string {
-  const scope = "Scope: billing and renewal keywords plus known service senders, one bounded page per linked mailbox — not the whole inbox.";
+  const scope = result.fromDate
+    ? `Scope: ${result.fromDate} through the frozen run end, billing and renewal keywords plus known service senders, bounded verified pages — not the whole inbox.`
+    : "Scope: billing and renewal keywords plus known service senders, one bounded page per linked mailbox — not the whole inbox.";
   const status = !result.ok ? "Stopped — the check failed." : result.partial || result.mailboxesFailed ? "Partial — not all matching mail was checked." : "Finished — complete within this check's scope.";
   const mailboxes = (result.mailboxes ?? []).map((m) => `${m.mailbox}: ${m.status === "read" ? `${m.documents} matching item(s) read${m.partial ? " — partial" : ""}` : m.status === "authorization_required" ? "access refused — re-authorise" : "could not be read"}.`);
   return [status, scope, result.message, ...mailboxes].join("\n");
@@ -506,7 +508,7 @@ export async function runReceiptSyncWith(
   } else if (!datedMode && deps.saveContinuation && evidenceNote) {
     continuationNote = " Because evidence was not saved, the next check will repeat this page.";
   }
-  if (hasMore && Object.keys(nextContinuation).length > 0) continuationNote += " More matching mail remains in this dated scan.";
+  if (hasMore && Object.keys(nextContinuation).length > 0) continuationNote += datedMode ? " More matching mail remains in this dated scan." : " Run the check again to continue with older matching mail.";
   if (rejectedAny) continuationNote += " A saved position had expired, so the first page was read again.";
   let writesVerified = !evidenceNote && continuationOk;
   let checkpointNote = "";
