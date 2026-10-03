@@ -35,25 +35,27 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
   const items: BrainItem[] = [];
   const sources: BrainSourceStatus[] = [];
   const finNote = twoStep ? "" : "Finance room files hidden: needs two-step verification";
+  /** Bounded reads: when a read hits its limit, the count is "shown / up to", not a total. */
+  const cap = (list: Row[] | null, limit: number, extra = "") => [list && list.length >= limit ? `showing up to ${limit}; more may exist` : "", extra].filter(Boolean).join("; ");
 
-  sources.push({ key: "files", label: "Saved files (all rooms)", status: files ? "read" : "failed", count: files?.length ?? null, detail: finNote });
+  sources.push({ key: "files", label: "Saved files (across rooms)", status: files ? "read" : "failed", count: files?.length ?? null, detail: cap(files, 500, finNote) });
   for (const f of files ?? []) items.push({
     key: `file:${t(f["id"], 80)}`, kind: "file", title: t(f["filename"]) || "(unnamed file)", room: t(f["room"], 40) || null, folder: t(f["folder"], 60) || null,
     at: t(f["created_at"], 40) || null, provenance: "Saved file (office_files)", version: t(f["content_hash"], 64) ? `file ${t(f["content_hash"], 12)}` : null,
     access: "metadata only — open the file in its room", defaultCategory: "downloads", category: "downloads", manual: false, route: routeForRoom(t(f["room"], 40)),
   });
-  sources.push({ key: "links", label: "Saved web links (all rooms)", status: links ? "read" : "failed", count: links?.length ?? null, detail: finNote });
+  sources.push({ key: "links", label: "Saved web links (across rooms)", status: links ? "read" : "failed", count: links?.length ?? null, detail: cap(links, 500, finNote) });
   for (const l of links ?? []) items.push({
     key: `link:${t(l["id"], 80)}`, kind: "link", title: t(l["title"]) || "(untitled link)", room: t(l["room"], 40) || null, folder: t(l["folder"], 60) || null,
     at: t(l["created_at"], 40) || null, provenance: "Saved web link (office_links)", version: null,
     access: "link only — the page was not downloaded", defaultCategory: "downloads", category: "downloads", manual: false, route: routeForRoom(t(l["room"], 40)),
   });
-  sources.push({ key: "documents", label: "Imported document text", status: docs ? "read" : "failed", count: docs?.length ?? null, detail: "" });
+  sources.push({ key: "documents", label: "Imported document text", status: docs ? "read" : "failed", count: docs?.length ?? null, detail: cap(docs, 200, "metadata here; each document's own coverage (complete/partial) is stated when its text is searched") });
   for (const d of docs ?? []) items.push({
     key: `doc:${t(d["id"], 80)}`, kind: "doc", title: t(d["title"]) || t(d["filename"]), room: "brain", folder: null, at: t(d["created_at"], 40) || null,
     provenance: `Imported document ${t(d["filename"])}${t(d["project"]) ? ` · project ${t(d["project"], 80)}` : ""}`,
     version: `version ${t(d["content_hash"], 12)} · ${Number(d["chunk_count"]) || 0} sections · ${Number(d["character_count"]) || 0} characters (text only; pictures/layout not imported)`,
-    access: "full extracted text searchable by Elsie, with coverage stated per answer", defaultCategory: "knowledge", category: "knowledge", manual: false, route: "/brain",
+    access: "extracted text searchable by Elsie; coverage (complete or partial) is stated per answer, not assumed from this index", defaultCategory: "knowledge", category: "knowledge", manual: false, route: "/brain",
   });
 
   const labels = new Map<string, BrainCategory>();
@@ -79,6 +81,7 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
       });
     }
     sources[sources.length - 1]!.count = notes ? n : null;
+    sources[sources.length - 1]!.detail = cap(notes, 1000, notes && notes.length >= 1000 ? "older notes and their category labels may not be included" : "");
     sources.push({ key: "categories", label: "Your manual categories", status: notes ? "read" : "failed", count: notes ? labelCount : null, detail: "" });
   }
 
@@ -100,7 +103,7 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
   const projects = new Map<string, { tasks: number; docs: number; at: string }>();
   for (const r of tasks ?? []) { const p = t(r["project"], 120); if (!p) continue; const e = projects.get(p) ?? { tasks: 0, docs: 0, at: "" }; e.tasks++; e.at = e.at || t(r["updated_at"], 40); projects.set(p, e); }
   for (const d of docs ?? []) { const p = t(d["project"], 120); if (!p) continue; const e = projects.get(p) ?? { tasks: 0, docs: 0, at: "" }; e.docs++; e.at = e.at || t(d["created_at"], 40); projects.set(p, e); }
-  sources.push({ key: "projects", label: "Project names on tasks and documents", status: tasks ? "read" : "failed", count: projects.size, detail: tasks ? "" : "Work Board tasks could not be read; only document projects shown" });
+  sources.push({ key: "projects", label: "Project names on tasks and documents", status: tasks ? "read" : "failed", count: projects.size, detail: tasks ? cap(tasks, 300) : "Work Board tasks could not be read; only document projects shown" });
   for (const [name, e] of projects) items.push({
     key: `project:${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60)}`, kind: "project", title: name, room: "project-rooms", folder: null, at: e.at || null,
     provenance: `Derived from ${e.tasks} Work Board task(s) and ${e.docs} document(s)`, version: null, access: "links to its tasks and documents",
