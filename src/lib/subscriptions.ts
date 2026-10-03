@@ -16,7 +16,8 @@
 export type SubscriptionScope = "office" | "personal" | "unknown";
 export type RenewalBasis = "explicit" | "estimated";
 export type EvidenceKind = "receipt" | "unpaid-invoice" | "renewal-notice" | "price-change" | "failed-payment" | "unknown";
-export type MatchStatus = "matched" | "unknown" | "conflict" | "personal";
+/** "unverified-sender": named by alias only, and John has not yet verified a sender domain for that service. Always review. */
+export type MatchStatus = "matched" | "unknown" | "conflict" | "personal" | "unverified-sender";
 
 export interface BillingEntry {
   date: string;
@@ -75,7 +76,17 @@ export const STARTER_SUBSCRIPTIONS: SubscriptionRecord[] = [
   starter("openai", "OpenAI", ["openai", "chatgpt"], ["openai.com"], "AI workers"),
   starter("anthropic", "Anthropic (Claude)", ["anthropic", "claude"], ["anthropic.com"], "Second Eyes reviewer"),
   starter("github", "GitHub", ["github"], ["github.com"], "Code hosting"),
+  // John said on 2026-10-03 that the office uses Sintra AI. No sender domain is
+  // trusted until John verifies one, so every Sintra email goes to review.
+  starter("sintra-ai", "Sintra AI", ["sintra ai", "sintra"], [], "Usage confirmed by John on 2026-10-03. Sender address not yet verified; cost, cadence and renewal unknown."),
 ];
+
+/** Starter suggestions missing from John's saved list (by id or name). Never added automatically. */
+export function suggestedStarters(saved: SubscriptionRecord[]): SubscriptionRecord[] {
+  const ids = new Set(saved.map((s) => s.id));
+  const names = new Set(saved.map((s) => s.name.trim().toLowerCase()));
+  return STARTER_SUBSCRIPTIONS.filter((s) => !ids.has(s.id) && !names.has(s.name.toLowerCase()));
+}
 
 function starter(id: string, name: string, aliases: string[], domains: string[], notes: string): SubscriptionRecord {
   return {
@@ -203,12 +214,13 @@ export function matchService(from: string, text: string, subscriptions: Subscrip
   const hit = hits[0]!;
   if (hit.scope === "personal") return { status: "personal", subscriptionId: hit.id, candidateIds: ids };
   if (hit.scope !== "office") return { status: "conflict", subscriptionId: null, candidateIds: ids };
+  if (byDomain.length === 0 && hit.senderDomains.length === 0) return { status: "unverified-sender", subscriptionId: hit.id, candidateIds: ids };
   return { status: "matched", subscriptionId: hit.id, candidateIds: ids };
 }
 
 /* ------------------------------ Gmail query ------------------------------ */
 
-const BASE_TERMS = ["receipt", "invoice", "renewal", "\"renews on\"", "\"will renew\"", "subscription", "billing", "\"payment due\"", "\"price change\"", "\"price increase\""];
+const BASE_TERMS = ["receipt", "invoice", "renewal", "\"renews on\"", "\"will renew\"", "subscription", "billing", "\"payment due\"", "\"price change\"", "\"price increase\"", "\"payment failed\"", "\"your plan\"", "\"trial ends\"", "\"order confirmation\""];
 
 /** Covers billing/renewal keywords plus each known sender domain and alias. Bounded length. */
 export function buildGmailQuery(subscriptions: SubscriptionRecord[]): string {
@@ -394,6 +406,7 @@ export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvi
     if (e.kind === "failed-payment") alerts.push({ evidence: e, reason: "Payment failed or declined (as stated in the email)" });
     else if (e.kind === "price-change" || flagged.has(e.id)) alerts.push({ evidence: e, reason: "Possible price change — confirmed cost not changed" });
     else if (e.kind === "unpaid-invoice") alerts.push({ evidence: e, reason: "Invoice states an amount due" });
+    else if (e.matchStatus === "unverified-sender") alerts.push({ evidence: e, reason: "Named service, but sender not yet verified — review" });
     else if (e.matchStatus === "unknown" || e.matchStatus === "conflict") alerts.push({ evidence: e, reason: e.matchStatus === "conflict" ? "Could match several services — review" : "Unknown sender — review" });
   }
   const limit = addDays(week.today, horizonDays);
