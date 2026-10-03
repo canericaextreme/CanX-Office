@@ -164,3 +164,14 @@ export function brainIndexForModel(index: BrainIndex, request: string, limit = 1
   for (const i of show) lines.push(`- [${CATEGORY_LABELS[i.category]}${i.manual ? ", filed by John" : ""}] ${JSON.stringify(i.title)} · ${i.room ? `room ${i.room}` : "no room"}${i.folder ? ` · folder ${i.folder}` : ""}${i.version ? ` · ${i.version}` : ""} · ${i.access}`);
   return lines.join("\n");
 }
+
+/** Recent activity: only items with a valid saved timestamp inside the last `days`, newest first. Never invents dates. */
+export function recentBrainItems(items: BrainItem[], now: Date, days = 3): BrainItem[] {
+  const end = now.getTime() + 5 * 60_000; // tolerate small clock drift, reject future dates
+  const start = now.getTime() - days * 86_400_000;
+  return items
+    .map((i) => ({ i, t: i.at ? Date.parse(i.at) : NaN }))
+    .filter((x) => Number.isFinite(x.t) && x.t >= start && x.t <= end)
+    .sort((a, b) => b.t - a.t)
+    .map((x) => x.i);
+}
