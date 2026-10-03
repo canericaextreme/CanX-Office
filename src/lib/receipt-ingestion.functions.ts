@@ -99,6 +99,8 @@ export interface ReceiptSyncResult {
   endAt?: string;
   scanStatus?: "paused" | "complete" | "failed";
   hasMore?: boolean;
+  /** Safe to request the next page immediately; false on any fetch/content cap failure. */
+  canContinueNow?: boolean;
 }
 
 const deny = (code: ReceiptSyncCode, message: string): ReceiptSyncResult => ({
@@ -306,6 +308,7 @@ export async function runReceiptSyncWith(
   let needsReviewDocs = 0; // supported but unreadable documents (images/OCR, oversized)
   let capHit = false;
   let ignoredByPreference = 0;
+  let canContinueNow = true;
   const completedSlots = new Set(continuing && priorScan.queryKey === queryKey ? priorScan.completedSlots : []);
   const checkBySlot = new Map<number, MailboxCheck>((continuing && priorScan.queryKey === queryKey ? priorScan.mailboxes : []).flatMap((check) => typeof check.slot === "number" ? [[check.slot, check]] : []));
   for (const [slot, account] of accounts.entries()) {
@@ -319,6 +322,7 @@ export async function runReceiptSyncWith(
       unprocessed += result.fetchFailures ?? 0;
       needsReviewDocs += result.needsReview ?? 0;
       if (result.documentCapHit) capHit = true;
+      if ((result.fetchFailures ?? 0) > 0 || result.documentCapHit) canContinueNow = false;
       // Advance only past a page whose every message and attachment was fetched and
       // every document was handled; otherwise keep the old position.
       if (mb && !(result.fetchFailures ?? 0) && !result.documentCapHit) {
@@ -336,6 +340,7 @@ export async function runReceiptSyncWith(
       checks.push(checked);
       checkBySlot.set(slot, checked);
     } catch (error) {
+      canContinueNow = false;
       failedAccounts += 1;
       const auth = error instanceof Error && error.message === "gmail_authorization_required";
       if (auth) authFailure = true;
@@ -528,6 +533,7 @@ export async function runReceiptSyncWith(
     endAt,
     scanStatus: finalPartial || hasMore ? "paused" : "complete",
     hasMore,
+    canContinueNow: hasMore && canContinueNow && failedAccounts === 0,
   };
 }
 

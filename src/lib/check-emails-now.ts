@@ -1,4 +1,5 @@
 import type { ReceiptSyncResult } from "./receipt-ingestion.functions";
+import { HISTORICAL_SCAN_STEPS_PER_START } from "./gmail-scan-window";
 
 export const CHECK_EMAILS_NOW_REQUEST = "Check receipts and subscriptions";
 export const HISTORICAL_EMAIL_SCAN_REQUEST = "Check receipts and subscriptions from selected date";
@@ -29,7 +30,7 @@ export function createCheckEmailsController(deps: {
         const request = historical ? HISTORICAL_EMAIL_SCAN_REQUEST : CHECK_EMAILS_NOW_REQUEST;
         let result = await deps.run(request, fromDate);
         let steps = 1;
-        while (historical && result.ok && result.hasMore && steps < 4) {
+        while (historical && result.ok && result.hasMore && result.canContinueNow && steps < HISTORICAL_SCAN_STEPS_PER_START) {
           const next = await deps.run(request, fromDate);
           result = {
             ...next,

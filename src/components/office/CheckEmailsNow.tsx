@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/office/StatusBadge";
 import { syncGmailReceipts } from "@/lib/receipt-ingestion.functions";
 import { createCheckEmailsController, type CheckState } from "@/lib/check-emails-now";
 import { DEFAULT_GMAIL_SCAN_FROM_DATE, validScanDate, type GmailScanConfig } from "@/lib/gmail-scan-window";
+import { zonedDate } from "@/lib/subscriptions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -70,7 +71,7 @@ export function CheckEmailsNow({ accessToken, onVerified, savedScan }: { accessT
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="historical-mail-from">From date</Label>
-            <Input id="historical-mail-from" type="date" value={fromDate} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setFromDate(event.target.value)} className="h-11 w-48" />
+            <Input id="historical-mail-from" type="date" value={fromDate} max={zonedDate(new Date())} onChange={(event) => setFromDate(event.target.value)} className="h-11 w-48" />
           </div>
           <Button variant="outline" onClick={() => void controller.start(fromDate, true)} disabled={running || !accessToken || !validScanDate(fromDate)} aria-busy={running}>
             {running ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <MailSearch className="h-4 w-4" aria-hidden />}

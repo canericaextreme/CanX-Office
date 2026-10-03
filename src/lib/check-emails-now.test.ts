@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
-import { CHECK_EMAILS_NOW_REQUEST, createCheckEmailsController, type CheckState } from "./check-emails-now";
+import { CHECK_EMAILS_NOW_REQUEST, HISTORICAL_EMAIL_SCAN_REQUEST, createCheckEmailsController, type CheckState } from "./check-emails-now";
 import { isExplicitReceiptSyncRequest, type ReceiptSyncResult } from "./receipt-ingestion.functions";
 import { CheckEmailsResult } from "@/components/office/CheckEmailsNow";
 
@@ -43,6 +43,19 @@ describe("Check emails now button", () => {
     await thrown.start();
     expect(onVerified).not.toHaveBeenCalled();
     expect(states.filter((s) => s.phase === "failed")).toHaveLength(2);
+  });
+  it("continues verified historical pages within the work-step bound and stops on a fetch pause", async () => {
+    const run = vi.fn()
+      .mockResolvedValueOnce(ok({ filed: 1, hasMore: true, canContinueNow: true }))
+      .mockResolvedValueOnce(ok({ filed: 2, hasMore: true, canContinueNow: false }));
+    const states: CheckState[] = [];
+    const controller = createCheckEmailsController({ run, onState: (s) => states.push(s), onVerified: vi.fn() });
+    await controller.start("2026-08-15", true);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenNthCalledWith(1, HISTORICAL_EMAIL_SCAN_REQUEST, "2026-08-15");
+    const done = states.at(-1);
+    expect(done?.phase).toBe("done");
+    if (done?.phase === "done") expect(done.result.filed).toBe(3);
   });
   it("animates only the active run and leaves partial completion steady", () => {
     const running = renderToString(React.createElement(CheckEmailsResult, { state: { phase: "running" } }));
