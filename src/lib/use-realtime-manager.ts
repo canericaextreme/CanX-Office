@@ -2,11 +2,11 @@
 
 import { SILENT_AUDIO_DATA_URL } from "./use-manager-voice";
 import { voiceProviderFailure } from "./voice-provider-error";
-
-export const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 import { VoiceTurnError, voiceDiagnostic } from "./voice-turn-outcome";
 import { recordVoiceDiag } from "./voice-diagnostics";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+export const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 import { useServerFn } from "@tanstack/react-start";
 import { createManagerRealtimeSession, type ManagerVoiceMode } from "@/lib/manager-realtime.functions";
 import { realtimeEventPhase, type ChatPhase } from "@/lib/use-realtime-chat";

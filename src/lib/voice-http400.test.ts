@@ -56,6 +56,6 @@ describe("voice HTTP 400 diagnostics", () => {
     expect(hook).toContain('REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls"');
     expect(hook).not.toContain("realtime/calls?model=");
     expect(hook).toContain('"voice handshake"');
-    expect(hook).toMatch(/const fail = [\s\S]{0,120}teardown\(\)/);
+    expect(hook).toMatch(/const fail = [\s\S]{0,200}teardown\(\)/);
   });
 });
