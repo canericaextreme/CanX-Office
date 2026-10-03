@@ -142,3 +142,11 @@ export function MailReviewPanel({ accessToken, evidence }: { accessToken: string
   };
   return <MailReviewView evidence={evidence} prefs={prefs} filter={filter} onFilter={setFilter} onChange={(c) => void change(c)} busy={busy} note={note} />;
 }
+
+/** Never throws on malformed saved dates (avoids the last-check style crash). */
+export function safeRuleDate(value: unknown): string {
+  if (typeof value !== "string" || !value) return "date unknown";
+  const t = Date.parse(value);
+  if (!Number.isFinite(t)) return "date unknown";
+  try { return new Date(t).toISOString().slice(0, 10); } catch { return "date unknown"; }
+}
