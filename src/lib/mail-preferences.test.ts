@@ -4,6 +4,7 @@ import { renderToString } from "react-dom/server";
 import {
   applyPreferenceChange,
   cleanMailPreferences,
+  visibleEvidence,
   EMPTY_PREFERENCES,
   normalizeSender,
   parseMailRuleCommand,
@@ -232,8 +233,8 @@ describe("rendering", () => {
       evidence: [ev({}), ev({ messageId: "m2", from: "news@shop.com", matchStatus: "unknown" }), ev({ messageId: "abc123def", from: "who@x.com", matchStatus: "unknown" })],
       prefs: p, filter: "all", onFilter: () => {}, onChange: () => {}, busy: false, note: "",
     }));
-    for (const s of ["All<!-- --> (", "Related<!-- --> (", "Needs review<!-- --> (", "Ignored<!-- --> (", "Why:", "Ignore future emails from <!-- -->who@x.com", "Sender rules (<!-- -->1<!-- -->)", "Change to <!-- -->Keep", "Remove", "Open in Gmail"]) expect(html).toContain(s);
-    expect(html).toContain('data-review-category="ignored"');
+    for (const s of ["All active<!-- --> (", "Related<!-- --> (", "Needs review<!-- --> (", "Ignored<!-- --> (", "Why:", "Ignore future emails from <!-- -->who@x.com", "Sender rules (<!-- -->1<!-- -->)", "Change to <!-- -->Keep", "Remove", "Open in Gmail"]) expect(html).toContain(s);
+    expect(html).not.toContain('data-review-category="ignored"');
     expect(html).toContain('data-review-category="needs-review"');
   });
 });
@@ -273,5 +274,43 @@ describe("populated review with malformed rule date", () => {
     expect(html).toContain("date unknown");
     expect(html).toContain("Elsie remembers the choices you save");
     expect(html).not.toContain("AI learning");
+  });
+});
+
+describe("ignored emails disappear from main views", () => {
+  const evs = () => [
+    ev({ messageId: "keep1", from: "billing@svc.com", matchStatus: "matched" }),
+    ev({ messageId: "ign1", from: "promo@shop.com", matchStatus: "unknown" }),
+    ev({ messageId: "ign1", mailbox: "canerica14@gmail.com", from: "promo@shop.com", matchStatus: "unknown" }),
+  ];
+  it("hides after save and after refresh (prefs rebuilt from saved doc), only Ignored tab shows them, Undo restores", async () => {
+    const after = set(EMPTY_PREFERENCES, { op: "set-message", choice: "ignore", mailbox: evs()[1]!.mailbox, messageId: "ign1", from: "promo@shop.com", subject: "" });
+    // Refresh: preferences reloaded from the saved document shape.
+    const reloaded = cleanMailPreferences(JSON.parse(JSON.stringify(after)));
+    for (const p of [after, reloaded]) {
+      const shown = visibleEvidence(evs(), p);
+      expect(shown.map((e) => `${e.mailbox}|${e.messageId}`)).toEqual([`${evs()[0]!.mailbox}|keep1`, "canerica14@gmail.com|ign1"]);
+      const html = renderToString(React.createElement(MailReviewView, { evidence: evs(), prefs: p, filter: "all", onFilter: () => {}, onChange: () => {}, busy: false, note: "" }));
+      expect(html).not.toContain('data-review-category="ignored"');
+      const ig = renderToString(React.createElement(MailReviewView, { evidence: evs(), prefs: p, filter: "ignored", onFilter: () => {}, onChange: () => {}, busy: false, note: "" }));
+      expect(ig).toContain('data-review-category="ignored"');
+      expect(ig).toContain("Undo choice");
+    }
+    const undone = set(after, { op: "clear-message", mailbox: evs()[1]!.mailbox, messageId: "ign1" });
+    expect(visibleEvidence(evs(), undone)).toHaveLength(3);
+  });
+  it("sender ignore hides from parent-derived lists; Keep on one email wins", () => {
+    let p = set(EMPTY_PREFERENCES, { op: "set-sender", sender: "promo@shop.com", action: "ignore" });
+    expect(visibleEvidence(evs(), p)).toHaveLength(1);
+    p = set(p, { op: "set-message", choice: "keep", mailbox: "canerica14@gmail.com", messageId: "ign1", from: "promo@shop.com", subject: "" });
+    expect(visibleEvidence(evs(), p).map((e) => e.messageId)).toEqual(["keep1", "ign1"]);
+  });
+  it("loading and failed reads never pretend anything is hidden or saved", async () => {
+    const { MailReviewPanel } = await import("@/components/office/MailReviewPanel");
+    const loading = renderToString(React.createElement(MailReviewPanel, { accessToken: "t", evidence: evs(), prefs: { state: "loading" }, onPrefs: () => {} }));
+    expect(loading).toContain("Loading your saved mail choices");
+    expect(loading).not.toContain("promo@shop.com");
+    const failed = renderToString(React.createElement(MailReviewPanel, { accessToken: "t", evidence: evs(), prefs: { state: "error", message: "Mail preferences could not be read." }, onPrefs: () => {} }));
+    expect(failed).toContain("ignored emails may still appear");
   });
 });

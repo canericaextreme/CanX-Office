@@ -17,7 +17,8 @@ import {
 } from "@/lib/subscriptions";
 import { CheckEmailsNow } from "@/components/office/CheckEmailsNow";
 import { WeeklySubscriptionCards } from "@/components/office/WeeklySubscriptionCards";
-import { MailReviewPanel } from "@/components/office/MailReviewPanel";
+import { MailReviewPanel, useMailPreferences } from "@/components/office/MailReviewPanel";
+import { visibleEvidence } from "@/lib/mail-preferences";
 import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
 
 const KIND_LABEL: Record<SubscriptionEvidence["kind"], string> = {
@@ -66,10 +67,18 @@ export function SubscriptionManager() {
   }, [owner.shared, owner.accessToken]);
   useEffect(load, [load]);
 
-  const warnings = useMemo(() => renewalWarnings(saved ? subs : [], evidence), [subs, evidence, saved]);
-  const flags = useMemo(() => priceChangeFlags(saved ? subs : [], evidence), [subs, evidence, saved]);
-  const weekly = useMemo(() => weeklyView(saved ? subs : [], evidence), [subs, evidence, saved]);
-  const review = evidence.filter((e) => e.review === "needs-review");
+  const [prefsLoad, setPrefsLoad] = useMailPreferences(owner.accessToken ?? null);
+  // Ignored emails are hidden from every main view once saved choices are loaded.
+  // While loading, email-derived views stay empty (no flash); on a read failure all
+  // mail is shown with a warning rather than pretending anything is hidden.
+  const shownEvidence = useMemo(
+    () => prefsLoad.state === "ready" ? visibleEvidence(evidence, prefsLoad.prefs) : prefsLoad.state === "loading" ? [] : evidence,
+    [evidence, prefsLoad],
+  );
+  const warnings = useMemo(() => renewalWarnings(saved ? subs : [], shownEvidence), [subs, shownEvidence, saved]);
+  const flags = useMemo(() => priceChangeFlags(saved ? subs : [], shownEvidence), [subs, shownEvidence, saved]);
+  const weekly = useMemo(() => weeklyView(saved ? subs : [], shownEvidence), [subs, shownEvidence, saved]);
+  const review = shownEvidence.filter((e) => e.review === "needs-review");
 
   async function persist(next: SubscriptionRecord[]) {
     if (!owner.accessToken) return;
@@ -104,7 +113,7 @@ export function SubscriptionManager() {
       <CardContent className="space-y-4" aria-live="polite">
         <CheckEmailsNow accessToken={owner.accessToken ?? null} onVerified={load} />
         <WeeklySubscriptionCards view={weekly} lastCheck={lastCheck} />
-        <MailReviewPanel accessToken={owner.accessToken ?? null} evidence={evidence} />
+        <MailReviewPanel accessToken={owner.accessToken ?? null} evidence={evidence} prefs={prefsLoad} onPrefs={(p) => setPrefsLoad({ state: "ready", prefs: p })} />
         {state === "loading" && <p className="text-sm text-muted-foreground">Loading subscriptions…</p>}
         {state === "error" && <p className="text-sm text-destructive">{message || "Subscriptions could not be read."}</p>}
         {message && state === "ready" && <p className="text-xs text-muted-foreground">{message}</p>}
@@ -192,9 +201,9 @@ export function SubscriptionManager() {
         <section aria-label="Billing evidence from email">
           <h3 className="text-sm font-semibold">Billing evidence from email ({review.length} to review)</h3>
           <p className="text-xs text-muted-foreground">Found only when you ask Elsie to check receipts or subscriptions. Evidence never changes a confirmed cost or date. No tax or deductibility judgement is made.</p>
-          {evidence.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No evidence recorded yet.</p> : (
+          {shownEvidence.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">{prefsLoad.state === "loading" ? "Loading your saved mail choices…" : evidence.length ? "No active evidence — ignored emails are in Saved mail review → Ignored." : "No evidence recorded yet."}</p> : (
             <ul className="mt-2 space-y-2">
-              {evidence.slice().reverse().slice(0, 50).map((e) => (
+              {shownEvidence.slice().reverse().slice(0, 50).map((e) => (
                 <li key={e.id} className="rounded-md border border-border/50 p-2 text-xs">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium text-foreground">{KIND_LABEL[e.kind]} · {e.vendor || "Unknown sender"}</span>

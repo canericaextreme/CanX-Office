@@ -229,7 +229,16 @@ export function reviewRows(evidence: SubscriptionEvidence[], prefs: MailPreferen
 }
 
 export function filterRows(rows: ReviewRow[], filter: ReviewFilter): ReviewRow[] {
-  return filter === "all" ? rows : rows.filter((r) => r.category === filter);
+  return filter === "all" ? rows.filter((r) => r.category !== "ignored") : rows.filter((r) => r.category === filter);
+}
+
+/**
+ * Evidence still shown in the main Subscriptions views (weekly cards, alerts,
+ * billing list, price/review flags). Ignored emails (exact mailbox+message or
+ * exact sender rule, Keep precedence) are hidden; nothing is deleted.
+ */
+export function visibleEvidence<T extends { mailbox: string; messageId: string; from: string }>(evidence: T[], prefs: MailPreferences): T[] {
+  return evidence.filter((e) => preferenceFor(prefs, e.mailbox, e.messageId, e.from).action !== "ignore");
 }
 
 /** Plain summary for Elsie's context. Addresses and counts only — no email text. */
