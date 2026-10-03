@@ -35,7 +35,7 @@ const seed = (): Doc => ({
 });
 
 const run = (db: ReturnType<typeof fakeDb>, mutate: (d: Doc) => Doc | null, verify: (d: Doc) => boolean, maxAttempts?: number) =>
-  casUpdateFinanceDoc({ rest: db.rest as never, config: {}, token: "t", ownerId: "owner", mutate, verify, maxAttempts });
+  casUpdateFinanceDoc({ rest: db.rest as never, config: {}, token: "t", ownerId: "owner", mutate, verify, ...(maxAttempts ? { maxAttempts } : {}) });
 
 describe("Finance doc compare-and-swap", () => {
   it("overlapping receipt save and evidence review both survive (zero-row update then merge)", async () => {
