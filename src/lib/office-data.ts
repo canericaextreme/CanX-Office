@@ -68,7 +68,7 @@ export const ROOMS: RoomDef[] = [
     id: "reception",
     label: "Reception / Office Manager",
     shortLabel: "Reception",
-    route: "/",
+    route: "/reception",
     icon: Building2,
     purpose: "Single point of instruction — type a request, see status, next step.",
     area: "public",
