@@ -195,7 +195,7 @@ export async function fetchGmailReceiptCandidates(
   const partial = continued || Boolean(listed.nextPageToken) || (!continued && (listed.resultSizeEstimate ?? 0) > ids.length);
   return {
     documents, checkpoint: String(Date.now()), unsupported, partial, mailbox,
-    nextPageToken: listed.nextPageToken, continued, continuationRejected, fetchFailures,
+    ...(listed.nextPageToken ? { nextPageToken: listed.nextPageToken } : {}), continued, continuationRejected, fetchFailures,
   };
 }
 
