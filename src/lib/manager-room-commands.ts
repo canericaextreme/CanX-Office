@@ -1,15 +1,7 @@
-import { ROOMS, roomByRoute, type RoomDef } from "./office-data";
+import { namedRoomIdentity, roomIdentityForRoute, type OfficeRoomIdentity } from "./office-room-identity";
 
-const normalize = (text: string) => text.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-export function namedOfficeRoom(text: string): RoomDef | null {
-  const words = ` ${normalize(text)} `;
-  const candidates = ROOMS.flatMap(room => [room.shortLabel, room.id, ...room.label.split(" / "),
-    ...(room.id === "subscriptions" ? ["subscription", "subscription watch"] : []),
-    ...(room.id === "brain" ? ["brain"] : []),
-  ].map(alias => ({ room, alias: normalize(alias) })))
-    .filter(({ alias }) => words.includes(` ${alias} `)).sort((a, b) => b.alias.length - a.alias.length);
-  return candidates[0]?.room ?? null;
-}
+export const namedOfficeRoom = namedRoomIdentity;
+type RoomDef = OfficeRoomIdentity;
 
 export type RoomCommand =
   | { kind: "look"; room: RoomDef }
@@ -30,12 +22,12 @@ export function parseRoomCommand(request: string, currentPath: string): RoomComm
   // The colon / "saying" separates the destination from the owner's report text.
   const report = text.match(/^(?:add|save|put) (?:a |this )?(?:report|note) (?:to|in|into) (.+?)(?::|\s+saying\s+)([\s\S]+)$/i);
   if (report?.[1] && report[2]) {
-    const room = namedOfficeRoom(report[1]) ?? (/^(?:the )?(?:current|this) room$/i.test(report[1].trim()) ? roomByRoute(currentPath) : null);
+    const room = namedOfficeRoom(report[1]) ?? (/^(?:the )?(?:current|this) room$/i.test(report[1].trim()) ? roomIdentityForRoute(currentPath) : null);
     if (room && report[2].trim()) return { kind: "report", room, content: report[2].trim() };
     return null;
   }
   if (!/^(?:(?:can|could|will) you )?(?:look|see|check|inspect|review|show|open|go|take a look|tell me what you see|tell me what(?: is|s|’s|\'s) in|what(?: is|s|’s|\'s) in|what do you see)\b/i.test(text)) return null;
-  const room = namedOfficeRoom(text) ?? (/\b(this|current|open) (room|page|screen)\b|^what do you see|^tell me what you see/i.test(text) ? roomByRoute(currentPath) : null);
+  const room = namedOfficeRoom(text) ?? (/\b(this|current|open) (room|page|screen)\b|^what do you see|^tell me what you see/i.test(text) ? roomIdentityForRoute(currentPath) : null);
   return room ? { kind: "look", room } : null;
 }
 

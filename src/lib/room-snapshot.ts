@@ -13,8 +13,7 @@
  *  - "static" = app configuration; NEVER live operational data.
  */
 
-import { ROOMS } from "./office-data";
-import { OFFICE_MAP_ROOMS } from "./office-map";
+import { OFFICE_ROOM_IDENTITIES, cleanRoute } from "./office-room-identity";
 import { OFFICE_SKILLS, ROOM_SKILL_MAP, SKILLS_REGISTRY_VERSION, skillsForRoute } from "./office-skills";
 
 export const SNAPSHOT_CONTRACT = "canx-room-snapshot/1";
@@ -40,6 +39,7 @@ export interface RoomTarget {
   label: string;
   /** Number on the office map, when this is one of the 19 numbered rooms. */
   number: string | null;
+  reserved: boolean;
   sources: SourceDef[];
 }
 
@@ -78,36 +78,20 @@ const ROOM_SOURCES: Record<string, SourceDef[]> = {
   "/analytics": [live("tasks", "Work Board tasks"), live("approvals", "Approval box")],
 };
 
-const FILE_ROOM_FOR_ROUTE: Record<string, string> = {
-  "/family-continuity": "family-continuity", "/research": "research", "/round-table": "round-table", "/analytics": "analytics",
-};
-
 function buildTargets(): RoomTarget[] {
-  const routes = new Set<string>();
-  const out: RoomTarget[] = [];
-  const add = (route: string, label: string, number: string | null) => {
-    if (routes.has(route)) return;
-    routes.add(route);
-    const room = ROOMS.find((r) => r.route === route);
-    const id = FILE_ROOM_FOR_ROUTE[route] ?? room?.id ?? route.slice(1);
-    out.push({ id, route, label, number, sources: [...COMMON, ...(ROOM_SOURCES[route] ?? [])] });
-  };
-  for (const r of OFFICE_MAP_ROOMS) add(r.route, r.label, r.number);
-  for (const r of ROOMS) add(r.route, r.label, null);
-  add("/round-table", "Round Table", null);
-  add("/analytics", "Analytics", null);
-  return out;
+  return OFFICE_ROOM_IDENTITIES.map((r) => ({ id: r.id, route: r.route, label: r.label, number: r.number, reserved: r.reserved, sources: [...COMMON, ...(ROOM_SOURCES[r.route] ?? [])] }));
 }
 
-/** The 19 numbered rooms first, then auxiliary destinations (Brain, Projects, Skills, Round Table, Analytics). */
+/** Every office-map room (by number, Future #20 reserved), then auxiliary destinations. */
 export const ROOM_TARGETS: RoomTarget[] = buildTargets();
-export const NUMBERED_ROOM_TARGETS = ROOM_TARGETS.filter((t) => t.number !== null);
+/** Exactly the rooms on the office map, including reserved Future #20. */
+export const MAP_ROOM_TARGETS = ROOM_TARGETS.filter((t) => t.number !== null);
+/** Map rooms with a working purpose (Future #20 is reserved and excluded). */
+export const NUMBERED_ROOM_TARGETS = MAP_ROOM_TARGETS.filter((t) => !t.reserved);
 
 export function roomTargetForRoute(route: string | null | undefined): RoomTarget | null {
-  if (typeof route !== "string") return null;
-  const clean = route.split(/[?#]/)[0]!.replace(/\/+$/, "") || "/";
-  const path = clean === "/" ? "/reception" : clean;
-  return ROOM_TARGETS.find((t) => t.route === path) ?? null;
+  const path = cleanRoute(route);
+  return path ? ROOM_TARGETS.find((t) => t.route === path) ?? null : null;
 }
 
 /* ------------------------------- skills and actions ------------------------------- */
