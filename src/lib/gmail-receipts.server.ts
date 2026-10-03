@@ -163,3 +163,24 @@ export async function fetchGmailReceiptCandidates(
 
   return { documents, checkpoint: String(Date.now()), unsupported };
 }
+
+export type MailboxAccessStatus = "verified" | "authorization_required" | "unavailable";
+export interface MailboxAccessCheck { slot: number; email: string | null; status: MailboxAccessStatus }
+
+/** Read-only profile check: returns only the address and status, never credentials or mail content. */
+export async function checkGmailProfile(
+  settings: GmailSettings,
+  slot: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MailboxAccessCheck> {
+  try {
+    const response = await gateway(settings, "/users/me/profile", fetchImpl);
+    if (!response.ok) {
+      return { slot, email: null, status: response.status === 401 || response.status === 403 ? "authorization_required" : "unavailable" };
+    }
+    const email = String(((await response.json()) as { emailAddress?: unknown }).emailAddress ?? "").trim();
+    return email ? { slot, email, status: "verified" } : { slot, email: null, status: "unavailable" };
+  } catch {
+    return { slot, email: null, status: "unavailable" };
+  }
+}
