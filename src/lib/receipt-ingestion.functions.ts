@@ -248,22 +248,31 @@ export async function runReceiptSyncWith(
   const nextContinuation: GmailContinuation = { ...priorContinuation };
   let continuedAny = false;
   let rejectedAny = false;
+  let unprocessed = 0; // transient fetch failures (messages/attachments) — page repeats
+  let needsReviewDocs = 0; // supported but unreadable documents (images/OCR, oversized)
+  let capHit = false;
   for (const [slot, account] of accounts.entries()) {
     try {
       const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query, pageTokens);
       const mb = (result.mailbox || "").toLowerCase();
       if (result.continued) continuedAny = true;
       if (result.continuationRejected) rejectedAny = true;
-      // Advance only past a page whose every message was fetched; otherwise keep the old position.
-      if (mb && !(result.fetchFailures ?? 0)) {
+      unprocessed += result.fetchFailures ?? 0;
+      needsReviewDocs += result.needsReview ?? 0;
+      if (result.documentCapHit) capHit = true;
+      // Advance only past a page whose every message and attachment was fetched and
+      // every document was handled; otherwise keep the old position.
+      if (mb && !(result.fetchFailures ?? 0) && !result.documentCapHit) {
         if (result.nextPageToken) nextContinuation[mb] = { token: result.nextPageToken, query: queryKey, savedAt: new Date().toISOString() };
         else delete nextContinuation[mb];
       }
-      documents.push(...result.documents.slice(0, MAX_GMAIL_CANDIDATES));
+      // Every supported document from the fetched messages is processed — no truncation.
+      documents.push(...result.documents);
       unsupported += result.unsupported;
       checkpoint = result.checkpoint;
-      if (result.partial) partial = true;
-      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: Boolean(result.partial), documents: result.documents.length });
+      const mbPartial = Boolean(result.partial) || Boolean(result.fetchFailures) || Boolean(result.needsReview) || Boolean(result.documentCapHit);
+      if (mbPartial) partial = true;
+      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: mbPartial, documents: result.documents.length });
     } catch (error) {
       failedAccounts += 1;
       const auth = error instanceof Error && error.message === "gmail_authorization_required";
@@ -271,15 +280,22 @@ export async function runReceiptSyncWith(
       checks.push({ mailbox: `Linked mailbox ${slot + 1}`, status: auth ? "authorization_required" : "failed", partial: true, documents: 0 });
     }
   }
-  const lastCheck: LastCheck = {
-    at: new Date().toISOString(),
-    scope: `Past year, one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox per check${deps.saveContinuation ? "; later checks continue to older pages" : " (first page only — no continuation)"}${continuedAny ? "; this check continued from an earlier one, so newer mail may need a fresh check" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`,
-    complete: failedAccounts === 0 && !partial,
-    mailboxes: checks,
+  const scope = `Past year, one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox per check (all readable bodies and attachments in those messages)${deps.saveContinuation ? "; later checks continue to older pages" : " (first page only — no continuation)"}${continuedAny ? "; this check continued from an earlier one, so newer mail may need a fresh check" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`;
+  // The last check is recorded only after every write has been attempted, and is
+  // "complete" only when everything was fetched, handled and saved and verified.
+  const finishCheck = async (writesVerified: boolean) => {
+    const check: LastCheck = {
+      at: new Date().toISOString(),
+      scope,
+      complete: writesVerified && failedAccounts === 0 && !partial,
+      mailboxes: writesVerified ? checks : checks.map((c) => ({ ...c, partial: true })),
+    };
+    if (!deps.recordLastCheck) return { check, saved: false };
+    const saved = await deps.recordLastCheck(input.accessToken, owner.userId, check).catch(() => false);
+    return { check, saved };
   };
-  let lastCheckSaved = false;
-  if (deps.recordLastCheck) lastCheckSaved = await deps.recordLastCheck(input.accessToken, owner.userId, lastCheck).catch(() => false);
   if (failedAccounts === accounts.length) {
+    await finishCheck(false);
     return deny(
       authFailure ? "gmail_authorization_required" : "gmail_unavailable",
       "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
