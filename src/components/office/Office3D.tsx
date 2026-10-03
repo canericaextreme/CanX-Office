@@ -438,22 +438,50 @@ function AmbientOfficeMotion() {
   );
 }
 
+function useLabelDrag(enabled: boolean, position: { x: number; y: number }, onMove: (position: { x: number; y: number }) => void) {
+  const drag = useRef<{ x: number; y: number; start: { x: number; y: number }; width: number; height: number } | null>(null);
+  return {
+    onClick: (event: React.MouseEvent<HTMLAnchorElement>) => { if (enabled) event.preventDefault(); },
+    onPointerDown: (event: React.PointerEvent<HTMLAnchorElement>) => {
+      if (!enabled) return; event.preventDefault();
+      const bounds = event.currentTarget.parentElement!.getBoundingClientRect();
+      drag.current = { x: event.clientX, y: event.clientY, start: position, width: bounds.width, height: bounds.height };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    onPointerMove: (event: React.PointerEvent<HTMLAnchorElement>) => {
+      const d = drag.current; if (!d || !enabled) return;
+      onMove({ x: Math.min(95, Math.max(5, d.start.x + (event.clientX-d.x)/d.width*100)), y: Math.min(95, Math.max(5, d.start.y + (event.clientY-d.y)/d.height*100)) });
+    },
+    onPointerUp: (event: React.PointerEvent<HTMLAnchorElement>) => { drag.current=null; if(event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); },
+    onPointerCancel: () => { drag.current=null; },
+    onKeyDown: (event: React.KeyboardEvent<HTMLAnchorElement>) => {
+      if(!enabled || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+      event.preventDefault(); onMove({ x: Math.min(95,Math.max(5,position.x+(event.key==='ArrowRight'?1:event.key==='ArrowLeft'?-1:0))), y: Math.min(95,Math.max(5,position.y+(event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:0))) });
+    },
+  };
+}
+
 function RoomHotspot({
   room,
-  position,
+  position, movable, onMove,
 }: {
   room: OfficeRoom;
   position: { x: number; y: number };
+  movable: boolean;
+  onMove: (position: { x: number; y: number }) => void;
 }) {
   const Icon = room.icon;
+  const dragHandlers = useLabelDrag(movable, position, onMove);
 
   return (
     <Link
       to={room.route}
+      {...dragHandlers}
+      title={movable ? 'Drag to move; arrow keys also move this label' : room.purpose}
       aria-label={`${room.label} — ${room.purpose}`}
       draggable={false}
       className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none focus-visible:z-40 focus-visible:outline-none"
-      style={{ left: `${position.x}%`, top: `${position.y}%` }}
+      style={{ left: `${position.x}%`, top: `${position.y}%`, touchAction: movable ? 'none' : 'auto', cursor: movable ? 'grab' : 'pointer' }}
     >
       <span
         aria-hidden="true"
@@ -474,8 +502,10 @@ function RoomHotspot({
 }
 
 export function Office3D() {
+  const [movableLabels, setMovableLabels] = useState(false);
+  const [positionsLoaded, setPositionsLoaded] = useState(false);
   const [labelPositions, setLabelPositions] = useState<Record<string, { x: number; y: number }>>(
-    () => Object.fromEntries(rooms.map((room) => [room.number, { x: room.x, y: room.y }])),
+    () => ({ ...Object.fromEntries(rooms.map((room) => [room.number, { x: room.x, y: room.y }])), brain: { x: 52, y: 40 } }),
   );
 
 
@@ -484,13 +514,16 @@ export function Office3D() {
       const saved = window.localStorage.getItem("canx-office-label-positions-v1");
       if (saved) {
         const parsed = JSON.parse(saved) as Record<string, { x: number; y: number }>;
-        setLabelPositions(current => ({ ...current, ...Object.fromEntries(rooms.filter(room => Number.isFinite(parsed[room.number]?.x) && Number.isFinite(parsed[room.number]?.y)).map(room => [room.number, parsed[room.number]!])) }));
+        setLabelPositions(current => ({ ...current, ...Object.fromEntries([...rooms, { number: 'brain' }].filter(room => Number.isFinite(parsed[room.number]?.x) && Number.isFinite(parsed[room.number]?.y)).map(room => [room.number, parsed[room.number]!])) }));
       }
     } catch {
       // Keep the checked-in label positions when stored data is unavailable.
     }
+    setPositionsLoaded(true);
   }, []);
-
+  useEffect(() => { if(positionsLoaded) { try { window.localStorage.setItem('canx-office-label-positions-v1', JSON.stringify(labelPositions)); } catch { /* Keep current layout when device storage is unavailable. */ } } }, [labelPositions,positionsLoaded]);
+  const brainPosition = labelPositions["brain"] ?? { x: 52, y: 40 };
+  const brainDrag = useLabelDrag(movableLabels, brainPosition, position => setLabelPositions(current => ({...current,brain:position})));
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-[#020611] px-2 py-3 text-white sm:px-4">
@@ -500,6 +533,7 @@ export function Office3D() {
             <p className="text-xs font-black uppercase tracking-[0.24em] text-rose-400">
               CanX Office
             </p>
+            <button type="button" aria-pressed={movableLabels} className="rounded border border-slate-500 px-3 py-2 text-sm" onClick={() => setMovableLabels(value => !value)}>{movableLabels ? 'Lock labels' : 'Move labels'}</button>
           </div>
         </div>
         <p className="hidden max-w-3xl whitespace-nowrap text-right text-4xl font-black italic tracking-wide sm:text-5xl text-rose-200 drop-shadow-[0_0_12px_rgba(251,113,133,.45)] md:block">
@@ -526,7 +560,9 @@ export function Office3D() {
 
           <Link
             to="/brain"
-            aria-label="Open CanX Brain"
+            {...brainDrag}
+            style={{left: `${brainPosition.x}%`, top: `${brainPosition.y}%`, touchAction: movableLabels ? 'none' : 'auto', cursor: movableLabels ? 'grab' : 'pointer'}}
+            aria-label={movableLabels ? 'Move CanX Brain label' : 'Open CanX Brain'}
             className="group absolute left-[52%] top-[40%] z-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-200/75 bg-cyan-950/75 px-4 py-2 text-center text-white shadow-[0_0_30px_rgba(34,211,238,.38)] backdrop-blur-md transition duration-300 hover:scale-110 hover:bg-cyan-700/90 hover:shadow-[0_0_48px_rgba(34,211,238,.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <span className="flex items-center gap-2">
@@ -543,6 +579,8 @@ export function Office3D() {
               key={room.number}
               room={room}
               position={labelPositions[room.number] ?? { x: room.x, y: room.y }}
+              movable={movableLabels}
+              onMove={position => setLabelPositions(current => ({...current,[room.number]:position}))}
             />
           ))}
 
