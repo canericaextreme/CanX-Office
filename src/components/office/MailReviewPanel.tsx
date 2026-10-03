@@ -74,7 +74,7 @@ export function MailReviewView({
                 </div>
                 <p className="mt-1 text-xs text-foreground">Why: {why}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {e.mailbox && e.messageId ? (
+                  {gmailLink(e.mailbox, e.messageId) ? (
                     <a className="inline-flex min-h-10 items-center gap-1 text-xs text-canx-blue underline" href={gmailLink(e.mailbox, e.messageId)} target="_blank" rel="noreferrer">
                       Open in Gmail <ExternalLink className="h-3 w-3" aria-hidden />
                     </a>

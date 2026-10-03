@@ -136,7 +136,8 @@ export function parsePreferenceChange(input: unknown): PreferenceChange | null {
   }
 }
 
-export function applyPreferenceChange(prefs: MailPreferences, change: PreferenceChange, at: string, by: PreferenceSource): MailPreferences {
+export function applyPreferenceChange(prefs: MailPreferences, input: PreferenceChange, at: string, by: PreferenceSource): MailPreferences {
+  const change = ("mailbox" in input ? { ...input, mailbox: input.mailbox.toLowerCase() } : input) as PreferenceChange;
   const next: MailPreferences = { version: 1, messages: [...prefs.messages], senders: [...prefs.senders] };
   const sameMsg = (m: MessageDecision) => m.mailbox === (change as { mailbox?: string }).mailbox && m.messageId === (change as { messageId?: string }).messageId;
   if (change.op === "set-message") {
