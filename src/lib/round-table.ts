@@ -101,7 +101,7 @@ export function seedRoundTable(): RoundTableDoc {
       { id: "r-3", name: "Build & Integration", assignedTo: "", connected: false, note: "Planned role." },
       { id: "r-4", name: "Quality & Security", assignedTo: "", connected: false, note: "Planned role." },
       { id: "r-5", name: "Finance & Records", assignedTo: "", connected: false, note: "Planned role." },
-      { id: "r-6", name: "Communications", assignedTo: "", connected: false, note: "Planned role." },
+      { id: "r-6", name: "Communications & Marketing", assignedTo: "", connected: false, note: "Planned role." },
       { id: "r-7", name: "Legal & Compliance Support", assignedTo: "", connected: false, note: "Planned role." },
       { id: "r-8", name: "Design & Analytics", assignedTo: "", connected: false, note: "Planned role." },
       { id: "r-9", name: "Systems & Recovery", assignedTo: "", connected: false, note: "Planned role." },
