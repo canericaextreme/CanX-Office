@@ -1,20 +1,33 @@
 -- CanX Office — Gmail receipt ingestion extension.
--- STATUS: NOT APPLIED. Apply only to the existing CanX-owned external database.
--- This is additive: the existing finance_receipts.doc and its 12 records are not rewritten.
+-- STATUS: APPLIED 2026-10-03 to the CanX-owned external database
+-- (project gmsjjiprtulxojhkmbqb) via connected Supabase MCP under John's
+-- existing authorization. Verified after apply: columns present,
+-- ingest_finance_receipts exists as SECURITY INVOKER, anon EXECUTE revoked
+-- (PUBLIC also revoked), authenticated EXECUTE granted, finance/audit RLS on,
+-- is_verified_owner and office_audit prerequisites present.
+-- This file records the exact applied SQL. It differs from the earlier
+-- proposal only by least-privilege grants (no delete grant to authenticated),
+-- revoking PUBLIC as well as anon, and strict null-total rejection.
+-- Additive: the existing finance_receipts.doc and its 12 records were not rewritten.
+
+begin;
 
 alter table public.finance_receipts
   add column if not exists ingested_receipts jsonb not null default '[]'::jsonb,
   add column if not exists gmail_sync_checkpoint text,
   add column if not exists ingestion_updated_at timestamptz;
 
--- Existing table grants remain explicit; repeat them so this migration is
--- self-auditing and does not broaden access.
-grant select, insert, update, delete on public.finance_receipts to authenticated;
-grant all on public.finance_receipts to service_role;
+grant select, insert, update on public.finance_receipts to authenticated;
 
-alter table public.finance_receipts
-  add constraint finance_ingested_receipts_array
-  check (jsonb_typeof(ingested_receipts) = 'array');
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'finance_ingested_receipts_array') then
+    alter table public.finance_receipts
+      add constraint finance_ingested_receipts_array
+      check (jsonb_typeof(ingested_receipts) = 'array');
+  end if;
+end $$;
 
 create or replace function public.ingest_finance_receipts(
   _owner_id uuid,
@@ -52,7 +65,7 @@ begin
       or coalesce(_candidate->>'gmailMessageId','') = ''
       or coalesce(_candidate->>'attachmentIdentity','') = ''
       or coalesce(_candidate->>'contentFingerprint','') !~ '^[0-9a-f]{64}$'
-      or jsonb_typeof(_candidate->'total') not in ('number') then
+      or jsonb_typeof(_candidate->'total') is distinct from 'number' then
       raise exception 'invalid candidate';
     end if;
 
@@ -91,5 +104,8 @@ end;
 $$;
 
 grant execute on function public.ingest_finance_receipts(uuid, jsonb, text) to authenticated;
-revoke execute on function public.ingest_finance_receipts(uuid, jsonb, text) from anon;
+revoke execute on function public.ingest_finance_receipts(uuid, jsonb, text) from public, anon;
 grant execute on function public.ingest_finance_receipts(uuid, jsonb, text) to service_role;
+
+notify pgrst, 'reload schema';
+commit;
