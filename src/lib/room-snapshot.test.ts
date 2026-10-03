@@ -167,7 +167,7 @@ describe("Elsie reads the room fresh for every typed or voice request", () => {
     if (String(input).includes("/v1/models/")) return new Response("{}", { status: 200 });
     return new Response(JSON.stringify({ output_text: "answer" }), { status: 200 });
   }) as unknown as typeof fetch;
-  const base = (readRoomSnapshot: ManagerDeps["readRoomSnapshot"]): ManagerDeps => ({
+  const base = (readRoomSnapshot: NonNullable<ManagerDeps["readRoomSnapshot"]>): ManagerDeps => ({
     verifyOwner: async () => OWNER, reserve: async () => ({ allowed: true, reservationId: "r", remainingToday: 5 }), settle: async () => undefined,
     buildContext: async () => ({ ok: true, text: "CTX" }), fetchImpl, openaiKey: "sk-test", model: "m", readRoomSnapshot,
   });
