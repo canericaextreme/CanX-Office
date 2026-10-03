@@ -636,7 +636,11 @@ export function OfficeManager() {
       // interrupted older prompt is never handed back to be acted on.
       const thread = modelThread(messagesRef.current).slice(-19);
       thread.push({ role: "user", content: request });
-      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
+      // Voice uses the same per-request room read: the route open NOW, not at call start.
+      const sentRoute = router.state.location.pathname;
+      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion() } });
+      if (reply.ok && (reply.roomSnapshots?.length || reply.roomReadback?.length)) requestRoomRefresh("elsie-voice-reply");
+      const voiceRoomNote = reply.ok ? roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute)) : "";
       // Skip the separate voice save only when the server confirmed its own save.
       if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);
       // A failure detail is never returned as if it were Elsie's answer.
@@ -867,11 +871,15 @@ export function OfficeManager() {
         if (realtimeManager.on) realtimeManager.say(direct);
         return;
       }
+      // The room open at send time; Elsie reads it fresh for this request.
+      const sentRoute = router.state.location.pathname;
       const reply = await sendChat({
         data: {
           accessToken: token,
           team: teamForManager(loadTeam()),
           messages: modelHistory.slice(-20),
+          currentRoute: sentRoute,
+          buildId: currentBuildVersion(),
         },
       });
       if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(reply));
