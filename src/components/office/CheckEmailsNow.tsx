@@ -15,24 +15,29 @@ export function CheckEmailsResult({ state }: { state: CheckState }) {
         aria-live="polite"
         data-email-check-state="running"
       >
-        <span className="relative z-10">Checking emails… Both linked mailboxes are being checked. No progress estimate — this waits for the real result.</span>
+        <span className="relative z-10 flex flex-wrap items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-canx-yellow motion-reduce:hidden" aria-hidden />
+          <span className="rounded-full border border-canx-yellow/70 bg-canx-yellow/25 px-2 py-0.5 font-semibold">Working now</span>
+          <span>Checking emails… Both linked mailboxes are being checked. No progress estimate — this waits for the real result.</span>
+        </span>
       </div>
     );
   }
   if (state.phase === "failed") return <p className="text-xs text-destructive" role="alert">Check not completed: {state.message}</p>;
   const r = state.result;
   const complete = !r.partial && !r.mailboxesFailed;
+  const stoppedLabel = r.mailboxesFailed ? "Stopped — some mail could not be checked" : "Stopped — more mail remains";
   return (
     <div className="rounded-md border border-border/50 p-2 text-xs" role="status" data-email-check-state={complete ? "complete" : "partial"}>
-      <StatusBadge tone={complete ? "green" : "yellow"} label={complete ? "Finished — complete within scope" : "Partial — not all mail checked"} />
-      <p className="mt-1 text-foreground">Receipts/invoices: {r.filed} new filed in Finance, {r.duplicatesSkipped} duplicates skipped, {r.sentToReview ?? 0} sent to review. Notices/evidence: {r.subscriptionEvidenceAdded ?? 0} new, {r.subscriptionEvidenceDuplicates ?? 0} already recorded.</p>
+      <StatusBadge tone={complete ? "green" : "yellow"} label={complete ? "Finished — complete within scope" : stoppedLabel} />
+      <p className="mt-1 text-foreground">Receipts/invoices: {r.filed} new filed in Finance, {r.duplicatesSkipped} duplicates skipped, {r.sentToReview ?? 0} sent to review. Notices/evidence: {r.subscriptionEvidenceAdded ?? 0} new, {r.subscriptionEvidenceDuplicates ?? 0} already recorded.{r.ignoredByPreference ? ` Skipped by your Ignore choices: ${r.ignoredByPreference}.` : ""}</p>
       <ul className="mt-1 text-muted-foreground">
         {(r.mailboxes ?? []).map((m, i) => (
           <li key={`${m.mailbox}-${i}`}>{m.mailbox}: {m.status === "read" ? `${m.documents} item(s) read${m.partial ? " — limit reached, more mail not checked" : ""}` : m.status === "authorization_required" ? "access refused — re-authorise" : "could not be read"}</li>
         ))}
       </ul>
       <p className="mt-1 text-muted-foreground">{r.message}</p>
-      {!complete ? <p className="mt-1 text-foreground">This check has stopped. Review the mailbox details above, then press Check emails now later to try again; there is no automatic scan.</p> : null}
+      {!complete ? <p className="mt-1 text-foreground">Partial — not all mail checked. This check has stopped. Review the mailbox details above, then press Check emails now later to try again; there is no automatic scan.</p> : null}
     </div>
   );
 }

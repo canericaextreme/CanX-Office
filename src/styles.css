@@ -216,16 +216,31 @@
     position: absolute;
     inset-block: 0;
     left: 0;
-    width: 42%;
+    width: 55%;
     background: linear-gradient(
       100deg,
       transparent,
-      color-mix(in oklab, var(--color-canx-yellow) 24%, transparent),
+      color-mix(in oklab, var(--color-canx-yellow) 48%, transparent),
       transparent
     );
     animation: email-check-sheen 2.6s ease-in-out infinite;
     pointer-events: none;
   }
+}
+
+/*
+ * Reduced motion (system setting or the office "No movement" setting): the
+ * sweep would otherwise snap to its end position off-screen and look like
+ * nothing is happening. Hide it; the running card shows a static "Working now"
+ * label instead.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .email-check-sheen::before {
+    display: none;
+  }
+}
+[data-canx-motion="reduced"] .email-check-sheen::before {
+  display: none;
 }
 
 /*
