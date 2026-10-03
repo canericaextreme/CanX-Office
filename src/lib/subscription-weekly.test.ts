@@ -44,7 +44,7 @@ describe("weekly subscription cards", () => {
     expect(v.comingDue[1].name).toContain("unmatched");
   });
   it("classifies declined payments separately and links to the source mailbox", () => {
-    expect(classifyDocument({ subject: "Your payment was declined", text: "We were unable to process your card" } as never)).toBe("failed-payment");
+    expect(classifyDocument("We were unable to process your card", "Your payment was declined")).toBe("failed-payment");
     expect(gmailLink("canerica14@gmail.com", "18f0a1b2c3d4")).toBe("https://mail.google.com/mail/?authuser=canerica14%40gmail.com#all/18f0a1b2c3d4");
     expect(gmailLink("x@y.com", "../bad")).toBe("");
   });
