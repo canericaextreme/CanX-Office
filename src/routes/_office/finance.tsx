@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { ArrowLeft, BadgeDollarSign, ChevronRight, FileText, Landmark, ReceiptText } from "lucide-react";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,13 +51,24 @@ interface Preview {
   duplicates: number;
 }
 
-function Finance() {
+type FinanceSection = "income" | "expenses" | "receipts" | "tax";
+
+const SECTION_LABELS: Record<FinanceSection, string> = {
+  income: "Income",
+  expenses: "Expenses",
+  receipts: "Receipts",
+  tax: "Tax prep",
+};
+
+export function Finance() {
   const owner = useOwnerSession();
   const fileInput = useRef<HTMLInputElement>(null);
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [notice, setNotice] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [section, setSection] = useState<FinanceSection | null>(null);
+  const sectionHeading = useRef<HTMLHeadingElement>(null);
 
   // Device-only records first. Private account records replace them once the
   // owner is signed in with two-step verification.
@@ -148,6 +160,20 @@ function Finance() {
     ? "Saved in your private CanX account"
     : "Saved on this device only — not shared, not backed up";
 
+  const openSection = (next: FinanceSection) => {
+    setSection(next);
+    setOpenId(null);
+    window.requestAnimationFrame(() => {
+      sectionHeading.current?.focus();
+      sectionHeading.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  };
+
+  const backToFinance = () => {
+    setSection(null);
+    setOpenId(null);
+  };
+
   // Gate: nothing below is rendered until the server has verified the owner.
   if (owner.state !== "owner") {
     return (
@@ -170,35 +196,95 @@ function Finance() {
     <RoomShell showSample={false}>
       <div className="grid gap-4">
         <OwnerSignIn />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "Income", value: "Unknown", note: "Unknown until reconciliation" },
-            { label: "Expenses", value: "Unknown", note: "Unknown until reconciliation" },
-            { label: "Receipts", value: String(summary.receipts), note: `${summary.needsReview} need review` },
-            { label: "Tax prep", value: "Not started", note: "Professional review needed" },
-          ].map((m) => (
-            <Card key={m.label} className="border-border bg-card">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">{m.label}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-semibold">{m.value}</div>
-                <p className="text-xs text-muted-foreground">{m.note}</p>
+        {section === null ? (
+          <>
+            <nav aria-label="Finance categories" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {([
+                { id: "income", label: "Income", value: "Unknown", note: "No reconciled income source", icon: BadgeDollarSign, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
+                { id: "expenses", label: "Expenses", value: "Unknown", note: "No reconciled payment source", icon: Landmark, border: "border-t-canx-blue", iconTone: "bg-canx-blue/10 text-canx-blue" },
+                { id: "receipts", label: "Receipts", value: String(summary.receipts), note: `${summary.needsReview} need review`, icon: ReceiptText, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
+                { id: "tax", label: "Tax prep", value: "Not started", note: "Records only — no tax advice", icon: FileText, border: "border-t-canx-blue", iconTone: "bg-canx-blue/10 text-canx-blue" },
+              ] as const).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Button key={item.id} type="button" variant="outline" onClick={() => openSection(item.id)}
+                    aria-label={`Open ${item.label}: ${item.value}. ${item.note}`}
+                    className={`group h-auto min-h-32 w-full items-start justify-between whitespace-normal border-border border-t-4 bg-card p-4 text-left hover:bg-secondary/60 ${item.border}`}>
+                    <span className="flex min-w-0 items-start gap-3">
+                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${item.iconTone}`}><Icon className="h-5 w-5" aria-hidden /></span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                        <span className="mt-1 block text-2xl font-semibold text-foreground">{item.value}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{item.note}</span>
+                      </span>
+                    </span>
+                    <ChevronRight className="mt-2 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                  </Button>
+                );
+              })}
+            </nav>
+            <BudgetPanel />
+          </>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="outline" onClick={backToFinance}><ArrowLeft className="h-4 w-4" aria-hidden /> Back to Finance</Button>
+            <h2 ref={sectionHeading} tabIndex={-1} className="text-xl font-semibold outline-none">{SECTION_LABELS[section]}</h2>
+          </div>
+        )}
+
+        {section === "income" && (
+          <Card className="border-t-4 border-t-canx-green bg-card">
+            <CardHeader><CardTitle className="text-base">Income records</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>No reconciled income records or connected income source are available in Finance.</p>
+              <p>Income remains Unknown. Nothing is estimated from receipts or subscription records.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {section === "expenses" && (
+          <>
+            <Card className="border-t-4 border-t-canx-blue bg-card">
+              <CardHeader><CardTitle className="text-base">Expense records</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>No connected payment source or reconciled expense total is available in Finance.</p>
+                <p>{summary.receipts} receipt{summary.receipts === 1 ? " is" : "s are"} available for review, but receipts are not treated as confirmed expenses.</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            <BudgetPanel />
+          </>
+        )}
 
-        <BudgetPanel />
+        {section === "tax" && (
+          <Card className="border-t-4 border-t-canx-blue bg-card">
+            <CardHeader><CardTitle className="text-base">Tax preparation records</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>Tax preparation has not started. This Office does not provide tax advice or determine tax treatment.</p>
+              {receipts.length === 0 ? <p>No receipt records are available for tax preparation.</p> : (
+                <>
+                  <p>{receipts.length} receipt record{receipts.length === 1 ? " is" : "s are"} available. {receipts.filter((r) => r.tax !== null).length} state a tax amount; {receipts.filter((r) => r.businessUsePercent !== null).length} have a business-use percentage recorded.</p>
+                  <ul aria-label="Receipts with tax preparation fields" className="space-y-2">
+                    {receipts.filter((r) => r.tax !== null || r.businessUsePercent !== null).map((r) => (
+                      <li key={r.id} className="rounded-md border border-border p-3 text-foreground"><span className="font-semibold">{r.vendor}</span> · Tax {r.tax === null ? "not stated" : `${r.currencySymbol}${r.tax}`} · Business use {r.businessUsePercent === null ? "not set" : `${r.businessUsePercent}%`}</li>
+                    ))}
+                  </ul>
+                  {!receipts.some((r) => r.tax !== null || r.businessUsePercent !== null) && <p>No receipt currently has a stated tax amount or business-use percentage.</p>}
+                </>
+              )}
+              <p className="text-xs">A qualified professional must review the source records and decide their tax treatment.</p>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="border-border bg-card">
+        {section === "receipts" && <>
+        <Card className="border-t-4 border-t-canx-green bg-card">
           <CardHeader>
             <CardTitle className="text-base">Receipt inbox — private file import</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              No mailbox is connected to this office, and nothing is scanned, sent, or changed in any mailbox. Receipts
-              arrive only when you choose a private receipts file yourself.
+              This section shows the receipt records currently available to Finance. A private receipts file can also be
+              reviewed here before import. Nothing is sent or deleted from email by this section.
             </p>
             <p className="text-xs font-semibold text-primary">Storage: {storageLabel}</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -417,6 +503,7 @@ function Finance() {
             </p>
           </CardContent>
         </Card>
+        </>}
       </div>
     </RoomShell>
   );
