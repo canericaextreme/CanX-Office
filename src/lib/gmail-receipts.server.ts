@@ -6,6 +6,7 @@ import {
   MAX_GMAIL_CANDIDATES,
   type CandidateDocument,
 } from "./receipt-ingestion";
+import { hasIgnoreSenderRules, shouldSkipMessage, type MailPreferences } from "./mail-preferences";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
 const TIMEOUT_MS = 20_000;
@@ -105,6 +106,8 @@ export interface GmailFetchResult {
   needsReview?: number;
   /** True when the per-page document cap stopped processing; page position must not advance. */
   documentCapHit?: boolean;
+  /** Messages skipped because of John's saved Ignore choices (not failures, not filed). */
+  ignored?: number;
 }
 
 /** Safety bound on documents (bodies + attachments) read from one page of messages. */
@@ -117,6 +120,7 @@ export async function fetchGmailReceiptCandidates(
   fetchImpl: typeof fetch = (input, init) => fetch(input, init),
   baseQuery: string = GMAIL_QUERY,
   pageTokens: Record<string, string> = {},
+  preferences: MailPreferences | null = null,
 ): Promise<GmailFetchResult> {
   // Read-only profile check: verifies which mailbox this connection is and
   // labels every document with it, so receipts keep their source provenance.
@@ -142,9 +146,30 @@ export async function fetchGmailReceiptCandidates(
   let fetchFailures = 0;
   let needsReview = 0;
   let documentCapHit = false;
+  let ignored = 0;
+  const senderRules = preferences ? hasIgnoreSenderRules(preferences) : false;
 
   for (const messageId of ids) {
     if (documentCapHit) break;
+    // John's saved choices are applied before any body or attachment is read.
+    if (preferences && shouldSkipMessage(preferences, mailbox, messageId, null)) {
+      ignored += 1;
+      continue;
+    }
+    if (preferences && senderRules) {
+      const meta = await gateway(settings, `/users/me/messages/${encodeURIComponent(messageId)}?format=metadata&metadataHeaders=From`, fetchImpl);
+      if (!meta.ok) {
+        unsupported += 1;
+        fetchFailures += 1; // unprocessed: page position is kept
+        continue;
+      }
+      const m = (await meta.json()) as { payload?: { headers?: Array<{ name?: string; value?: string }> } };
+      const fromHeader = String(m.payload?.headers?.find((h) => (h.name ?? "").toLowerCase() === "from")?.value ?? "");
+      if (shouldSkipMessage(preferences, mailbox, messageId, fromHeader)) {
+        ignored += 1;
+        continue;
+      }
+    }
     const response = await gateway(settings, `/users/me/messages/${encodeURIComponent(messageId)}?format=full`, fetchImpl);
     if (!response.ok) {
       unsupported += 1;
@@ -219,7 +244,7 @@ export async function fetchGmailReceiptCandidates(
   return {
     documents, checkpoint: String(Date.now()), unsupported, partial, mailbox,
     ...(listed.nextPageToken ? { nextPageToken: listed.nextPageToken } : {}), continued, continuationRejected, fetchFailures,
-    needsReview, documentCapHit,
+    needsReview, documentCapHit, ignored,
   };
 }
 

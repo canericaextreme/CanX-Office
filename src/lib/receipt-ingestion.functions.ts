@@ -75,6 +75,8 @@ export interface ReceiptSyncResult {
   subscriptionEvidenceDuplicates?: number;
   sentToReview?: number;
   notFiledPersonal?: number;
+  /** Messages skipped by John's saved Ignore choices (not failures, not filed). */
+  ignoredByPreference?: number;
   /** Per-mailbox outcome of this run (address, status, capped, items read). */
   mailboxes?: MailboxCheck[];
 }
@@ -117,10 +119,12 @@ export interface SyncDeps {
     evidence?: SubscriptionEvidence[];
     /** Per-mailbox Gmail continuation saved in the owner-only Finance doc. */
     continuation?: GmailContinuation;
+    /** John's saved Keep/Ignore choices (owner-only Finance doc). */
+    mailPreferences?: import("./mail-preferences").MailPreferences;
     /** Safe classified reason when ok is false. */
     failure?: import("./finance-read-diagnosis").FinanceReadFailure;
   }>;
-  fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean, query?: string, pageTokens?: Record<string, string>) => Promise<GmailFetchResult>;
+  fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean, query?: string, pageTokens?: Record<string, string>, preferences?: import("./mail-preferences").MailPreferences | null) => Promise<GmailFetchResult>;
   /** Saves the per-mailbox continuation (compare-and-swap). Absent = first-page-only. */
   saveContinuation?: (token: string, ownerId: string, next: GmailContinuation) => Promise<boolean>;
   /** Appends subscription evidence to the owner's Finance document, verified by readback. */
@@ -154,7 +158,8 @@ async function realDeps(): Promise<SyncDeps> {
       const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
       const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];
       const subs = await import("./subscriptions");
-      const doc = (row?.doc ?? {}) as { subscriptions?: unknown; subscriptionEvidence?: unknown; gmailContinuation?: unknown };
+      const doc = (row?.doc ?? {}) as { subscriptions?: unknown; subscriptionEvidence?: unknown; gmailContinuation?: unknown; mailPreferences?: unknown };
+      const mp = await import("./mail-preferences");
       return {
         ok: true,
         checkpoint: row?.gmail_sync_checkpoint ?? null,
@@ -162,10 +167,11 @@ async function realDeps(): Promise<SyncDeps> {
         subscriptions: subs.cleanSubscriptionList(doc.subscriptions ?? []) ?? [],
         evidence: subs.cleanEvidenceList(doc.subscriptionEvidence),
         continuation: cleanContinuation(doc.gmailContinuation),
+        mailPreferences: mp.cleanMailPreferences(doc.mailPreferences),
       };
     },
-    fetchCandidates: (settings, checkpoint, rescan, query, pageTokens) =>
-      gmail.fetchGmailReceiptCandidates(settings, checkpoint, rescan, undefined, query, pageTokens),
+    fetchCandidates: (settings, checkpoint, rescan, query, pageTokens, preferences) =>
+      gmail.fetchGmailReceiptCandidates(settings, checkpoint, rescan, undefined, query, pageTokens, preferences ?? null),
     saveContinuation: async (token, ownerId, next) => {
       const store = await import("./subscriptions-store.server");
       return store.saveGmailContinuation(token, ownerId, next);
@@ -265,9 +271,11 @@ export async function runReceiptSyncWith(
   let unprocessed = 0; // transient fetch failures (messages/attachments) — page repeats
   let needsReviewDocs = 0; // supported but unreadable documents (images/OCR, oversized)
   let capHit = false;
+  let ignoredByPreference = 0;
   for (const [slot, account] of accounts.entries()) {
     try {
-      const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query, pageTokens);
+      const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query, pageTokens, state.mailPreferences ?? null);
+      ignoredByPreference += result.ignored ?? 0;
       const mb = (result.mailbox || "").toLowerCase();
       if (result.continued) continuedAny = true;
       if (result.continuationRejected) rejectedAny = true;
@@ -446,10 +454,11 @@ export async function runReceiptSyncWith(
   const reviewNote = needsReviewDocs > 0
     ? ` ${needsReviewDocs} attachment(s) (for example image receipts) could not be read automatically and need your review in the original email.`
     : "";
+  const ignoreNote = ignoredByPreference > 0 ? ` ${ignoredByPreference} email(s) were skipped because of your saved Ignore choices (not read, not filed).` : "";
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkpointNote}${checkNote}`,
+    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review.${ignoreNote} Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkpointNote}${checkNote}`,
     ...summary,
     partial: finalPartial,
     mailboxesChecked: accounts.length - failedAccounts,
@@ -458,6 +467,7 @@ export async function runReceiptSyncWith(
     subscriptionEvidenceDuplicates: evidenceDuplicates,
     sentToReview,
     notFiledPersonal,
+    ignoredByPreference,
     mailboxes: checks,
   };
 }

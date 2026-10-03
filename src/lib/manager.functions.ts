@@ -23,6 +23,8 @@ import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server"
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { routeSkills } from "@/lib/office-skills";
 import { isExplicitReceiptSyncRequest, runReceiptSync } from "@/lib/receipt-ingestion.functions";
+import { parseMailRuleCommand, type MailRuleCommand } from "@/lib/mail-preferences";
+import { runMailRuleCommandWith } from "@/lib/mail-rule-command";
 import { protectedCategoryOf } from "@/lib/protected-actions";
 import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
 import {
@@ -1495,12 +1497,31 @@ export const getManagerStatus = createServerFn({ method: "POST" })
     computeManagerStatusWith(await realDeps(), data.accessToken),
   );
 
+async function runMailRuleCommand(accessToken: string, command: MailRuleCommand): Promise<ManagerReply> {
+  const { realMailPreferenceDeps } = await import("@/lib/mail-preferences.functions");
+  const out = await runMailRuleCommandWith(await realMailPreferenceDeps(), accessToken, command);
+  const reply: ManagerReply = {
+    ok: out.ok,
+    code: out.ok ? "ok" : out.authDenied ? "auth_not_ready" : "context_unavailable",
+    provider: "none",
+    state: out.ok ? "verified" : out.authDenied ? "auth_unavailable" : "configured_unverified",
+    model: null,
+    text: out.ok ? out.text : "",
+    toolCalls: [],
+    actionResults: [],
+  };
+  if (!out.ok) reply.detail = out.text;
+  return reply;
+}
+
 export const managerChat = createServerFn({ method: "POST" })
   .inputValidator(validate)
   .handler(async ({ data }): Promise<ManagerReply> => {
     // Raw conversation is temporary. Only an explicit save creates a Brain note.
     const latestRequest = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
     const request = data;
+    const mailCommand = parseMailRuleCommand(latestRequest);
+    if (mailCommand) return runMailRuleCommand(data.accessToken, mailCommand);
     if (isExplicitReceiptSyncRequest(latestRequest)) {
       const result = await runReceiptSync({
         accessToken: data.accessToken,
