@@ -57,6 +57,7 @@ import { roomTargetForRoute, snapshotForModel, snapshotRef, type RoomSnapshot } 
 import { namedOfficeRoom } from "./manager-room-commands";
 import { brainIndexForModel, requestNeedsBrain } from "./brain-index";
 import { registerForModel } from "./project-register";
+import { locatorsForModel } from "./project-locator";
 import { routeSkillsForRoom } from "./office-skills";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
@@ -196,7 +197,7 @@ export interface ManagerDeps {
   readRoomSnapshot?: (token: string, aal: string, route: string, buildId: string) => Promise<import("./room-snapshot").RoomSnapshot | null>;
   /** Fresh Brain category index (metadata only), read per request when relevant. */
   /** Owner's saved project register, read per request when relevant. */
-  readProjectRegister?: (token: string) => Promise<import("./project-register").RegisteredProject[] | null>;
+  readProjectRegister?: (token: string) => Promise<{ locators: import("./project-locator").Locator[]; tasksReadAt: string | null } | null>;
   readBrainIndex?: (token: string, aal: string) => Promise<import("./brain-index").BrainIndex | null>;
   readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
   /** Persist a completed turn for the server-verified owner id only. */
@@ -278,8 +279,8 @@ async function realDeps(): Promise<ManagerDeps> {
     },
     readProjectRegister: async (token) => {
       if (!config) return null;
-      const { readRegisterWith } = await import("./project-register.functions");
-      return (await readRegisterWith((p, i) => backend.restRequest(config, token, p, i)))?.projects ?? null;
+      const { readLocatorsWith } = await import("./project-register.functions");
+      return readLocatorsWith((p, i) => backend.restRequest(config, token, p, i));
     },
     readBrainIndex: async (token, aal) => {
       if (!config) return null;
@@ -1496,11 +1497,12 @@ export async function runManagerChatWith(
       brainContext = brain ? brainIndexForModel(brain, latestUser) : "CanX Brain index: could NOT be read for this request. Do not describe Brain categories or saved items.";
     }
     let projectContext = "";
-    if (/\bprojects?\b|lovable/i.test(latestUser) || data.currentRoute === "/projects") {
+    if (/\bprojects?\b|lovable|\bwhere is\b|what.?s next|next (step|move)|ready to (market|launch|sell)|\bmarket\b/i.test(latestUser) || data.currentRoute === "/projects") {
       if (verification.aal !== "aal2") projectContext = registerForModel([], "denied");
       else if (deps.readProjectRegister) {
         const reg = await deps.readProjectRegister(data.accessToken).catch(() => null);
-        projectContext = registerForModel(reg ?? [], reg ? "read" : "failed");
+        projectContext = registerForModel(reg?.locators.map((l) => l.project) ?? [], reg ? "read" : "failed");
+        if (reg) projectContext += "\n" + locatorsForModel(reg.locators, reg.tasksReadAt);
       }
     }
     const contextWithTeam = [documents.text, "", roomContext, "", brainContext, "", projectContext, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(

@@ -3,7 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
-import { getProjectRegister, setProjectCategory } from "@/lib/project-register.functions";
+import { getProjectRegister, setProjectCategory, setProjectPlan } from "@/lib/project-register.functions";
+import { ProjectLocatorPanel } from "./ProjectLocatorPanel";
+import type { Locator, ProjectPlan } from "@/lib/project-locator";
 import { PROJECT_CATEGORIES, countProjectCategories, type RegisteredProject } from "@/lib/project-register";
 
 /** Owner's register of real Lovable projects, read from saved records. Read-only towards the projects themselves. */
@@ -11,6 +13,9 @@ export function ProjectRegister() {
   const session = useOwnerSession();
   const read = useServerFn(getProjectRegister);
   const save = useServerFn(setProjectCategory);
+  const savePlan = useServerFn(setProjectPlan);
+  const [locators, setLocators] = useState<Map<string, Locator>>(new Map());
+  const [tasksReadAt, setTasksReadAt] = useState<string | null>(null);
   const [projects, setProjects] = useState<RegisteredProject[] | null>(null);
   const [checkedAt, setCheckedAt] = useState("");
   const [error, setError] = useState("");
@@ -22,13 +27,28 @@ export function ProjectRegister() {
 
   useEffect(() => {
     let active = true;
-    setProjects(null); setError("");
+    setError("");
     if (!session.accessToken || !session.stepUpComplete) return;
     void read({ data: { accessToken: session.accessToken } })
-      .then((r) => { if (!active) return; if (r.ok) { setProjects(r.projects); setCheckedAt(r.checkedAt); } else setError(r.message); })
+      .then((r) => { if (!active) return; if (r.ok) { setProjects(r.projects); setCheckedAt(r.checkedAt); setLocators(new Map(r.locators.map((l) => [l.project.projectId, l]))); setTasksReadAt(r.tasksReadAt); } else setError(r.message); })
       .catch(() => { if (active) setError("The project register could not be read."); });
     return () => { active = false; };
   }, [session.accessToken, session.stepUpComplete, read, refresh]);
+
+  // Stay current: re-read when John returns to this tab (after Work Board or Elsie actions elsewhere).
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState === "visible") setRefresh((n) => n + 1); };
+    document.addEventListener("visibilitychange", onFocus);
+    return () => document.removeEventListener("visibilitychange", onFocus);
+  }, []);
+
+  const plan = async (p: RegisteredProject, next: Partial<ProjectPlan>) => {
+    if (!session.accessToken || busy) return;
+    setBusy(p.projectId); setNotice("");
+    try { const r = await savePlan({ data: { accessToken: session.accessToken, projectId: p.projectId, plan: next } }); setNotice(r.message); if (r.ok) setRefresh((n) => n + 1); }
+    catch { setNotice("The plan was not saved. Nothing else changed."); }
+    finally { setBusy(null); }
+  };
 
   const counts = useMemo(() => countProjectCategories(projects ?? []), [projects]);
   const shown = useMemo(() => {
@@ -91,11 +111,12 @@ export function ProjectRegister() {
                   </select>
                 </label>
                 <p className="text-[11px] text-muted-foreground">{p.categoryManual ? `Filed by you (imported as ${p.importedCategory})` : `Imported category · ${p.categoryBasis}`}</p>
+                {locators.get(p.projectId) && <ProjectLocatorPanel key={`${p.projectId}-${locators.get(p.projectId)!.plan.savedAt ?? ""}`} loc={locators.get(p.projectId)!} busy={busy !== null} onSave={(next) => void plan(p, next)} />}
                 {p.issues.length > 0 && <p className="text-[11px] text-destructive">{p.issues.join("; ")}</p>}
               </article>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Read {new Date(checkedAt).toLocaleString()}. Each project's details are as checked on the date shown; there is no ongoing sync with Lovable. "Not tested" and "Not connected" mean exactly that.</p>
+          <p className="text-xs text-muted-foreground">Read {new Date(checkedAt).toLocaleString()}. Each project's details are as checked on the date shown; there is no ongoing sync with Lovable. Work Board {tasksReadAt ? `read ${new Date(tasksReadAt).toLocaleString()}` : "could not be read"}. "Not tested" and "Not connected" mean exactly that.</p>
         </>
       )}
     </section>

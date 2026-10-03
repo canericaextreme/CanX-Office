@@ -85,12 +85,15 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
   // Projects: the owner's saved project register (imported records), then names on tasks/documents.
   if (twoStep && notes) {
     const { buildRegister } = await import("./project-register");
+    const { plansFromRows, locate, tasksFromRows } = await import("./project-locator");
     const reg = buildRegister(notes);
+    const plans = plansFromRows(notes);
+    const taskRows = tasks ? tasksFromRows(tasks) : null;
     sources.push({ key: "projects", label: "Project register (saved Lovable project records)", status: "read", count: reg.projects.length, detail: "metadata as checked on each record's date; projects themselves untouched" });
     for (const p of reg.projects) items.push({
       key: `project:${p.projectId}`, kind: "project", title: p.name, room: "project-rooms", folder: p.category, at: p.sourceCheckedOn,
       provenance: `${p.provider} project register · category ${p.category}${p.categoryManual ? " (filed by John)" : ""}`, version: p.latestCommit ? `commit ${p.latestCommit.slice(0, 7)}` : null,
-      access: `register entry · health ${p.health} · live data ${p.liveDataAccess}`, defaultCategory: "projects", category: "projects", manual: false, route: "/projects",
+      access: (() => { const l = locate(p, plans.get(p.projectId), taskRows); return `register entry · stage ${l.stage} · next: ${l.nextMove.slice(0, 100)} · health ${p.health} · live data ${p.liveDataAccess}`; })(), defaultCategory: "projects", category: "projects", manual: false, route: "/projects",
     });
   } else if (!twoStep) sources.push({ key: "projects", label: "Project register (saved Lovable project records)", status: "denied", count: null, detail: "needs two-step verification" });
   // Projects: a derived view from explicit project names on tasks and documents.
