@@ -16,4 +16,6 @@
 
 ## Subscriptions and billing evidence
 - Subscription records and mail-derived billing evidence live as `subscriptions` / `subscriptionEvidence` / `subscriptionLastCheck` keys inside the owner-only `finance_receipts.doc`; every writer (including receipt saves) must preserve the other keys. Why: reuses existing owner/MFA row security with no schema migration.
+- Every write to `finance_receipts.doc` goes through `casUpdateFinanceDoc` (conditional PATCH on owner_id + updated_at, bounded retry, content-verified); never an unconditional upsert. Why: overlapping saves silently lost data.
+- Gmail paging resumes from per-mailbox `gmailContinuation` tokens in the same doc, advanced only after a fully fetched page and a verified write. Why: the capped first page otherwise repeats forever.
 - Mail evidence never overwrites John's confirmed cost or renewal date; unknown/conflicting senders are filed only as needs-review, personal-scoped services are not filed. Why: no automatic office-expense or tax claims.

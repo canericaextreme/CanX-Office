@@ -30,15 +30,11 @@ async function readDoc(backend: Backend, token: string) {
   return { ok: true as const, config, doc };
 }
 
-async function writeDoc(backend: Backend, token: string, ownerId: string, doc: Record<string, unknown>) {
+async function cas(backend: Backend, token: string, ownerId: string, mutate: (d: Record<string, unknown>) => Record<string, unknown> | null, verify: (d: Record<string, unknown>) => boolean) {
   const config = backend.readBackendConfig();
-  if (!config) return false;
-  const res = await backend.restRequest(config, token, "finance_receipts?on_conflict=owner_id", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify([{ owner_id: ownerId, doc, updated_at: new Date().toISOString() }]),
-  });
-  return res.ok;
+  if (!config) return { ok: false as const, reason: "read_failed" as const, attempts: 0 };
+  const { casUpdateFinanceDoc } = await import("./finance-doc-cas.server");
+  return casUpdateFinanceDoc({ rest: backend.restRequest as never, config, token, ownerId, mutate, verify });
 }
 
 async function audit(backend: Backend, token: string, ownerId: string, action: string, detail: Record<string, number>) {
@@ -67,51 +63,62 @@ export async function readSubscriptionState(token: string) {
 
 export async function saveSubscriptions(token: string, ownerId: string, subscriptions: SubscriptionRecord[]) {
   const backend = await import("./canx-backend.server");
-  const read = await readDoc(backend, token);
-  if (!read.ok || !read.doc) return false;
-  const stamped = subscriptions.map((s) => ({ ...s, updatedAt: new Date().toISOString() }));
-  if (!(await writeDoc(backend, token, ownerId, { ...read.doc, subscriptions: stamped }))) return false;
-  const back = await readDoc(backend, token);
-  const stored = Array.isArray(back.doc?.["subscriptions"]) ? (back.doc!["subscriptions"] as unknown[]) : null;
-  const ok = Boolean(stored && stored.length === stamped.length);
-  if (ok) await audit(backend, token, ownerId, "finance.subscriptions.save", { count: stamped.length });
-  return ok;
+  const { sameContent } = await import("./finance-doc-cas.server");
+  const stamp = new Date().toISOString();
+  const stamped = subscriptions.map((s) => ({ ...s, updatedAt: stamp }));
+  const res = await cas(backend, token, ownerId, (d) => ({ ...d, subscriptions: stamped }), (d) => sameContent(d["subscriptions"], stamped));
+  if (res.ok) await audit(backend, token, ownerId, "finance.subscriptions.save", { count: stamped.length });
+  return res.ok;
 }
 
 export async function setEvidenceReview(token: string, ownerId: string, id: string, review: SubscriptionEvidence["review"]) {
   const backend = await import("./canx-backend.server");
-  const read = await readDoc(backend, token);
-  if (!read.ok || !read.doc) return false;
-  const evidence = cleanEvidenceList(read.doc["subscriptionEvidence"]);
-  if (!evidence.some((e) => e.id === id)) return false;
-  const next = evidence.map((e) => (e.id === id ? { ...e, review } : e));
-  if (!(await writeDoc(backend, token, ownerId, { ...read.doc, subscriptionEvidence: next }))) return false;
-  const back = await readDoc(backend, token);
-  return cleanEvidenceList(back.doc?.["subscriptionEvidence"]).some((e) => e.id === id && e.review === review);
+  const res = await cas(
+    backend, token, ownerId,
+    (d) => {
+      const evidence = cleanEvidenceList(d["subscriptionEvidence"]);
+      if (!evidence.some((e) => e.id === id)) return null;
+      return { ...d, subscriptionEvidence: evidence.map((e) => (e.id === id ? { ...e, review } : e)) };
+    },
+    (d) => cleanEvidenceList(d["subscriptionEvidence"]).some((e) => e.id === id && e.review === review),
+  );
+  return res.ok;
 }
 
 export async function appendEvidence(token: string, ownerId: string, incoming: SubscriptionEvidence[]) {
   const backend = await import("./canx-backend.server");
-  const read = await readDoc(backend, token);
-  if (!read.ok || !read.doc) return { ok: false, added: 0, duplicates: 0 };
-  const merged = mergeEvidence(cleanEvidenceList(read.doc["subscriptionEvidence"]), incoming);
-  if (merged.added.length === 0) return { ok: true, added: 0, duplicates: merged.duplicates };
-  if (!(await writeDoc(backend, token, ownerId, { ...read.doc, subscriptionEvidence: merged.merged }))) {
-    return { ok: false, added: 0, duplicates: 0 };
-  }
-  const back = await readDoc(backend, token);
-  const stored = new Set(cleanEvidenceList(back.doc?.["subscriptionEvidence"]).map((e) => e.id));
-  const ok = merged.added.every((e) => stored.has(e.id));
-  if (ok) await audit(backend, token, ownerId, "finance.subscriptions.evidence", { added: merged.added.length });
-  return { ok, added: ok ? merged.added.length : 0, duplicates: merged.duplicates };
+  let added: SubscriptionEvidence[] = [];
+  let duplicates = 0;
+  const res = await cas(
+    backend, token, ownerId,
+    (d) => {
+      // Re-merged against the LATEST doc on every attempt, so a concurrent review status is kept.
+      const merged = mergeEvidence(cleanEvidenceList(d["subscriptionEvidence"]), incoming);
+      added = merged.added;
+      duplicates = merged.duplicates;
+      return { ...d, subscriptionEvidence: merged.merged };
+    },
+    (d) => {
+      const stored = new Map(cleanEvidenceList(d["subscriptionEvidence"]).map((e) => [e.id, e]));
+      return added.every((e) => stored.get(e.id)?.fingerprint === e.fingerprint && stored.get(e.id)?.messageId === e.messageId);
+    },
+  );
+  if (res.ok && added.length > 0) await audit(backend, token, ownerId, "finance.subscriptions.evidence", { added: added.length });
+  return { ok: res.ok, added: res.ok ? added.length : 0, duplicates: res.ok ? duplicates : 0 };
 }
 
-/** Records when both mailboxes were last checked, with scope and completeness. Verified by readback. */
+/** Records when both mailboxes were last checked, with scope and completeness. */
 export async function recordLastCheck(token: string, ownerId: string, check: LastCheck) {
   const backend = await import("./canx-backend.server");
-  const read = await readDoc(backend, token);
-  if (!read.ok || !read.doc) return false;
-  if (!(await writeDoc(backend, token, ownerId, { ...read.doc, subscriptionLastCheck: check }))) return false;
-  const back = await readDoc(backend, token);
-  return cleanLastCheck(back.doc?.["subscriptionLastCheck"])?.at === check.at;
+  const { sameContent } = await import("./finance-doc-cas.server");
+  const res = await cas(backend, token, ownerId, (d) => ({ ...d, subscriptionLastCheck: check }), (d) => sameContent(d["subscriptionLastCheck"], check));
+  return res.ok;
+}
+
+/** Per-mailbox Gmail continuation tokens (compare-and-swap, content-verified). */
+export async function saveGmailContinuation(token: string, ownerId: string, next: Record<string, { token: string; query: string; savedAt: string }>) {
+  const backend = await import("./canx-backend.server");
+  const { sameContent } = await import("./finance-doc-cas.server");
+  const res = await cas(backend, token, ownerId, (d) => ({ ...d, gmailContinuation: next }), (d) => sameContent(d["gmailContinuation"] ?? {}, next));
+  return res.ok;
 }
