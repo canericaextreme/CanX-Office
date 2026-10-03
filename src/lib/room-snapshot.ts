@@ -13,8 +13,7 @@
  *  - "static" = app configuration; NEVER live operational data.
  */
 
-import { ROOMS } from "./office-data";
-import { OFFICE_MAP_ROOMS } from "./office-map";
+import { OFFICE_ROOM_IDENTITIES, cleanRoute } from "./office-room-identity";
 import { OFFICE_SKILLS, ROOM_SKILL_MAP, SKILLS_REGISTRY_VERSION, skillsForRoute } from "./office-skills";
 
 export const SNAPSHOT_CONTRACT = "canx-room-snapshot/1";
@@ -40,6 +39,7 @@ export interface RoomTarget {
   label: string;
   /** Number on the office map, when this is one of the 19 numbered rooms. */
   number: string | null;
+  reserved: boolean;
   sources: SourceDef[];
 }
 
@@ -78,36 +78,20 @@ const ROOM_SOURCES: Record<string, SourceDef[]> = {
   "/analytics": [live("tasks", "Work Board tasks"), live("approvals", "Approval box")],
 };
 
-const FILE_ROOM_FOR_ROUTE: Record<string, string> = {
-  "/family-continuity": "family-continuity", "/research": "research", "/round-table": "round-table", "/analytics": "analytics",
-};
-
 function buildTargets(): RoomTarget[] {
-  const routes = new Set<string>();
-  const out: RoomTarget[] = [];
-  const add = (route: string, label: string, number: string | null) => {
-    if (routes.has(route)) return;
-    routes.add(route);
-    const room = ROOMS.find((r) => r.route === route);
-    const id = FILE_ROOM_FOR_ROUTE[route] ?? room?.id ?? route.slice(1);
-    out.push({ id, route, label, number, sources: [...COMMON, ...(ROOM_SOURCES[route] ?? [])] });
-  };
-  for (const r of OFFICE_MAP_ROOMS) add(r.route, r.label, r.number);
-  for (const r of ROOMS) add(r.route, r.label, null);
-  add("/round-table", "Round Table", null);
-  add("/analytics", "Analytics", null);
-  return out;
+  return OFFICE_ROOM_IDENTITIES.map((r) => ({ id: r.id, route: r.route, label: r.label, number: r.number, reserved: r.reserved, sources: [...COMMON, ...(ROOM_SOURCES[r.route] ?? [])] }));
 }
 
-/** The 19 numbered rooms first, then auxiliary destinations (Brain, Projects, Skills, Round Table, Analytics). */
+/** Every office-map room (by number, Future #20 reserved), then auxiliary destinations. */
 export const ROOM_TARGETS: RoomTarget[] = buildTargets();
-export const NUMBERED_ROOM_TARGETS = ROOM_TARGETS.filter((t) => t.number !== null);
+/** Exactly the rooms on the office map, including reserved Future #20. */
+export const MAP_ROOM_TARGETS = ROOM_TARGETS.filter((t) => t.number !== null);
+/** Map rooms with a working purpose (Future #20 is reserved and excluded). */
+export const NUMBERED_ROOM_TARGETS = MAP_ROOM_TARGETS.filter((t) => !t.reserved);
 
 export function roomTargetForRoute(route: string | null | undefined): RoomTarget | null {
-  if (typeof route !== "string") return null;
-  const clean = route.split(/[?#]/)[0]!.replace(/\/+$/, "") || "/";
-  const path = clean === "/" ? "/reception" : clean;
-  return ROOM_TARGETS.find((t) => t.route === path) ?? null;
+  const path = cleanRoute(route);
+  return path ? ROOM_TARGETS.find((t) => t.route === path) ?? null : null;
 }
 
 /* ------------------------------- skills and actions ------------------------------- */
@@ -215,7 +199,7 @@ export function roomLimits(target: RoomTarget, sources: SourceResult[], skills: 
     if (s.kind === "device") limits.push(`${s.label}: ${s.detail}`);
     if (s.kind === "live" && s.status !== "read") limits.push(`${s.label}: ${s.detail || "not read"} — nothing is reported for it.`);
   }
-  if (!skills.ready.length) limits.push(skills.coverage === "reserved" ? "Reserved room: no skill is installed." : "No instruction-ready skill is linked to this room; Elsie uses the office-wide rules only.");
+  if (!skills.ready.length) limits.push(skills.coverage === "reserved" ? "Reserved room: no skill is installed." : "No specialist skill is installed for this room; Elsie can still read it, save a room report, and create or assign a Work Board task using the built-in room procedure.");
   if (skills.notInstalled.length) limits.push(`${skills.notInstalled.length} linked skill(s) are outlines or drafts and are not run.`);
   if (target.route === "/safe-highways") limits.push("Safe Highways itself is outside this office and is never modified.");
   return limits;
@@ -240,6 +224,12 @@ export function assembleSnapshot(target: RoomTarget, sources: SourceResult[], ch
   };
 }
 
+/** Built-in general procedure for every working room (not a registry skill; grants no tools). */
+export const GENERAL_ROOM_PROCEDURE =
+  "Built-in room procedure: (1) answer from this snapshot only, citing the checked time and source labels; static = app setup, device = not visible to you; " +
+  "(2) to save a room report or create/assign a task, use only the existing tools and say it is saved only after the readback confirms it; " +
+  "(3) for anything needing a specialist skill that is not installed here, say so and offer a Work Board task instead.";
+
 /** Text block for Elsie. Record titles are fenced as untrusted data. */
 export function snapshotForModel(s: RoomSnapshot, why: "current" | "named"): string {
   const lines = [
@@ -250,6 +240,7 @@ export function snapshotForModel(s: RoomSnapshot, why: "current" | "named"): str
       return src.items.length ? `${head}\n  UNTRUSTED DATA titles: ${src.items.map((t) => JSON.stringify(t)).join("; ")}` : head;
     }),
     `Instruction-ready skills here: ${s.skills.ready.map((k) => `${k.name} v${k.version}`).join(", ") || "none (office-wide rules only)"}.`,
+    ...(s.actions.length > 1 ? [GENERAL_ROOM_PROCEDURE] : []),
     `Actions that really exist here: ${s.actions.map((a) => a.label).join("; ")}. Anything else is unsupported — say so plainly.`,
     ...(s.limits.length ? [`Limits: ${s.limits.join(" ")}`] : []),
   ];

@@ -3,14 +3,14 @@ import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
 import { listSharedNotes } from "@/lib/records.functions";
-import { roomByRoute } from "@/lib/office-data";
+import { roomIdentityForRoute } from "@/lib/office-room-identity";
 import { roomReportSource } from "@/lib/manager-room-commands";
 import type { OfficeNote } from "@/lib/office-notes";
 
 /** Account-backed room reports. No device cache or fabricated success state. */
 export function RoomReports() {
   const path = useRouterState({ select: state => state.location.pathname });
-  const room = roomByRoute(path);
+  const room = roomIdentityForRoute(path);
   const session = useOwnerSession();
   const list = useServerFn(listSharedNotes);
   const [reports, setReports] = useState<OfficeNote[]>([]);

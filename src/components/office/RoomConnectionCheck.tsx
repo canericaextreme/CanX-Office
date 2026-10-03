@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { deleteSharedNote, saveSharedNotes } from "@/lib/records.functions";
-import { ROOM_TARGETS, type RoomSnapshot } from "@/lib/room-snapshot";
+import { ROOM_TARGETS, MAP_ROOM_TARGETS, NUMBERED_ROOM_TARGETS, type RoomSnapshot } from "@/lib/room-snapshot";
 import { viewedSnapshot } from "@/lib/room-snapshot-store";
 import { roomReportSource } from "@/lib/manager-room-commands";
 import { currentBuildVersion } from "@/lib/office-health";
@@ -32,7 +32,7 @@ export function RoomConnectionCheck() {
   const [records, setRecords] = useState<Record<string, RoomCheckRecord>>(() => (typeof window === "undefined" ? {} : loadRoomChecks()));
   const [running, setRunning] = useState<string | null>(null);
   const buildId = currentBuildVersion();
-  const token = session.accessToken;
+  const token = session.stepUpComplete ? session.accessToken : null;
 
   const read = async (route: string): Promise<RoomSnapshot | string> => {
     const reply = await snapshotFn({ data: { accessToken: token ?? "", route, buildId } }).catch(() => null);
@@ -44,8 +44,8 @@ export function RoomConnectionCheck() {
     const before = snap.sources.find((s) => s.key === "reports");
     if (!before || before.status !== "read") return { ran: true, ok: false, detail: "Room reports could not be read before the test." };
     const id = crypto.randomUUID();
-    const title = `Connection check ${new Date().toISOString()} (temporary)`;
-    const saved = await saveFn({ data: { accessToken: token ?? "", notes: [{ id, kind: "decision", title, detail: "Temporary owner-run connection check; removed automatically.", owner: "John", provenance: "john", source: roomReportSource(snap.roomId), createdAt: new Date().toISOString() }] } }).catch(() => null);
+    const title = `[TEST] Room connection check ${new Date().toISOString()} — temporary, auto-removed`;
+    const saved = await saveFn({ data: { accessToken: token ?? "", notes: [{ id, kind: "decision", title, detail: "TEST RECORD from the owner-run room connection check in Build & Testing. Not a real report; it is deleted right after being re-read. If you see it, the removal failed — it is safe to delete.", owner: "John", provenance: "john", source: roomReportSource(snap.roomId), createdAt: new Date().toISOString() }] } }).catch(() => null);
     if (!saved?.ok || saved.data?.saved !== 1) return { ran: true, ok: false, detail: "Temporary report was not saved." };
     const afterSave = await read(snap.route);
     const seen = typeof afterSave !== "string" && afterSave.sources.some((s) => s.key === "reports" && s.status === "read" && s.count === (before.count ?? 0) + 1 && s.items.includes(title));
@@ -53,7 +53,7 @@ export function RoomConnectionCheck() {
     const afterDelete = await read(snap.route);
     const gone = typeof afterDelete !== "string" && afterDelete.sources.some((s) => s.key === "reports" && s.status === "read" && s.count === (before.count ?? 0) && !s.items.includes(title));
     if (!seen) return { ran: true, ok: false, detail: removed?.ok ? "Saved but not seen on re-read; temporary report removed." : "Saved but not seen on re-read, and removal was not confirmed — check Records." };
-    if (!removed?.ok || !gone) return { ran: true, ok: false, detail: "Seen on re-read, but removal was not confirmed — check Records for a 'Connection check' report." };
+    if (!removed?.ok || !gone) return { ran: true, ok: false, detail: "Seen on re-read, but removal was not confirmed — check Records for a '[TEST] Room connection check' report and delete it." };
     return { ran: true, ok: true, detail: "Saved, re-read, removed and re-read." };
   };
 
@@ -64,7 +64,7 @@ export function RoomConnectionCheck() {
       setRunning(target.label);
       const snap = await read(target.route);
       if (typeof snap === "string") { next[target.route] = failedRecord(target.route, target.label, buildId, snap); continue; }
-      const action = withSaveTest && target.route !== "/future" ? await saveTest(snap) : undefined;
+      const action = withSaveTest && !target.reserved ? await saveTest(snap) : undefined;
       next[target.route] = evaluateSnapshot(snap, action);
       setRecords({ ...next });
     }
@@ -79,16 +79,16 @@ export function RoomConnectionCheck() {
     <section aria-label="Elsie room connection check" className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-base font-semibold text-foreground">Elsie's room connections — owner check</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Checks every room Elsie can read ({ROOM_TARGETS.filter((t) => t.number).length} numbered rooms plus {ROOM_TARGETS.filter((t) => !t.number).length} other destinations) on this build ({buildId}). Only a signed-in run counts; automated test fixtures never do. No AI call is made.
+        Checks every room Elsie can read (all {MAP_ROOM_TARGETS.length} rooms on the office map — {NUMBERED_ROOM_TARGETS.length} working rooms plus reserved Future #20 — and {ROOM_TARGETS.length - MAP_ROOM_TARGETS.length} other pages) on this build ({buildId}). Only a signed-in run counts; automated test fixtures never do. No AI call is made.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" disabled={!token || !!running} onClick={() => void run(false)}>Check all rooms (read only)</Button>
         <Button size="sm" variant="outline" disabled={!token || !!running} onClick={() => void run(true)}>Check all rooms + reversible save test</Button>
       </div>
-      {!token && <p className="mt-2 text-xs text-muted-foreground">Sign in as the owner to run this check.</p>}
+      {!token && <p className="mt-2 text-xs text-muted-foreground">Sign in as the owner with your authenticator code to run this check. Nothing has been checked on this build until you do.</p>}
       {running && <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Checking {running}…</p>}
       <p className="mt-2 text-xs text-muted-foreground">
-        This build: {counts.verified ?? 0} verified · {counts.partial ?? 0} partly verified · {counts.failed ?? 0} failed · {counts.untested ?? 0} not tested. The save test adds one temporary report per room and removes it.
+        This build: {counts.verified ?? 0} verified · {counts.partial ?? 0} partly verified · {counts.failed ?? 0} failed · {counts.untested ?? 0} not tested. The save test adds one labelled [TEST] report per working room, re-reads it and deletes it; Future is read only.
       </p>
       <ul className="mt-3 space-y-1.5">
         {ROOM_TARGETS.map((t) => {

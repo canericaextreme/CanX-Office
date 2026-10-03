@@ -620,7 +620,7 @@ export function OfficeManager() {
       const reply = await observeRoom({ data: { accessToken: token, path: room.route,
         room: room.label, text: capture.observation.text, image: capture.observation.image } });
       if (!reply.ok) return out("read_failed", reply.detail || "The room review did not complete.");
-      setRoomReviews(current => ({ ...current, [room.id]: { roomId: room.id, at: new Date(reply.observedAt).toLocaleString(), text: reply.text, thumbnail: capture.observation.image } }));
+      setRoomReviews(current => ({ ...current, [room.id]: { roomId: room.id as import("@/lib/office-data").RoomId, at: new Date(reply.observedAt).toLocaleString(), text: reply.text, thumbnail: capture.observation.image } }));
       roomOutcomeRef.current = "read";
       return `${room.shortLabel}, checked ${new Date(reply.observedAt).toLocaleTimeString()}:\n${reply.text}`;
     } catch {
