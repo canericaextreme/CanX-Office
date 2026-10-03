@@ -355,7 +355,11 @@ export function zonedDate(instant: Date | string, timeZone = OFFICE_TIMEZONE): s
 export function formatZoned(instant: string, timeZone = OFFICE_TIMEZONE): string {
   const d = new Date(instant);
   if (Number.isNaN(d.getTime())) return "unknown time";
-  return new Intl.DateTimeFormat("en-CA", { timeZone, dateStyle: "medium", timeStyle: "short", timeZoneName: "short" }).format(d);
+  // dateStyle/timeStyle cannot be combined with timeZoneName (throws TypeError
+  // "Invalid option"), which crashed Subscriptions once a last-check time existed.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  }).format(d);
 }
 
 const addDays = (ymd: string, days: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
