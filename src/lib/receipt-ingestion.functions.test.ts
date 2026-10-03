@@ -132,4 +132,42 @@ describe("owner-only Gmail receipt sync", () => {
     const filed = deps.atomicWrite.mock.calls[0]?.[2] as Array<{ gmailMailbox?: string }>;
     expect(filed[0]?.gmailMailbox).toBe("canericaextreme@gmail.com");
   });
+  it("searches full history for every mailbox when more than one is linked", async () => {
+    const deps = base();
+    const second = { lovableApiKey: "x", connectionApiKey: "z" };
+    deps.gmailAccounts.mockReturnValue([settings, second]);
+    deps.readState.mockResolvedValue({ ok: true, checkpoint: "yesterday", receipts: [] });
+    await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
+    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(1, settings, null, false);
+    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(2, second, null, false);
+  });
+
+  it("keeps the old checkpoint after a partial failure so a retry misses nothing", async () => {
+    const deps = base();
+    const second = { lovableApiKey: "x", connectionApiKey: "z" };
+    deps.gmailAccounts.mockReturnValue([settings, second]);
+    deps.readState.mockResolvedValue({ ok: true, checkpoint: "yesterday", receipts: [] });
+    deps.fetchCandidates
+      .mockResolvedValueOnce({ documents: [], checkpoint: "today", unsupported: 0 })
+      .mockRejectedValueOnce(new Error("gmail_unavailable"));
+    await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
+    expect(deps.atomicWrite.mock.calls[0]?.[3]).toBe("yesterday");
+    deps.fetchCandidates.mockReset().mockResolvedValue({ documents: [], checkpoint: "later", unsupported: 0 });
+    await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
+    expect(deps.fetchCandidates).toHaveBeenNthCalledWith(2, second, null, false);
+  });
+
+  it("keeps candidates from every mailbox instead of truncating to the first", async () => {
+    const deps = base();
+    const second = { lovableApiKey: "x", connectionApiKey: "z" };
+    deps.gmailAccounts.mockReturnValue([settings, second]);
+    const doc = (id: string, mailbox: string) => ({ messageId: id, attachmentIdentity: "a", filename: "x.pdf", mimeType: "application/pdf", text: `Vendor: ${id} Total: CAD 20 Currency: CAD`, mailbox });
+    deps.fetchCandidates
+      .mockResolvedValueOnce({ documents: Array.from({ length: 25 }, (_, n) => doc(`e${n}`, "canericaextreme@gmail.com")), checkpoint: "now", unsupported: 0 })
+      .mockResolvedValueOnce({ documents: [doc("c1", "canerica14@gmail.com")], checkpoint: "now", unsupported: 0 });
+    deps.atomicWrite.mockImplementation(async (_t, _o, receipts) => ({ ok: true, filed: receipts, duplicates: 0, allReceipts: receipts }));
+    await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
+    const filed = deps.atomicWrite.mock.calls[0]?.[2] ?? [];
+    expect(filed.some((r) => r.gmailMailbox === "canerica14@gmail.com")).toBe(true);
+  });
 });
