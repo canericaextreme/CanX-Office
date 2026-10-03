@@ -264,6 +264,12 @@ async function realDeps(): Promise<ManagerDeps> {
       if (!config) return { text: "Documents unavailable", sources: [], gaps: ["Documents unavailable"] };
       return readDocumentContext((path, init) => backend.restRequest(config, token, path, init), request, previous);
     },
+    readRoomSnapshot: async (token, aal, route, buildId) => {
+      const target = roomTargetForRoute(route);
+      if (!config || !target) return null;
+      const { readRoomSnapshotWith } = await import("./room-snapshot.server");
+      return readRoomSnapshotWith({ config, token, aal, target, buildId, rest: backend.restRequest });
+    },
     recordTurn: async (token, ownerId, user, answer) => {
       if (!config) return { saved: false, pruned: false };
       const astra = await import("@/lib/astra-continuity");
