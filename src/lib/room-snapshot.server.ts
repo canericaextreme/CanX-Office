@@ -69,7 +69,7 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
     case "brain-index": {
       const { readBrainIndexWith } = await import("./brain-index.server");
       const { countByCategory, CATEGORY_LABELS } = await import("./brain-index");
-      const index = await readBrainIndexWith({ config: req.config, token: req.token, aal: req.aal, rest: req.rest, now: req.now });
+      const index = await readBrainIndexWith({ config: req.config, token: req.token, aal: req.aal, rest: req.rest, ...(req.now ? { now: req.now } : {}) });
       const bad = index.sources.filter((s) => s.status !== "read");
       const counts = countByCategory(index.items);
       return result(def, {
