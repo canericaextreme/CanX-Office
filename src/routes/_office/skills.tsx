@@ -12,10 +12,10 @@ import { OFFICE_MAP_ROOMS } from "@/lib/office-map";
 export const Route = createFileRoute("/_office/skills")({
   head: () => ({
     meta: [
-      { title: "Office Skills — CanX Office" },
-      { name: "description", content: "Versioned, source-backed CanX Office skills registry with instructions, status and provenance." },
-      { property: "og:title", content: "Office Skills — CanX Office" },
-      { property: "og:description", content: "Versioned, source-backed CanX Office skills registry." },
+      { title: "CanX Office" },
+      { name: "description", content: "Owner-only CanX operations workspace." },
+      { property: "og:title", content: "CanX Office" },
+      { property: "og:description", content: "Owner-only CanX operations workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
