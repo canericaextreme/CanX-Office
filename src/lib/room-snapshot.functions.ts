@@ -32,3 +32,25 @@ export const getRoomSnapshot = createServerFn({ method: "POST" })
     const snapshot = await readRoomSnapshotWith({ config, token: data.accessToken, aal: verified.aal, target, buildId: data.buildId, device: sanitizeDeviceSnapshot(data.device), rest: backend.restRequest });
     return { ok: true, snapshot };
   });
+
+/** Owner check only: is this exact temporary room report present? Read-only, two-step required. */
+export const checkRoomReportPresence = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    const raw = (input ?? {}) as { accessToken?: unknown; route?: unknown; id?: unknown };
+    return {
+      accessToken: typeof raw.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
+      route: typeof raw.route === "string" ? raw.route.slice(0, 200) : "",
+      id: typeof raw.id === "string" && /^[0-9a-f-]{36}$/i.test(raw.id) ? raw.id : "",
+    };
+  })
+  .handler(async ({ data }): Promise<{ presence: "present" | "absent" | "failed" }> => {
+    const target = roomTargetForRoute(data.route);
+    if (!target || !data.id) return { presence: "failed" };
+    const backend = await import("./canx-backend.server");
+    const config = backend.readBackendConfig();
+    if (!config) return { presence: "failed" };
+    const verified = await backend.verifySignedIn(data.accessToken);
+    if (!verified.ok || verified.aal !== "aal2") return { presence: "failed" };
+    const { readRoomReportPresenceWith } = await import("./room-snapshot.server");
+    return { presence: await readRoomReportPresenceWith({ config, token: data.accessToken, rest: backend.restRequest, roomId: target.id, id: data.id }) };
+  });

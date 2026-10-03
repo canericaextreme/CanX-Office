@@ -172,3 +172,12 @@ export async function readRoomSnapshotWith(req: SnapshotRequest): Promise<RoomSn
   const sources = await Promise.all(req.target.sources.map((def) => readSource(req, def, cache).catch(() => failed(def))));
   return assembleSnapshot(req.target, sources, (req.now?.() ?? new Date()).toISOString(), req.buildId ?? "unknown");
 }
+
+/** Exact-ID, owner-scoped (RLS) presence read of one room report. Failures are "failed", never "absent". */
+export async function readRoomReportPresenceWith(input: { config: BackendConfig; token: string; rest: SnapshotRest; roomId: string; id: string }): Promise<"present" | "absent" | "failed"> {
+  if (!input.id) return "failed";
+  const path = `office_notes?select=id&id=eq.${encodeURIComponent(input.id)}&source=eq.${encodeURIComponent(roomReportSource(input.roomId))}&limit=1`;
+  const res = await input.rest(input.config, input.token, path).catch(() => null);
+  if (!res?.ok || !Array.isArray(res.body)) return "failed";
+  return (res.body as Row[]).some((r) => r["id"] === input.id) ? "present" : "absent";
+}
