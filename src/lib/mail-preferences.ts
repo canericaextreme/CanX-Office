@@ -256,17 +256,37 @@ export type MailRuleCommand =
   | { kind: "remove"; sender: string }
   | { kind: "needs-address" };
 
+const ADDR = "([a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,24})";
+const SET_EXACT = new RegExp(`^(?:always\\s+)?(ignore|keep|download)\\s+(?:all\\s+)?(?:future\\s+)?(?:e-?mails?|mail|messages)\\s+from\\s+${ADDR}$`);
+const REMOVE_EXACT = new RegExp(`^(?:stop ignoring|stop keeping|(?:remove|forget|delete) (?:the )?(?:mail |email |sender )?rule (?:for|on))\\s+${ADDR}$`);
+const SET_INTENT = /^(?:always\s+)?(?:ignore|keep|download)\s+(?:all\s+)?(?:future\s+)?(?:e-?mails?|mail|messages)\s+from\b/;
+const REMOVE_INTENT = /^(?:stop ignoring|stop keeping|(?:remove|forget|delete) (?:the )?(?:mail |email |sender )?rule (?:for|on))\b/;
+
+/**
+ * Writes only for an ENTIRE unqualified command naming exactly one address
+ * (e.g. "ignore future emails from news@shop.com"). Anything conditional,
+ * quoted, compound, questioned or with two addresses returns needs-address,
+ * which changes nothing and explains the supported wording.
+ */
 export function parseMailRuleCommand(message: string): MailRuleCommand | null {
   const text = message.trim();
   if (text.length > 300 || /[\r\n]/.test(text)) return null;
-  const lower = text.toLowerCase().replace(/^(?:elsie|astra|data)[, :]*/, "").replace(/^please\s+/, "");
+  const lower = text.toLowerCase()
+    .replace(/^(?:elsie|astra|data)\s*[,:]?\s*/, "")
+    .replace(/^please\s+/, "")
+    .replace(/[.!]+$/, "")
+    .trim();
   if (/^(?:show|list|what are)\b.{0,30}\b(?:mail|email|sender)\s+(?:rules|preferences|filters)\b/.test(lower)) return { kind: "list" };
-  const addr = /([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24})/i.exec(text)?.[1] ?? "";
-  const sender = normalizeSender(addr);
-  if (/^(?:stop ignoring|remove (?:the )?(?:mail |email |sender )?rule (?:for|on)|forget (?:the )?(?:mail |email )?rule (?:for|on)|delete (?:the )?(?:mail |email |sender )?rule (?:for|on))\b/.test(lower)) {
-    return sender ? { kind: "remove", sender } : { kind: "needs-address" };
+  const intent = SET_INTENT.test(lower) ? "set" : REMOVE_INTENT.test(lower) ? "remove" : null;
+  if (!intent) return null;
+  const addrCount = (lower.match(new RegExp(ADDR, "g")) ?? []).length;
+  if (addrCount !== 1 || /["'“”‘’`?]/.test(lower)) return { kind: "needs-address" };
+  if (intent === "set") {
+    const m = SET_EXACT.exec(lower);
+    const sender = m ? normalizeSender(m[2] ?? "") : "";
+    return m && sender ? { kind: "set", sender, action: m[1] === "ignore" ? "ignore" : "keep" } : { kind: "needs-address" };
   }
-  const set = /^(always\s+)?(ignore|keep|download)\s+(?:all\s+)?(?:future\s+)?(?:e-?mails?|mail|messages)\s+from\b/.exec(lower);
-  if (set) return sender ? { kind: "set", sender, action: set[2] === "ignore" ? "ignore" : "keep" } : { kind: "needs-address" };
-  return null;
+  const m = REMOVE_EXACT.exec(lower);
+  const sender = m ? normalizeSender(m[1] ?? "") : "";
+  return m && sender ? { kind: "remove", sender } : { kind: "needs-address" };
 }
