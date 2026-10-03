@@ -1,8 +1,8 @@
 # Phase 1 bright office completion
 
 ## Active email-check status sheen (2026-10-03)
-- [ ] Show a gentle translucent yellow sweep only while the email check is actively running.
-- [ ] Keep completed partial results steady, clearly labelled, and verify reduced-motion/stopped-state behavior.
+- [x] Show a gentle translucent yellow sweep only while the email check is actively running.
+- [x] Keep completed partial results steady, clearly labelled, and verify reduced-motion/stopped-state behavior.
 - [ ] Keep the receipt-zero investigation outstanding; this visual change does not verify receipt filing.
 
 ## Subscription Watch and ChatGPT shortcut (2026-09-11)
