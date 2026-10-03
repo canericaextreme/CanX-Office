@@ -33,6 +33,8 @@ export interface ReceiptIngestionFields {
   gmailMessageId: string;
   attachmentIdentity: string;
   contentFingerprint: string;
+  /** Email address of the mailbox the document came from, verified via profile. */
+  gmailMailbox: string;
 }
 
 export type IngestibleReceipt = FinanceReceipt & ReceiptIngestionFields;
@@ -43,6 +45,8 @@ export interface CandidateDocument {
   filename: string;
   mimeType: string;
   text: string;
+  /** Verified email address of the source mailbox; empty when not yet resolved. */
+  mailbox?: string;
 }
 
 export interface ParsedCandidate {
@@ -141,6 +145,7 @@ export function parseReceiptCandidate(candidate: CandidateDocument): ParsedCandi
       gmailMessageId: candidate.messageId,
       attachmentIdentity: candidate.attachmentIdentity,
       contentFingerprint: fingerprint,
+      gmailMailbox: candidate.mailbox ?? "",
     },
   };
 }

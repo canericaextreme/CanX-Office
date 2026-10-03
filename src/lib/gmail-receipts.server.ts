@@ -15,10 +15,27 @@ export interface GmailSettings {
   connectionApiKey: string;
 }
 
-export function readGmailSettings(): GmailSettings | null {
+const MAX_LINKED_MAILBOXES = 5;
+
+/**
+ * One entry per Gmail connection linked to this project. Lovable names the
+ * first key GOOGLE_MAIL_API_KEY and each additional one GOOGLE_MAIL_API_KEY_2,
+ * _3, and so on. Only keys that actually exist are returned; none are invented.
+ */
+export function readGmailAccounts(): GmailSettings[] {
   const lovableApiKey = process.env["LOVABLE_API_KEY"]?.trim();
-  const connectionApiKey = process.env["GOOGLE_MAIL_API_KEY"]?.trim();
-  return lovableApiKey && connectionApiKey ? { lovableApiKey, connectionApiKey } : null;
+  if (!lovableApiKey) return [];
+  const accounts: GmailSettings[] = [];
+  for (let index = 1; index <= MAX_LINKED_MAILBOXES; index++) {
+    const envName = index === 1 ? "GOOGLE_MAIL_API_KEY" : `GOOGLE_MAIL_API_KEY_${index}`;
+    const connectionApiKey = process.env[envName]?.trim();
+    if (connectionApiKey) accounts.push({ lovableApiKey, connectionApiKey });
+  }
+  return accounts;
+}
+
+export function readGmailSettings(): GmailSettings | null {
+  return readGmailAccounts()[0] ?? null;
 }
 
 function decodeBase64Url(value: string): Uint8Array {
@@ -79,6 +96,12 @@ export async function fetchGmailReceiptCandidates(
   rescan: boolean,
   fetchImpl: typeof fetch = (input, init) => fetch(input, init),
 ): Promise<GmailFetchResult> {
+  // Read-only profile check: verifies which mailbox this connection is and
+  // labels every document with it, so receipts keep their source provenance.
+  const profile = await gateway(settings, "/users/me/profile", fetchImpl);
+  if (!profile.ok) throw new Error(profile.status === 401 || profile.status === 403 ? "gmail_authorization_required" : "gmail_unavailable");
+  const mailbox = String(((await profile.json()) as { emailAddress?: unknown }).emailAddress ?? "");
+
   const query = encodeURIComponent(rescan || !checkpoint ? GMAIL_QUERY : `${GMAIL_QUERY} after:${checkpoint}`);
   const list = await gateway(settings, `/users/me/messages?maxResults=${MAX_GMAIL_CANDIDATES}&q=${query}`, fetchImpl);
   if (!list.ok) throw new Error(list.status === 401 || list.status === 403 ? "gmail_authorization_required" : "gmail_unavailable");
@@ -130,6 +153,7 @@ export async function fetchGmailReceiptCandidates(
           filename,
           mimeType,
           text,
+          mailbox,
         });
       } catch {
         unsupported += 1;
