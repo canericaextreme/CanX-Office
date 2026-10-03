@@ -173,28 +173,34 @@ async function realDeps(): Promise<SyncDeps> {
     atomicWrite: async (token, ownerId, receipts, checkpoint) => {
       const config = backend.readBackendConfig();
       if (!config) return { ok: false, filed: [], duplicates: 0, allReceipts: [] };
-      const response = await backend.restRequest(config, token, "rpc/ingest_finance_receipts", {
-        method: "POST",
-        body: JSON.stringify({ _owner_id: ownerId, _candidates: receipts, _checkpoint: checkpoint }),
-      });
-      if (!response.ok || !response.body || typeof response.body !== "object") {
-        return { ok: false, filed: [], duplicates: 0, allReceipts: [] };
-      }
-      const body = response.body as { filed?: unknown; duplicates_skipped?: unknown };
-      const filed = Array.isArray(body.filed) ? (body.filed as IngestibleReceipt[]) : [];
-      const reread = await backend.restRequest(config, token, "finance_receipts?select=doc,ingested_receipts&limit=1");
-      const row = reread.ok && Array.isArray(reread.body) ? (reread.body[0] as { doc?: { receipts?: unknown }; ingested_receipts?: unknown }) : null;
-      const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
-      const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];
-      const filedVerified = filed.every((receipt) =>
-        ingested.some((stored) => (stored as Partial<IngestibleReceipt>).contentFingerprint === receipt.contentFingerprint),
+      const { ingestInBatches } = await import("./finance-ingest-batches");
+      // The deployed RPC accepts at most 25 candidates per call: send sequential batches.
+      return ingestInBatches(
+        {
+          rpc: async (candidates, cp) => {
+            const response = await backend.restRequest(config, token, "rpc/ingest_finance_receipts", {
+              method: "POST",
+              body: JSON.stringify({ _owner_id: ownerId, _candidates: candidates, _checkpoint: cp }),
+            });
+            if (!response.ok || !response.body || typeof response.body !== "object") return { ok: false, filed: [], duplicates: 0 };
+            const body = response.body as { filed?: unknown; duplicates_skipped?: unknown };
+            return {
+              ok: true,
+              filed: Array.isArray(body.filed) ? (body.filed as IngestibleReceipt[]) : [],
+              duplicates: typeof body.duplicates_skipped === "number" ? body.duplicates_skipped : 0,
+            };
+          },
+          reread: async () => {
+            const reread = await backend.restRequest(config, token, "finance_receipts?select=doc,ingested_receipts&limit=1");
+            const row = reread.ok && Array.isArray(reread.body) ? (reread.body[0] as { doc?: { receipts?: unknown }; ingested_receipts?: unknown }) : null;
+            const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
+            const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];
+            return { ok: reread.ok, ingested, all: [...legacy, ...ingested] };
+          },
+        },
+        receipts,
+        checkpoint,
       );
-      return {
-        ok: reread.ok && filedVerified,
-        filed,
-        duplicates: typeof body.duplicates_skipped === "number" ? body.duplicates_skipped : 0,
-        allReceipts: [...legacy, ...ingested],
-      };
     },
   };
 }
@@ -362,9 +368,19 @@ export async function runReceiptSyncWith(
     perMessage.set(key, { index: parsed.length, pdf });
     parsed.push(enriched);
   }
-  const written = await deps.atomicWrite(input.accessToken, owner.userId, parsed, nextCheckpoint);
+  // Receipts are written with the EXISTING checkpoint; it only advances after every
+  // batch, evidence and continuation write is verified (see end of this function).
+  const priorCheckpoint = state.checkpoint ?? "";
+  const written = await deps.atomicWrite(input.accessToken, owner.userId, parsed, priorCheckpoint);
   if (!written.ok) {
     await finishCheck(false);
+    if (written.filed.length > 0) {
+      return {
+        ...deny("write_unverified", `Partial Finance write: ${written.filed.length} receipt(s) were saved and confirmed, but the rest could not be saved or verified. The mailbox position and checkpoint were not advanced, so the next check repeats this page (already-saved receipts are skipped as duplicates).`),
+        filed: written.filed.length,
+        partial: true,
+      } as ReceiptSyncResult;
+    }
     return deny("write_unverified", "The Finance write could not be verified, so no receipt is reported as filed. Check the CanX database and retry.");
   }
 
@@ -403,7 +419,13 @@ export async function runReceiptSyncWith(
   }
   if (partial && Object.keys(nextContinuation).length > 0) continuationNote += " Run the check again to continue with older matching mail.";
   if (rejectedAny) continuationNote += " A saved position had expired, so the first page was read again.";
-  const writesVerified = !evidenceNote && continuationOk;
+  let writesVerified = !evidenceNote && continuationOk;
+  let checkpointNote = "";
+  if (writesVerified && nextCheckpoint !== priorCheckpoint) {
+    // Checkpoint-only call (no candidates) once everything else verified.
+    const adv = await deps.atomicWrite(input.accessToken, owner.userId, [], nextCheckpoint).catch(() => ({ ok: false }));
+    if (!adv.ok) { writesVerified = false; checkpointNote = " The sync checkpoint could not be advanced; the next check repeats this window."; }
+  }
   const { saved: lastCheckSaved } = await finishCheck(writesVerified);
   const finalPartial = partial || !writesVerified;
   const checkNote = deps.recordLastCheck && !lastCheckSaved ? " The last-check time could not be saved." : "";
@@ -416,7 +438,7 @@ export async function runReceiptSyncWith(
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkNote}`,
+    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkpointNote}${checkNote}`,
     ...summary,
     partial: finalPartial,
     mailboxesChecked: accounts.length - failedAccounts,
