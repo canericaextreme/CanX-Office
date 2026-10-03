@@ -394,6 +394,57 @@ export interface WeeklyView {
   comingDue: Array<{ name: string; date: string; basis: RenewalBasis; source: string; cost: string; subscriptionId: string | null; evidence: SubscriptionEvidence | null }>;
 }
 
+export type EvidenceDateBasis = "source-email" | "evidence-date" | "not-recorded";
+
+export interface EvidenceMonthGroup {
+  key: string;
+  label: string;
+  dateBasis: EvidenceDateBasis;
+  items: SubscriptionEvidence[];
+  needsReview: number;
+}
+
+/**
+ * Month grouping uses Gmail's receivedAt in Whitehorse first. Older records may
+ * fall back to their explicitly extracted document date; missing dates remain
+ * visibly separate rather than being assigned an invented email date.
+ */
+export function evidenceDate(evidence: SubscriptionEvidence): { day: string; basis: EvidenceDateBasis } {
+  if (evidence.receivedAt && !Number.isNaN(Date.parse(evidence.receivedAt))) {
+    return { day: zonedDate(evidence.receivedAt), basis: "source-email" };
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(evidence.documentDate) && !Number.isNaN(Date.parse(`${evidence.documentDate}T00:00:00Z`))) {
+    return { day: evidence.documentDate, basis: "evidence-date" };
+  }
+  return { day: "", basis: "not-recorded" };
+}
+
+const evidenceSortTime = (evidence: SubscriptionEvidence) => {
+  const date = evidenceDate(evidence);
+  if (!date.day) return 0;
+  return date.basis === "source-email" ? Date.parse(evidence.receivedAt ?? "") : Date.parse(`${date.day}T12:00:00Z`);
+};
+
+export function evidenceMonthGroups(evidence: SubscriptionEvidence[]): EvidenceMonthGroup[] {
+  const groups = new Map<string, SubscriptionEvidence[]>();
+  for (const item of evidence) {
+    const date = evidenceDate(item);
+    const key = date.day ? date.day.slice(0, 7) : "not-recorded";
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a === "not-recorded" ? 1 : b === "not-recorded" ? -1 : b.localeCompare(a))
+    .map(([key, items]) => ({
+      key,
+      label: key === "not-recorded"
+        ? "Date not recorded"
+        : new Intl.DateTimeFormat("en-CA", { timeZone: OFFICE_TIMEZONE, month: "long", year: "numeric" }).format(new Date(`${key}-15T12:00:00Z`)),
+      dateBasis: key === "not-recorded" ? "not-recorded" : items.some((item) => evidenceDate(item).basis === "source-email") ? "source-email" : "evidence-date",
+      items: items.slice().sort((a, b) => evidenceSortTime(b) - evidenceSortTime(a) || b.recordedAt.localeCompare(a.recordedAt)),
+      needsReview: items.filter((item) => item.review === "needs-review").length,
+    }));
+}
+
 const costText = (s: SubscriptionRecord | undefined) =>
   s?.knownCost ? `${s.knownCost.amount.toFixed(2)} ${s.knownCost.currency} (confirmed by ${s.knownCost.source})` : "Cost unknown";
 
