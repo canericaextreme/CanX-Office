@@ -89,6 +89,21 @@ const deny = (code: ReceiptSyncCode, message: string): ReceiptSyncResult => ({
   totalsByCurrency: [],
 });
 
+/** mailbox (lower-case) -> Gmail nextPageToken valid for exactly `query`. */
+export type GmailContinuation = Record<string, { token: string; query: string; savedAt: string }>;
+
+export function cleanContinuation(input: unknown): GmailContinuation {
+  const out: GmailContinuation = {};
+  if (!input || typeof input !== "object") return out;
+  for (const [k, v] of Object.entries(input as Record<string, unknown>).slice(0, 10)) {
+    const r = v as { token?: unknown; query?: unknown; savedAt?: unknown };
+    if (typeof r?.token === "string" && typeof r.query === "string" && r.token.length < 500) {
+      out[k.toLowerCase().slice(0, 200)] = { token: r.token, query: r.query.slice(0, 1400), savedAt: typeof r.savedAt === "string" ? r.savedAt : "" };
+    }
+  }
+  return out;
+}
+
 export interface SyncDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
   /** Every Gmail connection linked to this project; empty when none is linked. */
@@ -99,8 +114,12 @@ export interface SyncDeps {
     receipts: FinanceReceipt[];
     subscriptions?: SubscriptionRecord[];
     evidence?: SubscriptionEvidence[];
+    /** Per-mailbox Gmail continuation saved in the owner-only Finance doc. */
+    continuation?: GmailContinuation;
   }>;
-  fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean, query?: string) => Promise<GmailFetchResult>;
+  fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean, query?: string, pageTokens?: Record<string, string>) => Promise<GmailFetchResult>;
+  /** Saves the per-mailbox continuation (compare-and-swap). Absent = first-page-only. */
+  saveContinuation?: (token: string, ownerId: string, next: GmailContinuation) => Promise<boolean>;
   /** Appends subscription evidence to the owner's Finance document, verified by readback. */
   recordLastCheck?: (token: string, ownerId: string, check: LastCheck) => Promise<boolean>;
   writeEvidence?: (token: string, ownerId: string, evidence: SubscriptionEvidence[]) => Promise<{ ok: boolean; added: number; duplicates: number }>;
@@ -127,17 +146,22 @@ async function realDeps(): Promise<SyncDeps> {
       const legacy = Array.isArray(row?.doc?.receipts) ? (row.doc.receipts as FinanceReceipt[]) : [];
       const ingested = Array.isArray(row?.ingested_receipts) ? (row.ingested_receipts as FinanceReceipt[]) : [];
       const subs = await import("./subscriptions");
-      const doc = (row?.doc ?? {}) as { subscriptions?: unknown; subscriptionEvidence?: unknown };
+      const doc = (row?.doc ?? {}) as { subscriptions?: unknown; subscriptionEvidence?: unknown; gmailContinuation?: unknown };
       return {
         ok: true,
         checkpoint: row?.gmail_sync_checkpoint ?? null,
         receipts: [...legacy, ...ingested],
         subscriptions: subs.cleanSubscriptionList(doc.subscriptions ?? []) ?? [],
         evidence: subs.cleanEvidenceList(doc.subscriptionEvidence),
+        continuation: cleanContinuation(doc.gmailContinuation),
       };
     },
-    fetchCandidates: (settings, checkpoint, rescan, query) =>
-      gmail.fetchGmailReceiptCandidates(settings, checkpoint, rescan, undefined, query),
+    fetchCandidates: (settings, checkpoint, rescan, query, pageTokens) =>
+      gmail.fetchGmailReceiptCandidates(settings, checkpoint, rescan, undefined, query, pageTokens),
+    saveContinuation: async (token, ownerId, next) => {
+      const store = await import("./subscriptions-store.server");
+      return store.saveGmailContinuation(token, ownerId, next);
+    },
     recordLastCheck: async (token, ownerId, check) => {
       const store = await import("./subscriptions-store.server");
       return store.recordLastCheck(token, ownerId, check);
@@ -214,9 +238,27 @@ export async function runReceiptSyncWith(
   let authFailure = false;
   let partial = false;
   const checks: MailboxCheck[] = [];
+  // Continuation is only valid for the identical Gmail query; a rescan starts at page 1.
+  const queryKey = `${query}|${rescan ? "rescan" : sharedCheckpoint ?? ""}`;
+  const priorContinuation = state.continuation ?? {};
+  const pageTokens: Record<string, string> = {};
+  if (!rescan && deps.saveContinuation) {
+    for (const [mb, c] of Object.entries(priorContinuation)) if (c.query === queryKey) pageTokens[mb] = c.token;
+  }
+  const nextContinuation: GmailContinuation = { ...priorContinuation };
+  let continuedAny = false;
+  let rejectedAny = false;
   for (const [slot, account] of accounts.entries()) {
     try {
-      const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query);
+      const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query, pageTokens);
+      const mb = (result.mailbox || "").toLowerCase();
+      if (result.continued) continuedAny = true;
+      if (result.continuationRejected) rejectedAny = true;
+      // Advance only past a page whose every message was fetched; otherwise keep the old position.
+      if (mb && !(result.fetchFailures ?? 0)) {
+        if (result.nextPageToken) nextContinuation[mb] = { token: result.nextPageToken, query: queryKey, savedAt: new Date().toISOString() };
+        else delete nextContinuation[mb];
+      }
       documents.push(...result.documents.slice(0, MAX_GMAIL_CANDIDATES));
       unsupported += result.unsupported;
       checkpoint = result.checkpoint;
@@ -231,7 +273,7 @@ export async function runReceiptSyncWith(
   }
   const lastCheck: LastCheck = {
     at: new Date().toISOString(),
-    scope: `Past year, up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox; billing/renewal keywords and known service senders only — not the whole inbox.`,
+    scope: `Past year, one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox per check${deps.saveContinuation ? "; later checks continue to older pages" : " (first page only — no continuation)"}${continuedAny ? "; this check continued from an earlier one, so newer mail may need a fresh check" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`,
     complete: failedAccounts === 0 && !partial,
     mailboxes: checks,
   };
@@ -331,6 +373,15 @@ export async function runReceiptSyncWith(
     failedAccounts > 0
       ? ` ${failedAccounts} linked mailbox${failedAccounts === 1 ? "" : "es"} could not be read this time; re-authorize it and run again to include it.`
       : "";
+  let continuationNote = "";
+  if (deps.saveContinuation && !evidenceNote) {
+    const savedPos = await deps.saveContinuation(input.accessToken, owner.userId, nextContinuation).catch(() => false);
+    if (!savedPos) continuationNote = " The position for older mail could not be saved, so the next check will repeat this page.";
+  } else if (deps.saveContinuation && evidenceNote) {
+    continuationNote = " Because evidence was not saved, the next check will repeat this page.";
+  }
+  if (partial && Object.keys(nextContinuation).length > 0) continuationNote += " Run the check again to continue with older matching mail.";
+  if (rejectedAny) continuationNote += " A saved position had expired, so the first page was read again.";
   const checkNote = deps.recordLastCheck && !lastCheckSaved ? " The last-check time could not be saved." : "";
   const capNote = partial
     ? ` Partial check: Gmail had more matching mail than the ${MAX_GMAIL_CANDIDATES} per mailbox read this time, so not all mail was checked.`
@@ -338,7 +389,7 @@ export async function runReceiptSyncWith(
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${evidenceNote}${checkNote}`,
+    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${evidenceNote}${continuationNote}${checkNote}`,
     ...summary,
     partial,
     mailboxesChecked: accounts.length - failedAccounts,

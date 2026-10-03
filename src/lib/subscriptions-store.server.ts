@@ -114,3 +114,11 @@ export async function recordLastCheck(token: string, ownerId: string, check: Las
   const res = await cas(backend, token, ownerId, (d) => ({ ...d, subscriptionLastCheck: check }), (d) => sameContent(d["subscriptionLastCheck"], check));
   return res.ok;
 }
+
+/** Per-mailbox Gmail continuation tokens (compare-and-swap, content-verified). */
+export async function saveGmailContinuation(token: string, ownerId: string, next: Record<string, { token: string; query: string; savedAt: string }>) {
+  const backend = await import("./canx-backend.server");
+  const { sameContent } = await import("./finance-doc-cas.server");
+  const res = await cas(backend, token, ownerId, (d) => ({ ...d, gmailContinuation: next }), (d) => sameContent(d["gmailContinuation"] ?? {}, next));
+  return res.ok;
+}
