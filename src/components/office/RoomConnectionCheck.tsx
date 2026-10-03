@@ -73,7 +73,7 @@ export function RoomConnectionCheck() {
     setRunning(null);
   };
 
-  const counts = ROOM_TARGETS.reduce((acc, t) => { const s = statusForBuild(records[t.route], buildId); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+  const counts = ROOM_TARGETS.reduce((acc, t) => { const s = statusForBuild(records[t.route], buildId); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {} as Partial<Record<"verified" | "partial" | "failed" | "untested", number>>);
 
   return (
     <section aria-label="Elsie room connection check" className="rounded-lg border border-border bg-card p-4">
