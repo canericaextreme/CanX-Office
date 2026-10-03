@@ -8,7 +8,7 @@ const base = (): {
   [K in keyof SyncDeps]: ReturnType<typeof vi.fn<SyncDeps[K]>>;
 } => ({
   verifyOwner: vi.fn(async () => owner),
-  gmailSettings: vi.fn(() => settings),
+  gmailAccounts: vi.fn(() => [settings]),
   readState: vi.fn(async () => ({ ok: true, checkpoint: null, receipts: [] })),
   fetchCandidates: vi.fn(async () => ({ documents: [], checkpoint: "now", unsupported: 0 })),
   atomicWrite: vi.fn(async () => ({ ok: true, filed: [], duplicates: 0, allReceipts: [] })),
@@ -41,7 +41,7 @@ describe("owner-only Gmail receipt sync", () => {
 
   it("fails closed when the CanX connector is absent and never contacts Gmail or Finance", async () => {
     const deps = base();
-    deps.gmailSettings.mockReturnValue(null);
+    deps.gmailAccounts.mockReturnValue([]);
     const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "retrieve receipts" });
     expect(result.code).toBe("gmail_authorization_required");
     expect(deps.readState).not.toHaveBeenCalled();
@@ -89,5 +89,47 @@ describe("owner-only Gmail receipt sync", () => {
     expect(deps.fetchCandidates).toHaveBeenCalledWith(settings, null, true);
     expect(result.code).toBe("gmail_authorization_required");
     expect(deps.atomicWrite).not.toHaveBeenCalled();
+  });
+
+  it("checks every linked mailbox and files from the ones that respond", async () => {
+    const deps = base();
+    const second = { lovableApiKey: "x", connectionApiKey: "z" };
+    deps.gmailAccounts.mockReturnValue([settings, second]);
+    deps.fetchCandidates
+      .mockRejectedValueOnce(new Error("gmail_unavailable"))
+      .mockResolvedValueOnce({
+        documents: [{ messageId: "m2", attachmentIdentity: "a", filename: "x.pdf", mimeType: "application/pdf", text: "Vendor: B Total: CAD 20 Currency: CAD", mailbox: "canerica14@gmail.com" }],
+        checkpoint: "now",
+        unsupported: 0,
+      });
+    deps.atomicWrite.mockImplementation(async (_token, _owner, receipts) => ({ ok: true, filed: receipts, duplicates: 0, allReceipts: receipts }));
+    const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
+    expect(deps.fetchCandidates).toHaveBeenCalledTimes(2);
+    expect(result.ok).toBe(true);
+    expect(result.filed).toBe(1);
+    expect(result.message).toContain("1 linked mailbox could not be read");
+  });
+
+  it("fails honestly when every linked mailbox fails", async () => {
+    const deps = base();
+    deps.gmailAccounts.mockReturnValue([settings, { lovableApiKey: "x", connectionApiKey: "z" }]);
+    deps.fetchCandidates.mockRejectedValue(new Error("gmail_unavailable"));
+    const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
+    expect(result.code).toBe("gmail_unavailable");
+    expect(deps.atomicWrite).not.toHaveBeenCalled();
+  });
+
+  it("keeps the source mailbox on each filed receipt", async () => {
+    const deps = base();
+    deps.fetchCandidates.mockResolvedValue({
+      documents: [{ messageId: "m", attachmentIdentity: "a", filename: "x.pdf", mimeType: "application/pdf", text: "Vendor: A Total: CAD 10 Currency: CAD", mailbox: "canericaextreme@gmail.com" }],
+      checkpoint: "now",
+      unsupported: 0,
+    });
+    deps.atomicWrite.mockImplementation(async (_token, _owner, receipts) => ({ ok: true, filed: receipts, duplicates: 0, allReceipts: receipts }));
+    const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
+    expect(result.ok).toBe(true);
+    const filed = deps.atomicWrite.mock.calls[0]?.[2] as Array<{ gmailMailbox?: string }>;
+    expect(filed[0]?.gmailMailbox).toBe("canericaextreme@gmail.com");
   });
 });
