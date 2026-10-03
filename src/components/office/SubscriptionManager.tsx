@@ -17,26 +17,11 @@ import {
 } from "@/lib/subscriptions";
 import { CheckEmailsNow } from "@/components/office/CheckEmailsNow";
 import { WeeklySubscriptionCards } from "@/components/office/WeeklySubscriptionCards";
+import { SubscriptionEvidenceArchive } from "@/components/office/SubscriptionEvidenceArchive";
 import { MailReviewPanel, useMailPreferences } from "@/components/office/MailReviewPanel";
 import { visibleEvidence } from "@/lib/mail-preferences";
 import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
 import type { GmailScanConfig } from "@/lib/gmail-scan-window";
-
-const KIND_LABEL: Record<SubscriptionEvidence["kind"], string> = {
-  receipt: "Receipt (paid)",
-  "unpaid-invoice": "Invoice — unpaid as stated",
-  "renewal-notice": "Renewal notice",
-  "price-change": "Price change notice",
-  "failed-payment": "Failed / declined payment",
-  unknown: "Unclassified",
-};
-const MATCH_LABEL: Record<SubscriptionEvidence["matchStatus"], string> = {
-  matched: "Matched office service",
-  unknown: "Unknown sender — review",
-  conflict: "Several possible services — review",
-  personal: "Marked personal — not filed",
-  "unverified-sender": "Sender not yet verified — review",
-};
 
 const money = (amount: number | null, currency: string | null) =>
   amount === null ? "Unknown" : `${amount.toFixed(2)} ${currency ?? "(currency not stated)"}`;
@@ -201,30 +186,7 @@ export function SubscriptionManager() {
           persist(exists ? subs.map((s) => (s.id === rec.id ? rec : s)) : [...subs, rec]);
         }} />}
 
-        <section aria-label="Billing evidence from email">
-          <h3 className="text-sm font-semibold">Billing evidence from email ({review.length} to review)</h3>
-          <p className="text-xs text-muted-foreground">Found only when you ask Elsie to check receipts or subscriptions. Evidence never changes a confirmed cost or date. No tax or deductibility judgement is made.</p>
-          {shownEvidence.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">{prefsLoad.state === "loading" ? "Loading your saved mail choices…" : evidence.length ? "No active evidence — ignored emails are in Saved mail review → Ignored." : "No evidence recorded yet."}</p> : (
-            <ul className="mt-2 space-y-2">
-              {shownEvidence.slice().reverse().slice(0, 50).map((e) => (
-                <li key={e.id} className="rounded-md border border-border/50 p-2 text-xs">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium text-foreground">{KIND_LABEL[e.kind]} · {e.vendor || "Unknown sender"}</span>
-                    <StatusBadge tone={e.matchStatus === "matched" ? "green" : "yellow"} label={MATCH_LABEL[e.matchStatus]} />
-                  </div>
-                  <div className="text-muted-foreground">Amount: {money(e.amount, e.currency)} · Document date: {e.documentDate || "not stated"} · Renewal: {e.renewalDate ? `${e.renewalDate} (stated)` : "not stated"}</div>
-                  <div className="text-muted-foreground">Source: {e.mailbox || "linked mailbox"} · message {e.messageId.slice(0, 12)} · {e.review}</div>
-                  {e.review === "needs-review" && (
-                    <div className="mt-1 flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => mark(e.id, "reviewed")}>Mark reviewed</Button>
-                      <Button size="sm" variant="ghost" onClick={() => mark(e.id, "dismissed")}>Dismiss</Button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <SubscriptionEvidenceArchive evidence={shownEvidence} loading={prefsLoad.state === "loading"} onMark={mark} />
       </CardContent>
     </Card>
   );
