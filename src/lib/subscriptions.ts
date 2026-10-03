@@ -318,6 +318,8 @@ export interface MailboxCheck {
   /** True when Gmail had more matching mail than the capped page read. */
   partial: boolean;
   documents: number;
+  /** Gmail supplied another page token after this verified page. */
+  hasMore?: boolean;
 }
 
 export interface LastCheck {
@@ -339,6 +341,7 @@ export function cleanLastCheck(input: unknown): LastCheck | null {
       status: m?.status === "read" || m?.status === "authorization_required" ? m.status : "failed",
       partial: m?.partial === true,
       documents: typeof m?.documents === "number" ? m.documents : 0,
+      ...(m?.hasMore === true ? { hasMore: true } : {}),
     })),
   };
 }
