@@ -265,3 +265,13 @@ describe("strict mail rule commands (review fixes)", () => {
     expect(safeRuleDate("2026-10-03T10:00:00Z")).toBe("2026-10-03");
   });
 });
+
+describe("populated review with malformed rule date", () => {
+  it("renders without throwing", () => {
+    const prefs = { version: 1, messages: [], senders: [{ sender: "news@shop.com", action: "ignore", createdAt: "garbage", source: "owner-ui" }] } as any;
+    const html = renderToString(React.createElement(MailReviewView, { evidence: [], prefs, filter: "all", onFilter: () => {}, onChange: () => {}, busy: false, note: "" }));
+    expect(html).toContain("date unknown");
+    expect(html).toContain("Elsie remembers the choices you save");
+    expect(html).not.toContain("AI learning");
+  });
+});
