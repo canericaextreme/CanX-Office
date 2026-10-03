@@ -68,6 +68,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             Go home
           </a>
         </div>
+        <p className="mt-4 break-words text-xs text-muted-foreground" aria-label="Error reference">
+          Error reference: {error instanceof Error ? `${error.name}: ${error.message.slice(0, 120)}` : "unknown"}
+        </p>
       </div>
     </div>
   );
