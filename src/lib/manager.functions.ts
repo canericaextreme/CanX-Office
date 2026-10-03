@@ -1262,7 +1262,7 @@ async function executeToolCalls(
         // A worker is a read-only adviser: no tools, no approvals, no writes.
         const result = await workerConsultation(deps, {
           accessToken,
-          workerId: String(call.arguments["worker_id"] ?? ""),
+          workerId: normalizeWorkerId(String(call.arguments["worker_id"] ?? "")),
           room: String(call.arguments["room"] ?? ""),
           question: String(call.arguments["question"] ?? ""),
           taskId: String(call.arguments["task_id"] ?? "") || null,

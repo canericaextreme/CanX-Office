@@ -120,8 +120,22 @@ export const WORKER_SEATS: WorkerSeat[] = [
   },
 ];
 
+/**
+ * Known legacy ids the model has been observed to emit. Mapped at dispatch to
+ * the registered seat; any other unknown id still fails honestly.
+ */
+export const LEGACY_WORKER_ALIASES: Readonly<Record<string, string>> = {
+  "w-systems-security": "w-quality-security",
+};
+
+export function normalizeWorkerId(id: string): string {
+  const trimmed = id.trim();
+  return LEGACY_WORKER_ALIASES[trimmed.toLowerCase()] ?? trimmed;
+}
+
 export function workerById(id: string): WorkerSeat | null {
-  return WORKER_SEATS.find((seat) => seat.id === id) ?? null;
+  const key = normalizeWorkerId(id);
+  return WORKER_SEATS.find((seat) => seat.id === key) ?? null;
 }
 
 export function workerSeatsForRoom(roomId: RoomId): WorkerSeat[] {
