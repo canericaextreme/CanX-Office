@@ -53,6 +53,9 @@ import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCa
 import { isCodexStatusCommand } from "./codex-status-command";
 import { normalizeWorkerId } from "./manager-workers";
 import { executeTaskWith } from "./task-execution.server";
+import { roomTargetForRoute, snapshotForModel, snapshotRef, type RoomSnapshot } from "./room-snapshot";
+import { namedOfficeRoom } from "./manager-room-commands";
+import { routeSkillsForRoom } from "./office-skills";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
 const cleanTaskRisk = (value: unknown): RiskLevel =>
@@ -131,6 +134,10 @@ export interface ManagerReply {
   checked?: VerificationReceipt;
   /** Office Skills the deterministic router loaded for this turn (id/version only; no content). */
   skillsUsed?: { registryVersion: string; skills: Array<{ id: string; name: string; version: string }> };
+  /** Exactly which room reads this answer used (checked time + fingerprint). */
+  roomSnapshots?: import("./room-snapshot").SnapshotRef[];
+  /** Readback of the room after a saved action in this turn. */
+  roomReadback?: import("./room-snapshot").SnapshotRef[];
   /** Labelled worker answers returned during this turn, with their evidence. */
   consultations?: ConsultReply[];
   /**
@@ -183,6 +190,8 @@ export interface ManagerDeps {
   now?: () => Date;
   /** Elsie continuity read, scoped to the server-verified owner id only. */
   readDocuments?: (token: string, request: string, previous: string) => Promise<import("./document-knowledge").DocumentContext>;
+  /** Fresh owner-scoped room snapshot, read per request (never a startup copy). */
+  readRoomSnapshot?: (token: string, aal: string, route: string, buildId: string) => Promise<import("./room-snapshot").RoomSnapshot | null>;
   readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
   /** Persist a completed turn for the server-verified owner id only. */
   recordTurn?: (token: string, ownerId: string, user: string, answer: string) => Promise<{ saved: boolean; pruned: boolean }>;
@@ -735,6 +744,22 @@ export interface ChatInput {
   messages: { role: "user" | "assistant"; content: string }[];
   /** Office team roster. Device-only records John maintains in the Office Team room. */
   team?: { name: string; role: string; room: string }[];
+  /** Validated route of the room John has open when this request was sent. */
+  currentRoute?: string;
+  buildId?: string;
+}
+
+/**
+ * Rooms to read fresh for this request: a room John names explicitly comes
+ * first (it overrides "this room"); the open room is added when different.
+ */
+export function roomsForRequest(latestUser: string, currentRoute: string | undefined): Array<{ route: string; why: "current" | "named" }> {
+  const named = namedOfficeRoom(latestUser);
+  const namedTarget = named ? roomTargetForRoute(named.route) : null;
+  const out: Array<{ route: string; why: "current" | "named" }> = [];
+  if (namedTarget && namedTarget.route !== currentRoute) out.push({ route: namedTarget.route, why: "named" });
+  if (currentRoute && roomTargetForRoute(currentRoute)) out.push({ route: currentRoute, why: "current" });
+  return out.slice(0, 2);
 }
 
 const MAX_TEAM = 24;
@@ -786,10 +811,15 @@ function validate(input: unknown): ChatInput {
     )
     .slice(-MAX_MESSAGES)
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
+  const route = (raw as { currentRoute?: unknown } | undefined)?.currentRoute;
+  const buildId = (raw as { buildId?: unknown } | undefined)?.buildId;
   return {
     accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
     team: sanitizeTeam((raw as { team?: unknown } | undefined)?.team),
     messages: clean,
+    // Only a known office room route is kept; anything else is dropped.
+    ...(typeof route === "string" && roomTargetForRoute(route) ? { currentRoute: roomTargetForRoute(route)!.route } : {}),
+    ...(typeof buildId === "string" ? { buildId: buildId.slice(0, 80) } : {}),
   };
 }
 
