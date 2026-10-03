@@ -56,6 +56,7 @@ import { executeTaskWith } from "./task-execution.server";
 import { roomTargetForRoute, snapshotForModel, snapshotRef, type RoomSnapshot } from "./room-snapshot";
 import { namedOfficeRoom } from "./manager-room-commands";
 import { brainIndexForModel, requestNeedsBrain } from "./brain-index";
+import { registerForModel } from "./project-register";
 import { routeSkillsForRoom } from "./office-skills";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
@@ -194,6 +195,8 @@ export interface ManagerDeps {
   /** Fresh owner-scoped room snapshot, read per request (never a startup copy). */
   readRoomSnapshot?: (token: string, aal: string, route: string, buildId: string) => Promise<import("./room-snapshot").RoomSnapshot | null>;
   /** Fresh Brain category index (metadata only), read per request when relevant. */
+  /** Owner's saved project register, read per request when relevant. */
+  readProjectRegister?: (token: string) => Promise<import("./project-register").RegisteredProject[] | null>;
   readBrainIndex?: (token: string, aal: string) => Promise<import("./brain-index").BrainIndex | null>;
   readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
   /** Persist a completed turn for the server-verified owner id only. */
@@ -272,6 +275,11 @@ async function realDeps(): Promise<ManagerDeps> {
       if (!config || !target) return null;
       const { readRoomSnapshotWith } = await import("./room-snapshot.server");
       return readRoomSnapshotWith({ config, token, aal, target, buildId, rest: backend.restRequest });
+    },
+    readProjectRegister: async (token) => {
+      if (!config) return null;
+      const { readRegisterWith } = await import("./project-register.functions");
+      return (await readRegisterWith((p, i) => backend.restRequest(config, token, p, i)))?.projects ?? null;
     },
     readBrainIndex: async (token, aal) => {
       if (!config) return null;
@@ -1487,7 +1495,15 @@ export async function runManagerChatWith(
       const brain = await deps.readBrainIndex(data.accessToken, verification.aal).catch(() => null);
       brainContext = brain ? brainIndexForModel(brain, latestUser) : "CanX Brain index: could NOT be read for this request. Do not describe Brain categories or saved items.";
     }
-    const contextWithTeam = [documents.text, "", roomContext, "", brainContext, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
+    let projectContext = "";
+    if (/\bprojects?\b|lovable/i.test(latestUser) || data.currentRoute === "/projects") {
+      if (verification.aal !== "aal2") projectContext = registerForModel([], "denied");
+      else if (deps.readProjectRegister) {
+        const reg = await deps.readProjectRegister(data.accessToken).catch(() => null);
+        projectContext = registerForModel(reg ?? [], reg ? "read" : "failed");
+      }
+    }
+    const contextWithTeam = [documents.text, "", roomContext, "", brainContext, "", projectContext, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
       "\n",
     );
     // The receipt describes the exact context this answer was built from, so

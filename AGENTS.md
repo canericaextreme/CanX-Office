@@ -15,12 +15,7 @@
 - Populated room components are exported (e.g. `SavedFileList`) and covered by fixture-render tests. Why: empty-state tests missed the Brain tooltip crash.
 
 ## Subscriptions and billing evidence
-- Subscription records and mail-derived billing evidence live as `subscriptions` / `subscriptionEvidence` / `subscriptionLastCheck` keys inside the owner-only `finance_receipts.doc`; every writer (including receipt saves) must preserve the other keys. Why: reuses existing owner/MFA row security with no schema migration.
-- Every write to `finance_receipts.doc` goes through `casUpdateFinanceDoc` (conditional PATCH on owner_id + updated_at, bounded retry, content-verified); never an unconditional upsert. Why: overlapping saves silently lost data.
-- Gmail paging resumes from per-mailbox `gmailContinuation` tokens in the same doc, advanced only after a fully fetched page and a verified write. Why: the capped first page otherwise repeats forever.
-- Every supported body/attachment from a fetched page is processed (no document truncation); attachment fetch failures or the per-page document cap keep the page position, and lastCheck.complete is written only after receipt, evidence and continuation writes verify. Why: dropped parts were silently skipped.
-- Receipt ingestion calls the deployed `ingest_finance_receipts` RPC in sequential batches of at most 25 (`finance-ingest-batches.ts`) with the existing checkpoint; the checkpoint advances only via a final candidate-free call after all batches, evidence and continuation verify, and readback must find every candidate fingerprint. Why: the SQL rejects >25 candidates.
-- Mail evidence never overwrites John's confirmed cost or renewal date; unknown/conflicting senders are filed only as needs-review, personal-scoped services are not filed. Why: no automatic office-expense or tax claims.
+- Finance/Gmail/receipt rules: see `src/lib/AGENTS.md`.
 
 ## Office Skills
 - Canonical skill instructions and the registry live in `src/lib/office-skills.ts` (versioned, with provenance from John's skills map); never fetched from a ChatGPT Skill Library at runtime. Why: Elsie must stay independent of ChatGPT and Lovable.
@@ -33,3 +28,5 @@
 - Every room view (RoomAccessBar) and every typed/voice Elsie request read the same owner-token snapshot contract (`src/lib/room-snapshot*.ts`); sources are labelled live/device/static, Finance-doc sources need AAL2, and a room counts as verified only after the owner runs Build & Testing's room check on the current build. Why: one truthful source for John and Elsie, never a green light from connectivity alone.
 
 - Brain is the Office hub: `src/lib/brain-index*.ts` indexes existing records into Downloads/Knowledge/Discussions/Memory/Projects/Rules & Skills by explicit provenance only (unknown → Needs a category); manual filing is a separate deterministic-id label row in office_notes (source "Brain index: category") with readback, never a move. The same index feeds BrainHub, the /brain room snapshot and Elsie per request (metadata only). Why: one categorized registry without schema changes or touching originals.
+
+- Project register (`src/lib/project-register*.ts`) is built only from saved owner office_notes with source "Lovable project import"; category changes are separate label rows (source "Project register: category", read back), never edits to import records, and the app never seeds project records. Why: imported metadata must stay intact and real.
