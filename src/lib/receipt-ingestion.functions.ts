@@ -66,7 +66,8 @@ const deny = (code: ReceiptSyncCode, message: string): ReceiptSyncResult => ({
 
 export interface SyncDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
-  gmailSettings: () => GmailSettings | null;
+  /** Every Gmail connection linked to this project; empty when none is linked. */
+  gmailAccounts: () => GmailSettings[];
   readState: (token: string) => Promise<{ ok: boolean; checkpoint: string | null; receipts: FinanceReceipt[] }>;
   fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean) => Promise<GmailFetchResult>;
   atomicWrite: (
@@ -82,7 +83,7 @@ async function realDeps(): Promise<SyncDeps> {
   const gmail = await import("./gmail-receipts.server");
   return {
     verifyOwner: backend.verifyOwner,
-    gmailSettings: gmail.readGmailSettings,
+    gmailAccounts: gmail.readGmailAccounts,
     readState: async (token) => {
       const config = backend.readBackendConfig();
       if (!config) return { ok: false, checkpoint: null, receipts: [] };
@@ -136,8 +137,8 @@ export async function runReceiptSyncWith(
   }
   const owner = await deps.verifyOwner(input.accessToken);
   if (!owner.ok) return deny("auth_not_ready", owner.message);
-  const settings = deps.gmailSettings();
-  if (!settings) {
+  const accounts = deps.gmailAccounts();
+  if (accounts.length === 0) {
     return deny(
       "gmail_authorization_required",
       "Receipt retrieval is ready, but the CanX Gmail connection must be authorized for this project first. No mailbox or Finance record was touched.",
@@ -146,15 +147,32 @@ export async function runReceiptSyncWith(
   const state = await deps.readState(input.accessToken);
   if (!state.ok) return deny("database_unavailable", "Finance records could not be read, so Gmail was not contacted and nothing was filed.");
 
-  let fetched: GmailFetchResult;
-  try {
-    fetched = await deps.fetchCandidates(settings, state.checkpoint, RESCAN_INTENT.test(input.request));
-  } catch (error) {
+  // Each linked mailbox is checked in turn. A mailbox that fails does not
+  // block the others, but its failure is reported honestly in the summary.
+  const rescan = RESCAN_INTENT.test(input.request);
+  const documents: GmailFetchResult["documents"] = [];
+  let unsupported = 0;
+  let checkpoint = state.checkpoint ?? "";
+  let failedAccounts = 0;
+  let authFailure = false;
+  for (const account of accounts) {
+    try {
+      const result = await deps.fetchCandidates(account, state.checkpoint, rescan);
+      documents.push(...result.documents);
+      unsupported += result.unsupported;
+      checkpoint = result.checkpoint;
+    } catch (error) {
+      failedAccounts += 1;
+      if (error instanceof Error && error.message === "gmail_authorization_required") authFailure = true;
+    }
+  }
+  if (failedAccounts === accounts.length) {
     return deny(
-      error instanceof Error && error.message === "gmail_authorization_required" ? "gmail_authorization_required" : "gmail_unavailable",
+      authFailure ? "gmail_authorization_required" : "gmail_unavailable",
       "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
     );
   }
+  const fetched: GmailFetchResult = { documents, checkpoint: checkpoint || String(Date.now()), unsupported };
 
   const parsed: IngestibleReceipt[] = [];
   let malformed = fetched.unsupported;
