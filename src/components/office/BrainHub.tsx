@@ -19,7 +19,7 @@ const when = (s: string | null) => { if (!s) return "date unknown"; const d = ne
 
 /** Brain as the hub of the whole Office: categories, search, counts, provenance, manual filing. */
 /** `fixture` is only for fixture-render tests: shows a supplied index without reading the database. */
-export function BrainHub({ fixture }: { fixture?: BrainIndex } = {}) {
+export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
   const session = useOwnerSession();
   const read = useServerFn(getBrainIndex);
   const file = useServerFn(setBrainCategory);

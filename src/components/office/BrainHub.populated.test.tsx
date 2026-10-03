@@ -4,6 +4,7 @@ import { renderToString } from "react-dom/server";
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children: React.ReactNode }) => React.createElement("a", null, children) }));
+vi.mock("@/lib/brain-index.functions", () => ({ getBrainIndex: {}, setBrainCategory: {} }));
 vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => ({ accessToken: "fixture", stepUpComplete: true }) }));
 import { BrainHub } from "./BrainHub";
 import type { BrainIndex, BrainItem } from "@/lib/brain-index";
