@@ -2,6 +2,8 @@
 
 import { SILENT_AUDIO_DATA_URL } from "./use-manager-voice";
 import { voiceProviderFailure } from "./voice-provider-error";
+
+export const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 import { VoiceTurnError, voiceDiagnostic } from "./voice-turn-outcome";
 import { recordVoiceDiag } from "./voice-diagnostics";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -606,7 +608,9 @@ export function useRealtimeManager(
       const localSdp = pc.localDescription?.sdp;
       if (!localSdp) throw new Error("Missing local SDP offer");
       const answer = await fetch(
-        `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(session.model)}`,
+        // Official GA WebRTC flow: the model is already fixed in the minted
+        // session, so the SDP exchange posts to /v1/realtime/calls unqualified.
+        REALTIME_CALLS_URL,
         {
           method: "POST", body: localSdp, signal: abort.signal,
           headers: { Authorization: `Bearer ${session.clientSecret}`, "Content-Type": "application/sdp" },
@@ -616,7 +620,7 @@ export function useRealtimeManager(
       if (!answer.ok) {
         const body: unknown = await answer.json().catch(() => null);
         if (!current()) return;
-        fail(voiceProviderFailure(answer.status, body, answer.headers.get("retry-after")));
+        fail(voiceProviderFailure(answer.status, body, answer.headers.get("retry-after"), "voice handshake"));
         return;
       }
       const sdp = await answer.text();
