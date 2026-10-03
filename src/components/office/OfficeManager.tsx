@@ -900,7 +900,9 @@ export function OfficeManager() {
         setComposerCollapsed(true);
         setDelivery("Received — Elsie returned a reply. This does not mean the requested work is complete.");
         const answerId = `${turnId}-a`;
-        const answer = reply.text || "(The provider returned an empty answer.)";
+        const roomNote = roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute));
+        if (reply.roomSnapshots?.length || reply.roomReadback?.length) requestRoomRefresh("elsie-reply");
+        const answer = [reply.text || "(The provider returned an empty answer.)", roomNote].filter(Boolean).join("\n\n");
         if (realtimeManager.on) realtimeManager.say(answer);
         const answerMessage: ChatMessage = {
           id: answerId,
