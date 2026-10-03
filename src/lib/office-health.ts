@@ -19,7 +19,7 @@ export interface CheckResult {
   status: CheckStatus;
   at: string; // ISO time
   version: string; // build fingerprint the check ran against
-  note?: string;
+  note?: string | undefined;
 }
 
 /** Rooms that render saved owner data — each must be opened signed-in after every publish. */
