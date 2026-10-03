@@ -155,6 +155,7 @@ export const VOICE_CHECK_SENTENCE =
 export function OfficeManager() {
   const router = useRouter();
   const observeRoom = useServerFn(observeCurrentRoom);
+  const roomSnapshotFn = useServerFn(getRoomSnapshot);
   const roomActionLock = useRef(false);
   const [open, setOpen] = useState(false);
   /** Shrinks the window to a small floating control; the conversation stays live. */
@@ -576,6 +577,16 @@ export function OfficeManager() {
   // One implementation for typed and spoken requests. No model-generated code or URLs run here.
   /** Set by runRoomCommand itself so handoff receipts never infer from text. */
   const roomOutcomeRef = useRef<RoomOutcome | null>(null);
+  /** Fresh owner-scoped room data read for direct room commands; returns plain evidence text. */
+  const freshRoomEvidence = async (route: string): Promise<string> => {
+    if (!token) return "Room data: not read (not signed in).";
+    const r = await roomSnapshotFn({ data: { accessToken: token, route, buildId: currentBuildVersion(), device: collectDeviceSnapshot(route) } }).catch(() => null);
+    if (!r) return "Room data: could not be read just now.";
+    if (!r.ok) return `Room data: not read — ${r.message}`;
+    const sn = r.snapshot;
+    const missing = sn.sources.filter((x) => x.kind !== "static" && x.status !== "read").map((x) => x.label);
+    return `Room data checked ${new Date(sn.checkedAt).toLocaleTimeString()} (${sn.overall}, reference ${sn.fingerprint})${missing.length ? `; not read: ${missing.join(", ")}` : ""}.`;
+  };
   const runRoomCommand = async (request: string): Promise<string | null> => {
     const command = parseRoomCommand(request, router.state.location.pathname);
     roomOutcomeRef.current = null;
@@ -610,10 +621,12 @@ export function OfficeManager() {
         roomOutcomeRef.current = "saved";
         window.dispatchEvent(new CustomEvent("canx:room-reports-changed"));
         await router.navigate({ to: room.route });
-        return `Saved and verified your report in ${room.shortLabel}. Record ${note.id}. It is also available in Records.`;
+        const evidence = await freshRoomEvidence(room.route);
+        return `Saved and verified your report in ${room.shortLabel}. Record ${note.id}. It is also available in Records.\n${evidence}`;
       }
       setDelivery(`Opening and checking ${room.shortLabel}…`);
       await router.navigate({ to: room.route });
+      const lookEvidence = await freshRoomEvidence(room.route);
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       if (router.state.location.pathname !== room.route) return out("read_failed", "The room changed before inspection. Please ask again in the intended room.");
       const capture = await captureOfficeView(room.route);
@@ -624,7 +637,7 @@ export function OfficeManager() {
       if (!reply.ok) return out("read_failed", reply.detail || "The room review did not complete.");
       setRoomReviews(current => ({ ...current, [room.id]: { roomId: room.id as import("@/lib/office-data").RoomId, at: new Date(reply.observedAt).toLocaleString(), text: reply.text, thumbnail: capture.observation.image } }));
       roomOutcomeRef.current = "read";
-      return `${room.shortLabel}, checked ${new Date(reply.observedAt).toLocaleTimeString()}:\n${reply.text}`;
+      return `${room.shortLabel}, checked ${new Date(reply.observedAt).toLocaleTimeString()}:\n${reply.text}\n${lookEvidence}`;
     } catch {
       return out("error", "The room request could not be confirmed. Check the room before repeating a change.");
     } finally { roomActionLock.current = false; }
