@@ -5,7 +5,7 @@ import type { OwnerVerification } from "./canx-backend.server";
 const owner: OwnerVerification = { ok: true, userId: "owner", email: "", aal: "aal2" };
 const settings = { lovableApiKey: "x", connectionApiKey: "y" };
 const base = (): {
-  [K in keyof SyncDeps]: ReturnType<typeof vi.fn<SyncDeps[K]>>;
+  [K in keyof Omit<SyncDeps, "writeEvidence">]: ReturnType<typeof vi.fn<Required<SyncDeps>[K]>>;
 } => ({
   verifyOwner: vi.fn(async () => owner),
   gmailAccounts: vi.fn(() => [settings]),

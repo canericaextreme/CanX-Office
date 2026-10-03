@@ -39,7 +39,7 @@ function deps(docsByKey: Record<string, CandidateDocument[] | Error>, extra: Par
     fetchCandidates: vi.fn(async (s) => {
       const v = docsByKey[s.connectionApiKey]!;
       if (v instanceof Error) throw v;
-      return { documents: v, checkpoint: "200", unsupported: 0, partial: extra.partial };
+      return { documents: v, checkpoint: "200", unsupported: 0, partial: extra.partial ?? false };
     }),
     atomicWrite: vi.fn(async (_t, _o, receipts, _c) => {
       written.receipts.push(...receipts);
