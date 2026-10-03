@@ -19,15 +19,16 @@ const MAX_LINKED_MAILBOXES = 5;
 
 /**
  * One entry per Gmail connection linked to this project. Lovable names the
- * first key GOOGLE_MAIL_API_KEY and each additional one GOOGLE_MAIL_API_KEY_2,
- * _3, and so on. Only keys that actually exist are returned; none are invented.
+ * first key GOOGLE_MAIL_API_KEY and each additional one GOOGLE_MAIL_API_KEY_1,
+ * _2, and so on (Lovable's actual numbering). Only keys that actually exist are
+ * returned; none are invented.
  */
 export function readGmailAccounts(): GmailSettings[] {
   const lovableApiKey = process.env["LOVABLE_API_KEY"]?.trim();
   if (!lovableApiKey) return [];
   const accounts: GmailSettings[] = [];
-  for (let index = 1; index <= MAX_LINKED_MAILBOXES; index++) {
-    const envName = index === 1 ? "GOOGLE_MAIL_API_KEY" : `GOOGLE_MAIL_API_KEY_${index}`;
+  for (let index = 0; index <= MAX_LINKED_MAILBOXES; index++) {
+    const envName = index === 0 ? "GOOGLE_MAIL_API_KEY" : `GOOGLE_MAIL_API_KEY_${index}`;
     const connectionApiKey = process.env[envName]?.trim();
     if (connectionApiKey) accounts.push({ lovableApiKey, connectionApiKey });
   }
