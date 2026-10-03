@@ -45,7 +45,7 @@ describe("Sintra AI subscription (John, 2026-10-03)", () => {
   it("sync: Sintra receipt goes to review (not matched office expense); promotion is not evidence", async () => {
     const written: { evidence: SubscriptionEvidence[]; receipts: Array<{ officeExpenseStatus?: string }> } = { evidence: [], receipts: [] };
     const doc = (id: string, subject: string, text: string) => ({
-      mailbox: "canericaextreme@gmail.com", gmailMessageId: id, attachmentIdentity: "body", from: "Sintra <hello@sintra-news.example>", subject, text, receivedAt: "2026-10-02T10:00:00Z",
+      mailbox: "canericaextreme@gmail.com", messageId: id, attachmentIdentity: "body", filename: "", mimeType: "text/plain", from: "Sintra <hello@sintra-news.example>", subject, text, receivedAt: "2026-10-02T10:00:00Z",
     });
     const deps = {
       verifyOwner: async () => ({ ok: true, userId: "o", email: "", aal: "aal2" }),
