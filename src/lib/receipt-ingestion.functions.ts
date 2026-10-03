@@ -408,7 +408,7 @@ export async function runReceiptSyncWith(
   const finalPartial = partial || !writesVerified;
   const checkNote = deps.recordLastCheck && !lastCheckSaved ? " The last-check time could not be saved." : "";
   const capNote = partial
-    ? ` Partial check: not all matching mail was checked this time (more pages remain${unprocessed ? `, ${unprocessed} message or attachment fetch(es) failed and will be retried` : ""}${capHit ? ", the per-check document limit was reached" : ""}).`
+    ? ` Partial check: not all mail was checked this time (more matching mail remains${unprocessed ? `, ${unprocessed} message or attachment fetch(es) failed and will be retried` : ""}${capHit ? ", the per-check document limit was reached" : ""}).`
     : "";
   const reviewNote = needsReviewDocs > 0
     ? ` ${needsReviewDocs} attachment(s) (for example image receipts) could not be read automatically and need your review in the original email.`

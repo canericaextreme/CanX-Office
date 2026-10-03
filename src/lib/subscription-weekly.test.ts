@@ -24,7 +24,7 @@ describe("weekly subscription cards", () => {
     expect(zonedDate("2026-10-05T05:00:00Z")).toBe("2026-10-04");
   });
   it("lists only this week's non-personal evidence", () => {
-    const v = weeklyView([], [ev({ id: "a", documentDate: "2026-10-01" }), ev({ id: "b", documentDate: "2026-09-20" }), ev({ id: "c", documentDate: "2026-10-02", matchStatus: "personal" })], NOW);
+    const v = weeklyView([], [ev({ id: "a", documentDate: "2026-10-01", receivedAt: "2026-10-01T18:00:00Z" }), ev({ id: "b", documentDate: "2026-09-20", receivedAt: "2026-09-20T18:00:00Z" }), ev({ id: "c", receivedAt: "2026-10-02T18:00:00Z", matchStatus: "personal" })], NOW);
     expect(v.emails.map((e) => e.id)).toEqual(["a"]);
   });
   it("flags failed payments, price changes and unknown senders without changing confirmed cost", () => {
