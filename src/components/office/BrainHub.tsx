@@ -18,11 +18,12 @@ const roomLabel = (id: string | null) => (id ? OFFICE_ROOM_IDENTITIES.find((r) =
 const when = (s: string | null) => { if (!s) return "date unknown"; const d = new Date(s); return Number.isNaN(d.getTime()) ? "date unknown" : d.toLocaleDateString(); };
 
 /** Brain as the hub of the whole Office: categories, search, counts, provenance, manual filing. */
-export function BrainHub() {
+/** `fixture` is only for fixture-render tests: shows a supplied index without reading the database. */
+export function BrainHub({ fixture }: { fixture?: BrainIndex } = {}) {
   const session = useOwnerSession();
   const read = useServerFn(getBrainIndex);
   const file = useServerFn(setBrainCategory);
-  const [index, setIndex] = useState<BrainIndex | null>(null);
+  const [index, setIndex] = useState<BrainIndex | null>(fixture ?? null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [cat, setCat] = useState<BrainBucket | null>(null);
@@ -34,6 +35,7 @@ export function BrainHub() {
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
+    if (fixture) return;
     let active = true;
     setIndex(null); setError("");
     if (!session.accessToken) return;
@@ -43,7 +45,7 @@ export function BrainHub() {
       .catch(() => { if (active) setError("The Brain index could not be read. Nothing is shown rather than guessing."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [session.accessToken, read, refresh]);
+  }, [session.accessToken, read, refresh, fixture]);
 
   const counts = useMemo(() => countByCategory(index?.items ?? []), [index]);
   // Open category, or a global search across every category when no category is open.
