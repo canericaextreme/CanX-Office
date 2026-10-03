@@ -272,3 +272,21 @@ export function unknownRoomSkillIds(): string[] {
   const ids = new Set(OFFICE_SKILLS.map((s) => s.id));
   return ROOM_TARGETS.flatMap((t) => roomSkillInfo(t.route).ready.map((r) => r.id)).filter((id) => !ids.has(id));
 }
+
+/**
+ * Plain note added to Elsie's answer when the room changed under the request
+ * (navigation race) or John's view showed different data from Elsie's read.
+ */
+export function roomReplyNote(sentRoute: string, nowRoute: string, refs: SnapshotRef[] | undefined, view: SnapshotRef | null): string {
+  const notes: string[] = [];
+  const sentTarget = roomTargetForRoute(sentRoute);
+  if (sentTarget && sentRoute !== nowRoute) notes.push(`This answer is about ${sentTarget.label}; you have since moved to another page.`);
+  const current = refs?.find((r) => r.route === sentRoute);
+  if (sentTarget && !current) notes.push(`${sentTarget.label} could not be read fresh for this answer.`);
+  if (current) {
+    const state = reconcile(view, current);
+    if (state === "view-older") notes.push("Elsie read newer room data than your screen showed; the room view has been refreshed.");
+    if (state === "view-newer") notes.push("Your screen has newer room data than Elsie read; ask again if it matters.");
+  }
+  return notes.join(" ");
+}
