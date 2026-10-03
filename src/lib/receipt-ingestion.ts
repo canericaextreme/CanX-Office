@@ -50,6 +50,8 @@ export interface CandidateDocument {
   /** Sender and subject headers, untrusted text used only for matching. */
   from?: string;
   subject?: string;
+  /** Gmail internalDate (ISO) — when the source email was received. Absent = unknown. */
+  receivedAt?: string;
 }
 
 export interface ParsedCandidate {
