@@ -67,11 +67,14 @@ export function WeeklySubscriptionCards({ view, lastCheck }: { view: WeeklyView;
               {view.emails.map((e) => (
                 <li key={e.id} className="text-xs">
                   <div className="font-medium text-foreground">{KIND[e.kind]} · {e.vendor || "Unknown sender"}</div>
-                  <div className="text-muted-foreground">{e.documentDate || "date not stated"} · {money(e.amount, e.currency)}</div>
+                  <div className="text-muted-foreground">Received {e.receivedAt ? formatZoned(e.receivedAt) : "time unknown"} · {money(e.amount, e.currency)}</div>
                   <SourceLinks e={e} />
                 </li>
               ))}
             </ul>
+          )}
+          {view.emailsUnknownTime.length > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">{view.emailsUnknownTime.length} older saved item(s) have no recorded email received time, so they are not counted as this week’s mail.</p>
           )}
         </article>
         <article className="rounded-lg border border-border bg-muted/20 p-3" aria-labelledby="wk-alerts">
