@@ -548,7 +548,7 @@ export async function runReceiptSyncWith(
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review.${ignoreNote} Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkpointNote}${checkNote}`,
+    message: `Receipt review finished: ${summary.filed} new Finance receipt row(s) filed, ${summary.duplicatesSkipped} duplicates skipped. Review items: ${summary.needsReview} (${written.filed.length} verified Finance receipt row(s) needing review; ${malformed} email document(s) not filed as Finance receipts).${ignoreNote} Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkpointNote}${checkNote}`,
     ...summary,
     partial: finalPartial,
     mailboxesChecked: accounts.length - failedAccounts,

@@ -4,8 +4,8 @@ import { StatusBadge } from "@/components/office/StatusBadge";
 import { formatZoned, gmailLink, OFFICE_TIMEZONE, type LastCheck, type SubscriptionEvidence, type WeeklyView } from "@/lib/subscriptions";
 
 const KIND: Record<SubscriptionEvidence["kind"], string> = {
-  receipt: "Receipt (paid)",
-  "unpaid-invoice": "Invoice — unpaid as stated",
+  receipt: "Receipt evidence",
+  "unpaid-invoice": "Invoice — amount due as stated",
   "renewal-notice": "Renewal notice",
   "price-change": "Price change notice",
   "failed-payment": "Failed / declined payment",
@@ -14,6 +14,12 @@ const KIND: Record<SubscriptionEvidence["kind"], string> = {
 
 function money(a: number | null, c: string | null) {
   return a === null ? "amount not stated" : `${a.toFixed(2)} ${c ?? "(currency not stated)"}`;
+}
+
+function evidenceLabel(e: SubscriptionEvidence) {
+  if (e.kind === "receipt") return e.amount === null ? "Receipt email — amount not stated" : "Receipt email — amount stated";
+  if (e.kind === "unpaid-invoice") return e.amount === null ? "Invoice — amount not stated" : KIND[e.kind];
+  return KIND[e.kind];
 }
 
 function SourceLinks({ e }: { e: SubscriptionEvidence }) {
@@ -28,7 +34,10 @@ function SourceLinks({ e }: { e: SubscriptionEvidence }) {
         <span>Source: {e.mailbox || "linked mailbox"} · message {e.messageId.slice(0, 12)}</span>
       )}
       {(e.kind === "receipt" || e.kind === "unpaid-invoice") && e.matchStatus !== "personal" && (
-        <Link to="/finance" className="underline">Filed in Finance (needs review)</Link>
+        <span>
+          Email evidence saved — needs review; not confirmed as a Finance receipt.{" "}
+          <Link to="/finance" className="underline">Open Finance</Link>
+        </span>
       )}
     </span>
   );
@@ -66,7 +75,7 @@ export function WeeklySubscriptionCards({ view, lastCheck }: { view: WeeklyView;
             <ul className="mt-2 space-y-2">
               {view.emails.map((e) => (
                 <li key={e.id} className="text-xs">
-                  <div className="font-medium text-foreground">{KIND[e.kind]} · {e.vendor || "Unknown sender"}</div>
+                  <div className="font-medium text-foreground">{evidenceLabel(e)} · {e.vendor || "Unknown sender"}</div>
                   <div className="text-muted-foreground">Received {e.receivedAt ? formatZoned(e.receivedAt) : "time unknown"} · {money(e.amount, e.currency)}</div>
                   <SourceLinks e={e} />
                 </li>

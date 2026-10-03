@@ -93,6 +93,9 @@ describe("owner-only Gmail receipt sync", () => {
     expect(result.ok).toBe(true);
     expect(result.filed).toBe(1);
     expect(result.needsReview).toBe(3);
+    expect(result.message).toContain("1 verified Finance receipt row(s) needing review");
+    expect(result.message).toContain("2 email document(s) not filed as Finance receipts");
+    expect(result.message).not.toContain("3 new Finance receipt");
   });
 
   it("never reports a write that cannot be verified", async () => {

@@ -1,6 +1,7 @@
-import { it, expect } from "vitest";
+import { it, expect, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
+vi.mock("@tanstack/react-router", () => ({ Link: ({ to, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }) => <a href={to} {...props}>{children}</a> }));
 import { CheckEmailsResult } from "./CheckEmailsNow";
 import { WeeklySubscriptionCards } from "./WeeklySubscriptionCards";
 import { STARTER_SUBSCRIPTIONS, weeklyView, cleanLastCheck, formatZoned, type SubscriptionEvidence } from "@/lib/subscriptions";
@@ -30,4 +31,35 @@ it("Subscriptions renders after a completed check with a saved last-check time",
   </>);
   expect(html).toContain("Last checked");
   expect(html).toContain("canerica14@gmail.com");
+});
+
+it("does not describe missing-amount email evidence as filed or paid", () => {
+  const evidence = {
+    id: "ev-missing-amount", kind: "unpaid-invoice", matchStatus: "matched", subscriptionId: "s-openai", candidateIds: [],
+    vendor: "Example service", amount: null, currency: null, documentDate: "", renewalDate: "", renewalBasis: "",
+    mailbox: "canerica14@gmail.com", messageId: "18f0a1b2c3d4", attachmentIdentity: "", from: "billing@example.test",
+    subject: "Invoice available", fingerprint: "missing-amount", receivedAt: "2026-10-03T12:00:00.000Z",
+    recordedAt: "2026-10-03T12:01:00.000Z", review: "needs-review",
+  } as SubscriptionEvidence;
+  const html = renderToString(<WeeklySubscriptionCards view={weeklyView(STARTER_SUBSCRIPTIONS, [evidence], new Date("2026-10-03T18:00:00.000Z"))} lastCheck={null} />);
+  expect(html).toContain("Invoice — amount not stated");
+  expect(html).toContain("Email evidence saved — needs review; not confirmed as a Finance receipt");
+  expect(html).toContain("Open Finance");
+  expect(html).not.toContain("Filed in Finance");
+  expect(html).not.toContain("Receipt (paid)");
+});
+
+it("labels amount-bearing receipt evidence without claiming payment or filing", () => {
+  const evidence = {
+    id: "ev-amount", kind: "receipt", matchStatus: "matched", subscriptionId: "s-openai", candidateIds: [],
+    vendor: "Example service", amount: 25, currency: "CAD", documentDate: "2026-10-03", renewalDate: "", renewalBasis: "",
+    mailbox: "canerica14@gmail.com", messageId: "18f0a1b2c3d5", attachmentIdentity: "invoice.pdf", from: "billing@example.test",
+    subject: "Receipt", fingerprint: "with-amount", receivedAt: "2026-10-03T12:00:00.000Z",
+    recordedAt: "2026-10-03T12:01:00.000Z", review: "needs-review",
+  } as SubscriptionEvidence;
+  const html = renderToString(<WeeklySubscriptionCards view={weeklyView(STARTER_SUBSCRIPTIONS, [evidence], new Date("2026-10-03T18:00:00.000Z"))} lastCheck={null} />);
+  expect(html).toContain("Receipt email — amount stated");
+  expect(html).toContain("25.00 CAD");
+  expect(html).not.toContain("paid");
+  expect(html).not.toContain("Filed in Finance");
 });
