@@ -271,14 +271,15 @@ export async function runReceiptSyncWith(
   const state = await deps.readState(input.accessToken);
   if (!state.ok) return deny("database_unavailable", financeReadMessage(state.failure ?? "unexpected_response"));
   const subscriptions = state.subscriptions ?? [];
+  const datedMode = Boolean(input.fromDate || state.scanConfig || deps.saveScanProgress);
   const fromDate = input.fromDate || state.scanConfig?.fromDate || DEFAULT_GMAIL_SCAN_FROM_DATE;
-  if (!validScanDate(fromDate)) return deny("invalid_request", "Enter a valid From date in YYYY-MM-DD format.");
+  if (datedMode && !validScanDate(fromDate)) return deny("invalid_request", "Enter a valid From date in YYYY-MM-DD format.");
   const requestedStart = new Date(`${fromDate}T00:00:00Z`);
-  if (requestedStart.getTime() > Date.now() + 86_400_000) return deny("invalid_request", "The From date cannot be in the future.");
+  if (datedMode && requestedStart.getTime() > Date.now() + 86_400_000) return deny("invalid_request", "The From date cannot be in the future.");
   const priorScan = state.scanConfig;
-  const continuing = priorScan?.fromDate === fromDate && priorScan.status === "paused";
+  const continuing = datedMode && priorScan?.fromDate === fromDate && priorScan.status === "paused";
   const endAt = continuing ? priorScan.endAt : new Date().toISOString();
-  const query = datedGmailQuery(buildGmailQuery(subscriptions), fromDate, endAt);
+  const query = datedMode ? datedGmailQuery(buildGmailQuery(subscriptions), fromDate, endAt) : buildGmailQuery(subscriptions);
   if (!query) return deny("invalid_request", "The From date could not be used, so no email was checked.");
 
   const rescan = RESCAN_INTENT.test(input.request);
@@ -286,7 +287,8 @@ export async function runReceiptSyncWith(
   // linked or previously failed mailbox would skip older receipts. With more
   // than one mailbox, search the full past-year window (25 per mailbox) and
   // rely on fingerprint dedup instead of a date checkpoint.
-  const sharedCheckpoint = null;
+  const multi = accounts.length > 1;
+  const sharedCheckpoint = datedMode || multi ? null : state.checkpoint;
   const documents: GmailFetchResult["documents"] = [];
   let unsupported = 0;
   let checkpoint = state.checkpoint ?? "";
@@ -295,10 +297,10 @@ export async function runReceiptSyncWith(
   let partial = false;
   const checks: MailboxCheck[] = [];
   // Continuation is only valid for the identical Gmail query; a rescan starts at page 1.
-  const queryKey = `dated|${fromDate}|${endAt}|${query}`;
+  const queryKey = datedMode ? `dated|${fromDate}|${endAt}|${query}` : `${query}|${rescan ? "rescan" : sharedCheckpoint ?? ""}`;
   const priorContinuation = state.continuation ?? {};
   const pageTokens: Record<string, string> = {};
-  if (!rescan && deps.saveScanProgress && continuing && priorScan.queryKey === queryKey) {
+  if (!rescan && ((datedMode && deps.saveScanProgress && continuing && priorScan.queryKey === queryKey) || (!datedMode && deps.saveContinuation))) {
     for (const [mb, c] of Object.entries(priorContinuation)) if (c.query === queryKey) pageTokens[mb] = c.token;
   }
   const nextContinuation: GmailContinuation = { ...priorContinuation };
@@ -349,7 +351,9 @@ export async function runReceiptSyncWith(
       checkBySlot.set(slot, checked);
     }
   }
-  const scope = `${fromDate} through ${endAt} (frozen for this run), one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per unfinished mailbox per step${deps.saveScanProgress ? "; verified pages resume safely" : " (first page only — no saved continuation)"}${continuedAny ? "; resumed from saved positions" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`;
+  const scope = datedMode
+    ? `${fromDate} through ${endAt} (frozen for this run), one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per unfinished mailbox per step${deps.saveScanProgress ? "; verified pages resume safely" : " (first page only — no saved continuation)"}${continuedAny ? "; resumed from saved positions" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`
+    : `Past year, one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox per check (all readable bodies and attachments in those messages)${deps.saveContinuation ? "; later checks continue to older pages" : " (first page only — no continuation)"}${continuedAny ? "; this check continued from an earlier one, so newer mail may need a fresh check" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`;
   // The last check is recorded only after every write has been attempted, and is
   // "complete" only when everything was fetched, handled and saved and verified.
   const finishCheck = async (writesVerified: boolean) => {
@@ -487,13 +491,19 @@ export async function runReceiptSyncWith(
       : "";
   let continuationNote = "";
   const hasMore = completedSlots.size < accounts.length;
-  let continuationOk = !deps.saveScanProgress; // nothing to save = no failure
-  if (deps.saveScanProgress && !evidenceNote) {
+  let continuationOk = datedMode ? !deps.saveScanProgress : !deps.saveContinuation;
+  if (datedMode && deps.saveScanProgress && !evidenceNote) {
     const scan: GmailScanConfig = { fromDate, endAt, queryKey, completedSlots: [...completedSlots], status: hasMore ? "paused" : "complete", savedAt: new Date().toISOString(), mailboxes: [...checkBySlot.values()] };
     const savedPos = await deps.saveScanProgress(input.accessToken, owner.userId, nextContinuation, scan).catch(() => false);
     continuationOk = savedPos;
     if (!savedPos) continuationNote = " The position for older mail could not be saved, so the next check will repeat this page.";
-  } else if (deps.saveScanProgress && evidenceNote) {
+  } else if (datedMode && deps.saveScanProgress && evidenceNote) {
+    continuationNote = " Because evidence was not saved, the next check will repeat this page.";
+  } else if (!datedMode && deps.saveContinuation && !evidenceNote) {
+    const savedPos = await deps.saveContinuation(input.accessToken, owner.userId, nextContinuation).catch(() => false);
+    continuationOk = savedPos;
+    if (!savedPos) continuationNote = " The position for older mail could not be saved, so the next check will repeat this page.";
+  } else if (!datedMode && deps.saveContinuation && evidenceNote) {
     continuationNote = " Because evidence was not saved, the next check will repeat this page.";
   }
   if (hasMore && Object.keys(nextContinuation).length > 0) continuationNote += " More matching mail remains in this dated scan.";
@@ -529,11 +539,7 @@ export async function runReceiptSyncWith(
     notFiledPersonal,
     ignoredByPreference,
     mailboxes: [...checkBySlot.values()],
-    fromDate,
-    endAt,
-    scanStatus: finalPartial || hasMore ? "paused" : "complete",
-    hasMore,
-    canContinueNow: hasMore && canContinueNow && failedAccounts === 0,
+    ...(datedMode ? { fromDate, endAt, scanStatus: finalPartial || hasMore ? "paused" as const : "complete" as const, hasMore, canContinueNow: hasMore && canContinueNow && failedAccounts === 0 } : {}),
   };
 }
 

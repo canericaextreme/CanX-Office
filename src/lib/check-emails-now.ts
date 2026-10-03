@@ -28,7 +28,7 @@ export function createCheckEmailsController(deps: {
       deps.onState({ phase: "running" });
       try {
         const request = historical ? HISTORICAL_EMAIL_SCAN_REQUEST : CHECK_EMAILS_NOW_REQUEST;
-        let result = await deps.run(request, fromDate);
+        let result = historical ? await deps.run(request, fromDate) : await deps.run(request);
         let steps = 1;
         while (historical && result.ok && result.hasMore && result.canContinueNow && steps < HISTORICAL_SCAN_STEPS_PER_START) {
           const next = await deps.run(request, fromDate);
