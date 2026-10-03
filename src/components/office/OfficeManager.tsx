@@ -1253,6 +1253,16 @@ export function OfficeManager() {
             <Button asChild variant="outline" size="sm" className={pendingApprovals ? "border-canx-yellow text-canx-yellow" : ""}>
               <Link to="/approvals" onClick={() => setMinimized(true)}>Approvals{pendingApprovals ? ` (${pendingApprovals})` : ""}</Link>
             </Button>
+            {tab === "now" && (
+              <details className="relative">
+                <summary className="cursor-pointer rounded-md border border-input px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  Decisions and approvals
+                </summary>
+                <div className="absolute left-0 top-full z-50 mt-2 max-h-60 w-[min(28rem,calc(100vw-3rem))] overflow-y-auto overscroll-contain rounded-md border border-border bg-card p-3 text-card-foreground shadow-xl">
+                  <DecisionTracker accessToken={token || null} compact />
+                </div>
+              </details>
+            )}
             <Button variant="ghost" size="sm" className="ml-auto" onClick={closeManager}>
               <X className="mr-1 h-4 w-4" /> Close
             </Button>
@@ -1260,10 +1270,6 @@ export function OfficeManager() {
 
           {tab === "now" && (
             <>
-              <details className="max-h-40 shrink-0 overflow-y-auto overscroll-contain border-b border-border px-3 py-2">
-                <summary className="cursor-pointer text-sm font-medium">Decisions and approvals</summary>
-                <DecisionTracker accessToken={token || null} compact />
-              </details>
               {copyStatus && <p role="status" className="shrink-0 px-3 py-1 text-sm">{copyStatus}</p>}
 
 
