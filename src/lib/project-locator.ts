@@ -113,12 +113,12 @@ export function locate(project: RegisteredProject, plan: ProjectPlan | undefined
   if (!nextMove) {
     nextBasis = "suggested";
     if (!p.goal) { nextMove = "Review this project and record its goal and instructions."; nextReason = "No goal or instructions are saved, so readiness can't be judged."; }
+    else if (stage === "ready") { nextMove = "Decide whether to take this to market — that decision and any spending stay with you."; nextReason = "You marked it ready."; }
+    else if (stage === "market" || stage === "completed") { nextMove = "Review results and record outcomes."; nextReason = `You marked it ${stage}.`; }
     else if (!tasks) { nextMove = "Re-open the Work Board and refresh."; nextReason = "Tasks couldn't be read."; }
     else if (stage === "blocked") { nextMove = "Clear the waiting task(s) listed under blockers."; nextReason = "Linked work is waiting."; }
     else if (!active.length) { nextMove = "Create a Work Board task for the first step toward the goal, using this project ID."; nextReason = "No linked tasks exist."; }
     else if (stage === "unknown") { nextMove = "Run a signed-in test of the project and record the result, then set the stage."; nextReason = "Work is done but testing and readiness are not verified."; }
-    else if (stage === "ready") { nextMove = "Decide whether to take this to market — that decision and any spending stay with you."; nextReason = "You marked it ready."; }
-    else if (stage === "market" || stage === "completed") { nextMove = "Review results and record outcomes."; nextReason = `You marked it ${stage}.`; }
     else { nextMove = "Continue the open or in-progress tasks."; nextReason = `Stage: ${stage}.`; }
   }
   return {
