@@ -155,8 +155,8 @@ const rooms: OfficeRoom[] = [
   },
   {
     number: "10",
-    label: "Communications",
-    purpose: "Drafts and delivery",
+    label: "Communications & Marketing",
+    purpose: "Correspondence, launch plans, campaigns and results",
     route: "/communications",
     icon: Mail,
     tone: "teal",
@@ -477,7 +477,6 @@ function RoomHotspot({
     <Link
       to={room.route}
       {...dragHandlers}
-      title={movable ? 'Drag to move; arrow keys also move this label' : room.purpose}
       aria-label={`${room.label} — ${room.purpose}`}
       draggable={false}
       className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none focus-visible:z-40 focus-visible:outline-none"
@@ -492,10 +491,6 @@ function RoomHotspot({
       >
         <span className="whitespace-nowrap">{room.label}</span>
         <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
-      </span>
-      <span className="pointer-events-none absolute left-1/2 top-full mt-1 hidden w-44 -translate-x-1/2 rounded-lg border border-white/20 bg-slate-950/95 px-3 py-2 text-center text-[10px] leading-snug text-white shadow-2xl group-hover:block group-focus-visible:block">
-        {room.purpose}
-        <strong className="mt-1 block uppercase tracking-[0.12em]">Open room →</strong>
       </span>
     </Link>
   );
