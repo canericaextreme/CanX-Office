@@ -35,10 +35,10 @@ export const listOfficeFiles = createServerFn({method:'POST'}).inputValidator((v
  const {data:links,error:linkError}=await linksQuery; if(linkError) throw new Error('Saved links could not be loaded.');
  return [...(rows??[]),...(links??[]).map(link=>({...link,filename:link.title,source_url:link.url,size_bytes:0,object_path:'',content_hash:'',mime_type:'text/uri-list'}))].sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,200) as OfficeFile[];
 });
-export const openOfficeFile = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string;id:string})=>({accessToken:token(v.accessToken),id:v.id})).handler(async({data})=>{
+export const openOfficeFile = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string;id:string;download?:boolean})=>({accessToken:token(v.accessToken),id:v.id,download:v.download===true})).handler(async({data})=>{
  const {db}=await client(data.accessToken); const {data:row,error}=await db.from('office_files').select('object_path,room,filename').eq('id',data.id).single();
  if(error || !row) { const {data:link,error:linkError}=await db.from('office_links').select('url,room').eq('id',data.id).single(); if(linkError || !link) throw new Error('File or link unavailable.'); await client(data.accessToken,link.room); return validateWebLink(link.url); } await client(data.accessToken,row.room);
- const {data:signed,error:signError}=await db.storage.from(FILE_BUCKET).createSignedUrl(row.object_path,60,{download:row.filename});
+ const {data:signed,error:signError}=await db.storage.from(FILE_BUCKET).createSignedUrl(row.object_path,60,data.download?{download:row.filename}:undefined);
  if(signError || !signed) throw new Error('File could not be opened.'); return signed.signedUrl;
 });
 export const officeUploadConnection = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string})=>({accessToken:token(v.accessToken)})).handler(async({data})=>{
