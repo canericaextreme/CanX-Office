@@ -4,7 +4,7 @@
 - [x] Make Income, Expenses, Receipts and Tax prep open as accessible Finance sections with clear back navigation.
 - [x] Open real receipt details and show truthful empty states without changing records or permissions.
 - [x] Route explicit short email-check commands through the existing scoped receipt/subscription check; keep questions, negations and hypotheticals read-only.
-- [ ] Verify interactions, routing, tests, types and build in preview only; no live Gmail, paid provider call or publication.
+- [x] Verify interactions, routing, tests, types and build in preview only; no live Gmail, paid provider call or publication.
 
 ## Active email-check status sheen (2026-10-03)
 - [x] Show a gentle translucent yellow sweep only while the email check is actively running.
