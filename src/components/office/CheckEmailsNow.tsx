@@ -35,6 +35,7 @@ export function CheckEmailsResult({ state }: { state: CheckState }) {
     <div className="rounded-md border border-border/50 p-2 text-xs" role="status" data-email-check-state={complete ? "complete" : "partial"}>
       <StatusBadge tone={complete ? "green" : "yellow"} label={complete ? "Finished — complete within scope" : stoppedLabel} />
       <p className="mt-1 text-foreground">Receipts/invoices: {r.filed} new filed in Finance, {r.duplicatesSkipped} duplicates skipped, {r.sentToReview ?? 0} sent to review. Notices/evidence: {r.subscriptionEvidenceAdded ?? 0} new, {r.subscriptionEvidenceDuplicates ?? 0} already recorded.{r.ignoredByPreference ? ` Skipped by your Ignore choices: ${r.ignoredByPreference}.` : ""}</p>
+      <p className="mt-1 text-muted-foreground">Review items: {r.needsReview}. This may include email evidence that was not filed as a Finance receipt; it is not a count of paid receipts.</p>
       <ul className="mt-1 text-muted-foreground">
         {(r.mailboxes ?? []).map((m, i) => (
           <li key={`${m.mailbox}-${i}`}>{m.mailbox}: {m.status === "read" ? `${m.documents} item(s) read${m.partial ? " — limit reached or page incomplete; scan stopped safely" : ""}` : m.status === "authorization_required" ? "access refused — re-authorise" : "could not be read or was not attempted after an earlier failure"}</li>
