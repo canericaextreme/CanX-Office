@@ -35,6 +35,8 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { captureOfficeView } from "@/lib/office-observe";
 import { observeCurrentRoom } from "@/lib/manager-observe.functions";
 import { parseRoomCommand, roomReportSource } from "@/lib/manager-room-commands";
+import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
+import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Bot,
@@ -641,7 +643,7 @@ export function OfficeManager() {
       thread.push({ role: "user", content: request });
       // Voice uses the same per-request room read: the route open NOW, not at call start.
       const sentRoute = router.state.location.pathname;
-      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion() } });
+      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion(), device: collectDeviceSnapshot(sentRoute) } });
       if (reply.ok && (reply.roomSnapshots?.length || reply.roomReadback?.length)) requestRoomRefresh("elsie-voice-reply");
       const voiceRoomNote = reply.ok ? roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute)) : "";
       // Skip the separate voice save only when the server confirmed its own save.
@@ -883,6 +885,7 @@ export function OfficeManager() {
           messages: modelHistory.slice(-20),
           currentRoute: sentRoute,
           buildId: currentBuildVersion(),
+          device: collectDeviceSnapshot(sentRoute),
         },
       });
       if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(reply));

@@ -11,11 +11,12 @@ export type RoomSnapshotReply =
  */
 export const getRoomSnapshot = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => {
-    const raw = (input ?? {}) as { accessToken?: unknown; route?: unknown; buildId?: unknown };
+    const raw = (input ?? {}) as { accessToken?: unknown; route?: unknown; buildId?: unknown; device?: unknown };
     return {
       accessToken: typeof raw.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
       route: typeof raw.route === "string" ? raw.route.slice(0, 200) : "",
       buildId: typeof raw.buildId === "string" ? raw.buildId.slice(0, 80) : "unknown",
+      device: raw.device,
     };
   })
   .handler(async ({ data }): Promise<RoomSnapshotReply> => {
@@ -27,6 +28,7 @@ export const getRoomSnapshot = createServerFn({ method: "POST" })
     const verified = await backend.verifySignedIn(data.accessToken);
     if (!verified.ok) return { ok: false, code: "auth", message: verified.message };
     const { readRoomSnapshotWith } = await import("./room-snapshot.server");
-    const snapshot = await readRoomSnapshotWith({ config, token: data.accessToken, aal: verified.aal, target, buildId: data.buildId, rest: backend.restRequest });
+    const { sanitizeDeviceSnapshot } = await import("./room-device-snapshot");
+    const snapshot = await readRoomSnapshotWith({ config, token: data.accessToken, aal: verified.aal, target, buildId: data.buildId, device: sanitizeDeviceSnapshot(data.device), rest: backend.restRequest });
     return { ok: true, snapshot };
   });

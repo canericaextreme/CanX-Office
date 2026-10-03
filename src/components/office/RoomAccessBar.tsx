@@ -3,6 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, Eye, Loader2, RefreshCw } from "lucide-react";
 import { useOwnerSession } from "@/lib/owner-session";
+import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { roomTargetForRoute, snapshotRef, type RoomSnapshot } from "@/lib/room-snapshot";
 import { recordViewedSnapshot, ROOM_REFRESH_EVENT } from "@/lib/room-snapshot-store";
@@ -32,7 +33,7 @@ export function RoomAccessBar() {
     const mine = ++seq.current;
     setBusy(true);
     try {
-      const reply = await fetchSnapshot({ data: { accessToken: token, route: target.route, buildId: currentBuildVersion() } });
+      const reply = await fetchSnapshot({ data: { accessToken: token, route: target.route, buildId: currentBuildVersion(), device: collectDeviceSnapshot(target.route) } });
       // A reply for a room John already left is discarded (navigation race).
       if (mine !== seq.current) return;
       if (!reply.ok) { setError(reply.message); setSnap(null); return; }
