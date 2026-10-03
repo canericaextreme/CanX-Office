@@ -7,7 +7,7 @@
  * context under that owner's RLS policy, and reserves the Manager AI budget.
  */
 
-import { voiceProviderFailure } from "./voice-provider-error";
+import { safeProviderErrorFields, voiceProviderFailure } from "./voice-provider-error";
 import { CONTINUITY_UNAVAILABLE, type ContinuityRead } from "./astra-continuity";
 import { createServerFn } from "@tanstack/react-start";
 import { routeSkills } from "@/lib/office-skills";
@@ -206,7 +206,8 @@ export async function createManagerRealtimeSessionWith(
     if (!response.ok) {
       await deps.settle(accessToken, budget.reservationId, "failed");
       const body: unknown = await response.json().catch(() => null);
-      return deny("provider_error", voiceProviderFailure(response.status, body, response.headers.get("retry-after")));
+      console.error("[canx-voice] session setup refused", response.status, safeProviderErrorFields(body));
+      return deny("provider_error", voiceProviderFailure(response.status, body, response.headers.get("retry-after"), "session setup"));
     }
     const payload = (await response.json()) as { value?: string };
     if (!payload.value) {
