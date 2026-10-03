@@ -99,9 +99,16 @@ export interface GmailFetchResult {
   continued?: boolean;
   /** True when the saved continuation was rejected and page 1 was read instead. */
   continuationRejected?: boolean;
-  /** Messages on this page that could not be fetched at all (not processed). */
+  /** Messages or attachments on this page that could not be fetched (unprocessed; page must repeat). */
   fetchFailures?: number;
+  /** Supported documents that could not be read (image/OCR, oversized, unreadable) — need John's review. */
+  needsReview?: number;
+  /** True when the per-page document cap stopped processing; page position must not advance. */
+  documentCapHit?: boolean;
 }
+
+/** Safety bound on documents (bodies + attachments) read from one page of messages. */
+export const MAX_DOCUMENTS_PER_PAGE = 200;
 
 export async function fetchGmailReceiptCandidates(
   settings: GmailSettings,
@@ -133,8 +140,11 @@ export async function fetchGmailReceiptCandidates(
   const documents: CandidateDocument[] = [];
   let unsupported = 0;
   let fetchFailures = 0;
+  let needsReview = 0;
+  let documentCapHit = false;
 
   for (const messageId of ids) {
+    if (documentCapHit) break;
     const response = await gateway(settings, `/users/me/messages/${encodeURIComponent(messageId)}?format=full`, fetchImpl);
     if (!response.ok) {
       unsupported += 1;
@@ -146,10 +156,18 @@ export async function fetchGmailReceiptCandidates(
       String(message.payload?.headers?.find((h) => (h.name ?? "").toLowerCase() === name)?.value ?? "").slice(0, 300);
     const from = header("from");
     const subject = header("subject");
+    // Gmail's own received time (ms since epoch). Kept only when valid.
+    const ms = Number(message.internalDate);
+    const receivedAt = Number.isFinite(ms) && ms > 0 ? new Date(ms).toISOString() : "";
     for (const part of flatten(message.payload ?? {})) {
       const mimeType = part.mimeType ?? "";
       const filename = (part.filename ?? "").slice(0, 240);
       if (!(mimeType.startsWith("text/") || mimeType === "application/pdf" || mimeType.startsWith("image/"))) continue;
+      if (documents.length >= MAX_DOCUMENTS_PER_PAGE) {
+        // Resource cap: stop and keep this page position so nothing is skipped.
+        documentCapHit = true;
+        break;
+      }
       let bytes: Uint8Array | null = part.body?.data ? decodeBase64Url(part.body.data) : null;
       const attachmentId = part.body?.attachmentId;
       if (!bytes && attachmentId) {
@@ -159,12 +177,14 @@ export async function fetchGmailReceiptCandidates(
           fetchImpl,
         );
         if (!attachment.ok) {
-          unsupported += 1;
+          // Transient fetch failure: unprocessed, page must be repeated.
+          fetchFailures += 1;
           continue;
         }
         const payload = (await attachment.json()) as { data?: string; size?: number };
         if ((payload.size ?? 0) > MAX_ATTACHMENT_BYTES || !payload.data) {
           unsupported += 1;
+          needsReview += 1;
           continue;
         }
         bytes = decodeBase64Url(payload.data);
@@ -174,6 +194,7 @@ export async function fetchGmailReceiptCandidates(
         const text = await textFromAttachment(bytes, mimeType);
         if (!text) {
           unsupported += 1;
+          needsReview += 1; // e.g. image receipt with no text reader: John must look at it
           continue;
         }
         documents.push({
@@ -185,17 +206,20 @@ export async function fetchGmailReceiptCandidates(
           mailbox,
           from,
           subject,
+          ...(receivedAt ? { receivedAt } : {}),
         });
       } catch {
         unsupported += 1;
+        needsReview += 1;
       }
     }
   }
 
-  const partial = continued || Boolean(listed.nextPageToken) || (!continued && (listed.resultSizeEstimate ?? 0) > ids.length);
+  const partial = documentCapHit || continued || Boolean(listed.nextPageToken) || (!continued && (listed.resultSizeEstimate ?? 0) > ids.length);
   return {
     documents, checkpoint: String(Date.now()), unsupported, partial, mailbox,
     ...(listed.nextPageToken ? { nextPageToken: listed.nextPageToken } : {}), continued, continuationRejected, fetchFailures,
+    needsReview, documentCapHit,
   };
 }
 

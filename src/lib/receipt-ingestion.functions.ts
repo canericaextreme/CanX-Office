@@ -248,22 +248,31 @@ export async function runReceiptSyncWith(
   const nextContinuation: GmailContinuation = { ...priorContinuation };
   let continuedAny = false;
   let rejectedAny = false;
+  let unprocessed = 0; // transient fetch failures (messages/attachments) — page repeats
+  let needsReviewDocs = 0; // supported but unreadable documents (images/OCR, oversized)
+  let capHit = false;
   for (const [slot, account] of accounts.entries()) {
     try {
       const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query, pageTokens);
       const mb = (result.mailbox || "").toLowerCase();
       if (result.continued) continuedAny = true;
       if (result.continuationRejected) rejectedAny = true;
-      // Advance only past a page whose every message was fetched; otherwise keep the old position.
-      if (mb && !(result.fetchFailures ?? 0)) {
+      unprocessed += result.fetchFailures ?? 0;
+      needsReviewDocs += result.needsReview ?? 0;
+      if (result.documentCapHit) capHit = true;
+      // Advance only past a page whose every message and attachment was fetched and
+      // every document was handled; otherwise keep the old position.
+      if (mb && !(result.fetchFailures ?? 0) && !result.documentCapHit) {
         if (result.nextPageToken) nextContinuation[mb] = { token: result.nextPageToken, query: queryKey, savedAt: new Date().toISOString() };
         else delete nextContinuation[mb];
       }
-      documents.push(...result.documents.slice(0, MAX_GMAIL_CANDIDATES));
+      // Every supported document from the fetched messages is processed — no truncation.
+      documents.push(...result.documents);
       unsupported += result.unsupported;
       checkpoint = result.checkpoint;
-      if (result.partial) partial = true;
-      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: Boolean(result.partial), documents: result.documents.length });
+      const mbPartial = Boolean(result.partial) || Boolean(result.fetchFailures) || Boolean(result.needsReview) || Boolean(result.documentCapHit);
+      if (mbPartial) partial = true;
+      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: mbPartial, documents: result.documents.length });
     } catch (error) {
       failedAccounts += 1;
       const auth = error instanceof Error && error.message === "gmail_authorization_required";
@@ -271,15 +280,22 @@ export async function runReceiptSyncWith(
       checks.push({ mailbox: `Linked mailbox ${slot + 1}`, status: auth ? "authorization_required" : "failed", partial: true, documents: 0 });
     }
   }
-  const lastCheck: LastCheck = {
-    at: new Date().toISOString(),
-    scope: `Past year, one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox per check${deps.saveContinuation ? "; later checks continue to older pages" : " (first page only — no continuation)"}${continuedAny ? "; this check continued from an earlier one, so newer mail may need a fresh check" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`,
-    complete: failedAccounts === 0 && !partial,
-    mailboxes: checks,
+  const scope = `Past year, one page of up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox per check (all readable bodies and attachments in those messages)${deps.saveContinuation ? "; later checks continue to older pages" : " (first page only — no continuation)"}${continuedAny ? "; this check continued from an earlier one, so newer mail may need a fresh check" : ""}; billing/renewal keywords and known service senders only — not the whole inbox.`;
+  // The last check is recorded only after every write has been attempted, and is
+  // "complete" only when everything was fetched, handled and saved and verified.
+  const finishCheck = async (writesVerified: boolean) => {
+    const check: LastCheck = {
+      at: new Date().toISOString(),
+      scope,
+      complete: writesVerified && failedAccounts === 0 && !partial,
+      mailboxes: writesVerified ? checks : checks.map((c) => ({ ...c, partial: true })),
+    };
+    if (!deps.recordLastCheck) return { check, saved: false };
+    const saved = await deps.recordLastCheck(input.accessToken, owner.userId, check).catch(() => false);
+    return { check, saved };
   };
-  let lastCheckSaved = false;
-  if (deps.recordLastCheck) lastCheckSaved = await deps.recordLastCheck(input.accessToken, owner.userId, lastCheck).catch(() => false);
   if (failedAccounts === accounts.length) {
+    await finishCheck(false);
     return deny(
       authFailure ? "gmail_authorization_required" : "gmail_unavailable",
       "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
@@ -296,7 +312,7 @@ export async function runReceiptSyncWith(
   let malformed = unsupported;
   let sentToReview = 0;
   let notFiledPersonal = 0;
-  for (const document of documents.slice(0, MAX_GMAIL_CANDIDATES * accounts.length)) {
+  for (const document of documents) {
     const kind = classifyDocument(document.text, document.subject ?? "");
     const match = matchService(document.from ?? "", `${document.subject ?? ""}\n${document.text}`, subscriptions);
     const result = parseReceiptCandidate(document);
@@ -347,7 +363,10 @@ export async function runReceiptSyncWith(
     parsed.push(enriched);
   }
   const written = await deps.atomicWrite(input.accessToken, owner.userId, parsed, nextCheckpoint);
-  if (!written.ok) return deny("write_unverified", "The Finance write could not be verified, so no receipt is reported as filed. Check the CanX database and retry.");
+  if (!written.ok) {
+    await finishCheck(false);
+    return deny("write_unverified", "The Finance write could not be verified, so no receipt is reported as filed. Check the CanX database and retry.");
+  }
 
   let evidenceAdded = 0;
   let evidenceDuplicates = 0;
@@ -374,24 +393,32 @@ export async function runReceiptSyncWith(
       ? ` ${failedAccounts} linked mailbox${failedAccounts === 1 ? "" : "es"} could not be read this time; re-authorize it and run again to include it.`
       : "";
   let continuationNote = "";
+  let continuationOk = !deps.saveContinuation; // nothing to save = no failure
   if (deps.saveContinuation && !evidenceNote) {
     const savedPos = await deps.saveContinuation(input.accessToken, owner.userId, nextContinuation).catch(() => false);
+    continuationOk = savedPos;
     if (!savedPos) continuationNote = " The position for older mail could not be saved, so the next check will repeat this page.";
   } else if (deps.saveContinuation && evidenceNote) {
     continuationNote = " Because evidence was not saved, the next check will repeat this page.";
   }
   if (partial && Object.keys(nextContinuation).length > 0) continuationNote += " Run the check again to continue with older matching mail.";
   if (rejectedAny) continuationNote += " A saved position had expired, so the first page was read again.";
+  const writesVerified = !evidenceNote && continuationOk;
+  const { saved: lastCheckSaved } = await finishCheck(writesVerified);
+  const finalPartial = partial || !writesVerified;
   const checkNote = deps.recordLastCheck && !lastCheckSaved ? " The last-check time could not be saved." : "";
   const capNote = partial
-    ? ` Partial check: Gmail had more matching mail than the ${MAX_GMAIL_CANDIDATES} per mailbox read this time, so not all mail was checked.`
+    ? ` Partial check: not all mail was checked this time (more matching mail remains${unprocessed ? `, ${unprocessed} message or attachment fetch(es) failed and will be retried` : ""}${capHit ? ", the per-check document limit was reached" : ""}).`
+    : "";
+  const reviewNote = needsReviewDocs > 0
+    ? ` ${needsReviewDocs} attachment(s) (for example image receipts) could not be read automatically and need your review in the original email.`
     : "";
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${evidenceNote}${continuationNote}${checkNote}`,
+    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${reviewNote}${evidenceNote}${continuationNote}${checkNote}`,
     ...summary,
-    partial,
+    partial: finalPartial,
     mailboxesChecked: accounts.length - failedAccounts,
     mailboxesFailed: failedAccounts,
     subscriptionEvidenceAdded: evidenceAdded,
@@ -435,6 +462,7 @@ function toEvidence(
     from: (document.from ?? "").slice(0, 300),
     subject: (document.subject ?? "").slice(0, 300),
     fingerprint,
+    ...(document.receivedAt ? { receivedAt: document.receivedAt } : {}),
     recordedAt: new Date().toISOString(),
     review: "needs-review",
   };
