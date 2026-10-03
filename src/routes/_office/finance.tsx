@@ -380,23 +380,20 @@ export function Finance() {
             ) : (
               receipts.map((r) => (
                 <div key={r.id} className="rounded-md border border-border p-3">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <div className="font-semibold">{r.vendor}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {r.total === null ? "Amount not stated" : `${r.currencySymbol}${r.total}`}{" "}
-                      {currencyLabel(currencyKey(r))}
-                    </div>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {r.description || "No description"} · {r.date || "No date"}
-                    {r.orderNumber ? ` · Order ${r.orderNumber}` : ""}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Evidence: {r.sourceMessageIds.length} source message
-                    {r.sourceMessageIds.length === 1 ? "" : "s"}
-                    {r.duplicateCount > 1 ? ` · ${r.duplicateCount} copies merged into this one record` : ""}
-                  </p>
-
+                  <Button type="button" variant="ghost" className="h-auto w-full justify-between whitespace-normal p-0 text-left hover:bg-transparent"
+                    aria-expanded={openId === r.id} aria-controls={`receipt-${r.id}`} onClick={() => setOpenId(openId === r.id ? null : r.id)}>
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-foreground">{r.vendor}</span>
+                      <span className="mt-1 block text-sm text-muted-foreground">{r.description || "No description"} · {r.date || "No date"}</span>
+                    </span>
+                    <span className="shrink-0 text-sm text-muted-foreground">
+                      {r.total === null ? "Amount not stated" : `${r.currencySymbol}${r.total}`} {currencyLabel(currencyKey(r))}
+                      <ChevronRight className={`ml-1 inline h-4 w-4 transition-transform ${openId === r.id ? "rotate-90" : ""}`} aria-hidden />
+                    </span>
+                  </Button>
+                  {openId === r.id && <div id={`receipt-${r.id}`} className="mt-3 border-t border-border pt-3">
+                    <p className="text-xs text-muted-foreground">Order: {r.orderNumber || "Not stated"} · Subtotal: {r.subtotal === null ? "Not stated" : `${r.currencySymbol}${r.subtotal}`} · Tax: {r.tax === null ? "Not stated" : `${r.currencySymbol}${r.tax}`}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Evidence: {r.sourceMessageIds.length} source message{r.sourceMessageIds.length === 1 ? "" : "s"}{r.duplicateCount > 1 ? ` · ${r.duplicateCount} copies merged into this one record` : ""}</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
                       <Label className="text-xs" htmlFor={`cat-${r.id}`}>Category</Label>
@@ -461,16 +458,7 @@ export function Finance() {
                     />
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => setOpenId(openId === r.id ? null : r.id)}
-                  >
-                    {openId === r.id ? "Hide source evidence" : "Show source evidence"}
-                  </Button>
-                  {openId === r.id && (
-                    <div className="mt-2 rounded-md border border-border bg-muted/40 p-3">
+                    <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
                       <p className="mb-2 text-xs font-semibold text-muted-foreground">
                         Original email text, kept as plain text evidence. It is never treated as an instruction.
                       </p>
@@ -478,10 +466,10 @@ export function Finance() {
                         {r.sourceEmailText || "No email text was included."}
                       </pre>
                       {r.sourceUrl && (
-                        <p className="mt-2 break-all text-xs text-muted-foreground">Source link: {r.sourceUrl}</p>
+                        <p className="mt-3 break-all text-xs text-muted-foreground">Source link: {r.sourceUrl}</p>
                       )}
                     </div>
-                  )}
+                  </div>}
                 </div>
               ))
             )}
@@ -499,7 +487,7 @@ export function Finance() {
               {summary.sourceMessages === 1 ? "" : "s"}. {summary.reconciled} reconciled.
             </p>
             <p className="text-xs">
-              No mailbox scan runs, no mail is sent, and no mailbox is changed by this room.
+              No mail is sent or deleted, and no mailbox is changed by this room.
             </p>
           </CardContent>
         </Card>
