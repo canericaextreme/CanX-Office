@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fetchGmailReceiptCandidates } from "./gmail-receipts.server";
 import { runReceiptSyncWith, type SyncDeps } from "./receipt-ingestion.functions";
 import type { CandidateDocument } from "./receipt-ingestion";
-import { weeklyView, type SubscriptionEvidence, type LastCheck } from "./subscriptions";
+import { STARTER_SUBSCRIPTIONS, weeklyView, type SubscriptionEvidence, type LastCheck } from "./subscriptions";
 
 const b64 = (s: string) => Buffer.from(s).toString("base64url");
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -76,7 +76,7 @@ describe("truthful completion", () => {
     expect(checks[0]!.complete).toBe(true);
   });
   it("evidence-save failure yields partial, not complete, and keeps page position", async () => {
-    const { d, checks, cont } = deps({ fetch: { nextPageToken: "N", partial: true }, writeEvidence: async () => ({ ok: false, added: 0, duplicates: 0 }) });
+    const { d, checks, cont } = deps({ fetch: { nextPageToken: "N", partial: true }, writeEvidence: async () => ({ ok: false, added: 0, duplicates: 0 }), readState: async () => ({ ok: true, checkpoint: null, receipts: [], subscriptions: STARTER_SUBSCRIPTIONS, evidence: [] }) });
     const r = await runReceiptSyncWith(d, req);
     expect(r.partial).toBe(true);
     expect(checks[0]!.complete).toBe(false);
