@@ -15,7 +15,7 @@
 
 export type SubscriptionScope = "office" | "personal" | "unknown";
 export type RenewalBasis = "explicit" | "estimated";
-export type EvidenceKind = "receipt" | "unpaid-invoice" | "renewal-notice" | "price-change" | "unknown";
+export type EvidenceKind = "receipt" | "unpaid-invoice" | "renewal-notice" | "price-change" | "failed-payment" | "unknown";
 export type MatchStatus = "matched" | "unknown" | "conflict" | "personal";
 
 export interface BillingEntry {
@@ -169,6 +169,7 @@ export function senderDomain(from: string): string {
 
 export function classifyDocument(text: string, subject = ""): EvidenceKind {
   const t = `${subject}\n${text}`;
+  if (/\b(?:payment\s+(?:failed|declined|unsuccessful|was\s+declined)|card\s+(?:was\s+)?declined|unable\s+to\s+(?:process|charge)|could\s+not\s+(?:process|charge)|update\s+your\s+payment\s+method)\b/i.test(t)) return "failed-payment";
   if (/\b(?:price|pricing|rate)\s+(?:change|increase|update|adjustment)\b|\bnew\s+price\b|\bwill\s+(?:increase|change)\s+to\b/i.test(t)) return "price-change";
   const paid = /\b(?:paid|payment received|amount paid|payment successful|thank you for your payment)\b/i.test(t);
   const unpaid = /\b(?:amount due|balance due|payment due|unpaid|past due|overdue)\b/i.test(t);
@@ -293,4 +294,121 @@ export function priceChangeFlags(subs: SubscriptionRecord[], evidence: Subscript
     out.push({ evidenceId: e.id, subscriptionId: s.id, name: s.name, confirmed: { amount: s.knownCost.amount, currency: s.knownCost.currency }, seen: { amount: e.amount, currency: e.currency } });
   }
   return out;
+}
+
+/* ------------------------------ last check + weekly view ------------------------------ */
+
+export interface MailboxCheck {
+  mailbox: string;
+  status: "read" | "failed" | "authorization_required";
+  /** True when Gmail had more matching mail than the capped page read. */
+  partial: boolean;
+  documents: number;
+}
+
+export interface LastCheck {
+  at: string;
+  scope: string;
+  complete: boolean;
+  mailboxes: MailboxCheck[];
+}
+
+export function cleanLastCheck(input: unknown): LastCheck | null {
+  const r = input as Partial<LastCheck> | null;
+  if (!r || typeof r.at !== "string" || !Array.isArray(r.mailboxes)) return null;
+  return {
+    at: r.at,
+    scope: typeof r.scope === "string" ? r.scope.slice(0, 300) : "",
+    complete: r.complete === true,
+    mailboxes: r.mailboxes.slice(0, 10).map((m) => ({
+      mailbox: typeof m?.mailbox === "string" ? m.mailbox.slice(0, 200) : "",
+      status: m?.status === "read" || m?.status === "authorization_required" ? m.status : "failed",
+      partial: m?.partial === true,
+      documents: typeof m?.documents === "number" ? m.documents : 0,
+    })),
+  };
+}
+
+export const OFFICE_TIMEZONE = "America/Whitehorse";
+
+/** YYYY-MM-DD of an instant in the office timezone. */
+export function zonedDate(instant: Date | string, timeZone = OFFICE_TIMEZONE): string {
+  const d = typeof instant === "string" ? new Date(instant) : instant;
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+export function formatZoned(instant: string, timeZone = OFFICE_TIMEZONE): string {
+  const d = new Date(instant);
+  if (Number.isNaN(d.getTime())) return "unknown time";
+  return new Intl.DateTimeFormat("en-CA", { timeZone, dateStyle: "medium", timeStyle: "short", timeZoneName: "short" }).format(d);
+}
+
+const addDays = (ymd: string, days: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+
+/** Monday–Sunday week containing "now", in the office timezone. */
+export function officeWeek(now = new Date(), timeZone = OFFICE_TIMEZONE) {
+  const today = zonedDate(now, timeZone);
+  const dow = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  const start = addDays(today, -((dow + 6) % 7));
+  const end = addDays(start, 6);
+  return { start, end, today, label: `Week of ${start} to ${end} (Mon–Sun, ${timeZone})` };
+}
+
+/** Link to the original message in the source mailbox (Gmail web). */
+export function gmailLink(mailbox: string, messageId: string): string {
+  if (!/^[0-9a-f]{6,40}$/i.test(messageId)) return "";
+  const who = /^[^@\s]+@[^@\s]+$/.test(mailbox) ? `?authuser=${encodeURIComponent(mailbox)}` : "";
+  return `https://mail.google.com/mail/${who}#all/${messageId}`;
+}
+
+export interface WeeklyView {
+  week: ReturnType<typeof officeWeek>;
+  emails: SubscriptionEvidence[];
+  alerts: Array<{ evidence: SubscriptionEvidence; reason: string }>;
+  comingDue: Array<{ name: string; date: string; basis: RenewalBasis; source: string; cost: string; subscriptionId: string | null; evidence: SubscriptionEvidence | null }>;
+}
+
+const costText = (s: SubscriptionRecord | undefined) =>
+  s?.knownCost ? `${s.knownCost.amount.toFixed(2)} ${s.knownCost.currency} (confirmed by ${s.knownCost.source})` : "Cost unknown";
+
+export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvidence[], now = new Date(), horizonDays = 30): WeeklyView {
+  const week = officeWeek(now);
+  const inWeek = (iso: string) => {
+    const d = zonedDate(iso);
+    return Boolean(d) && d >= week.start && d <= week.end;
+  };
+  const emails = evidence.filter((e) => inWeek(e.recordedAt));
+  const flagged = new Set(priceChangeFlags(subs, evidence).map((f) => f.evidenceId));
+  const alerts: WeeklyView["alerts"] = [];
+  for (const e of evidence) {
+    if (e.review !== "needs-review") continue;
+    if (e.kind === "failed-payment") alerts.push({ evidence: e, reason: "Payment failed or declined (as stated in the email)" });
+    else if (e.kind === "price-change" || flagged.has(e.id)) alerts.push({ evidence: e, reason: "Possible price change — confirmed cost not changed" });
+    else if (e.kind === "unpaid-invoice") alerts.push({ evidence: e, reason: "Invoice states an amount due" });
+    else if (e.matchStatus === "unknown" || e.matchStatus === "conflict") alerts.push({ evidence: e, reason: e.matchStatus === "conflict" ? "Could match several services — review" : "Unknown sender — review" });
+  }
+  const limit = addDays(week.today, horizonDays);
+  const comingDue: WeeklyView["comingDue"] = [];
+  for (const s of subs) {
+    if (s.nextRenewal && s.nextRenewal.date >= week.today && s.nextRenewal.date <= limit) {
+      comingDue.push({ name: s.name, date: s.nextRenewal.date, basis: s.nextRenewal.basis, source: s.nextRenewal.source, cost: costText(s), subscriptionId: s.id, evidence: null });
+    }
+  }
+  for (const e of evidence) {
+    if (e.review === "dismissed" || e.renewalBasis !== "explicit" || !e.renewalDate || e.renewalDate < week.today || e.renewalDate > limit) continue;
+    if (comingDue.some((c) => c.subscriptionId && c.subscriptionId === e.subscriptionId && c.date === e.renewalDate)) continue;
+    const s = subs.find((x) => x.id === e.subscriptionId);
+    comingDue.push({
+      name: s?.name ?? `${e.vendor || "Unknown sender"} (unmatched — review)`,
+      date: e.renewalDate,
+      basis: "explicit",
+      source: `Email in ${e.mailbox || "linked mailbox"}`,
+      cost: e.amount !== null ? `${e.amount.toFixed(2)} ${e.currency ?? "(currency not stated)"} as stated in email — not confirmed` : costText(s),
+      subscriptionId: e.subscriptionId,
+      evidence: e,
+    });
+  }
+  comingDue.sort((a, b) => a.date.localeCompare(b.date));
+  return { week, emails, alerts, comingDue };
 }

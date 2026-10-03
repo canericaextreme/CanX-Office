@@ -85,6 +85,7 @@ export const savePrivateReceipts = createServerFn({ method: "POST" })
       const prior = (Array.isArray(current.body) ? (current.body[0] as { doc?: Record<string, unknown> } | undefined)?.doc : undefined) ?? {};
       const preserved: Record<string, unknown> = {};
       if (prior["subscriptions"] !== undefined) preserved["subscriptions"] = prior["subscriptions"];
+      if (prior["subscriptionLastCheck"] !== undefined) preserved["subscriptionLastCheck"] = prior["subscriptionLastCheck"];
       if (prior["subscriptionEvidence"] !== undefined) preserved["subscriptionEvidence"] = prior["subscriptionEvidence"];
       const response = await rest(config, token, "finance_receipts?on_conflict=owner_id", {
         method: "POST",
