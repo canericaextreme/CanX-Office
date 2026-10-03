@@ -41,6 +41,7 @@ type OfficeRoom = {
 };
 
 const rooms: OfficeRoom[] = [
+  { number: "20", label: "Future", purpose: "Longer plans for CanX, retirement and family", route: "/future", icon: Network, tone: "purple", shape: "soft", x: 72, y: 79 },
   {
     number: "04",
     label: "Idea Garage",
@@ -483,10 +484,7 @@ export function Office3D() {
       const saved = window.localStorage.getItem("canx-office-label-positions-v1");
       if (saved) {
         const parsed = JSON.parse(saved) as Record<string, { x: number; y: number }>;
-        const isValid = rooms.every(
-          (room) => Number.isFinite(parsed[room.number]?.x) && Number.isFinite(parsed[room.number]?.y),
-        );
-        if (isValid) setLabelPositions(parsed);
+        setLabelPositions(current => ({ ...current, ...Object.fromEntries(rooms.filter(room => Number.isFinite(parsed[room.number]?.x) && Number.isFinite(parsed[room.number]?.y)).map(room => [room.number, parsed[room.number]!])) }));
       }
     } catch {
       // Keep the checked-in label positions when stored data is unavailable.

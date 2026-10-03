@@ -1,3 +1,4 @@
+import { OfficeFiles } from "./OfficeFiles";
 import { SampleBadge } from "./SampleBadge";
 import { ROOMS, roomByRoute, type RoomDef } from "@/lib/office-data";
 import { useRouterState } from "@tanstack/react-router";
@@ -30,6 +31,7 @@ export function RoomShell({ children, title, purpose, showSample = true }: RoomS
             </p>
           </div>
         </div>
+        <OfficeFiles room={room.id} />
         {children}
       </div>
     </main>

@@ -1,4 +1,6 @@
 "use client";
+
+import { OfficeFiles } from "./OfficeFiles";
 import { VoiceDiagnosticsPanel } from "./VoiceDiagnosticsPanel";
 import { recordVoiceDiag } from "@/lib/voice-diagnostics";
 
@@ -1543,7 +1545,7 @@ export function OfficeManager() {
                   }}
                 ><span className="h-1.5 w-20 rounded-full bg-muted-foreground" /></div>
                 <div className="flex items-center justify-between gap-2 pb-1">
-                  <span className="text-sm">Drag divider: more reading or writing space</span>
+                  <OfficeFiles compact onSaved={file => setDraft(current => `${current}${current ? "\n" : ""}I saved ${file.filename} in ${file.room} / ${file.folder} (file ${file.id}).`)} />
                   <Button size="sm" variant="outline" onClick={() => setComposerCollapsed(value => !value)}>
                     {composerCollapsed ? "Show text box" : "Hide text box"}
                   </Button>
