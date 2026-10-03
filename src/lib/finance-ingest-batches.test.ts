@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ingestInBatches, RPC_CANDIDATE_LIMIT, type IngestDeps } from "./finance-ingest-batches";
+import { ingestInBatches, matchesStoredCandidate, RPC_CANDIDATE_LIMIT, type IngestDeps } from "./finance-ingest-batches";
 import { runReceiptSyncWith, type SyncDeps } from "./receipt-ingestion.functions";
 import type { CandidateDocument, IngestibleReceipt } from "./receipt-ingestion";
 import type { FinanceReceipt } from "./finance-receipts";
@@ -36,7 +36,12 @@ function fakeDb(opts: { failBatchOnce?: number; failBatchAlways?: number } = {})
   return { deps, rpc, rows, checkpoints, get checkpoint() { return checkpoint; } };
 }
 
-const receipt = (i: number) => ({ contentFingerprint: `fp-${i}`, vendor: "OpenAI", total: i + 1, currency: "USD" }) as unknown as IngestibleReceipt;
+const fingerprint = (i: number) => i.toString(16).padStart(64, "0");
+const receipt = (i: number, patch: Partial<IngestibleReceipt> = {}) => ({
+  id: `r-${i}`, contentFingerprint: fingerprint(i), vendor: "OpenAI", total: i + 1, currency: "USD",
+  gmailMessageId: `msg-${i}`, attachmentIdentity: "body", invoiceNumber: `INV-${i}`, orderNumber: `INV-${i}`,
+  sourceMessageIds: [`msg-${i}`], ...patch,
+}) as IngestibleReceipt;
 const fifty = Array.from({ length: 50 }, (_, i) => receipt(i));
 
 describe("batched RPC writer (<=25 per call)", () => {
@@ -67,6 +72,45 @@ describe("batched RPC writer (<=25 per call)", () => {
     expect(r).toMatchObject({ ok: true, duplicates: 10, unverified: [] });
     const lying = await ingestInBatches({ rpc: async () => ({ ok: true, filed: [], duplicates: 1 }), reread: async () => ({ ok: true, ingested: [], all: [] }) }, [receipt(99)], "OLD");
     expect(lying.ok).toBe(false);
+  });
+
+  it("recognizes a legacy duplicate through sourceMessageIds without a fingerprint", async () => {
+    const candidate = receipt(81);
+    const legacy = { vendor: "Old record", sourceMessageIds: [candidate.gmailMessageId] } as FinanceReceipt;
+    const r = await ingestInBatches({
+      rpc: async () => ({ ok: true, filed: [], duplicates: 1 }),
+      reread: async () => ({ ok: true, ingested: [], all: [legacy] }),
+    }, [candidate], "OLD");
+    expect(r).toMatchObject({ ok: true, filed: [], duplicates: 1, unverified: [] });
+  });
+
+  it("recognizes the SQL invoice duplicate when its fingerprint changed", async () => {
+    const candidate = receipt(82, { vendor: "Acme Ltd", invoiceNumber: "AB-77", orderNumber: "AB-77" });
+    const existing = { vendor: "ACME LTD", orderNumber: "ab-77", sourceMessageIds: [], contentFingerprint: fingerprint(2) } as unknown as FinanceReceipt;
+    expect(matchesStoredCandidate(candidate, existing)).toBe(true);
+    const r = await ingestInBatches({ rpc: async () => ({ ok: true, filed: [], duplicates: 1 }), reread: async () => ({ ok: true, ingested: [], all: [existing] }) }, [candidate], "OLD");
+    expect(r.ok).toBe(true);
+  });
+
+  it("recognizes exact Gmail message and attachment identity", async () => {
+    const candidate = receipt(83);
+    const existing = { vendor: "Different label", sourceMessageIds: [], gmailMessageId: candidate.gmailMessageId, attachmentIdentity: candidate.attachmentIdentity } as unknown as FinanceReceipt;
+    expect(matchesStoredCandidate(candidate, existing)).toBe(true);
+  });
+
+  it("fails closed for an unmatched candidate and for a real read failure", async () => {
+    const candidate = receipt(84);
+    const unmatched = await ingestInBatches({ rpc: async () => ({ ok: true, filed: [], duplicates: 1 }), reread: async () => ({ ok: true, ingested: [], all: [] }) }, [candidate], "OLD");
+    expect(unmatched).toMatchObject({ ok: false, filed: [], unverified: [candidate.contentFingerprint] });
+    const unreadable = await ingestInBatches({ rpc: async () => ({ ok: true, filed: [candidate], duplicates: 0 }), reread: async () => ({ ok: false, ingested: [], all: [] }) }, [candidate], "OLD");
+    expect(unreadable).toMatchObject({ ok: false, filed: [], unverified: [candidate.contentFingerprint] });
+  });
+
+  it("does not count a newly filed candidate from a looser legacy duplicate match", async () => {
+    const candidate = receipt(85);
+    const legacy = { vendor: candidate.vendor, orderNumber: candidate.invoiceNumber, sourceMessageIds: [] } as unknown as FinanceReceipt;
+    const r = await ingestInBatches({ rpc: async () => ({ ok: true, filed: [candidate], duplicates: 0 }), reread: async () => ({ ok: true, ingested: [], all: [legacy] }) }, [candidate], "OLD");
+    expect(r).toMatchObject({ ok: false, filed: [], unverified: [candidate.contentFingerprint] });
   });
 });
 

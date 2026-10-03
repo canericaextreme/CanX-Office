@@ -1,5 +1,11 @@
 # Phase 1 bright office completion
 
+## Finance readback and receipt timestamps (2026-10-03)
+- [x] Mirror migration 0004 duplicate matching across legacy and ingested records while strictly verifying newly filed rows.
+- [x] Keep real save failures and read failures fail-closed with confirmed-filed-only counts and no checkpoint advance.
+- [x] Show actual source-email received and imported/filed times in America/Whitehorse, with an explicit not-recorded state.
+- [x] Verify focused regressions, full tests, types and preview build without Gmail, paid calls or publication.
+
 ## Finance navigation and normal email commands (2026-10-03)
 - [x] Make Income, Expenses, Receipts and Tax prep open as accessible Finance sections with clear back navigation.
 - [x] Open real receipt details and show truthful empty states without changing records or permissions.

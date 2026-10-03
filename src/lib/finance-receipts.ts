@@ -62,6 +62,8 @@ export interface FinanceReceipt {
   duplicateCount: number;
   /** Untrusted plain text kept as evidence. Never rendered as HTML. */
   sourceEmailText: string;
+  /** Gmail's source received instant. Empty means it was not recorded. */
+  receivedAt?: string;
   importedAt: string;
 }
 
@@ -145,7 +147,8 @@ function cleanReceipt(input: unknown, index: number, errors: string[]): FinanceR
     sourceUrl: /^https?:\/\//i.test(text(row["sourceUrl"], 600)) ? text(row["sourceUrl"], 600) : "",
     duplicateCount: dup && dup > 0 ? Math.min(999, Math.round(dup)) : 1,
     sourceEmailText: text(row["sourceEmailText"], MAX_EMAIL_TEXT),
-    importedAt: new Date().toISOString(),
+    receivedAt: text(row["receivedAt"], 40),
+    importedAt: text(row["importedAt"], 40) || new Date().toISOString(),
   };
 }
 

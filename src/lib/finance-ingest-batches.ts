@@ -25,6 +25,36 @@ export interface BatchedOutcome {
   unverified: string[];
 }
 
+const normalized = (value: unknown) => typeof value === "string" ? value.trim().toLowerCase() : "";
+const extended = (receipt: FinanceReceipt) => receipt as FinanceReceipt & Partial<IngestibleReceipt>;
+
+/** Mirrors migration 0004's authenticated duplicate contract across legacy and ingested rows. */
+export function matchesStoredCandidate(candidate: IngestibleReceipt, stored: FinanceReceipt): boolean {
+  const row = extended(stored);
+  const sameSource = Boolean(candidate.gmailMessageId && candidate.attachmentIdentity)
+    && row.gmailMessageId === candidate.gmailMessageId
+    && row.attachmentIdentity === candidate.attachmentIdentity;
+  const storedInvoice = normalized(row.invoiceNumber || stored.orderNumber);
+  const sameInvoice = Boolean(candidate.invoiceNumber)
+    && normalized(stored.vendor) === normalized(candidate.vendor)
+    && storedInvoice === normalized(candidate.invoiceNumber);
+  const sameFingerprint = Boolean(candidate.contentFingerprint)
+    && row.contentFingerprint === candidate.contentFingerprint;
+  const legacyMessage = Boolean(candidate.gmailMessageId)
+    && stored.sourceMessageIds.includes(candidate.gmailMessageId);
+  return sameSource || sameInvoice || sameFingerprint || legacyMessage;
+}
+
+/** A newly filed row must preserve the candidate itself, not merely match an older duplicate key. */
+function matchesFiledCandidate(candidate: IngestibleReceipt, stored: FinanceReceipt): boolean {
+  const row = extended(stored);
+  return row.contentFingerprint === candidate.contentFingerprint
+    && row.gmailMessageId === candidate.gmailMessageId
+    && row.attachmentIdentity === candidate.attachmentIdentity
+    && normalized(stored.vendor) === normalized(candidate.vendor)
+    && stored.total === candidate.total;
+}
+
 export async function ingestInBatches(deps: IngestDeps, receipts: IngestibleReceipt[], checkpoint: string): Promise<BatchedOutcome> {
   const batches: IngestibleReceipt[][] = [];
   for (let i = 0; i < receipts.length; i += RPC_CANDIDATE_LIMIT) batches.push(receipts.slice(i, i + RPC_CANDIDATE_LIMIT));
@@ -47,11 +77,19 @@ export async function ingestInBatches(deps: IngestDeps, receipts: IngestibleRece
     batchesWritten += 1;
   }
   const back = await deps.reread().catch(() => ({ ok: false, ingested: [] as FinanceReceipt[], all: [] as FinanceReceipt[] }));
-  const stored = new Set(back.ingested.map((s) => (s as Partial<IngestibleReceipt>).contentFingerprint).filter(Boolean));
-  // Verify every candidate (filed or duplicate) is present, not only the returned filed list.
-  const unverified = back.ok ? receipts.map((r) => r.contentFingerprint).filter((fp) => !stored.has(fp)) : receipts.map((r) => r.contentFingerprint);
-  // Only count as filed what readback confirms.
-  const confirmedFiled = back.ok ? filed.filter((f) => stored.has(f.contentFingerprint)) : [];
+  const filedFingerprints = new Set(filed.map((receipt) => receipt.contentFingerprint));
+  // New rows need exact saved identity/content. RPC-declared duplicates use the
+  // SQL duplicate contract against both legacy and ingested records.
+  const confirmedFiled = back.ok
+    ? filed.filter((candidate) => back.ingested.some((stored) => matchesFiledCandidate(candidate, stored)))
+    : [];
+  const confirmedFiledFingerprints = new Set(confirmedFiled.map((receipt) => receipt.contentFingerprint));
+  const unverified = back.ok
+    ? receipts.filter((candidate) => filedFingerprints.has(candidate.contentFingerprint)
+      ? !confirmedFiledFingerprints.has(candidate.contentFingerprint)
+      : !back.all.some((stored) => matchesStoredCandidate(candidate, stored)))
+      .map((candidate) => candidate.contentFingerprint)
+    : receipts.map((candidate) => candidate.contentFingerprint);
   return {
     ok: !failed && back.ok && unverified.length === 0,
     filed: confirmedFiled,

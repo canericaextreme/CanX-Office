@@ -387,6 +387,7 @@ export async function runReceiptSyncWith(
       officeExpenseStatus: match.status === "matched" ? "matched-office-service-needs-review" : "unconfirmed-needs-review",
       gmailFrom: document.from ?? "",
       gmailSubject: document.subject ?? "",
+      receivedAt: document.receivedAt ?? "",
     } as IngestibleReceipt;
     // Body text and attachment of one message describing the same charge: keep one, prefer the PDF.
     const key = `${document.messageId}|${enriched.total}|${enriched.currency ?? ""}`;
