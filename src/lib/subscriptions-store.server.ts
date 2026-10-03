@@ -122,3 +122,35 @@ export async function saveGmailContinuation(token: string, ownerId: string, next
   const res = await cas(backend, token, ownerId, (d) => ({ ...d, gmailContinuation: next }), (d) => sameContent(d["gmailContinuation"] ?? {}, next));
   return res.ok;
 }
+
+/** Owner mail Keep/Ignore preferences (compare-and-swap, change-verified, other keys preserved). */
+export async function readMailPreferences(token: string) {
+  const backend = await import("./canx-backend.server");
+  const { cleanMailPreferences } = await import("./mail-preferences");
+  const read = await readDoc(backend, token);
+  if (!read.ok || !read.doc) return null;
+  return cleanMailPreferences(read.doc["mailPreferences"]);
+}
+
+export async function changeMailPreference(
+  token: string,
+  ownerId: string,
+  change: import("./mail-preferences").PreferenceChange,
+  by: import("./mail-preferences").PreferenceSource,
+) {
+  const backend = await import("./canx-backend.server");
+  const mp = await import("./mail-preferences");
+  const at = new Date().toISOString();
+  let result = mp.cleanMailPreferences(null);
+  const res = await cas(
+    backend, token, ownerId,
+    (d) => {
+      // Applied to the LATEST doc on every attempt, so concurrent writers' keys survive.
+      result = mp.applyPreferenceChange(mp.cleanMailPreferences(d["mailPreferences"]), change, at, by);
+      return { ...d, mailPreferences: result };
+    },
+    (d) => mp.changeApplied(mp.cleanMailPreferences(d["mailPreferences"]), change),
+  );
+  if (res.ok) await audit(backend, token, ownerId, "finance.mail_preferences.change", { messages: result.messages.length, senders: result.senders.length });
+  return res.ok ? { ok: true as const, preferences: result } : { ok: false as const };
+}
