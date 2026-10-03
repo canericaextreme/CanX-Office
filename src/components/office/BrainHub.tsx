@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { Download, BookOpen, MessagesSquare, Brain, FolderKanban, BookOpenCheck, HelpCircle, Search, RefreshCw, ArrowLeft, Clock, Lamp } from "lucide-react";
@@ -69,7 +69,18 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
 
   const buckets: BrainBucket[] = [...BRAIN_CATEGORIES, ...(counts.unsorted ? ["unsorted" as const] : [])];
   const tone = (b: BrainBucket) => `var(--brain-cat-${b})`;
-  const open = (b: BrainBucket) => { setCat(b); setRoom("all"); setFolder("all"); };
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const topRef = useRef<HTMLElement>(null);
+  const [focusPending, setFocusPending] = useState(false);
+  // Opening a category clears stale search/filters and moves focus to its heading.
+  const open = (b: BrainBucket) => { setCat(b); setQuery(""); setRoom("all"); setFolder("all"); setFocusPending(true); };
+  const backToHub = () => { setCat(null); setQuery(""); setRoom("all"); setFolder("all"); };
+  useEffect(() => {
+    if (!focusPending || cat === null) return;
+    setFocusPending(false);
+    headingRef.current?.focus();
+    topRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }, [focusPending, cat]);
 
   const row = (i: BrainItem) => (
     <li key={i.key} className="rounded-lg border bg-[var(--brain-card)] p-3" style={{ borderColor: "var(--brain-line)", borderLeft: `4px solid ${tone(i.category)}` }}>
@@ -96,7 +107,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
   );
 
   return (
-    <section aria-label="Brain categories" className="relative overflow-hidden rounded-2xl border p-4 text-[var(--brain-room-ink)] sm:p-6"
+    <section ref={topRef} aria-label="Brain categories" className="relative overflow-hidden rounded-2xl border p-4 text-[var(--brain-room-ink)] sm:p-6"
       style={{ background: "radial-gradient(ellipse 60% 45% at 88% 0%, var(--brain-lamp), transparent 70%), var(--brain-room)", borderColor: "var(--brain-line)" }}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
@@ -123,14 +134,16 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
         {notice && <p role="status" className="text-sm">{notice}</p>}
       </div>
 
-      {/* Shelf of category folders */}
+      {/* Shelf of category folders — hidden while one category is open */}
+      {cat === null && <>
       <nav aria-label="Brain categories" className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3">
         {buckets.map((b) => {
           const Icon = ICONS[b];
           const active = cat === b;
           return (
             <button key={b} type="button" onClick={() => open(b)} aria-pressed={active}
-              className="group flex min-h-24 items-start gap-3 rounded-xl border bg-[var(--brain-card)] p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2"
+              aria-label={`Open ${CATEGORY_LABELS[b]}: ${index ? counts[b] : "unknown"} items`}
+              className="group flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border bg-[var(--brain-card)] p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2"
               style={{ borderColor: active ? tone(b) : "var(--brain-line)", borderTop: `5px solid ${tone(b)}`, boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined }}>
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in oklab, ${tone(b)} 14%, transparent)`, color: tone(b) }}><Icon className="h-5 w-5" aria-hidden /></span>
               <span className="min-w-0">
@@ -143,20 +156,26 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
         })}
       </nav>
       <div aria-hidden className="mt-2 h-3 rounded-sm" style={{ background: "linear-gradient(180deg, var(--brain-wood), var(--brain-wood-dark))", boxShadow: "0 4px 6px -3px var(--brain-wood-dark)" }} />
+      </>}
 
       {listing ? (
         <div className="mt-5 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="ghost" className="text-[var(--brain-room-ink)] hover:bg-[var(--brain-card)]" onClick={() => { setCat(null); setQuery(""); }}>
-              <ArrowLeft className="mr-1 h-4 w-4" aria-hidden /> All shelves
+            <Button size="sm" variant="outline" className="border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] hover:bg-[var(--brain-room)]" onClick={backToHub}>
+              <ArrowLeft className="mr-1 h-4 w-4" aria-hidden /> Back to all categories
             </Button>
-            <h3 className="text-base font-semibold">{cat ? CATEGORY_LABELS[cat] : "Search results across every category"}</h3>
+            <h3 ref={headingRef} tabIndex={-1} className="flex items-center gap-2 text-lg font-semibold outline-none" style={cat ? { color: tone(cat) } : undefined}>
+              {cat ? <>{(() => { const I = ICONS[cat]; return <I className="h-5 w-5" aria-hidden />; })()}{CATEGORY_LABELS[cat]}{index ? ` · ${counts[cat]} item${counts[cat] === 1 ? "" : "s"}` : ""}</> : "Search results across every category"}
+            </h3>
             {rooms.length > 1 && <select aria-label="Room" className="h-10 rounded-md border bg-[var(--brain-card)] px-2 text-sm" style={{ borderColor: "var(--brain-line)" }} value={room} onChange={(e) => setRoom(e.target.value)}><option value="all">All rooms</option>{rooms.map((r) => <option key={r} value={r}>{roomLabel(r)}</option>)}</select>}
             {folders.length > 0 && <select aria-label="Earlier folder" className="h-10 rounded-md border bg-[var(--brain-card)] px-2 text-sm" style={{ borderColor: "var(--brain-line)" }} value={folder} onChange={(e) => setFolder(e.target.value)}><option value="all">All earlier folders</option>{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select>}
           </div>
+          {cat && <p className="text-sm text-[var(--brain-room-muted)]">{CATEGORY_HELP[cat]}</p>}
+          {!index && loading && <p role="status" className="text-sm text-[var(--brain-room-muted)]">Reading this category…</p>}
+          {!index && !loading && <p className="text-sm text-[var(--brain-room-muted)]">{error ? "This category can't be shown because the Brain index couldn't be read." : "Sign in as the owner to see what's in this category."}</p>}
           {index && (
             <ul className="space-y-2">
-              {shown.length === 0 && <li className="text-sm text-[var(--brain-room-muted)]">Nothing here{query ? " matches that search" : " yet"}.</li>}
+              {shown.length === 0 && <li className="text-sm text-[var(--brain-room-muted)]">{query ? "Nothing matches that search." : cat ? `Nothing is filed under ${CATEGORY_LABELS[cat]} yet.` : "Nothing here yet."}</li>}
               {shown.map(row)}
               {shown.length === 200 && <li className="text-xs text-[var(--brain-room-muted)]">Showing the first 200; narrow the search to see more.</li>}
             </ul>
