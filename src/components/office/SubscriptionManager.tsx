@@ -20,6 +20,7 @@ import { WeeklySubscriptionCards } from "@/components/office/WeeklySubscriptionC
 import { MailReviewPanel, useMailPreferences } from "@/components/office/MailReviewPanel";
 import { visibleEvidence } from "@/lib/mail-preferences";
 import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
+import type { GmailScanConfig } from "@/lib/gmail-scan-window";
 
 const KIND_LABEL: Record<SubscriptionEvidence["kind"], string> = {
   receipt: "Receipt (paid)",
@@ -50,6 +51,7 @@ export function SubscriptionManager() {
   const [editing, setEditing] = useState<SubscriptionRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [lastCheck, setLastCheck] = useState<LastCheck | null>(null);
+  const [scanConfig, setScanConfig] = useState<GmailScanConfig | null>(null);
 
   const load = useCallback(() => {
     if (!owner.shared || !owner.accessToken) { setState("idle"); return; }
@@ -61,6 +63,7 @@ export function SubscriptionManager() {
         setSubs(res.data.saved ? res.data.subscriptions : STARTER_SUBSCRIPTIONS);
         setEvidence(res.data.evidence);
         setLastCheck(res.data.lastCheck ?? null);
+        setScanConfig(res.data.scanConfig ?? null);
         setState("ready");
       })
       .catch(() => { setState("error"); setMessage("Subscriptions could not be read."); });
@@ -111,7 +114,7 @@ export function SubscriptionManager() {
         <StatusBadge tone={saved ? "green" : "yellow"} label={saved ? "Saved in CanX account" : "Starter list — not saved"} />
       </CardHeader>
       <CardContent className="space-y-4" aria-live="polite">
-        <CheckEmailsNow accessToken={owner.accessToken ?? null} onVerified={load} />
+        <CheckEmailsNow accessToken={owner.accessToken ?? null} onVerified={load} savedScan={scanConfig} />
         <WeeklySubscriptionCards view={weekly} lastCheck={lastCheck} />
         <MailReviewPanel accessToken={owner.accessToken ?? null} evidence={evidence} prefs={prefsLoad} onPrefs={(p) => setPrefsLoad({ state: "ready", prefs: p })} />
         {state === "loading" && <p className="text-sm text-muted-foreground">Loading subscriptions…</p>}

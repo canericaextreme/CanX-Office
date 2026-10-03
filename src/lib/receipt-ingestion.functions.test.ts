@@ -191,4 +191,42 @@ describe("owner-only Gmail receipt sync", () => {
     const filed = deps.atomicWrite.mock.calls[0]?.[2] ?? [];
     expect(filed.some((r) => r.gmailMailbox === "canerica14@gmail.com")).toBe(true);
   });
+
+  it("rekeys a changed dated scan and resumes only the matching frozen window", async () => {
+    const deps = base();
+    const saveScanProgress = vi.fn(async () => true);
+    deps.saveScanProgress = saveScanProgress;
+    deps.readState.mockResolvedValue({
+      ok: true, checkpoint: "cp", receipts: [],
+      continuation: { "a@gmail.com": { token: "OLD", query: "dated|old", savedAt: "" } },
+      scanConfig: { fromDate: "2026-08-15", endAt: "2026-10-03T20:00:00.000Z", status: "paused", savedAt: "", queryKey: "dated|old", completedSlots: [], mailboxes: [] },
+    });
+    deps.fetchCandidates.mockResolvedValue({ documents: [], checkpoint: "now", unsupported: 0, mailbox: "a@gmail.com" });
+    const changed = await runReceiptSyncWith(deps, { accessToken: "t", request: "check receipts", fromDate: "2026-08-16" });
+    expect((deps.fetchCandidates as ReturnType<typeof vi.fn>).mock.calls[0]?.[4]).toEqual({});
+    expect(changed.endAt).not.toBe("2026-10-03T20:00:00.000Z");
+    expect(saveScanProgress).toHaveBeenCalled();
+  });
+
+  it("preserves a verified mailbox cursor and stops without advancing an incomplete page", async () => {
+    const deps = base();
+    const saveScanProgress = vi.fn(async () => true);
+    deps.saveScanProgress = saveScanProgress;
+    deps.fetchCandidates.mockResolvedValue({ documents: [], checkpoint: "now", unsupported: 1, mailbox: "a@gmail.com", partial: true, nextPageToken: "NEXT", fetchFailures: 1 });
+    const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "check receipts", fromDate: "2026-08-15" });
+    expect(result.hasMore).toBe(true);
+    expect(result.canContinueNow).toBe(false);
+    expect((saveScanProgress.mock.calls as unknown[][])[0]?.[2]).toEqual({});
+  });
+
+  it("does not fetch a later mailbox after an incomplete fetch page", async () => {
+    const deps = base();
+    deps.gmailAccounts.mockReturnValue([settings, { lovableApiKey: "b", connectionApiKey: "c" }]);
+    deps.saveScanProgress = vi.fn(async () => true);
+    deps.fetchCandidates.mockResolvedValue({ documents: [], checkpoint: "now", unsupported: 0, mailbox: "a@gmail.com", partial: true, fetchFailures: 1 });
+    const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "check receipts", fromDate: "2026-08-15" });
+    expect(deps.fetchCandidates).toHaveBeenCalledTimes(1);
+    expect(result.mailboxesFailed).toBe(1);
+    expect(result.canContinueNow).toBe(false);
+  });
 });

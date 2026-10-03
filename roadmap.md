@@ -1,5 +1,11 @@
 # Phase 1 bright office completion
 
+## Dated Finance email catch-up (2026-10-03)
+- [x] Add an editable 2026-08-15 From date and an explicit bounded historical scan for both linked mailboxes.
+- [x] Freeze each run end, use inclusive America/Whitehorse boundaries, and persist only verified query-keyed per-mailbox progress.
+- [x] Keep ordinary button and Elsie requests within the saved date scope, with honest running, paused, failed and complete states.
+- [ ] Verify date edges, multi-page completion/resume, query rekeying, duplicates and fail-closed behavior; run full checks without live Gmail or publication.
+
 ## Finance readback and receipt timestamps (2026-10-03)
 - [x] Mirror migration 0004 duplicate matching across legacy and ingested records while strictly verifying newly filed rows.
 - [x] Keep real save failures and read failures fail-closed with confirmed-filed-only counts and no checkpoint advance.

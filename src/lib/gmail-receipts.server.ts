@@ -240,7 +240,7 @@ export async function fetchGmailReceiptCandidates(
     }
   }
 
-  const partial = documentCapHit || continued || Boolean(listed.nextPageToken) || (!continued && (listed.resultSizeEstimate ?? 0) > ids.length);
+  const partial = documentCapHit || Boolean(listed.nextPageToken) || (!continued && (listed.resultSizeEstimate ?? 0) > ids.length);
   return {
     documents, checkpoint: String(Date.now()), unsupported, partial, mailbox,
     ...(listed.nextPageToken ? { nextPageToken: listed.nextPageToken } : {}), continued, continuationRejected, fetchFailures,

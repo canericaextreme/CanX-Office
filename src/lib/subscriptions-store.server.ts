@@ -17,6 +17,7 @@ import {
   type SubscriptionEvidence,
   type SubscriptionRecord,
 } from "./subscriptions";
+import { cleanGmailScanConfig, type GmailScanConfig } from "./gmail-scan-window";
 
 type Backend = typeof import("./canx-backend.server");
 
@@ -58,6 +59,7 @@ export async function readSubscriptionState(token: string) {
     subscriptions: cleanSubscriptionList(saved ?? []) ?? [],
     evidence: cleanEvidenceList(read.doc["subscriptionEvidence"]),
     lastCheck: cleanLastCheck(read.doc["subscriptionLastCheck"]),
+    scanConfig: cleanGmailScanConfig(read.doc["gmailScanConfig"]),
   };
 }
 
@@ -120,6 +122,33 @@ export async function saveGmailContinuation(token: string, ownerId: string, next
   const backend = await import("./canx-backend.server");
   const { sameContent } = await import("./finance-doc-cas.server");
   const res = await cas(backend, token, ownerId, (d) => ({ ...d, gmailContinuation: next }), (d) => sameContent(d["gmailContinuation"] ?? {}, next));
+  return res.ok;
+}
+
+/** Dated scan window and resumable state, stored in the existing owner-only Finance document. */
+export async function saveGmailScanConfig(token: string, ownerId: string, next: GmailScanConfig) {
+  const backend = await import("./canx-backend.server");
+  const { sameContent } = await import("./finance-doc-cas.server");
+  const res = await cas(backend, token, ownerId, (d) => ({ ...d, gmailScanConfig: next }), (d) => sameContent(d["gmailScanConfig"], next));
+  return res.ok;
+}
+
+/** Saves the dated scan state and mailbox cursors as one verified CAS change. */
+export async function saveGmailScanProgress(
+  token: string,
+  ownerId: string,
+  continuation: Record<string, { token: string; query: string; savedAt: string }>,
+  scan: GmailScanConfig,
+) {
+  const backend = await import("./canx-backend.server");
+  const { sameContent } = await import("./finance-doc-cas.server");
+  const res = await cas(
+    backend,
+    token,
+    ownerId,
+    (d) => ({ ...d, gmailContinuation: continuation, gmailScanConfig: scan }),
+    (d) => sameContent(d["gmailContinuation"] ?? {}, continuation) && sameContent(d["gmailScanConfig"], scan),
+  );
   return res.ok;
 }
 
