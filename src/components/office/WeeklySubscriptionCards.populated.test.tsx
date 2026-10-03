@@ -1,6 +1,7 @@
-import { it, expect } from "vitest";
+import { it, expect, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
+vi.mock("@tanstack/react-router", () => ({ Link: ({ to, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }) => <a href={to} {...props}>{children}</a> }));
 import { CheckEmailsResult } from "./CheckEmailsNow";
 import { WeeklySubscriptionCards } from "./WeeklySubscriptionCards";
 import { STARTER_SUBSCRIPTIONS, weeklyView, cleanLastCheck, formatZoned, type SubscriptionEvidence } from "@/lib/subscriptions";
