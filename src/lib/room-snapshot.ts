@@ -179,7 +179,7 @@ export interface RoomSnapshot {
 export function fingerprintSources(sources: SourceResult[]): string {
   const basis = sources
     .filter((s) => s.kind !== "static")
-    .map((s) => `${s.key}:${s.status}:${s.count ?? "-"}:${s.latestAt ?? "-"}:${s.items.join("|")}`)
+    .map((s) => `${s.key}:${s.status}:${s.count ?? "-"}:${s.kind === "device" ? "-" : s.latestAt ?? "-"}:${s.items.join("|")}`)
     .join("\n");
   let h = 5381;
   for (let i = 0; i < basis.length; i++) h = ((h << 5) + h + basis.charCodeAt(i)) | 0;
@@ -193,7 +193,7 @@ export function overallOf(sources: SourceResult[]): RoomSnapshot["overall"] {
   if (read === liveSources.length) return "fresh";
   // A device-only source the server couldn't get makes the room partial, never failed on its own.
   const liveRead = liveSources.filter((s) => s.kind === "live" && s.status === "read").length;
-  return read === 0 && liveSources.some((s) => s.kind === "live") && liveRead === 0 ? "failed" : "partial";
+  return liveSources.some((s) => s.kind === "live") && liveRead === 0 ? "failed" : "partial";
 }
 
 export function roomLimits(target: RoomTarget, sources: SourceResult[], skills: RoomSkillInfo): string[] {
