@@ -93,6 +93,14 @@ export interface GmailFetchResult {
   partial?: boolean;
   /** Verified mailbox address from the profile check. */
   mailbox?: string;
+  /** Gmail continuation token for the next page of the same query (if any). */
+  nextPageToken?: string;
+  /** True when this run started from a saved continuation rather than page 1. */
+  continued?: boolean;
+  /** True when the saved continuation was rejected and page 1 was read instead. */
+  continuationRejected?: boolean;
+  /** Messages on this page that could not be fetched at all (not processed). */
+  fetchFailures?: number;
 }
 
 export async function fetchGmailReceiptCandidates(
@@ -101,6 +109,7 @@ export async function fetchGmailReceiptCandidates(
   rescan: boolean,
   fetchImpl: typeof fetch = (input, init) => fetch(input, init),
   baseQuery: string = GMAIL_QUERY,
+  pageTokens: Record<string, string> = {},
 ): Promise<GmailFetchResult> {
   // Read-only profile check: verifies which mailbox this connection is and
   // labels every document with it, so receipts keep their source provenance.
@@ -109,17 +118,27 @@ export async function fetchGmailReceiptCandidates(
   const mailbox = String(((await profile.json()) as { emailAddress?: unknown }).emailAddress ?? "");
 
   const query = encodeURIComponent(rescan || !checkpoint ? baseQuery : `${baseQuery} after:${checkpoint}`);
-  const list = await gateway(settings, `/users/me/messages?maxResults=${MAX_GMAIL_CANDIDATES}&q=${query}`, fetchImpl);
+  const saved = pageTokens[mailbox.toLowerCase()];
+  let continued = false;
+  let continuationRejected = false;
+  let list = await gateway(settings, `/users/me/messages?maxResults=${MAX_GMAIL_CANDIDATES}&q=${query}${saved ? `&pageToken=${encodeURIComponent(saved)}` : ""}`, fetchImpl);
+  if (saved && list.status === 400) {
+    // Expired/invalid token: honestly fall back to page 1.
+    continuationRejected = true;
+    list = await gateway(settings, `/users/me/messages?maxResults=${MAX_GMAIL_CANDIDATES}&q=${query}`, fetchImpl);
+  } else if (saved && list.ok) continued = true;
   if (!list.ok) throw new Error(list.status === 401 || list.status === 403 ? "gmail_authorization_required" : "gmail_unavailable");
   const listed = (await list.json()) as { messages?: Array<{ id?: string }>; nextPageToken?: string; resultSizeEstimate?: number };
   const ids = (listed.messages ?? []).map((row) => row.id).filter((id): id is string => Boolean(id)).slice(0, MAX_GMAIL_CANDIDATES);
   const documents: CandidateDocument[] = [];
   let unsupported = 0;
+  let fetchFailures = 0;
 
   for (const messageId of ids) {
     const response = await gateway(settings, `/users/me/messages/${encodeURIComponent(messageId)}?format=full`, fetchImpl);
     if (!response.ok) {
       unsupported += 1;
+      fetchFailures += 1;
       continue;
     }
     const message = (await response.json()) as { internalDate?: string; payload?: GmailPart & { headers?: Array<{ name?: string; value?: string }> } };
@@ -173,8 +192,11 @@ export async function fetchGmailReceiptCandidates(
     }
   }
 
-  const partial = Boolean(listed.nextPageToken) || (listed.resultSizeEstimate ?? 0) > ids.length;
-  return { documents, checkpoint: String(Date.now()), unsupported, partial, mailbox };
+  const partial = continued || Boolean(listed.nextPageToken) || (!continued && (listed.resultSizeEstimate ?? 0) > ids.length);
+  return {
+    documents, checkpoint: String(Date.now()), unsupported, partial, mailbox,
+    nextPageToken: listed.nextPageToken, continued, continuationRejected, fetchFailures,
+  };
 }
 
 export type MailboxAccessStatus = "verified" | "authorization_required" | "unavailable";
