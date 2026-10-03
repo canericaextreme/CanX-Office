@@ -89,6 +89,8 @@ export interface GmailFetchResult {
   documents: CandidateDocument[];
   checkpoint: string;
   unsupported: number;
+  /** True when Gmail reported more matches than this capped page fetched. */
+  partial?: boolean;
 }
 
 export async function fetchGmailReceiptCandidates(
@@ -96,6 +98,7 @@ export async function fetchGmailReceiptCandidates(
   checkpoint: string | null,
   rescan: boolean,
   fetchImpl: typeof fetch = (input, init) => fetch(input, init),
+  baseQuery: string = GMAIL_QUERY,
 ): Promise<GmailFetchResult> {
   // Read-only profile check: verifies which mailbox this connection is and
   // labels every document with it, so receipts keep their source provenance.
@@ -103,10 +106,10 @@ export async function fetchGmailReceiptCandidates(
   if (!profile.ok) throw new Error(profile.status === 401 || profile.status === 403 ? "gmail_authorization_required" : "gmail_unavailable");
   const mailbox = String(((await profile.json()) as { emailAddress?: unknown }).emailAddress ?? "");
 
-  const query = encodeURIComponent(rescan || !checkpoint ? GMAIL_QUERY : `${GMAIL_QUERY} after:${checkpoint}`);
+  const query = encodeURIComponent(rescan || !checkpoint ? baseQuery : `${baseQuery} after:${checkpoint}`);
   const list = await gateway(settings, `/users/me/messages?maxResults=${MAX_GMAIL_CANDIDATES}&q=${query}`, fetchImpl);
   if (!list.ok) throw new Error(list.status === 401 || list.status === 403 ? "gmail_authorization_required" : "gmail_unavailable");
-  const listed = (await list.json()) as { messages?: Array<{ id?: string }> };
+  const listed = (await list.json()) as { messages?: Array<{ id?: string }>; nextPageToken?: string; resultSizeEstimate?: number };
   const ids = (listed.messages ?? []).map((row) => row.id).filter((id): id is string => Boolean(id)).slice(0, MAX_GMAIL_CANDIDATES);
   const documents: CandidateDocument[] = [];
   let unsupported = 0;
@@ -117,7 +120,11 @@ export async function fetchGmailReceiptCandidates(
       unsupported += 1;
       continue;
     }
-    const message = (await response.json()) as { internalDate?: string; payload?: GmailPart };
+    const message = (await response.json()) as { internalDate?: string; payload?: GmailPart & { headers?: Array<{ name?: string; value?: string }> } };
+    const header = (name: string) =>
+      String(message.payload?.headers?.find((h) => (h.name ?? "").toLowerCase() === name)?.value ?? "").slice(0, 300);
+    const from = header("from");
+    const subject = header("subject");
     for (const part of flatten(message.payload ?? {})) {
       const mimeType = part.mimeType ?? "";
       const filename = (part.filename ?? "").slice(0, 240);
@@ -155,6 +162,8 @@ export async function fetchGmailReceiptCandidates(
           mimeType,
           text,
           mailbox,
+          from,
+          subject,
         });
       } catch {
         unsupported += 1;
@@ -162,7 +171,8 @@ export async function fetchGmailReceiptCandidates(
     }
   }
 
-  return { documents, checkpoint: String(Date.now()), unsupported };
+  const partial = Boolean(listed.nextPageToken) || (listed.resultSizeEstimate ?? 0) > ids.length;
+  return { documents, checkpoint: String(Date.now()), unsupported, partial };
 }
 
 export type MailboxAccessStatus = "verified" | "authorization_required" | "unavailable";

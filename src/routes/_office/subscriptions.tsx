@@ -5,6 +5,7 @@ import { Bot, ChevronRight, Pencil, ShieldCheck } from "lucide-react";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/office/StatusBadge";
+import { SubscriptionManager } from "@/components/office/SubscriptionManager";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -54,9 +55,10 @@ export const AI_WORKERS_VERIFICATION = {
 function Subscriptions() {
   return (
     <RoomShell>
+      <SubscriptionManager />
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-base">Service inventory</CardTitle>
+          <CardTitle className="text-base">Provider status</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {SUBS.map((sub) => (
