@@ -49,3 +49,20 @@ export const saveOfficeLink=createServerFn({method:'POST'}).inputValidator((v:{a
  if(!FILE_ROOMS.some(r=>r.id===v.room)||!FILE_FOLDERS.includes(v.folder)||typeof v.title!=='string'||v.title.length>300) throw new Error('Choose a valid room, folder and title.');
  const url=validateWebLink(v.url); return {...v,url,title:v.title.trim()||new URL(url).hostname,accessToken:token(v.accessToken)};
 }).handler(async({data})=>{const {db,owner}=await client(data.accessToken,data.room);const {data:row,error}=await db.from('office_links').upsert({owner_id:owner.userId,url:data.url,title:data.title,room:data.room,folder:data.folder},{onConflict:'owner_id,url,room,folder'}).select().single();if(error||!row)throw new Error('Link save was not confirmed.');return {...row,filename:row.title,source_url:row.url,size_bytes:0,object_path:'',content_hash:'',mime_type:'text/uri-list'} as OfficeFile;});
+
+export const deleteOfficeFile = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string;id:string;kind:'file'|'link'})=>{
+ if(!v || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.id) || !['file','link'].includes(v.kind)) throw new Error('Choose a saved file or link to delete.');
+ return {accessToken:token(v.accessToken),id:v.id,kind:v.kind};
+}).handler(async({data})=>{
+ const {db,owner}=await client(data.accessToken);
+ const table=data.kind==='link'?'office_links':'office_files';
+ const {data:row,error}=await db.from(table).select('id,room').eq('id',data.id).eq('owner_id',owner.userId).single();
+ if(error||!row) throw new Error('Saved file or link unavailable. Nothing was deleted.');
+ // Check the actual saved room, including Finance step-up, rather than trusting the browser.
+ await client(data.accessToken,row.room);
+ const {data:deleted,error:deleteError}=await db.from(table).delete().eq('id',data.id).eq('owner_id',owner.userId).select('id').single();
+ if(deleteError||!deleted) throw new Error('Deletion was not confirmed. The saved entry is still shown.');
+ // A content-addressed original may be shared by other room entries. Removing
+ // this entry deliberately leaves that private original and other entries intact.
+ return {id:deleted.id};
+});
