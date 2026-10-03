@@ -144,3 +144,6 @@
 - [x] Focused tests, full suite, typecheck, build; no publish, no paid calls
 - [ ] BLOCKED on John: apply docs/migrations/0008_astra_conversation_checkpoints.sql for cross-device sync
 - [ ] BLOCKED on John: signed-in Android phone test (lose service mid-turn, reload, reopen)
+
+- [x] Mail review filter (All/Related/Needs review/Ignored), Keep/Ignore + exact-sender rules, applied in ingestion, Elsie explicit-instruction path; stronger running sweep + static reduced-motion label (preview, 2026-10-03)
+- [ ] Signed-in check of Saved mail review and running sweep on John's phone — blocked: needs John's signed-in session
