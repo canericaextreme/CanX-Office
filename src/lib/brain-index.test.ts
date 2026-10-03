@@ -155,14 +155,14 @@ describe("Brain review corrections", () => {
   const imp = (n: number, name: string) => ({ id: `lovable-project:${uuid(n)}`, kind: "decision", title: name, provenance: "john", source: "Lovable project import", created_at: String(n), detail: JSON.stringify({ version: 1, provider: "Lovable", projectId: uuid(n), name, category: "Highway Safety", room: "/projects" }) });
   it("the real notes request selects detail, so saved category labels survive reload", async () => {
     const d = db();
-    (d.tables.office_notes as unknown[]).push({ id: "lab1", kind: "decision", title: "file:f1", detail: "knowledge", source: "Brain index: category", provenance: "john", created_at: "9" });
+    (d.tables["office_notes"] as unknown[]).push({ id: "lab1", kind: "decision", title: "file:f1", detail: "knowledge", source: "Brain index: category", provenance: "john", created_at: "9" });
     const idx = await read(d);
     expect(d.calls.find((c) => c.startsWith("office_notes"))).toMatch(/select=[^&]*\bdetail\b/);
     expect(idx.items.find((i) => i.key === "file:f1")).toMatchObject({ category: "knowledge", manual: true });
   });
   it("imported Lovable projects are Projects (not Memory) and duplicate names stay distinct", async () => {
     const d = db();
-    (d.tables.office_notes as unknown[]).push(imp(1, "Safe Highways"), imp(2, "Safe Highways"));
+    (d.tables["office_notes"] as unknown[]).push(imp(1, "Safe Highways"), imp(2, "Safe Highways"));
     const idx = await read(d);
     const projs = idx.items.filter((i) => i.key.startsWith("project:0000"));
     expect(projs.map((p) => p.key).sort()).toEqual([`project:${uuid(1)}`, `project:${uuid(2)}`]);
