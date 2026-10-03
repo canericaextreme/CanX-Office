@@ -1589,19 +1589,20 @@ export function OfficeManager() {
                   </Button>
                   </div>}
                   <div className="mt-2 flex flex-wrap gap-2" aria-label="Message and voice controls">
-                  <Button
-                    className="h-12 flex-1 text-lg"
-                    onClick={primaryVoiceAction}
-                    disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}
-                  >
-                    <Mic className="mr-2 h-5 w-5" /> Talk to Elsie
-                  </Button>
-                  <div role="group" aria-label="Voice style" className="flex w-full gap-1 text-xs">
-                    <Button type="button" size="sm" variant={liveVoiceMode === "relay" ? "default" : "outline"} className="h-9 flex-1"
+                  <div className="grid w-full grid-cols-3 items-center gap-2">
+                    <Button type="button" size="sm" variant={liveVoiceMode === "relay" ? "default" : "outline"}
+                      className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
                       aria-pressed={liveVoiceMode === "relay"} disabled={realtimeManager.on} onClick={() => setLiveVoiceMode("relay")}>
                       Standard voice
                     </Button>
-                    <Button type="button" size="sm" variant={liveVoiceMode === "direct" ? "default" : "outline"} className="h-9 flex-1"
+                    <Button type="button" size="sm"
+                      className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
+                      onClick={primaryVoiceAction}
+                      disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}>
+                      <Mic className="mr-1.5 h-4 w-4 shrink-0" /> Talk to Elsie
+                    </Button>
+                    <Button type="button" size="sm" variant={liveVoiceMode === "direct" ? "default" : "outline"}
+                      className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
                       aria-pressed={liveVoiceMode === "direct"} disabled={realtimeManager.on} onClick={() => setLiveVoiceMode("direct")}>
                       Live voice (preview)
                     </Button>
