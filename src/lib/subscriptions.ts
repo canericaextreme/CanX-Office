@@ -374,11 +374,12 @@ const costText = (s: SubscriptionRecord | undefined) =>
 
 export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvidence[], now = new Date(), horizonDays = 30): WeeklyView {
   const week = officeWeek(now);
-  const inWeek = (iso: string) => {
-    const d = zonedDate(iso);
+  const emailDay = (e: SubscriptionEvidence) => (/^\d{4}-\d{2}-\d{2}$/.test(e.documentDate) ? e.documentDate : zonedDate(e.recordedAt));
+  const emails = evidence.filter((e) => {
+    if (e.matchStatus === "personal") return false;
+    const d = emailDay(e);
     return Boolean(d) && d >= week.start && d <= week.end;
-  };
-  const emails = evidence.filter((e) => inWeek(e.recordedAt));
+  });
   const flagged = new Set(priceChangeFlags(subs, evidence).map((f) => f.evidenceId));
   const alerts: WeeklyView["alerts"] = [];
   for (const e of evidence) {
