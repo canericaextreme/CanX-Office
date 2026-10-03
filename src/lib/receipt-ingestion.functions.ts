@@ -150,6 +150,12 @@ export async function runReceiptSyncWith(
   // Each linked mailbox is checked in turn. A mailbox that fails does not
   // block the others, but its failure is reported honestly in the summary.
   const rescan = RESCAN_INTENT.test(input.request);
+  // One shared Finance checkpoint cannot describe several mailboxes: a newly
+  // linked or previously failed mailbox would skip older receipts. With more
+  // than one mailbox, search the full past-year window (25 per mailbox) and
+  // rely on fingerprint dedup instead of a date checkpoint.
+  const multi = accounts.length > 1;
+  const sharedCheckpoint = multi ? null : state.checkpoint;
   const documents: GmailFetchResult["documents"] = [];
   let unsupported = 0;
   let checkpoint = state.checkpoint ?? "";
@@ -157,8 +163,8 @@ export async function runReceiptSyncWith(
   let authFailure = false;
   for (const account of accounts) {
     try {
-      const result = await deps.fetchCandidates(account, state.checkpoint, rescan);
-      documents.push(...result.documents);
+      const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan);
+      documents.push(...result.documents.slice(0, MAX_GMAIL_CANDIDATES));
       unsupported += result.unsupported;
       checkpoint = result.checkpoint;
     } catch (error) {
@@ -172,11 +178,14 @@ export async function runReceiptSyncWith(
       "CanX Gmail could not be read. Re-authorize the CanX Gmail connection, then try again. Nothing was filed.",
     );
   }
-  const fetched: GmailFetchResult = { documents, checkpoint: checkpoint || String(Date.now()), unsupported };
+  // Never advance the checkpoint after a partial failure, so a retry still
+  // sees everything the failed mailbox missed.
+  const nextCheckpoint = failedAccounts > 0 ? (state.checkpoint ?? "") : checkpoint || String(Date.now());
+  const fetched: GmailFetchResult = { documents, checkpoint: nextCheckpoint, unsupported };
 
   const parsed: IngestibleReceipt[] = [];
   let malformed = fetched.unsupported;
-  for (const document of fetched.documents.slice(0, MAX_GMAIL_CANDIDATES)) {
+  for (const document of fetched.documents.slice(0, MAX_GMAIL_CANDIDATES * accounts.length)) {
     const result = parseReceiptCandidate(document);
     if (result.ok && result.receipt) parsed.push(result.receipt);
     else malformed += 1;
