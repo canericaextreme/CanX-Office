@@ -40,8 +40,8 @@ describe("weekly subscription cards", () => {
       NOW,
     );
     expect(v.comingDue[0]).toMatchObject({ date: "2026-10-10", basis: "estimated", cost: "Cost unknown" });
-    expect(v.comingDue[1].cost).toContain("not confirmed");
-    expect(v.comingDue[1].name).toContain("unmatched");
+    expect(v.comingDue[1]?.cost).toContain("not confirmed");
+    expect(v.comingDue[1]?.name).toContain("unmatched");
   });
   it("classifies declined payments separately and links to the source mailbox", () => {
     expect(classifyDocument("We were unable to process your card", "Your payment was declined")).toBe("failed-payment");
