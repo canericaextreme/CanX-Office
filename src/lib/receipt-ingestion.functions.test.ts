@@ -68,7 +68,7 @@ describe("owner-only Gmail receipt sync", () => {
     });
     deps.atomicWrite.mockImplementation(async (_token, _owner, receipts) => ({ ok: true, filed: receipts, duplicates: 0, allReceipts: receipts }));
     const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "review receipts" });
-    expect(deps.fetchCandidates).toHaveBeenCalledWith(settings, "yesterday", false, expect.any(String));
+    expect(deps.fetchCandidates).toHaveBeenCalledWith(settings, "yesterday", false, expect.any(String), expect.anything());
     expect(result.ok).toBe(true);
     expect(result.filed).toBe(1);
     expect(result.needsReview).toBe(3);
