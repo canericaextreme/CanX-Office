@@ -781,7 +781,6 @@ export function OfficeManager() {
     const toLatest = () => {
       const pane = messagesScrollRef.current;
       if (!pane || !followMessagesRef.current) return;
-      pane.scrollTop = pane.scrollHeight;
       const nodes = pane.querySelectorAll<HTMLElement>("[data-astra-message]");
       const latest = nodes.item(nodes.length - 1);
       if (latest) {

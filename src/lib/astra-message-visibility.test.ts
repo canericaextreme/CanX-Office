@@ -19,3 +19,12 @@ describe("Astra conversation visibility", () => {
     expect(source).toContain("realtimeManager.error || error");
   });
 });
+
+describe("Elsie opens at the latest message", () => {
+  const source = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
+  it("re-enables follow and scrolls to the newest message whenever Elsie opens", () => {
+    expect(source).toContain('if (!open || tab !== "now") return;');
+    expect(source).toContain("}, [open, tab, messages.length > 0]);");
+    expect(source).toContain("pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48");
+  });
+});
