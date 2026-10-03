@@ -400,6 +400,3 @@ function validate(input: unknown) {
 export const syncGmailReceipts = createServerFn({ method: "POST" })
   .inputValidator(validate)
   .handler(async ({ data }) => runReceiptSync(data));
-
-/** The exact command the Subscriptions "Check emails now" button sends — same path as Elsie. */
-export const CHECK_EMAILS_NOW_REQUEST = "Check receipts and subscriptions";
