@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/office/StatusBadge";
 import { useOwnerSession } from "@/lib/owner-session";
 import {
   STARTER_SUBSCRIPTIONS,
+  suggestedStarters,
   priceChangeFlags,
   renewalWarnings,
   weeklyView,
@@ -31,6 +32,7 @@ const MATCH_LABEL: Record<SubscriptionEvidence["matchStatus"], string> = {
   unknown: "Unknown sender — review",
   conflict: "Several possible services — review",
   personal: "Marked personal — not filed",
+  "unverified-sender": "Sender not yet verified — review",
 };
 
 const money = (amount: number | null, currency: string | null) =>
@@ -163,6 +165,21 @@ export function SubscriptionManager() {
             <Button size="sm" variant="outline" onClick={() => setEditing({ ...STARTER_SUBSCRIPTIONS[0]!, id: "", name: "", aliases: [], senderDomains: [], notes: "", scope: "unknown" })}><Plus className="mr-1 h-4 w-4" />Add service</Button>
             {!saved && <Button size="sm" disabled={busy} onClick={() => persist(subs)}><Save className="mr-1 h-4 w-4" />Save this list to the CanX account</Button>}
           </div>
+        )}
+
+        {state === "ready" && saved && !editing && suggestedStarters(subs).length > 0 && (
+          <section aria-label="Suggested services" className="rounded-md border border-border/50 p-3">
+            <h3 className="text-sm font-semibold">Suggested services not in your list</h3>
+            <p className="text-xs text-muted-foreground">Nothing is added unless you press Add. Cost, cadence and renewal stay unknown until you confirm them.</p>
+            <ul className="mt-2 space-y-2">
+              {suggestedStarters(subs).map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>{s.name}<span className="block text-xs text-muted-foreground">{s.notes}</span></span>
+                  <Button size="sm" variant="outline" disabled={busy} onClick={() => persist([...subs, s])}><Plus className="mr-1 h-4 w-4" />Add {s.name}</Button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {editing && <SubscriptionEditor value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => {
