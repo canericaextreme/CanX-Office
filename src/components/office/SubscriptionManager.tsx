@@ -9,9 +9,12 @@ import {
   STARTER_SUBSCRIPTIONS,
   priceChangeFlags,
   renewalWarnings,
+  weeklyView,
+  type LastCheck,
   type SubscriptionEvidence,
   type SubscriptionRecord,
 } from "@/lib/subscriptions";
+import { WeeklySubscriptionCards } from "@/components/office/WeeklySubscriptionCards";
 import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
 
 const KIND_LABEL: Record<SubscriptionEvidence["kind"], string> = {
@@ -19,6 +22,7 @@ const KIND_LABEL: Record<SubscriptionEvidence["kind"], string> = {
   "unpaid-invoice": "Invoice — unpaid as stated",
   "renewal-notice": "Renewal notice",
   "price-change": "Price change notice",
+  "failed-payment": "Failed / declined payment",
   unknown: "Unclassified",
 };
 const MATCH_LABEL: Record<SubscriptionEvidence["matchStatus"], string> = {
@@ -40,6 +44,7 @@ export function SubscriptionManager() {
   const [evidence, setEvidence] = useState<SubscriptionEvidence[]>([]);
   const [editing, setEditing] = useState<SubscriptionRecord | null>(null);
   const [busy, setBusy] = useState(false);
+  const [lastCheck, setLastCheck] = useState<LastCheck | null>(null);
 
   const load = useCallback(() => {
     if (!owner.shared || !owner.accessToken) { setState("idle"); return; }
@@ -50,6 +55,7 @@ export function SubscriptionManager() {
         setSaved(res.data.saved);
         setSubs(res.data.saved ? res.data.subscriptions : STARTER_SUBSCRIPTIONS);
         setEvidence(res.data.evidence);
+        setLastCheck(res.data.lastCheck ?? null);
         setState("ready");
       })
       .catch(() => { setState("error"); setMessage("Subscriptions could not be read."); });
@@ -58,6 +64,7 @@ export function SubscriptionManager() {
 
   const warnings = useMemo(() => renewalWarnings(saved ? subs : [], evidence), [subs, evidence, saved]);
   const flags = useMemo(() => priceChangeFlags(saved ? subs : [], evidence), [subs, evidence, saved]);
+  const weekly = useMemo(() => weeklyView(saved ? subs : [], evidence), [subs, evidence, saved]);
   const review = evidence.filter((e) => e.review === "needs-review");
 
   async function persist(next: SubscriptionRecord[]) {
