@@ -21,7 +21,7 @@ export const SNAPSHOT_CONTRACT = "canx-room-snapshot/1";
 export type SourceKind = "live" | "device" | "static";
 export type LiveSourceKey =
   | "files" | "reports" | "tasks" | "approvals" | "changes" | "notes" | "decisions"
-  | "brain-memory" | "round-tables" | "finance-receipts" | "subscriptions" | "mail-evidence" | "mail-preferences";
+  | "brain-memory" | "brain-index" | "round-tables" | "finance-receipts" | "subscriptions" | "mail-evidence" | "mail-preferences";
 
 export interface SourceDef {
   key: string;
@@ -54,7 +54,7 @@ const FIN = { needsTwoStep: true };
 const ROOM_SOURCES: Record<string, SourceDef[]> = {
   "/reception": [live("tasks", "Work Board tasks"), live("approvals", "Approval box"), live("notes", "Shared office notes")],
   "/owner-desk": [live("approvals", "Approval box"), live("decisions", "Saved decisions")],
-  "/brain": [live("brain-memory", "Brain memory and continuity notes"), live("decisions", "Saved decisions")],
+  "/brain": [live("brain-index", "Brain index — Downloads, Knowledge, Discussions, Memory, Projects, Rules & Skills"), live("brain-memory", "Brain memory and continuity notes"), live("decisions", "Saved decisions")],
   "/idea-garage": [stat("idea-cards", "Idea Garage / Bike Rack cards", "Written into the app; parked ideas, not approved projects."), device("idea-lab", "Idea Lab scores and notes", "Kept on this device only; Elsie cannot read them.")],
   "/projects": [live("tasks", "Work Board tasks grouped by project")],
   "/safe-highways": [stat("sh-boundary", "Safe Highways oversight notes", "Advisory only; the Safe Highways project is never read or changed from here.")],
