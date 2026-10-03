@@ -221,7 +221,7 @@ describe("owner-only Gmail receipt sync", () => {
 
   it("does not fetch a later mailbox after an incomplete fetch page", async () => {
     const deps = base();
-    deps.gmailAccounts = () => [{ apiKey: "a" }, { apiKey: "b" }];
+    deps.gmailAccounts = () => [settings, { lovableApiKey: "b", connectionApiKey: "c" }];
     deps.saveScanProgress = vi.fn(async () => true);
     deps.fetchCandidates.mockResolvedValue({ documents: [], checkpoint: "now", unsupported: 0, mailbox: "a@gmail.com", partial: true, fetchFailures: 1 });
     const result = await runReceiptSyncWith(deps, { accessToken: "t", request: "check receipts", fromDate: "2026-08-15" });
