@@ -13,7 +13,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { routeSkills } from "@/lib/office-skills";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
-import { MANAGER_SYSTEM_PROMPT, sanitizeTeam, teamContextLines } from "@/lib/manager.functions";
+import { sanitizeTeam, teamContextLines } from "@/lib/manager.functions";
 import {
   DEFAULT_REALTIME_MODEL,
   realtimeSessionBody,
@@ -222,6 +222,7 @@ export async function createManagerRealtimeSessionWith(
   if (!budget.allowed) return deny("limit_blocked", budget.message);
 
   const model = deps.realtimeModel ?? DEFAULT_REALTIME_MODEL;
+  const instructions = managerRealtimeInstructions(fullContext, team, mode);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MINT_TIMEOUT_MS);
   try {
@@ -229,14 +230,12 @@ export async function createManagerRealtimeSessionWith(
       method: "POST",
       signal: controller.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${deps.openaiKey}` },
-      body: JSON.stringify(
-        managerRealtimeSessionBody(model, managerRealtimeInstructions(fullContext, team, mode), mode),
-      ),
+      body: JSON.stringify(managerRealtimeSessionBody(model, instructions, mode)),
     });
     if (!response.ok) {
       await deps.settle(accessToken, budget.reservationId, "failed");
       const body: unknown = await response.json().catch(() => null);
-      console.error("[canx-voice] session setup refused", response.status, safeProviderErrorFields(body));
+      console.error("[canx-voice] session setup refused", response.status, safeProviderErrorFields(body), voiceInstructionStats(instructions));
       return deny("provider_error", voiceProviderFailure(response.status, body, response.headers.get("retry-after"), "session setup"));
     }
     const payload = (await response.json()) as { value?: string };
