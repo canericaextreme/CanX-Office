@@ -34,7 +34,8 @@ describe("Finance category navigation", () => {
     it(`${label} opens by click with an honest state and returns to Finance`, () => {
       render(<Finance />);
       fireEvent.click(screen.getByRole("button", { name: new RegExp(`Open ${label}`) }));
-      expect(screen.getByRole("heading", { name: heading })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: label })).toBeTruthy();
+      expect(screen.getByText(heading)).toBeTruthy();
       expect(screen.getByText(new RegExp(empty))).toBeTruthy();
       expect(screen.queryByRole("navigation", { name: "Finance categories" })).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Back to Finance" }));
