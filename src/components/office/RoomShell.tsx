@@ -33,7 +33,7 @@ export function RoomShell({ children, title, purpose, showSample = true }: RoomS
             </p>
           </div>
         </div>
-        {room && <OfficeFiles room={room.id} />}
+        {room && <OfficeFiles room={room.id} collapseList={room.id === "brain"} />}
         {pathname !== "/skills" && <RoomSkillsLink route={pathname} />}
         {children}
       </div>

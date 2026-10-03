@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-export function OfficeFiles({room='brain',compact=false,onSaved}:{room?:string;compact?:boolean;onSaved?:(file:OfficeFile)=>void}) {
+export function OfficeFiles({room='brain',compact=false,collapseList=false,onSaved}:{room?:string;compact?:boolean;collapseList?:boolean;onSaved?:(file:OfficeFile)=>void}) {
  const session=useOwnerSession(); const prepare=useServerFn(prepareOfficeUpload); const finish=useServerFn(finishOfficeUpload); const list=useServerFn(listOfficeFiles); const openFile=useServerFn(openOfficeFile); const connection=useServerFn(officeUploadConnection); const saveLink=useServerFn(saveOfficeLink); const deleteFile=useServerFn(deleteOfficeFile);
  const [deleteTarget,setDeleteTarget]=useState<OfficeFile|null>(null); const [deleting,setDeleting]=useState(false); const [deleteError,setDeleteError]=useState('');
  const [previewFile,setPreviewFile]=useState<OfficeFile|null>(null); const [savedMessage,setSavedMessage]=useState('');
@@ -45,7 +45,8 @@ export function OfficeFiles({room='brain',compact=false,onSaved}:{room?:string;c
    </DialogContent></Dialog>
   <Dialog open={!!deleteTarget} onOpenChange={open=>{if(!open&&!deleting)setDeleteTarget(null);}}><DialogContent><DialogHeader><DialogTitle>Delete this saved entry?</DialogTitle></DialogHeader><p className="break-words font-medium">{deleteTarget?.filename}</p><p className="text-sm text-muted-foreground">{FILE_ROOMS.find(r=>r.id===deleteTarget?.room)?.label} · {deleteTarget?.folder}</p><p className="text-sm">This removes this entry from the Office. Other saved entries and the original on your computer stay unchanged.{!deleteTarget?.source_url&&' The uploaded original remains in private storage because other entries may use it.'}</p>{deleteError&&<p role="alert" className="text-sm text-destructive">{deleteError}</p>}<div className="flex justify-end gap-2"><Button variant="outline" disabled={deleting} onClick={()=>setDeleteTarget(null)}>Cancel</Button><Button variant="destructive" disabled={deleting||!session.accessToken} onClick={()=>void removeSavedFile()}>{deleting?'Deleting…':'Delete'}</Button></div></DialogContent></Dialog>
   <OfficeFilePreview file={previewFile} accessToken={session.accessToken} onClose={()=>setPreviewFile(null)} onDownload={file=>void download(file)}/>
-  {!compact&&<section aria-label="Saved files" className="rounded-xl border border-border bg-card p-4 space-y-3">{savedMessage&&<p role="status" className="rounded border border-green-500 bg-green-950/20 p-3 font-medium text-green-600 dark:text-green-300">{savedMessage}</p>}<p role="status" className="text-sm">{status}</p>{savedList}</section>}
+  {!compact&&!collapseList&&<section aria-label="Saved files" className="rounded-xl border border-border bg-card p-4 space-y-3">{savedMessage&&<p role="status" className="rounded border border-green-500 bg-green-950/20 p-3 font-medium text-green-600 dark:text-green-300">{savedMessage}</p>}<p role="status" className="text-sm">{status}</p>{savedList}</section>}
+  {!compact&&collapseList&&<>{status&&<p role="status" className="text-sm">{status}</p>}<details className="rounded-xl border border-border bg-card p-3"><summary className="cursor-pointer text-sm font-medium">Open, preview or delete uploaded files{files.length?` (${files.length===200?'showing up to 200':files.length})`:''}</summary><div className="mt-3">{savedList}</div></details></>}
  </div>;
 }
 

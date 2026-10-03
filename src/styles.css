@@ -82,6 +82,23 @@
   --reception-white: oklch(0.44 0.012 260);
   --reception-wood: oklch(0.6 0.07 66);
 
+  /* Brain room: bright office panel, warm wood shelf, lamp glow, restrained category hues */
+  --brain-room: oklch(0.96 0.012 85);
+  --brain-room-ink: oklch(0.24 0.02 260);
+  --brain-room-muted: oklch(0.42 0.02 260);
+  --brain-card: oklch(0.995 0.004 85);
+  --brain-line: oklch(0.86 0.015 80);
+  --brain-wood: oklch(0.55 0.08 60);
+  --brain-wood-dark: oklch(0.42 0.07 55);
+  --brain-lamp: oklch(0.9 0.09 90 / 0.55);
+  --brain-cat-downloads: oklch(0.55 0.12 250);
+  --brain-cat-knowledge: oklch(0.52 0.11 165);
+  --brain-cat-discussions: oklch(0.55 0.13 300);
+  --brain-cat-memory: oklch(0.55 0.15 25);
+  --brain-cat-projects: oklch(0.58 0.12 65);
+  --brain-cat-rules-skills: oklch(0.48 0.08 220);
+  --brain-cat-unsorted: oklch(0.5 0.01 260);
+
   --background: oklch(0.32 0.014 260);
   --foreground: oklch(0.97 0.004 260);
   --card: oklch(0.39 0.014 260);

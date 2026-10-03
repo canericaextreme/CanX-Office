@@ -177,3 +177,19 @@ describe("Brain review corrections", () => {
     expect(src.label).not.toMatch(/\ball\b/i);
   });
 });
+
+describe("Brain recent activity", () => {
+  it("keeps only valid dates within three days, newest first", async () => {
+    const { recentBrainItems } = await import("./brain-index");
+    const base = { kind: "file", room: null, folder: null, provenance: "p", version: null, access: "a", defaultCategory: "downloads", category: "downloads", manual: false, route: null } as const;
+    const items = [
+      { ...base, key: "old", title: "old", at: "2026-09-29T00:00:00Z" },
+      { ...base, key: "a", title: "a", at: "2026-10-02T10:00:00Z" },
+      { ...base, key: "b", title: "b", at: "2026-10-03T20:00:00Z" },
+      { ...base, key: "bad", title: "bad", at: "not a date" },
+      { ...base, key: "none", title: "none", at: null },
+      { ...base, key: "future", title: "future", at: "2026-10-09T00:00:00Z" },
+    ];
+    expect(recentBrainItems(items, new Date("2026-10-03T22:00:00Z")).map((i) => i.key)).toEqual(["b", "a"]);
+  });
+});
