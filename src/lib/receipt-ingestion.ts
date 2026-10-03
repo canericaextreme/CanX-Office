@@ -47,6 +47,9 @@ export interface CandidateDocument {
   text: string;
   /** Verified email address of the source mailbox; empty when not yet resolved. */
   mailbox?: string;
+  /** Sender and subject headers, untrusted text used only for matching. */
+  from?: string;
+  subject?: string;
 }
 
 export interface ParsedCandidate {
@@ -86,7 +89,7 @@ export function parseReceiptCandidate(candidate: CandidateDocument): ParsedCandi
   if (!source) return { ok: false, reason: "The document contained no supported readable text." };
 
   const vendor = first(source, [/\bvendor\s*[:#-]\s*([^|\n]{2,200})/i, /\bfrom\s*[:#-]\s*([^|\n]{2,200})/i]);
-  const total = amount(first(source, [/\b(?:grand\s+)?total\s*[:$-]?\s*(?:CAD|USD|C\$|US\$|\$)?\s*([0-9][0-9,.]*)/i]));
+  const total = amount(first(source, [/\b(?:(?:grand\s+)?total|amount\s+due|balance\s+due)\s*[:$-]?\s*(?:CAD|USD|C\$|US\$|\$)?\s*([0-9][0-9,.]*)/i]));
   if (!vendor || total === null) return { ok: false, reason: "Vendor and total could not both be verified." };
 
   const explicitCurrency = first(source, [/\bcurrency\s*[:#-]\s*([A-Z]{3})\b/i, /\b(CAD|USD|EUR|GBP)\b/]);
