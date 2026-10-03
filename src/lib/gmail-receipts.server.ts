@@ -91,6 +91,8 @@ export interface GmailFetchResult {
   unsupported: number;
   /** True when Gmail reported more matches than this capped page fetched. */
   partial?: boolean;
+  /** Verified mailbox address from the profile check. */
+  mailbox?: string;
 }
 
 export async function fetchGmailReceiptCandidates(
@@ -172,7 +174,7 @@ export async function fetchGmailReceiptCandidates(
   }
 
   const partial = Boolean(listed.nextPageToken) || (listed.resultSizeEstimate ?? 0) > ids.length;
-  return { documents, checkpoint: String(Date.now()), unsupported, partial };
+  return { documents, checkpoint: String(Date.now()), unsupported, partial, mailbox };
 }
 
 export type MailboxAccessStatus = "verified" | "authorization_required" | "unavailable";

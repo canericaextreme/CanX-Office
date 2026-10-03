@@ -15,6 +15,8 @@ import {
   matchService,
   mergeEvidence,
   type EvidenceKind,
+  type LastCheck,
+  type MailboxCheck,
   type MatchStatus,
   type SubscriptionEvidence,
   type SubscriptionRecord,
@@ -98,6 +100,7 @@ export interface SyncDeps {
   }>;
   fetchCandidates: (settings: GmailSettings, checkpoint: string | null, rescan: boolean, query?: string) => Promise<GmailFetchResult>;
   /** Appends subscription evidence to the owner's Finance document, verified by readback. */
+  recordLastCheck?: (token: string, ownerId: string, check: LastCheck) => Promise<boolean>;
   writeEvidence?: (token: string, ownerId: string, evidence: SubscriptionEvidence[]) => Promise<{ ok: boolean; added: number; duplicates: number }>;
   atomicWrite: (
     token: string,
@@ -133,6 +136,10 @@ async function realDeps(): Promise<SyncDeps> {
     },
     fetchCandidates: (settings, checkpoint, rescan, query) =>
       gmail.fetchGmailReceiptCandidates(settings, checkpoint, rescan, undefined, query),
+    recordLastCheck: async (token, ownerId, check) => {
+      const store = await import("./subscriptions-store.server");
+      return store.recordLastCheck(token, ownerId, check);
+    },
     writeEvidence: async (token, ownerId, evidence) => {
       const store = await import("./subscriptions-store.server");
       return store.appendEvidence(token, ownerId, evidence);
@@ -204,18 +211,30 @@ export async function runReceiptSyncWith(
   let failedAccounts = 0;
   let authFailure = false;
   let partial = false;
-  for (const account of accounts) {
+  const checks: MailboxCheck[] = [];
+  for (const [slot, account] of accounts.entries()) {
     try {
       const result = await deps.fetchCandidates(account, sharedCheckpoint, rescan, query);
       documents.push(...result.documents.slice(0, MAX_GMAIL_CANDIDATES));
       unsupported += result.unsupported;
       checkpoint = result.checkpoint;
       if (result.partial) partial = true;
+      checks.push({ mailbox: result.mailbox || result.documents[0]?.mailbox || `Linked mailbox ${slot + 1}`, status: "read", partial: Boolean(result.partial), documents: result.documents.length });
     } catch (error) {
       failedAccounts += 1;
-      if (error instanceof Error && error.message === "gmail_authorization_required") authFailure = true;
+      const auth = error instanceof Error && error.message === "gmail_authorization_required";
+      if (auth) authFailure = true;
+      checks.push({ mailbox: `Linked mailbox ${slot + 1}`, status: auth ? "authorization_required" : "failed", partial: true, documents: 0 });
     }
   }
+  const lastCheck: LastCheck = {
+    at: new Date().toISOString(),
+    scope: `Past year, up to ${MAX_GMAIL_CANDIDATES} matching messages per mailbox; billing/renewal keywords and known service senders only — not the whole inbox.`,
+    complete: failedAccounts === 0 && !partial,
+    mailboxes: checks,
+  };
+  let lastCheckSaved = false;
+  if (deps.recordLastCheck) lastCheckSaved = await deps.recordLastCheck(input.accessToken, owner.userId, lastCheck).catch(() => false);
   if (failedAccounts === accounts.length) {
     return deny(
       authFailure ? "gmail_authorization_required" : "gmail_unavailable",
@@ -241,10 +260,10 @@ export async function runReceiptSyncWith(
       malformed += 1;
       continue;
     }
-    if (match.status === "matched" || kind === "renewal-notice" || kind === "price-change" || match.status === "personal") {
+    if (match.status === "matched" || kind === "renewal-notice" || kind === "price-change" || kind === "failed-payment" || match.status === "personal") {
       evidence.push(toEvidence(document, kind, match, result.receipt));
     }
-    if (kind === "renewal-notice" || kind === "price-change") continue; // notices are not receipts
+    if (kind === "renewal-notice" || kind === "price-change" || kind === "failed-payment") continue; // notices are not receipts
     if (match.status === "personal") {
       notFiledPersonal += 1; // John marked this service personal: never filed as an office expense
       continue;
@@ -310,13 +329,14 @@ export async function runReceiptSyncWith(
     failedAccounts > 0
       ? ` ${failedAccounts} linked mailbox${failedAccounts === 1 ? "" : "es"} could not be read this time; re-authorize it and run again to include it.`
       : "";
+  const checkNote = deps.recordLastCheck && !lastCheckSaved ? " The last-check time could not be saved." : "";
   const capNote = partial
     ? ` Partial check: Gmail had more matching mail than the ${MAX_GMAIL_CANDIDATES} per mailbox read this time, so not all mail was checked.`
     : "";
   return {
     ok: true,
     code: "ok",
-    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${evidenceNote}`,
+    message: `Receipt review finished: ${summary.filed} new filed, ${summary.duplicatesSkipped} duplicates skipped, ${summary.needsReview} needing review. Subscription evidence: ${evidenceAdded} new, ${evidenceDuplicates} already recorded. ${sentToReview} filed item(s) did not match a known office service and are marked for review, not as office expenses.${partialNote}${capNote}${evidenceNote}${checkNote}`,
     ...summary,
     partial,
     mailboxesChecked: accounts.length - failedAccounts,

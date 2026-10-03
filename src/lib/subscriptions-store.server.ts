@@ -10,6 +10,8 @@
 import { RECEIPTS_KIND, RECEIPTS_SCHEMA_VERSION } from "./finance-receipts";
 import {
   cleanEvidenceList,
+  cleanLastCheck,
+  type LastCheck,
   cleanSubscriptionList,
   mergeEvidence,
   type SubscriptionEvidence,
@@ -59,6 +61,7 @@ export async function readSubscriptionState(token: string) {
     saved: Array.isArray(saved),
     subscriptions: cleanSubscriptionList(saved ?? []) ?? [],
     evidence: cleanEvidenceList(read.doc["subscriptionEvidence"]),
+    lastCheck: cleanLastCheck(read.doc["subscriptionLastCheck"]),
   };
 }
 
@@ -101,4 +104,14 @@ export async function appendEvidence(token: string, ownerId: string, incoming: S
   const ok = merged.added.every((e) => stored.has(e.id));
   if (ok) await audit(backend, token, ownerId, "finance.subscriptions.evidence", { added: merged.added.length });
   return { ok, added: ok ? merged.added.length : 0, duplicates: merged.duplicates };
+}
+
+/** Records when both mailboxes were last checked, with scope and completeness. Verified by readback. */
+export async function recordLastCheck(token: string, ownerId: string, check: LastCheck) {
+  const backend = await import("./canx-backend.server");
+  const read = await readDoc(backend, token);
+  if (!read.ok || !read.doc) return false;
+  if (!(await writeDoc(backend, token, ownerId, { ...read.doc, subscriptionLastCheck: check }))) return false;
+  const back = await readDoc(backend, token);
+  return cleanLastCheck(back.doc?.["subscriptionLastCheck"])?.at === check.at;
 }
