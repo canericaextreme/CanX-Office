@@ -10,7 +10,7 @@
 import { routeSkillsForRoom } from "./office-skills";
 import type { RoomSnapshot } from "./room-snapshot";
 
-export type RoomCheckStatus = "untested" | "verified" | "partial" | "failed";
+export type RoomCheckStatus = "untested" | "verified" | "partial" | "failed" | "reserved";
 export type RoomCheckScope = "signed-in-live" | "fixture";
 
 export interface RoomCheckRecord {
@@ -23,6 +23,10 @@ export interface RoomCheckRecord {
   fingerprint: string | null;
   sourcesRead: string[];
   sourcesNotRead: string[];
+  /** Shared (database) reader worked for every live source — separate from full room coverage. */
+  sharedReaderOk?: boolean;
+  /** Full = every existing source (live AND device) read; static sources are app setup and never count as live. */
+  coverage?: "full" | "partial" | "reserved";
   skillRouteOk: boolean | null;
   action: { ran: boolean; ok: boolean | null; detail: string };
   failure: string;
@@ -41,18 +45,24 @@ export function evaluateSnapshot(
   snapshot: RoomSnapshot,
   action: RoomCheckRecord["action"] = { ran: false, ok: null, detail: "Reversible save test not run." },
 ): RoomCheckRecord {
-  const liveSources = snapshot.sources.filter((s) => s.kind === "live");
-  const read = liveSources.filter((s) => s.status === "read").map((s) => s.label);
-  const notRead = liveSources.filter((s) => s.status !== "read").map((s) => `${s.label} (${s.status})`);
+  // Every existing data source counts: live (database) AND device-only. Static = app setup, never live.
+  const dataSources = snapshot.sources.filter((s) => s.kind !== "static");
+  const read = dataSources.filter((s) => s.status === "read").map((s) => `${s.label}${s.kind === "device" ? " (device report)" : ""}`);
+  const notRead = dataSources.filter((s) => s.status !== "read").map((s) => `${s.label} (${s.kind === "device" ? "device-unavailable" : s.status})`);
+  const sharedReaderOk = snapshot.sources.filter((s) => s.kind === "live").every((s) => s.status === "read");
+  const reserved = snapshot.route === "/future";
+  const buildKnown = !!snapshot.buildId && snapshot.buildId !== "unknown";
   const skillRouteOk = skillRouteMatches(snapshot);
   const failures = [
     ...(notRead.length ? [`Not read: ${notRead.join(", ")}`] : []),
+    ...(buildKnown ? [] : ["Build version unknown — a check on an unidentified build cannot count as verified"]),
     ...(skillRouteOk ? [] : ["Skill routing differs from the room's advertised skills"]),
     ...(action.ran && action.ok === false ? [`Save test: ${action.detail}`] : []),
   ];
   const status: RoomCheckStatus =
     snapshot.overall === "failed" || (action.ran && action.ok === false) || !skillRouteOk ? "failed"
-    : notRead.length || !action.ran ? "partial"
+    : reserved ? "reserved"
+    : notRead.length || !action.ran || !buildKnown ? "partial"
     : "verified";
   return {
     route: snapshot.route,
@@ -64,6 +74,8 @@ export function evaluateSnapshot(
     fingerprint: snapshot.fingerprint,
     sourcesRead: read,
     sourcesNotRead: notRead,
+    sharedReaderOk,
+    coverage: reserved ? "reserved" : notRead.length ? "partial" : "full",
     skillRouteOk,
     action,
     failure: failures.join("; "),
@@ -77,6 +89,8 @@ export function failedRecord(route: string, label: string, buildId: string, fail
 /** Results for an older build do not count for this one. */
 export function statusForBuild(record: RoomCheckRecord | undefined, buildId: string): RoomCheckStatus {
   if (!record || record.scope !== "signed-in-live" || record.buildId !== buildId) return "untested";
+  // An unidentified build can never be shown as verified.
+  if ((!buildId || buildId === "unknown") && record.status === "verified") return "partial";
   return record.status;
 }
 

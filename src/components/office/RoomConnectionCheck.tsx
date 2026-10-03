@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
+import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { deleteSharedNote, saveSharedNotes } from "@/lib/records.functions";
 import { ROOM_TARGETS, MAP_ROOM_TARGETS, NUMBERED_ROOM_TARGETS, type RoomSnapshot } from "@/lib/room-snapshot";
 import { viewedSnapshot } from "@/lib/room-snapshot-store";
@@ -17,7 +18,7 @@ const BADGE: Record<string, string> = {
   failed: "text-destructive",
   untested: "text-muted-foreground",
 };
-const LABEL: Record<string, string> = { verified: "Verified", partial: "Partly verified", failed: "Failed", untested: "Not tested on this build" };
+const LABEL: Record<string, string> = { verified: "Fully verified", partial: "Partly verified", failed: "Failed", untested: "Not tested on this build", reserved: "Reserved — no sources" };
 
 /**
  * Owner-run check of every room Elsie can read. Read-only by default; the
@@ -35,7 +36,7 @@ export function RoomConnectionCheck() {
   const token = session.stepUpComplete ? session.accessToken : null;
 
   const read = async (route: string): Promise<RoomSnapshot | string> => {
-    const reply = await snapshotFn({ data: { accessToken: token ?? "", route, buildId } }).catch(() => null);
+    const reply = await snapshotFn({ data: { accessToken: token ?? "", route, buildId, device: collectDeviceSnapshot(route) } }).catch(() => null);
     if (!reply) return "Room check request failed.";
     return reply.ok ? reply.snapshot : reply.message;
   };
@@ -73,7 +74,7 @@ export function RoomConnectionCheck() {
     setRunning(null);
   };
 
-  const counts = ROOM_TARGETS.reduce((acc, t) => { const s = statusForBuild(records[t.route], buildId); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {} as Partial<Record<"verified" | "partial" | "failed" | "untested", number>>);
+  const counts = ROOM_TARGETS.reduce((acc, t) => { const s = statusForBuild(records[t.route], buildId); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {} as Partial<Record<"verified" | "partial" | "failed" | "untested" | "reserved", number>>);
 
   return (
     <section aria-label="Elsie room connection check" className="rounded-lg border border-border bg-card p-4">
@@ -88,7 +89,7 @@ export function RoomConnectionCheck() {
       {!token && <p className="mt-2 text-xs text-muted-foreground">Sign in as the owner with your authenticator code to run this check. Nothing has been checked on this build until you do.</p>}
       {running && <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Checking {running}…</p>}
       <p className="mt-2 text-xs text-muted-foreground">
-        This build: {counts.verified ?? 0} verified · {counts.partial ?? 0} partly verified · {counts.failed ?? 0} failed · {counts.untested ?? 0} not tested. The save test adds one labelled [TEST] report per working room, re-reads it and deletes it; Future is read only.
+        This build: {counts.verified ?? 0} fully verified (every database and device source read) · {counts.partial ?? 0} partly verified · {counts.failed ?? 0} failed · {counts.untested ?? 0} not tested · {counts.reserved ?? 0} reserved.{buildId === "unknown" ? " This build's version can't be identified here, so no room can be fully verified." : ""} The save test adds one labelled [TEST] report per working room, re-reads it and deletes it; Future is read only.
       </p>
       <ul className="mt-3 space-y-1.5">
         {ROOM_TARGETS.map((t) => {
@@ -104,6 +105,7 @@ export function RoomConnectionCheck() {
               {rec && status !== "untested" && (
                 <div className="mt-1 space-y-0.5 text-muted-foreground">
                   <p>Checked {new Date(rec.checkedAt).toLocaleString()} · reference {rec.fingerprint ?? "none"}{view ? ` · your room view ${view.fingerprint === rec.fingerprint ? "matched" : `showed ${view.fingerprint}`}` : " · room not opened this visit"}</p>
+                  {rec.sharedReaderOk !== undefined && <p>Shared reader: {rec.sharedReaderOk ? "every database source read" : "some database sources not read"} · Room coverage: {rec.coverage === "full" ? "all sources" : rec.coverage === "reserved" ? "reserved room" : "partial"}</p>}
                   {rec.sourcesRead.length > 0 && <p>Read: {rec.sourcesRead.join(", ")}</p>}
                   <p>Skill routing: {rec.skillRouteOk === null ? "not checked" : rec.skillRouteOk ? "matches" : "differs"} · Save test: {rec.action.ran ? rec.action.detail : "not run"}</p>
                   {rec.failure && <p className="text-destructive">{rec.failure}</p>}

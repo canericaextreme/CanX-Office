@@ -58,6 +58,7 @@ import { namedOfficeRoom } from "./manager-room-commands";
 import { brainIndexForModel, requestNeedsBrain } from "./brain-index";
 import { registerForModel } from "./project-register";
 import { locatorsForModel } from "./project-locator";
+import { sanitizeDeviceSnapshot } from "./room-device-snapshot";
 import { routeSkillsForRoom } from "./office-skills";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
@@ -194,7 +195,7 @@ export interface ManagerDeps {
   /** Elsie continuity read, scoped to the server-verified owner id only. */
   readDocuments?: (token: string, request: string, previous: string) => Promise<import("./document-knowledge").DocumentContext>;
   /** Fresh owner-scoped room snapshot, read per request (never a startup copy). */
-  readRoomSnapshot?: (token: string, aal: string, route: string, buildId: string) => Promise<import("./room-snapshot").RoomSnapshot | null>;
+  readRoomSnapshot?: (token: string, aal: string, route: string, buildId: string, device?: import("./room-device-snapshot").DeviceSnapshot | null) => Promise<import("./room-snapshot").RoomSnapshot | null>;
   /** Fresh Brain category index (metadata only), read per request when relevant. */
   /** Owner's saved project register, read per request when relevant. */
   readProjectRegister?: (token: string) => Promise<{ locators: import("./project-locator").Locator[]; tasksReadAt: string | null } | null>;
@@ -271,11 +272,11 @@ async function realDeps(): Promise<ManagerDeps> {
       if (!config) return { text: "Documents unavailable", sources: [], gaps: ["Documents unavailable"] };
       return readDocumentContext((path, init) => backend.restRequest(config, token, path, init), request, previous);
     },
-    readRoomSnapshot: async (token, aal, route, buildId) => {
+    readRoomSnapshot: async (token, aal, route, buildId, device) => {
       const target = roomTargetForRoute(route);
       if (!config || !target) return null;
       const { readRoomSnapshotWith } = await import("./room-snapshot.server");
-      return readRoomSnapshotWith({ config, token, aal, target, buildId, rest: backend.restRequest });
+      return readRoomSnapshotWith({ config, token, aal, target, buildId, device: device ?? null, rest: backend.restRequest });
     },
     readProjectRegister: async (token) => {
       if (!config) return null;
@@ -770,6 +771,7 @@ export interface ChatInput {
   /** Validated route of the room John has open when this request was sent. */
   currentRoute?: string;
   buildId?: string;
+  device?: import("./room-device-snapshot").DeviceSnapshot | null;
 }
 
 /**
@@ -843,6 +845,7 @@ function validate(input: unknown): ChatInput {
     // Only a known office room route is kept; anything else is dropped.
     ...(typeof route === "string" && roomTargetForRoute(route) ? { currentRoute: roomTargetForRoute(route)!.route } : {}),
     ...(typeof buildId === "string" ? { buildId: buildId.slice(0, 80) } : {}),
+    ...(() => { const d = sanitizeDeviceSnapshot((raw as { device?: unknown } | undefined)?.device); return d ? { device: d } : {}; })(),
   };
 }
 
@@ -1484,7 +1487,7 @@ export async function runManagerChatWith(
     const snapshots: Array<{ snap: RoomSnapshot; why: "current" | "named" }> = [];
     const roomLines: string[] = [];
     for (const t of targets) {
-      const snap = deps.readRoomSnapshot ? await deps.readRoomSnapshot(data.accessToken, verification.aal, t.route, data.buildId ?? "unknown").catch(() => null) : null;
+      const snap = deps.readRoomSnapshot ? await deps.readRoomSnapshot(data.accessToken, verification.aal, t.route, data.buildId ?? "unknown", t.why === "current" ? data.device ?? null : null).catch(() => null) : null;
       if (snap) { snapshots.push({ snap, why: t.why }); roomLines.push(snapshotForModel(snap, t.why)); }
       else roomLines.push(`Room snapshot for ${t.route}: could NOT be read for this request. Say so; do not describe this room's records.`);
     }
