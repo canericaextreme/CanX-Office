@@ -66,9 +66,22 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
   if (def.needsTwoStep && req.aal !== "aal2") return result(def, { status: "denied", detail: "needs two-step verification" });
   const id = encodeURIComponent(req.target.id);
   switch (def.key) {
+    case "brain-index": {
+      const { readBrainIndexWith } = await import("./brain-index.server");
+      const { countByCategory, CATEGORY_LABELS } = await import("./brain-index");
+      const index = await readBrainIndexWith({ config: req.config, token: req.token, aal: req.aal, rest: req.rest, now: req.now });
+      const bad = index.sources.filter((s) => s.status !== "read");
+      const counts = countByCategory(index.items);
+      return result(def, {
+        status: index.sources.every((s) => s.status === "failed") ? "failed" : "read",
+        count: index.items.length,
+        items: (Object.keys(counts) as Array<keyof typeof counts>).map((k) => `${CATEGORY_LABELS[k]}: ${counts[k]}`),
+        detail: `metadata index only${bad.length ? `; not read: ${bad.map((s) => `${s.label} (${s.status})`).join(", ")}` : ""}`,
+      });
+    }
     case "files": {
       const all = req.target.route === "/brain";
-      const filter = all ? "" : `&room=eq.${id}`;
+      const filter = all ? (req.aal === "aal2" ? "" : "&room=neq.finance") : `&room=eq.${id}`;
       const [files, links] = await Promise.all([
         rows(req, `office_files?select=filename,created_at${filter}&order=created_at.desc&limit=100`),
         rows(req, `office_links?select=title,created_at${filter}&order=created_at.desc&limit=100`),
@@ -76,7 +89,7 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       if (!files || !links) return failed(def);
       const merged = [...files.map((f) => ({ t: text(f["filename"]), at: text(f["created_at"], 40) })), ...links.map((l) => ({ t: text(l["title"]), at: text(l["created_at"], 40) }))]
         .sort((a, b) => b.at.localeCompare(a.at));
-      return result(def, { count: merged.length, items: merged.slice(0, MAX_ITEMS).map((m) => m.t), latestAt: merged[0]?.at || null, detail: all ? "all rooms (Brain shows every saved file)" : "" });
+      return result(def, { count: merged.length, items: merged.slice(0, MAX_ITEMS).map((m) => m.t), latestAt: merged[0]?.at || null, detail: all ? (req.aal === "aal2" ? "all rooms (Brain shows every saved file)" : "all rooms except Finance (needs two-step verification)") : "" });
     }
     case "reports":
       return fromRows(def, await rows(req, `office_notes?select=id,title,created_at&source=eq.${encodeURIComponent(roomReportSource(req.target.id))}&order=created_at.desc&limit=100`), (r) => text(r["title"]), "created_at");
