@@ -3,7 +3,7 @@
 ## Finance evidence label correction (2026-10-03)
 - [x] Stop describing saved receipt/invoice email evidence as a filed or paid Finance receipt without verified linkage.
 - [x] Separate visible review-item wording from paid-receipt totals and preserve neutral access to Finance.
-- [ ] Verify focused regressions, full tests, types and preview build without Gmail, database writes or publication.
+- [x] Verify focused regressions, full tests, types and preview build without Gmail, database writes or publication.
 
 ## Dated Finance email catch-up (2026-10-03)
 - [x] Add an editable 2026-08-15 From date and an explicit bounded historical scan for both linked mailboxes.
