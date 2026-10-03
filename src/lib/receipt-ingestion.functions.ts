@@ -3,6 +3,7 @@ import type { OwnerVerification } from "./canx-backend.server";
 import type { GmailFetchResult, GmailSettings } from "./gmail-receipts.server";
 import {
   MAX_GMAIL_CANDIDATES,
+  fingerprintText,
   parseReceiptCandidate,
   safeIngestionSummary,
   type IngestibleReceipt,
@@ -341,7 +342,7 @@ function toEvidence(
   const currency = receipt?.currency ?? (coded ? coded[1]! : null);
   const renewal = RENEWAL_DATE.exec(document.text)?.[1] ?? receipt?.expectedRenewalDate ?? "";
   const valid = renewal && !Number.isNaN(Date.parse(`${renewal}T00:00:00Z`)) ? renewal : "";
-  const fingerprint = receipt?.contentFingerprint ?? `${document.messageId}|${document.attachmentIdentity}`;
+  const fingerprint = receipt?.contentFingerprint ?? fingerprintText(document.text);
   return {
     id: `ev-${fingerprint.slice(0, 24)}`,
     kind,
