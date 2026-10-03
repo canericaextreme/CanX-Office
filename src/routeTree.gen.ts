@@ -26,6 +26,7 @@ import { Route as OfficeLegalRouteImport } from './routes/_office/legal'
 import { Route as OfficeOfficeTeamRouteImport } from './routes/_office/office-team'
 import { Route as OfficeOwnerDeskRouteImport } from './routes/_office/owner-desk'
 import { Route as OfficeProjectsRouteImport } from './routes/_office/projects'
+import { Route as OfficeReceptionRouteImport } from './routes/_office/reception'
 import { Route as OfficeRecordsRouteImport } from './routes/_office/records'
 import { Route as OfficeResearchRouteImport } from './routes/_office/research'
 import { Route as OfficeRoundTableRouteImport } from './routes/_office/round-table'
@@ -120,6 +121,11 @@ const OfficeProjectsRoute = OfficeProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeReceptionRoute = OfficeReceptionRouteImport.update({
+  id: '/reception',
+  path: '/reception',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeRecordsRoute = OfficeRecordsRouteImport.update({
   id: '/records',
   path: '/records',
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
+  '/reception': typeof OfficeReceptionRoute
   '/records': typeof OfficeRecordsRoute
   '/research': typeof OfficeResearchRoute
   '/round-table': typeof OfficeRoundTableRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/office-team': typeof OfficeOfficeTeamRoute
   '/owner-desk': typeof OfficeOwnerDeskRoute
   '/projects': typeof OfficeProjectsRoute
+  '/reception': typeof OfficeReceptionRoute
   '/records': typeof OfficeRecordsRoute
   '/research': typeof OfficeResearchRoute
   '/round-table': typeof OfficeRoundTableRoute
@@ -238,6 +246,7 @@ export interface FileRoutesById {
   '/_office/office-team': typeof OfficeOfficeTeamRoute
   '/_office/owner-desk': typeof OfficeOwnerDeskRoute
   '/_office/projects': typeof OfficeProjectsRoute
+  '/_office/reception': typeof OfficeReceptionRoute
   '/_office/records': typeof OfficeRecordsRoute
   '/_office/research': typeof OfficeResearchRoute
   '/_office/round-table': typeof OfficeRoundTableRoute
@@ -268,6 +277,7 @@ export interface FileRouteTypes {
     | '/office-team'
     | '/owner-desk'
     | '/projects'
+    | '/reception'
     | '/records'
     | '/research'
     | '/round-table'
@@ -294,6 +304,7 @@ export interface FileRouteTypes {
     | '/office-team'
     | '/owner-desk'
     | '/projects'
+    | '/reception'
     | '/records'
     | '/research'
     | '/round-table'
@@ -322,6 +333,7 @@ export interface FileRouteTypes {
     | '/_office/office-team'
     | '/_office/owner-desk'
     | '/_office/projects'
+    | '/_office/reception'
     | '/_office/records'
     | '/_office/research'
     | '/_office/round-table'
@@ -460,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeProjectsRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/_office/reception': {
+      id: '/_office/reception'
+      path: '/reception'
+      fullPath: '/reception'
+      preLoaderRoute: typeof OfficeReceptionRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/_office/records': {
       id: '/_office/records'
       path: '/records'
@@ -542,6 +561,7 @@ interface OfficeRouteChildren {
   OfficeOfficeTeamRoute: typeof OfficeOfficeTeamRoute
   OfficeOwnerDeskRoute: typeof OfficeOwnerDeskRoute
   OfficeProjectsRoute: typeof OfficeProjectsRoute
+  OfficeReceptionRoute: typeof OfficeReceptionRoute
   OfficeRecordsRoute: typeof OfficeRecordsRoute
   OfficeResearchRoute: typeof OfficeResearchRoute
   OfficeRoundTableRoute: typeof OfficeRoundTableRoute
@@ -569,6 +589,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeOfficeTeamRoute: OfficeOfficeTeamRoute,
   OfficeOwnerDeskRoute: OfficeOwnerDeskRoute,
   OfficeProjectsRoute: OfficeProjectsRoute,
+  OfficeReceptionRoute: OfficeReceptionRoute,
   OfficeRecordsRoute: OfficeRecordsRoute,
   OfficeResearchRoute: OfficeResearchRoute,
   OfficeRoundTableRoute: OfficeRoundTableRoute,

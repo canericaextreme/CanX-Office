@@ -190,7 +190,7 @@ const rooms: OfficeRoom[] = [
     number: "01",
     label: "Reception",
     purpose: "Instructions and next steps",
-    route: "/",
+    route: "/reception",
     icon: Building2,
     tone: "red",
     shape: "wedge",
