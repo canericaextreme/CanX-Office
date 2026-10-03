@@ -1,4 +1,5 @@
 import { OfficeFiles } from "./OfficeFiles";
+import { RoomSkillsLink } from "./RoomSkillsLink";
 import { SampleBadge } from "./SampleBadge";
 import { ROOMS, roomByRoute, type RoomDef } from "@/lib/office-data";
 import { useRouterState } from "@tanstack/react-router";
@@ -32,6 +33,7 @@ export function RoomShell({ children, title, purpose, showSample = true }: RoomS
           </div>
         </div>
         <OfficeFiles room={room.id} />
+        {pathname !== "/skills" && <RoomSkillsLink route={pathname} />}
         {children}
       </div>
     </main>
