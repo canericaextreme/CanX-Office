@@ -59,6 +59,8 @@ export interface SubscriptionEvidence {
   from: string;
   subject: string;
   fingerprint: string;
+  /** Gmail internalDate (ISO) of the source email. Absent on older records = unknown. */
+  receivedAt?: string;
   recordedAt: string;
   review: "needs-review" | "reviewed" | "dismissed";
 }
@@ -365,6 +367,8 @@ export function gmailLink(mailbox: string, messageId: string): string {
 export interface WeeklyView {
   week: ReturnType<typeof officeWeek>;
   emails: SubscriptionEvidence[];
+  /** Saved evidence without a verified Gmail received time — never counted as this week's mail. */
+  emailsUnknownTime: SubscriptionEvidence[];
   alerts: Array<{ evidence: SubscriptionEvidence; reason: string }>;
   comingDue: Array<{ name: string; date: string; basis: RenewalBasis; source: string; cost: string; subscriptionId: string | null; evidence: SubscriptionEvidence | null }>;
 }
@@ -374,12 +378,15 @@ const costText = (s: SubscriptionRecord | undefined) =>
 
 export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvidence[], now = new Date(), horizonDays = 30): WeeklyView {
   const week = officeWeek(now);
-  const emailDay = (e: SubscriptionEvidence) => (/^\d{4}-\d{2}-\d{2}$/.test(e.documentDate) ? e.documentDate : zonedDate(e.recordedAt));
-  const emails = evidence.filter((e) => {
-    if (e.matchStatus === "personal") return false;
-    const d = emailDay(e);
+  // Only Gmail's verified received time counts; receipt dates and ingestion day do not.
+  const received = (e: SubscriptionEvidence) =>
+    typeof e.receivedAt === "string" && !Number.isNaN(Date.parse(e.receivedAt)) ? zonedDate(new Date(e.receivedAt)) : "";
+  const visible = evidence.filter((e) => e.matchStatus !== "personal");
+  const emails = visible.filter((e) => {
+    const d = received(e);
     return Boolean(d) && d >= week.start && d <= week.end;
   });
+  const emailsUnknownTime = visible.filter((e) => !received(e));
   const flagged = new Set(priceChangeFlags(subs, evidence).map((f) => f.evidenceId));
   const alerts: WeeklyView["alerts"] = [];
   for (const e of evidence) {
@@ -411,5 +418,5 @@ export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvi
     });
   }
   comingDue.sort((a, b) => a.date.localeCompare(b.date));
-  return { week, emails, alerts, comingDue };
+  return { week, emails, emailsUnknownTime, alerts, comingDue };
 }

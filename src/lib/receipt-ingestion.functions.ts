@@ -462,6 +462,7 @@ function toEvidence(
     from: (document.from ?? "").slice(0, 300),
     subject: (document.subject ?? "").slice(0, 300),
     fingerprint,
+    ...(document.receivedAt ? { receivedAt: document.receivedAt } : {}),
     recordedAt: new Date().toISOString(),
     review: "needs-review",
   };
