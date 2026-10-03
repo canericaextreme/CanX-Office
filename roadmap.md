@@ -1,5 +1,10 @@
 # Phase 1 bright office completion
 
+## Active email-check status sheen (2026-10-03)
+- [x] Show a gentle translucent yellow sweep only while the email check is actively running.
+- [x] Keep completed partial results steady, clearly labelled, and verify reduced-motion/stopped-state behavior.
+- [ ] Keep the receipt-zero investigation outstanding; this visual change does not verify receipt filing.
+
 ## Subscription Watch and ChatGPT shortcut (2026-09-11)
 - [x] Replace AI Workers TBD summary with supplied verified OpenAI aggregate and honest partial-verification state
 - [x] Add accessible AI Workers detail dialog with provider, Result, Evidence, and read-only editing notice

@@ -44,12 +44,24 @@ describe("Check emails now button", () => {
     expect(onVerified).not.toHaveBeenCalled();
     expect(states.filter((s) => s.phase === "failed")).toHaveLength(2);
   });
-  it("shows source-specific counts and partial/limit status", () => {
+  it("animates only the active run and leaves partial completion steady", () => {
+    const running = renderToString(React.createElement(CheckEmailsResult, { state: { phase: "running" } }));
+    expect(running).toContain("email-check-sheen");
+    expect(running).toContain('data-email-check-state="running"');
+    expect(running).toContain("Checking emails");
+
     const html = renderToString(React.createElement(CheckEmailsResult, { state: { phase: "done", result: ok() } }));
-    expect(html).toContain("Finished — partial");
+    expect(html).toContain("Partial — not all mail checked");
+    expect(html).toContain('data-email-check-state="partial"');
+    expect(html).not.toContain("email-check-sheen");
+    expect(html).toContain("This check has stopped");
+    expect(html).toContain("there is no automatic scan");
     expect(html).toContain("2<!-- --> new filed");
     expect(html).toContain("canericaextreme@gmail.com");
     expect(html).toContain("limit reached");
     expect(html).toContain("access refused");
+
+    const failed = renderToString(React.createElement(CheckEmailsResult, { state: { phase: "failed", message: "Mailbox unavailable.", code: "mailbox_failed" } }));
+    expect(failed).not.toContain("email-check-sheen");
   });
 });
