@@ -1,7 +1,6 @@
-import { it, expect, vi } from "vitest";
+import { it, expect } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
-vi.mock("@tanstack/react-start", async (orig) => ({ ...(await orig<object>()), useServerFn: () => async () => "" }));
 import { SavedFileList } from "./OfficeFiles";
 import type { OfficeFile } from "@/lib/office-files";
 
