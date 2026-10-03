@@ -28,9 +28,9 @@ describe("live voice receives canonical Office Skills guidance", () => {
 
   it("task skills are routed per turn on the server path voice tool calls use", () => {
     const src = readFileSync("src/lib/manager.functions.ts", "utf8");
-    expect(src).toMatch(/routeSkills\(latestUser\)/);
+    expect(src).toMatch(/routeSkills(ForRoom)?\(latestUser/);
     const om = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
-    expect(om).toMatch(/useRealtimeManager\([\s\S]{0,600}sendChat\(/);
+    expect(om).toMatch(/useRealtimeManager\([\s\S]{0,1200}sendChat\(/);
     expect(routeSkills("review my subscriptions").skills.map((s) => s.id)).toContain("finance.subscription-review");
   });
 });

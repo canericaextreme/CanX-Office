@@ -61,6 +61,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { loadTeam, teamForManager } from "@/lib/office-team";
+import { currentBuildVersion } from "@/lib/office-health";
+import { roomReplyNote } from "@/lib/room-snapshot";
+import { requestRoomRefresh, viewedSnapshot } from "@/lib/room-snapshot-store";
 import {
   getManagerStatus,
   managerChat,
@@ -636,19 +639,23 @@ export function OfficeManager() {
       // interrupted older prompt is never handed back to be acted on.
       const thread = modelThread(messagesRef.current).slice(-19);
       thread.push({ role: "user", content: request });
-      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread } });
+      // Voice uses the same per-request room read: the route open NOW, not at call start.
+      const sentRoute = router.state.location.pathname;
+      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion() } });
+      if (reply.ok && (reply.roomSnapshots?.length || reply.roomReadback?.length)) requestRoomRefresh("elsie-voice-reply");
+      const voiceRoomNote = reply.ok ? roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute)) : "";
       // Skip the separate voice save only when the server confirmed its own save.
       if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);
       // A failure detail is never returned as if it were Elsie's answer.
       const outcome = voiceTurnOutcome(reply);
       if (outcome.kind === "failure") throw new VoiceTurnError(outcome.stage, outcome.message, outcome.status);
-      const result = outcome.text;
+      const result = voiceRoomNote ? `${outcome.text}\n\n${voiceRoomNote}` : outcome.text;
       // The spoken transcript appends the reply once and updates messagesRef.
       // Appending here too created duplicate replies and stale thread history.
       if (reply.actionResults?.some(action => action.status === "done" || action.status === "pending"))
         window.dispatchEvent(new CustomEvent("canx:workbench-changed"));
       return result;
-    }, [token, managerTeam, sendChat, saveConversationNow]),
+    }, [token, managerTeam, sendChat, saveConversationNow, router]),
     failSpokenTurn,
     liveVoiceMode,
   );
@@ -867,11 +874,15 @@ export function OfficeManager() {
         if (realtimeManager.on) realtimeManager.say(direct);
         return;
       }
+      // The room open at send time; Elsie reads it fresh for this request.
+      const sentRoute = router.state.location.pathname;
       const reply = await sendChat({
         data: {
           accessToken: token,
           team: teamForManager(loadTeam()),
           messages: modelHistory.slice(-20),
+          currentRoute: sentRoute,
+          buildId: currentBuildVersion(),
         },
       });
       if (handoffId) reportHandoff(handoffId, handoffStatusFromReply(reply));
@@ -900,7 +911,9 @@ export function OfficeManager() {
         setComposerCollapsed(true);
         setDelivery("Received — Elsie returned a reply. This does not mean the requested work is complete.");
         const answerId = `${turnId}-a`;
-        const answer = reply.text || "(The provider returned an empty answer.)";
+        const roomNote = roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute));
+        if (reply.roomSnapshots?.length || reply.roomReadback?.length) requestRoomRefresh("elsie-reply");
+        const answer = [reply.text || "(The provider returned an empty answer.)", roomNote].filter(Boolean).join("\n\n");
         if (realtimeManager.on) realtimeManager.say(answer);
         const answerMessage: ChatMessage = {
           id: answerId,

@@ -3,6 +3,7 @@ import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodexBuildPanel } from "@/components/office/CodexBuildPanel";
 import { OfficeHealthPanel } from "@/components/office/OfficeHealthPanel";
+import { RoomConnectionCheck } from "@/components/office/RoomConnectionCheck";
 
 export const Route = createFileRoute("/_office/build-testing")({
   head: () => ({
@@ -32,6 +33,7 @@ function BuildTesting() {
       <div className="space-y-6">
         <CodexBuildPanel />
         <OfficeHealthPanel />
+        <RoomConnectionCheck />
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Planning examples — not live build status</CardTitle>
