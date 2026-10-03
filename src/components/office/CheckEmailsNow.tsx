@@ -7,13 +7,24 @@ import { createCheckEmailsController, type CheckState } from "@/lib/check-emails
 
 export function CheckEmailsResult({ state }: { state: CheckState }) {
   if (state.phase === "idle") return null;
-  if (state.phase === "running") return <p className="text-xs text-muted-foreground">Checking both linked mailboxes… (no progress estimate — this waits for the real result)</p>;
+  if (state.phase === "running") {
+    return (
+      <div
+        className="email-check-sheen rounded-md border border-canx-yellow/45 bg-canx-yellow/10 px-3 py-2 text-xs text-foreground"
+        role="status"
+        aria-live="polite"
+        data-email-check-state="running"
+      >
+        <span className="relative z-10">Checking emails… Both linked mailboxes are being checked. No progress estimate — this waits for the real result.</span>
+      </div>
+    );
+  }
   if (state.phase === "failed") return <p className="text-xs text-destructive" role="alert">Check not completed: {state.message}</p>;
   const r = state.result;
   const complete = !r.partial && !r.mailboxesFailed;
   return (
-    <div className="rounded-md border border-border/50 p-2 text-xs" role="status">
-      <StatusBadge tone={complete ? "green" : "yellow"} label={complete ? "Finished — complete within scope" : "Finished — partial"} />
+    <div className="rounded-md border border-border/50 p-2 text-xs" role="status" data-email-check-state={complete ? "complete" : "partial"}>
+      <StatusBadge tone={complete ? "green" : "yellow"} label={complete ? "Finished — complete within scope" : "Partial — not all mail checked"} />
       <p className="mt-1 text-foreground">Receipts/invoices: {r.filed} new filed in Finance, {r.duplicatesSkipped} duplicates skipped, {r.sentToReview ?? 0} sent to review. Notices/evidence: {r.subscriptionEvidenceAdded ?? 0} new, {r.subscriptionEvidenceDuplicates ?? 0} already recorded.</p>
       <ul className="mt-1 text-muted-foreground">
         {(r.mailboxes ?? []).map((m, i) => (
@@ -21,6 +32,7 @@ export function CheckEmailsResult({ state }: { state: CheckState }) {
         ))}
       </ul>
       <p className="mt-1 text-muted-foreground">{r.message}</p>
+      {!complete ? <p className="mt-1 text-foreground">This check has stopped. Review the mailbox details above, then press Check emails now later to try again; there is no automatic scan.</p> : null}
     </div>
   );
 }
