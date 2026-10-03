@@ -283,10 +283,10 @@ export function parseMailRuleCommand(message: string): MailRuleCommand | null {
   if (addrCount !== 1 || /["'“”‘’`?]/.test(lower)) return { kind: "needs-address" };
   if (intent === "set") {
     const m = SET_EXACT.exec(lower);
-    const sender = m ? normalizeSender(m[2]) : "";
+    const sender = m ? normalizeSender(m[2] ?? "") : "";
     return m && sender ? { kind: "set", sender, action: m[1] === "ignore" ? "ignore" : "keep" } : { kind: "needs-address" };
   }
   const m = REMOVE_EXACT.exec(lower);
-  const sender = m ? normalizeSender(m[1]) : "";
+  const sender = m ? normalizeSender(m[1] ?? "") : "";
   return m && sender ? { kind: "remove", sender } : { kind: "needs-address" };
 }
