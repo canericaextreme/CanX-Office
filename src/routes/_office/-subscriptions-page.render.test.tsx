@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock factories run before the test file's own imports, so React is loaded
@@ -22,9 +22,6 @@ import { Subscriptions } from "@/routes/_office/subscriptions";
 
 afterEach(cleanup);
 
-/** True when `a` comes before `b` in document order. */
-const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-
 describe("Subscriptions page render", () => {
   it("renders the saved list without the static provider-records card", () => {
     const { container } = render(<Subscriptions />);
@@ -36,16 +33,11 @@ describe("Subscriptions page render", () => {
     expect(screen.queryByText("Supabase")).toBeNull();
   });
 
-  it("keeps the AI Workers card below the saved list and opens its historical details", () => {
-    render(<Subscriptions />);
-    const card = screen.getByRole("button", { name: "Open AI Workers subscription verification details" });
-    expect(card.textContent).toContain("Historical snapshot from September 11, 2026. Current spend is unknown.");
-    expect(before(screen.getByTestId("saved-list"), card)).toBe(true);
-
-    fireEvent.click(card);
-    const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("Current spend").nextElementSibling?.textContent).toBe("Unknown — not verified");
-    expect(within(dialog).getByText("Historical snapshot — not current")).toBeTruthy();
-    expect(within(dialog).queryByText("Previous provider records")).toBeNull();
+  it("renders no AI Workers historical snapshot card", () => {
+    const { container } = render(<Subscriptions />);
+    expect(screen.queryByRole("button", { name: "Open AI Workers subscription verification details" })).toBeNull();
+    expect(container.textContent).not.toContain("AI Workers");
+    expect(container.textContent).not.toContain("Historical snapshot");
+    expect(container.textContent).not.toContain("September 11, 2026");
   });
 });
