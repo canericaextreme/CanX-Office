@@ -311,8 +311,11 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
     website: value.websiteUrl ?? "",
   });
   const [urlError, setUrlError] = useState("");
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setF({ ...f, [k]: e.target.value }); if (k === "website") setUrlError(""); };
-  const amount = f.amount.trim() === "" ? null : Number(f.amount);
+  const [amountError, setAmountError] = useState("");
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setF({ ...f, [k]: e.target.value }); if (k === "website") setUrlError(""); if (k === "amount") setAmountError(""); };
+  // Free-text entry so "224." and "0.05" can be typed naturally; validated on save.
+  const amountText = f.amount.trim();
+  const amount = amountText === "" ? null : /^\d+(\.\d{1,2})?$/.test(amountText) ? Number(amountText) : null;
   const field = "space-y-1 text-xs";
   const select = "h-10 w-full rounded-md border border-input bg-background px-2 text-sm";
   return (
