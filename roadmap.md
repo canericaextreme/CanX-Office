@@ -199,14 +199,21 @@
 - [ ] Do not install another room until John confirms Subscriptions works.
 
 ## Subscription service cards and billing-statement extraction — 4 Oct 2026
-- [ ] Replace expanded service rows with bounded clickable cards and a focused detail/back view.
-- [ ] Preserve an optional owner-recorded plan name through validation, saving and exports without changing old records.
-- [ ] During bounded Gmail processing, extract only explicitly stated plan, recurring amount/currency, interval and effective/billing date from readable source content.
-- [ ] Keep email-stated terms separate from owner-confirmed cost and renewal fields, with mailbox/message/date provenance and a reason.
-- [ ] Reject monthly-rate inference from annual charges, one-time receipts, tax totals, credits/top-ups, ambiguous dollar signs, promotions or conflicting terms.
-- [ ] Enrich matching historical evidence only when the same message is read again, preserving deduplication, Ignore and review decisions.
-- [ ] Add representative Lovable, Supabase, ChatGPT and OpenAI API fixtures plus negative/conflict tests; run full tests, typecheck and preview build.
+- [x] Replace expanded service rows with bounded clickable cards and a focused detail/back view.
+- [x] Preserve an optional owner-recorded plan name through validation and saving without changing old records.
+- [x] During bounded Gmail processing, extract only explicitly stated plan, recurring amount/currency, interval and effective/billing date from readable source content.
+- [x] Keep email-stated terms separate from owner-confirmed cost and renewal fields, with mailbox/message/date provenance and a reason.
+- [x] Reject monthly-rate inference from annual charges, one-time receipts, tax totals, credits/top-ups, ambiguous dollar signs, promotions or conflicting terms.
+- [x] Enrich matching historical evidence only when the same message is read again, preserving deduplication, Ignore and review decisions.
+- [x] Add representative Lovable, Supabase, ChatGPT and OpenAI API fixtures plus negative/conflict tests.
+- [ ] Verify the preview build and authenticated visual flow without a live mailbox or paid-provider call.
 - [ ] BLOCKED on John: run the bounded signed-in mailbox check and visually verify service cards after preview repair.
+
+## Subscriptions queued owner checks — 4 Oct 2026
+- [ ] Confirm historical payment labels never imply payment without supporting evidence.
+- [ ] Confirm Elsie’s routine Subscriptions review uses current saved evidence and remains advisory.
+- [ ] Confirm recurring-rate displays keep owner-confirmed and email-stated values distinct.
+- [ ] Confirm every installed Subscriptions skill has meaningful diagnostics, deterministic routing, and honest connector/live-test status.
 
 ## Subscription review-routing follow-up
 - [ ] Do not blanket-approve existing needs-review records; design exception routing with explicit source/confidence rules and separate review state.
