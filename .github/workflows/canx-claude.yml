@@ -49,7 +49,9 @@ jobs:
           ].join('\n'));
           JS
       - name: Install pinned Claude Code
-        run: npm install --prefix /tmp/canx-claude-cli --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.289
+        run: |
+          npm install --prefix /tmp/canx-claude-cli --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.289
+          node /tmp/canx-claude-cli/node_modules/@anthropic-ai/claude-code/install.cjs
       - name: Implement requested change
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
