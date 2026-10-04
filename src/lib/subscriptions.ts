@@ -99,8 +99,8 @@ export const MAX_EVIDENCE = 1_000;
 export const STARTER_SUBSCRIPTIONS: SubscriptionRecord[] = [
   starter("lovable", "Lovable", ["lovable"], ["lovable.dev"], "Development platform"),
   starter("supabase", "Supabase", ["supabase"], ["supabase.com", "supabase.io"], "CanX-owned database and sign-in"),
-    planName: "",
-  starter("openai", "OpenAI", ["openai", "chatgpt"], ["openai.com"], "AI workers"),
+  starter("chatgpt", "ChatGPT subscription", ["chatgpt"], ["chatgpt.com"], "Consumer ChatGPT plan; separate from OpenAI API usage"),
+  starter("openai", "OpenAI API", ["openai api", "api usage"], ["openai.com"], "Metered API usage and top-ups; separate from a ChatGPT subscription"),
   starter("anthropic", "Anthropic (Claude)", ["anthropic", "claude"], ["anthropic.com"], "Second Eyes reviewer"),
   starter("github", "GitHub", ["github"], ["github.com"], "Code hosting"),
   // John said on 2026-10-03 that the office uses Sintra AI. No sender domain is
@@ -132,7 +132,6 @@ function starter(id: string, name: string, aliases: string[], domains: string[],
   };
 }
 
-  const planName = str(r["planName"], 60);
 /* ------------------------------ validation ------------------------------ */
 
 const str = (v: unknown, max: number) =>
@@ -180,7 +179,7 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
           return date ? [{ date, amount: money(e["amount"]), currency: ccy(e["currency"]), source: str(e["source"], 200) }] : [];
         })
       : [],
-    planName: str(r["planName"], 60),
+    notes: str(r["notes"], 1000),
     updatedAt: str(r["updatedAt"], 40),
   };
 }
@@ -406,8 +405,12 @@ export function mergeEvidence(existing: SubscriptionEvidence[], incoming: Subscr
     if (at !== undefined) {
       duplicates += 1;
       const prior = merged[at]!;
-      if (e.statedTerms && JSON.stringify(prior.statedTerms ?? null) !== JSON.stringify(e.statedTerms)) {
+      if (e.statedTerms && !prior.statedTerms) {
         const enriched = { ...prior, statedTerms: e.statedTerms };
+        merged[at] = enriched;
+        updated.push(enriched);
+      } else if (e.statedTerms && prior.statedTerms && JSON.stringify(prior.statedTerms) !== JSON.stringify(e.statedTerms) && !prior.statedTerms.ambiguous) {
+        const enriched = { ...prior, statedTerms: { ...prior.statedTerms, ambiguous: true, reason: "A later read found conflicting plan or rate terms; the earlier source values were preserved for owner review." } };
         merged[at] = enriched;
         updated.push(enriched);
       }

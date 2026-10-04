@@ -584,6 +584,7 @@ function toEvidence(
   const renewal = RENEWAL_DATE.exec(document.text)?.[1] ?? receipt?.expectedRenewalDate ?? "";
   const valid = renewal && !Number.isNaN(Date.parse(`${renewal}T00:00:00Z`)) ? renewal : "";
   const fingerprint = receipt?.contentFingerprint ?? fingerprintText(document.text);
+  const statedTerms = kind === "promotion" ? null : extractEmailStatedTerms(document.text, document.subject ?? "");
   return {
     id: `ev-${fingerprint.slice(0, 24)}`,
     kind,
@@ -610,7 +611,7 @@ function toEvidence(
     deadlineDate: classification.deadlineDate,
     ...(classification.deadlineBasis ? { deadlineBasis: classification.deadlineBasis } : {}),
     classificationAmbiguous: classification.ambiguous,
-    ...(extractEmailStatedTerms(document.text, document.subject ?? "") ? { statedTerms: extractEmailStatedTerms(document.text, document.subject ?? "") ?? undefined } : {}),
+    ...(statedTerms ? { statedTerms } : {}),
   };
 }
 
