@@ -85,7 +85,7 @@ describe("compact CanX companion", () => {
     expect(dockSource).toContain('aria-label="Restore the CanX chatbot"');
     expect(dockSource).toContain("canx.companion.hidden");
     expect(dockSource).toContain('aria-label="Minimize the CanX chatbot"');
-    expect(dockSource).toContain("fixed bottom-4 left-4");
+    expect(dockSource).toContain("fixed bottom-4 left-0");
     const minimize = dockSource.split("const minimizeCompanion = () => {")[1]?.split("};")[0];
     expect(minimize).toBeDefined();
     expect(minimize).not.toContain("chat.stop()");
