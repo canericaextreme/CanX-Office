@@ -1159,44 +1159,38 @@ export function OfficeManager() {
 
   return (
     <>
-      {!(open && minimized) && (
+      {!open && (
         <Button
-          onClick={() => open ? closeManager() : setOpen(true)}
-          aria-expanded={open}
+          onClick={() => { setMinimized(false); setOpen(true); }}
+          aria-expanded={false}
           aria-controls="office-manager-panel"
-          aria-label={open ? "Close Elsie" : "Talk to Elsie"}
-          className="fixed bottom-4 right-4 z-40 h-14 rounded-full border border-rose-200/50 bg-gradient-to-r from-rose-700 to-rose-500 px-6 text-base font-black text-white shadow-[0_0_28px_rgba(244,63,94,.48)] transition hover:scale-105 hover:from-rose-600 hover:to-rose-400"
+          aria-label="Open Office Manager Elsie"
+          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center justify-center gap-1 rounded-xl border border-border bg-card/95 px-2 text-xs font-semibold text-primary shadow-lg backdrop-blur hover:bg-muted"
         >
-          {open ? <X className="mr-1.5 h-4 w-4" /> : <Bot className="mr-1.5 h-4 w-4" />}
-          {open ? "Close Elsie" : "Talk to Elsie"}
+          <Bot className="h-5 w-5" aria-hidden="true" /> Office Manager Elsie
         </Button>
       )}
 
       {open && minimized && (
         <div
           aria-label="Office Manager, minimised"
-          className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-border bg-card px-3 py-2 shadow-2xl"
+          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center rounded-xl border border-border bg-card/95 px-1 shadow-lg backdrop-blur"
         >
-          <Bot className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-          <span
-            role="status"
-            aria-live="polite"
-            className="truncate text-sm font-medium text-foreground"
+          <button
+            type="button"
+            aria-label="Restore Office Manager Elsie"
+            aria-controls="office-manager-panel"
+            title={liveState}
+            onClick={() => setMinimized(false)}
+            className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-md text-xs font-semibold text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {liveState}
-          </span>
-          {realtimeManager.on && (
-            <Button variant="outline" size="sm" className="h-8" onClick={realtimeManager.stop}>
-              <PhoneOff className="mr-1.5 h-3.5 w-3.5" /> End
-            </Button>
-          )}
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setMinimized(false)}>
-            <Maximize2 className="mr-1.5 h-3.5 w-3.5" /> Open
-          </Button>
+            <Bot className="h-5 w-5 shrink-0" aria-hidden="true" /> Office Manager Elsie
+            <span role="status" aria-live="polite" className="sr-only">{liveState}</span>
+          </button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 shrink-0"
             aria-label="Close the Office Manager"
             onClick={closeManager}
           >
