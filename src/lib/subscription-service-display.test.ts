@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { extractEmailStatedTerms, serviceBillingCounts, serviceBillingDisplay, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
 
 const service = (id: string, patch: Partial<SubscriptionRecord> = {}): SubscriptionRecord => ({ id, name: id, aliases: [], senderDomains: [], scope: "office", cadence: "unknown", knownCost: null, nextRenewal: null, history: [], notes: "", updatedAt: "", ...patch });
-const email = (id: string, subscriptionId: string, text: string): SubscriptionEvidence => ({ id, kind: "renewal-notice", matchStatus: "matched", subscriptionId, candidateIds: [subscriptionId], vendor: subscriptionId, amount: null, currency: null, documentDate: "", renewalDate: "", renewalBasis: "", mailbox: "owner@example.com", messageId: `m${id}`, attachmentIdentity: "", from: "billing@example.com", subject: "Billing terms", fingerprint: `f${id}`, receivedAt: "2026-10-04T01:00:00Z", recordedAt: "2026-10-04T01:01:00Z", review: "needs-review", statedTerms: extractEmailStatedTerms(text) ?? undefined });
+const email = (id: string, subscriptionId: string, text: string): SubscriptionEvidence => {
+  const statedTerms = extractEmailStatedTerms(text);
+  if (!statedTerms) throw new Error("Fixture must contain extractable billing terms");
+  return { id, kind: "renewal-notice", matchStatus: "matched", subscriptionId, candidateIds: [subscriptionId], vendor: subscriptionId, amount: null, currency: null, documentDate: "", renewalDate: "", renewalBasis: "", mailbox: "owner@example.com", messageId: `m${id}`, attachmentIdentity: "", from: "billing@example.com", subject: "Billing terms", fingerprint: `f${id}`, receivedAt: "2026-10-04T01:00:00Z", recordedAt: "2026-10-04T01:01:00Z", review: "needs-review", statedTerms };
+};
 
 describe("glanceable service billing display", () => {
   it("keeps recurring, yearly, non-recurring, usage and unknown states distinct", () => {
