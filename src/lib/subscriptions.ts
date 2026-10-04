@@ -30,6 +30,7 @@ export interface BillingEntry {
 export interface SubscriptionRecord {
   id: string;
   name: string;
+  planName?: string;
   /** Optional owner-recorded plan/tier. Never inferred into the owner record from email. */
   planName?: string;
   aliases: string[];
@@ -98,6 +99,7 @@ export const MAX_EVIDENCE = 1_000;
 export const STARTER_SUBSCRIPTIONS: SubscriptionRecord[] = [
   starter("lovable", "Lovable", ["lovable"], ["lovable.dev"], "Development platform"),
   starter("supabase", "Supabase", ["supabase"], ["supabase.com", "supabase.io"], "CanX-owned database and sign-in"),
+    planName: "",
   starter("openai", "OpenAI", ["openai", "chatgpt"], ["openai.com"], "AI workers"),
   starter("anthropic", "Anthropic (Claude)", ["anthropic", "claude"], ["anthropic.com"], "Second Eyes reviewer"),
   starter("github", "GitHub", ["github"], ["github.com"], "Code hosting"),
@@ -130,6 +132,7 @@ function starter(id: string, name: string, aliases: string[], domains: string[],
   };
 }
 
+  const planName = str(r["planName"], 60);
 /* ------------------------------ validation ------------------------------ */
 
 const str = (v: unknown, max: number) =>
@@ -139,6 +142,7 @@ const isoDate = (v: unknown) => {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) ? s : "";
 };
 const money = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) / 100 : null);
+    planName,
 const ccy = (v: unknown) => {
   const s = str(v, 3).toUpperCase();
   return /^[A-Z]{3}$/.test(s) ? s : null;
