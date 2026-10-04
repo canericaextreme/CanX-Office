@@ -49,7 +49,7 @@ function SkillDetail({ s }: { s: OfficeSkill }) {
         <p><b className="text-foreground">Final check:</b> {s.finalCheck}</p>
         <p><b className="text-foreground">Owner approval:</b> {s.ownerApprovalRequired}</p>
         <p>
-          <b className="text-foreground">Status:</b> instructions {s.instructionReady ? "ready" : "not written"} · inputs {s.toolConnected ? "connected" : "not all connected"} · routing {s.routingTested ? "tested" : "not tested"} · live use not yet tested
+          <b className="text-foreground">Status:</b> instructions {s.instructionReady ? "installed" : "parked — not installed"} · inputs {s.instructionReady ? (s.toolConnected ? "connected" : "partially connected") : "not assessed for this phase"} · routing {s.routingTested ? "tested" : "not active"} · {s.instructionReady ? "owner live test pending" : "awaiting room authorization"}
         </p>
         {s.connectedInputs.length > 0 && <p><b className="text-foreground">Connected:</b> {s.connectedInputs.join("; ")}</p>}
         {s.missingInputs.length > 0 && <p><b className="text-foreground">Missing:</b> {s.missingInputs.join("; ")}</p>}

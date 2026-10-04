@@ -77,7 +77,7 @@ describe("default categories follow explicit provenance only", () => {
     const skills = idx.items.filter((i) => i.kind === "skill");
     expect(skills).toHaveLength(OFFICE_SKILLS.length);
     expect(skills.filter((s) => /installed instructions/.test(s.version ?? "")).length).toBe(OFFICE_SKILLS.filter((s) => s.instructionReady).length);
-    expect(skills.filter((s) => /reserved|legacy/.test(s.version ?? "")).length).toBe(OFFICE_SKILLS.filter((s) => !s.instructionReady).length);
+    expect(skills.filter((s) => /reserved|legacy|parked/.test(s.version ?? "")).length).toBe(OFFICE_SKILLS.filter((s) => !s.instructionReady).length);
   });
 });
 

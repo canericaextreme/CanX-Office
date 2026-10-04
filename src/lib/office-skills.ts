@@ -13,7 +13,7 @@
  *  - toolConnected:    every input the skill needs is actually reachable by Elsie.
  *  - routingTested:    automated tests prove the router loads it.
  *  - liveTested:       tried on real office work and confirmed by John (none yet).
- * A named outline is NOT executable and NOT verified.
+ * A named outline is executable only when instructionReady is true; no skill is owner-live-verified yet.
  */
 
 export const SKILLS_REGISTRY_VERSION = "2026-10-04.2";
