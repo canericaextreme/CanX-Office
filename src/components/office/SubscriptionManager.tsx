@@ -362,7 +362,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       <label className={field}>Scope<select className={select} value={f.scope} onChange={set("scope")}><option value="office">Office</option><option value="personal">Personal</option><option value="unknown">Unknown</option></select></label>
       <label className={field}>Other names (comma separated)<Input value={f.aliases} onChange={set("aliases")} /></label>
       <label className={field}>Sender domains (e.g. openai.com)<Input value={f.domains} onChange={set("domains")} /></label>
-      <label className={field}>Owner-confirmed fixed rate (leave blank if unknown)<Input inputMode="decimal" value={f.amount} onChange={set("amount")} /></label>
+      <label className={field}>Owner-confirmed fixed rate (leave blank if unknown)<Input type="text" inputMode="decimal" autoComplete="off" placeholder="e.g. 224.50" value={f.amount} onChange={set("amount")} aria-invalid={Boolean(amountError)} />{amountError && <span className="block text-xs text-red-400">{amountError}</span>}</label>
       <label className={field}>Currency (e.g. CAD, USD)<Input maxLength={3} value={f.currency} onChange={set("currency")} /></label>
       <label className={field}>Cost confirmed on<Input type="date" value={f.asOf} onChange={set("asOf")} /></label>
       <label className={field}>Billing cycle<select className={select} value={f.cadence} onChange={set("cadence")}><option value="unknown">Unknown</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="other">Other</option></select></label>
