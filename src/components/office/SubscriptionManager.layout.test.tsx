@@ -89,12 +89,13 @@ describe("Subscriptions room layout with 120 saved emails", () => {
     expect(within(view).getByText("Showing 20 of 20.")).toBeTruthy();
   });
 
-  it("shows bounded service cards and opens a focused service detail with Back", async () => {
+  it("shows all saved service cards and opens a focused service detail with Back", async () => {
     render(<SubscriptionManager />);
     const lovable = await screen.findByRole("button", { name: "Lovable: USD $24.00 / month · Recurring — monthly — open service details" });
     expect(lovable.textContent).toContain("Business");
     expect(lovable.textContent).toContain("USD $24.00 / month");
-    expect(screen.getByRole("combobox", { name: "Open another saved service" })).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Subscription service cards" })).getAllByRole("button")).toHaveLength(8);
+    expect(screen.getByRole("button", { name: /^Extra 4:/ })).toBeTruthy();
     expect(screen.queryByText("Confirmed rate source")).toBeNull();
     fireEvent.click(lovable);
     const details = screen.getByRole("region", { name: "Lovable subscription details" });
