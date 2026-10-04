@@ -236,7 +236,7 @@ export function classifyBillingContext(text: string, subject = "", receivedAt?: 
   const contexts = CONTEXT_PATTERNS.filter(([, pattern]) => pattern.test(t)).map(([what]) => what);
   const uniqueContexts = [...new Set(contexts)];
   const deadline = deadlineFromText(t, receivedAt);
-  const offerOnly = OFFER_EXPIRY.test(t) && uniqueContexts.length === 0;
+  const offerOnly = OFFER_EXPIRY.test(t) && (uniqueContexts.length === 0 || /\b(?:account|subscription|service|trial)\s+(?:remains?|stays?)\s+(?:active|available|unchanged)\b/i.test(t));
   const mixedPromotion = PROMOTION.test(t) && uniqueContexts.length > 0 && OFFER_EXPIRY.test(t);
   if (offerOnly) return { kind: "promotion", reason: "Offer or promotion expiry only; not an account or service deadline.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
   if (EXPIRY.test(t) && !NEGATED_EXPIRY.test(t) && uniqueContexts.length > 0) {
