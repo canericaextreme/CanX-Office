@@ -50,5 +50,7 @@ export function buildGitHubFailure(error: unknown, trace: BuildGitHubTrace): str
 export function buildGitHubHttpFailure(response: Response, trace: BuildGitHubTrace): string {
   // Only a standard numeric status and fixed labels. Never read the error body.
   const status = Number.isInteger(response.status) && response.status >= 100 && response.status <= 599 ? response.status : 'UNKNOWN';
-  return ` Diagnostic GH_HTTP_${status}; ${trace.operation}; ${trace.method}.`;
+  const redirect = typeof status === 'number' && status >= 300 && status <= 399
+    ? ' GitHub returned a redirect; the Office did not follow it or forward credentials.' : '';
+  return ` Diagnostic GH_HTTP_${status}; ${trace.operation}; ${trace.method}.${redirect}`;
 }

@@ -15,7 +15,8 @@ const missing = 'Codex builds are not connected yet. Configure the private GitHu
 const plain = (x: unknown, max = 1000) => typeof x === 'string' ? x.slice(0, max) : '';
 async function api(deps: CodexBuildDeps, path: string, trace: BuildGitHubTrace, init: RequestInit = {}) {
   traceBuildGitHubRequest(trace, path, init);
-  return deps.fetch(ROOT + path, { ...init, redirect: 'error', signal: AbortSignal.timeout(15000), headers: {
+  // Inspect redirects explicitly. Never forward the GitHub credential to a redirected destination.
+  return deps.fetch(ROOT + path, { ...init, redirect: 'manual', signal: AbortSignal.timeout(15000), headers: {
     Accept: 'application/vnd.github+json', Authorization: `Bearer ${deps.githubToken}`,
     'X-GitHub-Api-Version': '2026-03-10', 'Content-Type': 'application/json',
   } });

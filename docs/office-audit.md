@@ -53,3 +53,5 @@ Installed = instructions present · Connected = every input readable · Executab
 - John reported the same request/response processing error from Claude and Codex status checks. The root cause and both live runners remain unverified.
 - Both bridges now report the fixed GitHub operation, request/JSON/processing stage, HTTP status when available, and an allowlisted cause code. Raw exception text, response bodies, headers, credentials and owner tokens are never included. Status checks remain GET-only; dispatch failures never trigger retries.
 - After publication, repeat both owner-authenticated status checks and record the displayed diagnostic before changing any credentials or routing.
+
+- Live owner check on the diagnostic update returned `GH_REDIRECT_REJECTED; workflow list; request; GET`. Both bridges now use manual redirect mode; a redirect response is reported as a safe HTTP status, never followed. A direct unauthenticated endpoint read succeeded, but owner-authenticated Office status still requires retesting after publication.

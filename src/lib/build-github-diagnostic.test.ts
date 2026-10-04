@@ -47,6 +47,29 @@ describe.each(providers)('$name GitHub diagnostics', ({ run }) => {
     expect(result.detail).toContain('GH_REQUEST_FAILED; build dispatch; request; POST');
     expect(result.detail).not.toContain(secret);
     expect(deps.fetch).toHaveBeenCalledTimes(2);
+    for (const [, init] of deps.fetch.mock.calls) expect(init?.redirect).toBe('manual');
+  });
+  it('uses manual mode for runtimes rejecting redirect-error mode, without following redirects', async () => {
+    const deps = setup();
+    deps.fetch.mockImplementation(async (_url, init) => {
+      if (init?.redirect === 'error') throw new TypeError('Unsupported redirect mode');
+      expect(init?.redirect).toBe('manual');
+      return json({ workflow_runs: [] });
+    });
+    expect(await run(deps, secret)).toMatchObject({ ok: true, runs: [] });
+    expect(deps.fetch).toHaveBeenCalledOnce();
+  });
+  it('does not follow redirects or reveal their location or body', async () => {
+    const deps = setup();
+    deps.fetch.mockResolvedValue(new Response(secret, { status: 302, headers: { Location: 'https://untrusted.example/' + secret } }));
+    const result = await run(deps, secret);
+    expect(result.ok).toBe(false);
+    expect(result.detail).toContain('GH_HTTP_302');
+    expect(result.detail).toContain('did not follow');
+    expect(result.detail).not.toContain(secret);
+    expect(result.detail).not.toContain('untrusted.example');
+    expect(deps.fetch).toHaveBeenCalledOnce();
+    expect(deps.fetch.mock.calls[0]![1]?.redirect).toBe('manual');
   });
   it('preserves successful read-only status behaviour', async () => {
     const deps = setup();
