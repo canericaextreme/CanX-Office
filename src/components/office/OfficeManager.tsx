@@ -1174,7 +1174,7 @@ export function OfficeManager() {
           aria-expanded={false}
           aria-controls="office-manager-panel"
           aria-label="Open Office Manager Elsie"
-          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center justify-center gap-2 rounded-xl border border-slate-950 bg-slate-900 px-2 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:text-white"
+          className="fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-2 rounded-xl border border-slate-950 bg-slate-900 px-2 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:text-white"
         >
           <OfficeWorkerIcon /> <span className="whitespace-normal leading-tight">Office Manager Elsie</span>
         </Button>
@@ -1183,7 +1183,7 @@ export function OfficeManager() {
       {open && minimized && (
         <div
           aria-label="Office Manager, minimised"
-          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center rounded-xl border border-slate-950 bg-slate-900 px-1 text-white shadow-lg"
+          className="fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center rounded-xl border border-slate-950 bg-slate-900 px-1 text-white shadow-lg"
         >
           <button
             type="button"
