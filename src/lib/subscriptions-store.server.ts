@@ -72,7 +72,7 @@ export async function saveSubscriptions(token: string, ownerId: string, subscrip
   const stamped = subscriptions.map((s) => ({ ...s, updatedAt: stamp }));
   const res = await cas(backend, token, ownerId, (d) => ({ ...d, subscriptions: stamped }), (d) => sameContent(d["subscriptions"], stamped));
   if (res.ok) await audit(backend, token, ownerId, "finance.subscriptions.save", { count: stamped.length });
-  return res.ok;
+  return res.ok ? { ok: true as const } : { ok: false as const, reason: res.reason };
 }
 
 export async function setEvidenceReview(token: string, ownerId: string, id: string, review: SubscriptionEvidence["review"]) {

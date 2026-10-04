@@ -19,6 +19,15 @@ const token = (input: unknown) => {
   return typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "";
 };
 
+/** Actionable, plain-English reasons; never raw provider errors. */
+export const SAVE_FAILURE_MESSAGES: Record<"read_failed" | "write_failed" | "conflict" | "unverified" | "aborted", string> = {
+  read_failed: "Not saved: the saved services could not be read first. Check your sign-in (two-step verification) and try Save again.",
+  write_failed: "Not saved: the CanX account refused the change. Sign in again with two-step verification, then press Save.",
+  conflict: "Not saved: the services list changed elsewhere at the same moment. Your typing is kept — press Save again.",
+  unverified: "The change was sent but the re-read did not match, so it is not reported as saved. Your typing is kept — the list behind this form now shows what is actually stored.",
+  aborted: "Not saved: nothing was changed.",
+};
+
 async function owner(accessToken: string) {
   const backend = await import("./canx-backend.server");
   if (!backend.readBackendConfig()) return { ok: false as const, message: backend.DENY_MESSAGES.backend_not_configured };
@@ -44,10 +53,10 @@ export const saveSubscriptionList = createServerFn({ method: "POST" })
     const clean = cleanSubscriptionList(data.subscriptions);
     if (!clean) return { ok: false, message: "The list was not in the expected shape, so nothing was changed.", data: null };
     const store = await import("./subscriptions-store.server");
-    const ok = await store.saveSubscriptions(data.accessToken, who.userId, clean);
-    return ok
+    const res = await store.saveSubscriptions(data.accessToken, who.userId, clean);
+    return res.ok
       ? { ok: true, message: "Saved to the CanX account and read back.", data: { saved: clean.length } }
-      : { ok: false, message: "The save could not be verified. Nothing is reported as saved.", data: null };
+      : { ok: false, message: SAVE_FAILURE_MESSAGES[res.reason], data: null };
   });
 
 export const reviewSubscriptionEvidence = createServerFn({ method: "POST" })
