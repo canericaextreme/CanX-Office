@@ -304,7 +304,6 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
     autoRenewStatus: value.autoRenewStatus ?? "unknown",
     amount: value.knownCost ? String(value.knownCost.amount) : "",
     currency: value.knownCost?.currency ?? "",
-    asOf: value.knownCost?.asOf ?? "",
     renewal: value.nextRenewal?.date ?? "",
     basis: value.nextRenewal?.basis ?? "estimated",
     notes: value.notes,
