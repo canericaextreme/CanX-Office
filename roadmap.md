@@ -150,6 +150,12 @@
 - [x] Grey status system: Planned/Disconnected/Unknown/Stale, labelled with reason
 - [ ] Publish and report live status
 
+## Subscriptions payment-notice truth repair (2026-10-04)
+- [x] Separate invoice emails, explicit failure notices, payment-received evidence, and strictly matched resolutions in display logic.
+- [x] Remove “still due” and current-failure claims from historical evidence; show neutral status-unverified wording and source dates/links.
+- [x] Require same service, amount, currency, later evidence, and same invoice reference or billing month before displaying a resolution.
+- [ ] Owner signed-in visual check remains required; no mailbox scan was run by the builder.
+
 - [x] Office Manager Voice Mode: Talk button, live transcript, auto-send on pause, spoken answers, Mute/Stop listening/Repeat answer/End Voice Mode, browser-only speech, typed fallback. No recordings stored; approval rules unchanged.
 
 ## Manager voice upgrade (2026-09-11)

@@ -4,16 +4,16 @@ import { AlertTriangle, CalendarClock, ChevronRight, CircleAlert, ExternalLink, 
 import { Button } from "@/components/ui/button";
 import { matchesArchiveContext, type ArchiveContext } from "@/components/office/SubscriptionEvidenceArchive";
 import { StatusBadge } from "@/components/office/StatusBadge";
-import { formatZoned, gmailLink, OFFICE_TIMEZONE, type LastCheck, type SubscriptionEvidence, type WeeklyView } from "@/lib/subscriptions";
+import { formatZoned, gmailLink, OFFICE_TIMEZONE, paymentNoticeResult, type LastCheck, type SubscriptionEvidence, type WeeklyView } from "@/lib/subscriptions";
 
 const KIND: Record<SubscriptionEvidence["kind"], string> = {
   receipt: "Receipt evidence",
-  "unpaid-invoice": "Invoice — amount due as stated",
+  "unpaid-invoice": "Invoice email — payment status unverified",
   "renewal-notice": "Renewal notice",
   "deadline-notice": "Service or account deadline",
   promotion: "Promotion or offer",
   "price-change": "Price change notice",
-  "failed-payment": "Failed / declined payment",
+  "failed-payment": "Failure notice — current status unverified",
   unknown: "Unclassified",
 };
 
@@ -23,7 +23,7 @@ function money(a: number | null, c: string | null) {
 
 function evidenceLabel(e: SubscriptionEvidence) {
   if (e.kind === "receipt") return e.amount === null ? "Receipt email — amount not stated" : "Receipt email — amount stated";
-  if (e.kind === "unpaid-invoice") return e.amount === null ? "Invoice — amount not stated" : KIND[e.kind];
+  if (e.kind === "unpaid-invoice") return e.amount === null ? "Invoice email — amount not stated; payment status unverified" : KIND[e.kind];
   return KIND[e.kind];
 }
 
@@ -87,8 +87,8 @@ const SUMMARY: Array<{ id: string; label: string; context: ArchiveContext; revie
   { id: "review", label: "Needs review", context: "all", reviewOnly: true, Icon: AlertTriangle, tone: "border-canx-yellow/50 bg-canx-yellow/10 text-canx-yellow", hint: "Waiting for your decision" },
   { id: "deadlines", label: "Deadlines & renewals", context: "deadlines", reviewOnly: false, Icon: CalendarClock, tone: "border-canx-blue/50 bg-canx-blue/10 text-canx-blue", hint: "Renewal, account and invoice dates" },
   { id: "receipts", label: "Receipts", context: "receipts", reviewOnly: false, Icon: ReceiptText, tone: "border-finance-teal/50 bg-finance-teal/10 text-finance-teal", hint: "Email evidence — not yet a Finance receipt" },
-  { id: "invoices", label: "Invoices due", context: "invoices", reviewOnly: false, Icon: FileText, tone: "border-canx-yellow/40 bg-canx-yellow/5 text-canx-yellow", hint: "Amount due as the email states" },
-  { id: "payment", label: "Payment issues", context: "payment-issues", reviewOnly: false, Icon: CircleAlert, tone: "border-destructive/40 bg-destructive/10 text-destructive", hint: "Failed payments and invoices still due" },
+  { id: "invoices", label: "Invoice emails", context: "invoices", reviewOnly: false, Icon: FileText, tone: "border-canx-yellow/40 bg-canx-yellow/5 text-canx-yellow", hint: "Status unverified until matched evidence" },
+  { id: "payment", label: "Payment notices", context: "payment-issues", reviewOnly: false, Icon: CircleAlert, tone: "border-canx-yellow/40 bg-canx-yellow/5 text-canx-yellow", hint: "Invoices, failures and matched resolutions" },
   { id: "promotions", label: "Promotions & offers", context: "promotions", reviewOnly: false, Icon: Tag, tone: "border-border bg-muted/30 text-muted-foreground", hint: "Never a bill or deadline" },
 ];
 
@@ -124,7 +124,7 @@ export function SubscriptionOverview({ view, lastCheck, evidence, onOpenArchive 
           <ul className="mt-2 grid gap-2 md:grid-cols-2">
             {due.map((c, i) => (
               <li key={`${c.name}-${c.date}-${i}`} className={`rounded-md border-l-4 p-2 text-xs ${c.daysAway < 0 ? "border-l-destructive bg-destructive/10" : "border-l-canx-yellow bg-canx-yellow/10"}`}>
-                <div className="font-medium text-foreground">{c.date} · {c.name} · {c.daysAway < 0 ? `${Math.abs(c.daysAway)} day(s) overdue` : c.daysAway === 0 ? "Due today" : `${c.daysAway} day(s) left`}</div>
+                <div className="font-medium text-foreground">{c.date} · {c.name} · {c.daysAway < 0 ? `Date passed ${Math.abs(c.daysAway)} day(s) ago — current status unverified` : c.daysAway === 0 ? "Date is today — current status unverified" : `${c.daysAway} day(s) left`}</div>
                 <div className="text-muted-foreground">What: {c.what.replace("-", " ")} · {c.basis === "relative-to-received" ? `Calculated from source-email received time in ${OFFICE_TIMEZONE}` : c.basis === "explicit" ? "Date stated on a bill/email" : "Your estimate — not confirmed"}</div>
                 <div className="text-muted-foreground">{c.action} · {c.confidence} · {c.cost}</div>
                 {c.evidence ? <SourceLinks e={c.evidence} /> : <span className="text-muted-foreground">Source: {c.source || "your saved service list"}</span>}
@@ -154,7 +154,7 @@ export function WeeklyEvidenceDetails({ view, onOpenArchive }: { view: WeeklyVie
           <ul className="mt-2 space-y-2">
             {emails.map((e) => (
               <li key={e.id} className="text-xs">
-                <div className="font-medium text-foreground">{evidenceLabel(e)} · {e.vendor || "Unknown sender"}</div>
+                <div className="font-medium text-foreground">{e.kind === "failed-payment" || e.kind === "unpaid-invoice" ? paymentNoticeResult(e, view.emails).label : evidenceLabel(e)} · {e.vendor || "Unknown sender"}</div>
                 <div className="text-muted-foreground">Received {e.receivedAt ? formatZoned(e.receivedAt) : "time unknown"} · {money(e.amount, e.currency)}</div>
                 <SourceLinks e={e} />
               </li>

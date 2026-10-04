@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyBillingContext, classifyDocument, formatRoomReadAt, gmailLink, officeWeek, weeklyView, zonedDate, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
+import { classifyBillingContext, classifyDocument, formatRoomReadAt, gmailLink, officeWeek, paymentNoticeResult, weeklyView, zonedDate, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
 
 const ev = (o: Partial<SubscriptionEvidence>): SubscriptionEvidence => ({
   id: "e1", kind: "receipt", matchStatus: "matched", subscriptionId: "s1", candidateIds: [], vendor: "Lovable",
@@ -47,6 +47,20 @@ describe("weekly subscription cards", () => {
     expect(classifyDocument("We were unable to process your card", "Your payment was declined")).toBe("failed-payment");
     expect(gmailLink("canerica14@gmail.com", "18f0a1b2c3d4")).toBe("https://mail.google.com/mail/?authuser=canerica14%40gmail.com#all/18f0a1b2c3d4");
     expect(gmailLink("x@y.com", "../bad")).toBe("");
+  });
+
+  it("resolves only a same-account, same-charge and same-period invoice with later payment evidence", () => {
+    const invoice = ev({ id: "invoice", kind: "unpaid-invoice", amount: 24, currency: "USD", receivedAt: "2026-10-01T18:00:00Z", subject: "Invoice 84729 amount due" });
+    const paid = ev({ id: "paid", kind: "receipt", amount: 24, currency: "USD", receivedAt: "2026-10-02T18:00:00Z", subject: "Receipt for invoice 84729" });
+    const unrelated = ev({ id: "other", kind: "receipt", amount: 99, currency: "USD", receivedAt: "2026-10-03T18:00:00Z", subject: "Receipt for invoice 99999" });
+    expect(paymentNoticeResult(invoice, [invoice, paid, unrelated])).toMatchObject({ state: "resolved-by-matched-payment", relatedEvidenceId: "paid" });
+    expect(paymentNoticeResult(invoice, [invoice, unrelated])).toMatchObject({ state: "invoice-unverified", relatedEvidenceId: null });
+  });
+
+  it("does not treat a later same-vendor receipt without matching amount, currency and period as resolution", () => {
+    const failure = ev({ id: "failed", kind: "failed-payment", amount: 24, currency: "USD", receivedAt: "2026-09-30T18:00:00Z", subject: "Payment declined" });
+    const laterVendorReceipt = ev({ id: "later", kind: "receipt", amount: 24, currency: "CAD", receivedAt: "2026-10-02T18:00:00Z", subject: "Receipt" });
+    expect(paymentNoticeResult(failure, [failure, laterVendorReceipt])).toMatchObject({ state: "failure-unverified", label: "Past failure notice — current status unverified" });
   });
 
   it("separates renewal deadlines from promotional expiry", () => {

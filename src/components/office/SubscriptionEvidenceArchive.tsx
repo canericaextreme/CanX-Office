@@ -3,16 +3,16 @@ import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowLeft, CalendarClock, ChevronRight, CircleAlert, ExternalLink, FileText, MailQuestion, ReceiptText, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { evidenceDate, evidenceMonthGroups, formatZoned, gmailLink, OFFICE_TIMEZONE, type SubscriptionEvidence } from "@/lib/subscriptions";
+import { evidenceDate, evidenceMonthGroups, formatZoned, gmailLink, OFFICE_TIMEZONE, paymentNoticeResult, type SubscriptionEvidence } from "@/lib/subscriptions";
 
 const LABELS: Record<SubscriptionEvidence["kind"], string> = {
   receipt: "Receipt evidence",
-  "unpaid-invoice": "Invoice — amount due as stated",
+  "unpaid-invoice": "Invoice email",
   "renewal-notice": "Renewal notice",
   "deadline-notice": "Service or account deadline",
   promotion: "Promotion or offer",
   "price-change": "Price change notice",
-  "failed-payment": "Failed or declined payment",
+  "failed-payment": "Failure notice",
   unknown: "Unclassified evidence",
 };
 
@@ -31,7 +31,7 @@ const TONES: Record<SubscriptionEvidence["kind"], { border: string; icon: string
   "deadline-notice": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: CalendarClock },
   promotion: { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
   "price-change": { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
-  "failed-payment": { border: "border-l-destructive", icon: "bg-destructive/15 text-destructive", Icon: CircleAlert },
+  "failed-payment": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: CircleAlert },
   unknown: { border: "border-l-border", icon: "bg-muted text-muted-foreground", Icon: MailQuestion },
 };
 
@@ -55,10 +55,12 @@ function EvidenceLinks({ evidence }: { evidence: SubscriptionEvidence }) {
   );
 }
 
-function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
+function EvidenceItem({ evidence, allEvidence, onMark }: { evidence: SubscriptionEvidence; allEvidence: SubscriptionEvidence[]; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
   const tone = TONES[evidence.kind];
   const Icon = tone.Icon;
   const date = evidenceDate(evidence);
+  const paymentState = paymentNoticeResult(evidence, allEvidence);
+  const isPaymentNotice = evidence.kind === "failed-payment" || evidence.kind === "unpaid-invoice";
   const dateLabel = date.basis === "source-email"
     ? `Source email received ${formatZoned(evidence.receivedAt ?? "")} (${OFFICE_TIMEZONE})`
     : date.basis === "evidence-date"
@@ -74,8 +76,8 @@ function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; on
             <div className="text-muted-foreground">{money(evidence.amount, evidence.currency)} · {dateLabel}</div>
           </div>
         </div>
-        <span className={`rounded-full border px-2 py-0.5 font-medium ${evidence.kind === "failed-payment" ? "border-destructive/40 bg-destructive/10 text-destructive" : evidence.review === "needs-review" ? "border-canx-yellow/50 bg-canx-yellow/10 text-canx-yellow" : "border-finance-teal/40 bg-finance-teal/10 text-finance-teal"}`}>
-          {evidence.kind === "failed-payment" ? "Payment issue" : evidence.review === "needs-review" ? "Needs review" : MATCH_LABEL[evidence.matchStatus]}
+        <span className={`rounded-full border px-2 py-0.5 font-medium ${isPaymentNotice && paymentState.state !== "resolved-by-matched-payment" ? "border-canx-yellow/50 bg-canx-yellow/10 text-canx-yellow" : evidence.review === "needs-review" ? "border-canx-yellow/50 bg-canx-yellow/10 text-canx-yellow" : "border-finance-teal/40 bg-finance-teal/10 text-finance-teal"}`}>
+          {isPaymentNotice ? paymentState.label : evidence.review === "needs-review" ? "Needs review" : MATCH_LABEL[evidence.matchStatus]}
         </span>
       </div>
       <div className="mt-1 text-muted-foreground">Document date: {evidence.documentDate || "not stated"} · Renewal: {evidence.renewalDate ? `${evidence.renewalDate} (stated)` : "not stated"}</div>
@@ -123,10 +125,10 @@ function TypeFilter({ value, onChange }: { value: ArchiveContext; onChange: (v: 
         <SelectContent>
           <SelectItem value="all">All evidence</SelectItem>
           <SelectItem value="receipts">Receipts</SelectItem>
-          <SelectItem value="invoices">Invoices due</SelectItem>
+          <SelectItem value="invoices">Invoice emails</SelectItem>
           <SelectItem value="deadlines">Deadlines and renewals</SelectItem>
           <SelectItem value="promotions">Promotions and offers</SelectItem>
-          <SelectItem value="payment-issues">Payment issues</SelectItem>
+          <SelectItem value="payment-issues">Payment notices</SelectItem>
         </SelectContent>
       </Select>
     </label>
@@ -219,7 +221,7 @@ export function EvidenceFocusView({ evidence, view, onView, onBack, onMark }: { 
       </div>
       {items.length === 0 ? <p className="text-sm text-muted-foreground">No evidence matches these filters.</p> : (
         <>
-          <ul className="space-y-2">{visible.map((item) => <EvidenceItem key={item.id} evidence={item} onMark={onMark} />)}</ul>
+          <ul className="space-y-2">{visible.map((item) => <EvidenceItem key={item.id} evidence={item} allEvidence={evidence} onMark={onMark} />)}</ul>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>Showing {visible.length} of {items.length}.</span>
             {visible.length < items.length ? <Button size="sm" variant="outline" className="min-h-9" onClick={() => setLimit(limit + FOCUS_PAGE)}>Show {Math.min(FOCUS_PAGE, items.length - visible.length)} more</Button> : null}

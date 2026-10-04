@@ -353,6 +353,53 @@ export interface WeeklyView {
   alerts: Array<{ evidence: SubscriptionEvidence; reason: string }>;
 }
 
+export type PaymentNoticeState = "invoice-unverified" | "failure-unverified" | "resolved-by-matched-payment" | "payment-received" | "not-payment-notice";
+
+export interface PaymentNoticeResult {
+  state: PaymentNoticeState;
+  label: string;
+  relatedEvidenceId: string | null;
+}
+
+function invoiceReference(e: SubscriptionEvidence) {
+  const value = `${e.subject}\n${e.attachmentIdentity}`;
+  return /\b(?:invoice|charge|order|transaction|receipt)\s*(?:number|no\.?|#|id)?\s*[:#-]?\s*([a-z0-9][a-z0-9-]{3,})\b/i.exec(value)?.[1]?.toLowerCase() ?? "";
+}
+
+function paymentInstant(e: SubscriptionEvidence) {
+  const value = e.receivedAt || (e.documentDate ? `${e.documentDate}T12:00:00Z` : "");
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+/**
+ * Correlates a notice only when evidence identifies the same office service,
+ * amount, currency and billing period (or the same explicit invoice reference).
+ * A later receipt from the same vendor alone is deliberately insufficient.
+ */
+export function paymentNoticeResult(notice: SubscriptionEvidence, all: SubscriptionEvidence[]): PaymentNoticeResult {
+  if (notice.kind === "receipt") return { state: "payment-received", label: "Payment received email", relatedEvidenceId: null };
+  if (notice.kind !== "unpaid-invoice" && notice.kind !== "failed-payment") return { state: "not-payment-notice", label: "Not a payment notice", relatedEvidenceId: null };
+  const noticeTime = paymentInstant(notice);
+  const noticeRef = invoiceReference(notice);
+  const resolution = all.find((candidate) => {
+    if (candidate.id === notice.id || candidate.kind !== "receipt" || candidate.matchStatus !== "matched") return false;
+    if (!notice.subscriptionId || candidate.subscriptionId !== notice.subscriptionId) return false;
+    if (notice.amount === null || candidate.amount !== notice.amount || !notice.currency || candidate.currency !== notice.currency) return false;
+    const candidateTime = paymentInstant(candidate);
+    if (noticeTime === null || candidateTime === null || candidateTime < noticeTime) return false;
+    const candidateRef = invoiceReference(candidate);
+    if (noticeRef && candidateRef) return noticeRef === candidateRef;
+    const noticeDay = zonedDate(new Date(noticeTime));
+    const candidateDay = zonedDate(new Date(candidateTime));
+    return noticeDay.slice(0, 7) === candidateDay.slice(0, 7);
+  });
+  if (resolution) return { state: "resolved-by-matched-payment", label: "Matched payment received — earlier notice resolved", relatedEvidenceId: resolution.id };
+  return notice.kind === "failed-payment"
+    ? { state: "failure-unverified", label: "Past failure notice — current status unverified", relatedEvidenceId: null }
+    : { state: "invoice-unverified", label: "Invoice email — payment status unverified", relatedEvidenceId: null };
+}
+
 export function officeWeek(now = new Date()) {
   const today = zonedDate(now.toISOString());
   const noon = new Date(`${today}T12:00:00Z`);
@@ -371,7 +418,7 @@ export function weeklyView(subscriptions: SubscriptionRecord[], evidence: Subscr
     return d >= week.start && d <= week.end;
   }).sort((a, b) => evidenceDate(b).day.localeCompare(evidenceDate(a).day));
   const alerts = evidence.filter((e) => e.matchStatus !== "personal").flatMap((e) => {
-    if (e.kind === "failed-payment") return [{ evidence: e, reason: "Payment failure needs attention." }];
+    if (e.kind === "failed-payment") return [{ evidence: e, reason: paymentNoticeResult(e, evidence).label }];
     if (e.matchStatus === "unknown" || e.matchStatus === "unverified-sender" || e.matchStatus === "conflict") return [{ evidence: e, reason: "Sender or service is not yet verified." }];
     const s = subscriptions.find((x) => x.id === e.subscriptionId);
     if (s?.knownCost && e.amount !== null && (s.knownCost.amount !== e.amount || s.knownCost.currency !== e.currency)) return [{ evidence: e, reason: "Email amount differs from the owner-confirmed cost." }];

@@ -42,11 +42,25 @@ it("does not describe missing-amount email evidence as filed or paid", () => {
     recordedAt: "2026-10-03T12:01:00.000Z", review: "needs-review",
   } as SubscriptionEvidence;
   const html = renderToString(<WeeklySubscriptionCards view={weeklyView(STARTER_SUBSCRIPTIONS, [evidence], new Date("2026-10-03T18:00:00.000Z"))} lastCheck={null} />);
-  expect(html).toContain("Invoice — amount not stated");
+  expect(html).toContain("Invoice email — payment status unverified");
   expect(html).toContain("Email evidence saved — needs review; not confirmed as a Finance receipt");
   expect(html).toContain("Open Finance");
   expect(html).not.toContain("Filed in Finance");
   expect(html).not.toContain("Receipt (paid)");
+});
+
+it("shows neutral payment-notice wording instead of claiming historical invoices remain due", () => {
+  const invoice = {
+    id: "invoice", kind: "unpaid-invoice", matchStatus: "matched", subscriptionId: "s-openai", candidateIds: [], vendor: "Example service",
+    amount: 24, currency: "USD", documentDate: "", renewalDate: "", renewalBasis: "", mailbox: "canerica14@gmail.com",
+    messageId: "18f0a1b2c3d6", attachmentIdentity: "", from: "billing@example.test", subject: "Invoice 84729 amount due",
+    fingerprint: "invoice", receivedAt: "2026-10-01T12:00:00.000Z", recordedAt: "2026-10-01T12:01:00.000Z", review: "needs-review",
+  } as SubscriptionEvidence;
+  const html = renderToString(<WeeklySubscriptionCards view={weeklyView(STARTER_SUBSCRIPTIONS, [invoice], new Date("2026-10-03T18:00:00.000Z"))} lastCheck={null} evidence={[invoice]} />);
+  expect(html).toContain("Payment notices");
+  expect(html).toContain("Status unverified until matched evidence");
+  expect(html).not.toContain("still due");
+  expect(html).not.toContain("Failed payments and invoices");
 });
 
 it("labels amount-bearing receipt evidence without claiming payment or filing", () => {
