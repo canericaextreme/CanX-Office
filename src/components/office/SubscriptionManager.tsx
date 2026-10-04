@@ -145,6 +145,7 @@ export function SubscriptionManager() {
       <Card className="border-border bg-card">
         <CardHeader><CardTitle className="text-base">Office subscriptions</CardTitle></CardHeader>
         <CardContent className="space-y-4" aria-live="polite">
+          {message && <p className="text-xs text-muted-foreground">{message}</p>}
           <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setServiceFocus(null); }}><ArrowLeft className="h-4 w-4" />Back to Subscriptions</Button>
           <section aria-label={`${focusedService.name} subscription details`} className="space-y-4 rounded-md border border-canx-blue/40 bg-canx-blue/5 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
