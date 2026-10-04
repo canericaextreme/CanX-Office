@@ -26,17 +26,19 @@ describe("compact CanX companion", () => {
     expect(layoutSource).toContain("<OfficeManager />");
   });
 
-  it("keeps a compact square footprint that drags from the whole shell", () => {
-    expect(dockSource).toContain("h-28 w-28");
-    expect(dockSource).toContain("sm:h-32 sm:w-32");
+  it("keeps a compact footprint with room for the ChatGPT link and drags from the shell", () => {
+    expect(dockSource).toContain("h-40 w-28");
+    expect(dockSource).toContain("sm:h-44 sm:w-32");
     expect(dockSource).toContain("canx-companion-drag-handle");
     expect(dockSource).toContain("onPointerDown={onPointerDown}");
-    // Chat, Work and X must not begin a drag.
-    expect(dockSource.match(/onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/g)).toHaveLength(3);
+    // Chat, Work, X and the external link must not begin a drag.
+    expect(dockSource.match(/onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/g)).toHaveLength(4);
   });
 
-  it("never opens an external window and never shows transcript text", () => {
-    expect(dockSource).not.toContain("chatgpt");
+  it("offers the requested ChatGPT link without embedding it or showing transcript text", () => {
+    expect(dockSource).toContain('href="https://chatgpt.com/"');
+    expect(dockSource).toContain('target="_blank"');
+    expect(dockSource).toContain('rel="noopener noreferrer"');
     expect(dockSource).not.toContain("window.open");
     expect(dockSource).not.toContain("iframe");
     expect(dockSource).not.toMatch(/\{messages|interimTranscript|message\.content/);
