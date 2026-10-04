@@ -16,8 +16,8 @@ import {
   type SubscriptionRecord,
 } from "@/lib/subscriptions";
 import { CheckEmailsNow } from "@/components/office/CheckEmailsNow";
-import { SubscriptionOverview, WeeklyEvidenceDetails } from "@/components/office/WeeklySubscriptionCards";
-import { ARCHIVE_ID, SubscriptionEvidenceArchive, type ArchiveContext, type ArchiveRequest } from "@/components/office/SubscriptionEvidenceArchive";
+import { SubscriptionOverview } from "@/components/office/WeeklySubscriptionCards";
+import { EvidenceFocusView, EvidenceMonthCards, type ArchiveContext, type ArchiveView } from "@/components/office/SubscriptionEvidenceArchive";
 import { MailReviewPanel, useMailPreferences } from "@/components/office/MailReviewPanel";
 import { visibleEvidence } from "@/lib/mail-preferences";
 import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
@@ -37,15 +37,14 @@ export function SubscriptionManager() {
   const [busy, setBusy] = useState(false);
   const [lastCheck, setLastCheck] = useState<LastCheck | null>(null);
   const [scanConfig, setScanConfig] = useState<GmailScanConfig | null>(null);
-  const [archiveRequest, setArchiveRequest] = useState<ArchiveRequest | null>(null);
+  // When set, the room shows only the focused month/filter view, replacing the hub.
+  const [focus, setFocus] = useState<ArchiveView | null>(null);
   const openArchive = useCallback((req: { context: ArchiveContext; reviewOnly: boolean }) => {
-    setArchiveRequest((prev) => ({ ...req, key: (prev?.key ?? 0) + 1 }));
-    // Bring the month list into view and move keyboard focus to its heading.
-    requestAnimationFrame(() => {
-      const el = typeof document !== "undefined" ? document.getElementById(ARCHIVE_ID) : null;
-      el?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-      el?.querySelector<HTMLElement>("h3")?.focus({ preventScroll: true });
-    });
+    setFocus({ month: "all", ...req });
+  }, []);
+  const openFocus = useCallback((view: ArchiveView) => {
+    setFocus(view);
+    if (typeof window !== "undefined") window.scrollTo?.({ top: 0 });
   }, []);
 
   const load = useCallback(() => {
@@ -92,6 +91,18 @@ export function SubscriptionManager() {
     const res = await reviewSubscriptionEvidence({ data: { accessToken: owner.accessToken, id, review } }).catch(() => null);
     setMessage(res?.message ?? "The change could not be verified.");
     if (res?.ok) load();
+  }
+
+  if (state !== "idle" && focus) {
+    return (
+      <Card className="border-border bg-card">
+        <CardHeader><CardTitle className="text-base">Office subscriptions</CardTitle></CardHeader>
+        <CardContent className="space-y-3" aria-live="polite">
+          {message && state === "ready" && <p className="text-xs text-muted-foreground">{message}</p>}
+          <EvidenceFocusView evidence={shownEvidence} view={focus} onView={setFocus} onBack={() => setFocus(null)} onMark={mark} />
+        </CardContent>
+      </Card>
+    );
   }
 
   if (state === "idle") {
@@ -141,9 +152,7 @@ export function SubscriptionManager() {
           </section>
         )}
 
-        <SubscriptionEvidenceArchive evidence={shownEvidence} loading={prefsLoad.state === "loading"} onMark={mark} request={archiveRequest} />
-
-        <WeeklyEvidenceDetails view={weekly} onOpenArchive={openArchive} />
+        <EvidenceMonthCards evidence={shownEvidence} loading={prefsLoad.state === "loading"} onOpen={openFocus} />
 
         {state === "ready" && <h3 className="pt-2 text-sm font-semibold">Your services ({subs.length})</h3>}
         {state === "ready" && (
