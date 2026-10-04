@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyBillingContext, classifyDocument, gmailLink, officeWeek, weeklyView, zonedDate, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
+import { classifyBillingContext, classifyDocument, formatRoomReadAt, gmailLink, officeWeek, weeklyView, zonedDate, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
 
 const ev = (o: Partial<SubscriptionEvidence>): SubscriptionEvidence => ({
   id: "e1", kind: "receipt", matchStatus: "matched", subscriptionId: "s1", candidateIds: [], vendor: "Lovable",
@@ -72,5 +72,21 @@ describe("weekly subscription cards", () => {
     const view = weeklyView([], [deadline, offer], NOW);
     expect(view.comingDue).toHaveLength(1);
     expect(view.comingDue[0]).toMatchObject({ what: "api-key", daysAway: 9, action: expect.stringContaining("credential") });
+  });
+});
+
+describe("formatRoomReadAt", () => {
+  it("shows the Whitehorse calendar date and time together", () => {
+    // 00:30 UTC on Oct 4 is still Oct 3, 5:30 p.m. in Whitehorse (GMT-7).
+    expect(formatRoomReadAt("2026-10-04T00:30:00Z")).toBe("Oct 3, 2026, 5:30 p.m. GMT-7");
+  });
+  it("never shows a time from a different calendar day", () => {
+    const s = formatRoomReadAt("2026-10-04T06:59:00Z");
+    expect(s).toContain("Oct 3, 2026");
+    expect(s).toContain("11:59 p.m.");
+  });
+  it("falls back honestly for invalid values", () => {
+    expect(formatRoomReadAt("not-a-date")).toBe("time not recorded");
+    expect(formatRoomReadAt("")).toBe("time not recorded");
   });
 });
