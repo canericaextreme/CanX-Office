@@ -46,7 +46,7 @@ export interface OfficeAuditReport {
   liveTested: false;
 }
 
-const PHRASE = /\b(?:follow|run|check|audit|review)\b.*\b(?:all|every|whole|entire)\b.*\b(?:rooms?|office)\b|\b(?:whole|entire|full)\s+office\s+(?:audit|check|review|skills?)\b/i;
+const PHRASE = /\b(?:follow(?:ed)?|run|check(?:ed)?|audit(?:ed)?|review(?:ed)?)\b.*\b(?:all|every|whole|entire)\b.*\b(?:rooms?|office)\b|\b(?:whole|entire|full)\s+office\s+(?:audit|check|review|skills?)\b/i;
 
 export function parseOfficeAuditCommand(text: string): OfficeAuditCommand {
   const t = text.trim().replace(/\s+/g, " ");
