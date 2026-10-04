@@ -12,7 +12,7 @@ const LABELS: Record<SubscriptionEvidence["kind"], string> = {
   "deadline-notice": "Service or account deadline",
   promotion: "Promotion or offer",
   "price-change": "Price change notice",
-  "failed-payment": "Failed or declined payment",
+  "failed-payment": "Failure notice",
   unknown: "Unclassified evidence",
 };
 
@@ -31,7 +31,7 @@ const TONES: Record<SubscriptionEvidence["kind"], { border: string; icon: string
   "deadline-notice": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: CalendarClock },
   promotion: { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
   "price-change": { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
-  "failed-payment": { border: "border-l-destructive", icon: "bg-destructive/15 text-destructive", Icon: CircleAlert },
+  "failed-payment": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: CircleAlert },
   unknown: { border: "border-l-border", icon: "bg-muted text-muted-foreground", Icon: MailQuestion },
 };
 

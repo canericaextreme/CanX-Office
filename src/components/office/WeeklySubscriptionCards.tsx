@@ -13,7 +13,7 @@ const KIND: Record<SubscriptionEvidence["kind"], string> = {
   "deadline-notice": "Service or account deadline",
   promotion: "Promotion or offer",
   "price-change": "Price change notice",
-  "failed-payment": "Failed / declined payment",
+  "failed-payment": "Failure notice — current status unverified",
   unknown: "Unclassified",
 };
 

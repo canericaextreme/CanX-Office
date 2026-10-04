@@ -42,7 +42,7 @@ it("does not describe missing-amount email evidence as filed or paid", () => {
     recordedAt: "2026-10-03T12:01:00.000Z", review: "needs-review",
   } as SubscriptionEvidence;
   const html = renderToString(<WeeklySubscriptionCards view={weeklyView(STARTER_SUBSCRIPTIONS, [evidence], new Date("2026-10-03T18:00:00.000Z"))} lastCheck={null} />);
-  expect(html).toContain("Invoice email — amount not stated; payment status unverified");
+  expect(html).toContain("Invoice email — payment status unverified");
   expect(html).toContain("Email evidence saved — needs review; not confirmed as a Finance receipt");
   expect(html).toContain("Open Finance");
   expect(html).not.toContain("Filed in Finance");
