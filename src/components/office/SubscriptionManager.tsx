@@ -150,6 +150,9 @@ export function SubscriptionManager() {
               <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis} · ${focusedService.nextRenewal.source}` : "Unknown"} />
               <Detail label="Usage and top-ups" value="Separate from the confirmed fixed rate and Finance paid totals" />
             </dl>
+            {focusedService.websiteUrl && (
+              <a className="inline-flex min-h-11 items-center gap-1 rounded-md border border-canx-blue/60 px-3 text-sm font-medium text-canx-blue underline underline-offset-2" href={focusedService.websiteUrl} target="_blank" rel="noreferrer" aria-label={`Open the ${focusedService.name} website in a new tab`}>Open website<ExternalLink className="h-4 w-4" /></a>
+            )}
             <div className="flex gap-2">
               {editing?.id === focusedService.id
                 ? <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Close editor</Button>
