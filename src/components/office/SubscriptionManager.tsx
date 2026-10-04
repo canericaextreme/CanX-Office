@@ -317,6 +317,11 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
   return (
     <form aria-label={value.id ? `Edit ${value.name}` : "Add a service"} data-service-id={value.id || "new"} className="grid gap-3 rounded-md border-2 border-canx-blue/60 p-3 sm:grid-cols-2" onSubmit={(e) => {
       e.preventDefault();
+      const websiteUrl = cleanWebsiteUrl(f.website);
+      if (f.website.trim() && !websiteUrl) {
+        setUrlError("Enter a full web address starting with http:// or https://, or leave it blank.");
+        return;
+      }
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
         ? { amount, currency: f.currency.toUpperCase(), asOf: f.asOf, source: "John" } : null;
       // A changed confirmed cost moves the old one into dated history; nothing is lost.
@@ -340,6 +345,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         nextRenewal: f.renewal ? { date: f.renewal, basis: f.basis as "explicit" | "estimated", source: "John" } : null,
         history,
         notes: f.notes,
+        websiteUrl,
       });
     }}>
       <h3 className="text-sm font-semibold sm:col-span-2">{value.id ? `Editing: ${value.name}` : "Adding a new service"}</h3>
