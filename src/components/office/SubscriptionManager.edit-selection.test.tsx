@@ -34,18 +34,18 @@ describe("Service edit selection", () => {
     render(<SubscriptionManager />);
     for (const name of ["Lovable", "Anthropic", "Supabase", "OpenAI"]) {
       await open(name);
-      fireEvent.click(screen.getByRole("button", { name: /Edit service/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^Edit / }));
       editorShows(name);
       for (const other of SUBS.filter((s) => s.name !== name)) expect(screen.queryByDisplayValue(other.name)).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: /Back to Subscriptions/ }));
     }
     await open("Lovable");
     expect(screen.queryByDisplayValue("Lovable")).toBeNull(); // editor not left open
-    fireEvent.click(screen.getByRole("button", { name: /Edit service/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit / }));
     fireEvent.click(screen.getByRole("button", { name: /^Cancel$/ }));
     fireEvent.click(screen.getByRole("button", { name: /Back to Subscriptions/ }));
     await open("OpenAI");
-    fireEvent.click(screen.getByRole("button", { name: /Edit service/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit / }));
     editorShows("OpenAI");
     void nameField;
   });
@@ -53,10 +53,10 @@ describe("Service edit selection", () => {
   it("saves edits only to the intended record", async () => {
     render(<SubscriptionManager />);
     await open("Lovable");
-    fireEvent.click(screen.getByRole("button", { name: /Edit service/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit / }));
     fireEvent.click(screen.getByRole("button", { name: /Back to Subscriptions/ }));
     await open("Supabase");
-    fireEvent.click(screen.getByRole("button", { name: /Edit service/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit / }));
     fireEvent.change(screen.getByDisplayValue("Supabase plan"), { target: { value: "Supabase Pro" } });
     fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
     await waitFor(() => expect(save).toHaveBeenCalled());
