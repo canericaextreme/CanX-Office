@@ -7,6 +7,8 @@ export type RenewalBasis = "explicit" | "estimated";
 export type EvidenceKind = "receipt" | "unpaid-invoice" | "renewal-notice" | "deadline-notice" | "promotion" | "price-change" | "failed-payment" | "unknown";
 export type DeadlineWhat = "subscription" | "trial" | "service" | "account" | "domain" | "api-key" | "credential" | "payment-card" | "payment" | "unknown";
 export type MatchStatus = "matched" | "unknown" | "conflict" | "personal" | "unverified-sender";
+export type RecurrenceStatus = "recurring" | "not-recurring" | "usage-based" | "unknown";
+export type AutoRenewStatus = "enabled" | "disabled" | "unknown";
 
 export interface BillingEntry {
   date: string;
@@ -23,6 +25,10 @@ export interface SubscriptionRecord {
   senderDomains: string[];
   scope: SubscriptionScope;
   cadence: "monthly" | "yearly" | "other" | "unknown";
+  recurrenceStatus?: RecurrenceStatus;
+  recurrenceSource?: string;
+  autoRenewStatus?: AutoRenewStatus;
+  autoRenewSource?: string;
   knownCost: { amount: number; currency: string; asOf: string; source: string } | null;
   nextRenewal: { date: string; basis: RenewalBasis; source: string } | null;
   history: BillingEntry[];
@@ -72,6 +78,8 @@ export interface EmailStatedTerms {
   recurringAmount: number | null;
   currency: string | null;
   interval: BillingInterval | null;
+  recurrenceStatus?: RecurrenceStatus;
+  autoRenewStatus?: AutoRenewStatus;
   effectiveDate: string;
   product: BillingProduct;
   reason: string;
@@ -105,6 +113,8 @@ function starter(id: string, name: string, aliases: string[], domains: string[],
     senderDomains: domains,
     scope: "office",
     cadence: "unknown",
+    recurrenceStatus: "unknown",
+    autoRenewStatus: "unknown",
     knownCost: null,
     nextRenewal: null,
     history: [],
@@ -144,6 +154,10 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
     senderDomains: list(r["senderDomains"], 12).filter((d) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d)),
     scope: r["scope"] === "office" || r["scope"] === "personal" ? r["scope"] : "unknown",
     cadence: ["monthly", "yearly", "other"].includes(String(r["cadence"])) ? (r["cadence"] as SubscriptionRecord["cadence"]) : "unknown",
+    recurrenceStatus: ["recurring", "not-recurring", "usage-based"].includes(String(r["recurrenceStatus"])) ? (r["recurrenceStatus"] as RecurrenceStatus) : "unknown",
+    recurrenceSource: str(r["recurrenceSource"], 200),
+    autoRenewStatus: r["autoRenewStatus"] === "enabled" || r["autoRenewStatus"] === "disabled" ? r["autoRenewStatus"] : "unknown",
+    autoRenewSource: str(r["autoRenewSource"], 200),
     knownCost: amount !== null && currency ? { amount, currency, asOf: isoDate(cost?.["asOf"]), source: str(cost?.["source"], 200) || "John" } : null,
     nextRenewal: renewalDate ? { date: renewalDate, basis: renewal?.["basis"] === "explicit" ? "explicit" : "estimated", source: str(renewal?.["source"], 200) || "John" } : null,
     history: Array.isArray(r["history"]) ? (r["history"] as unknown[]).slice(0, 120).flatMap((h) => {
@@ -176,6 +190,8 @@ export function cleanEvidenceList(input: unknown): SubscriptionEvidence[] {
     return [{ ...r, ...(reviewProvenance ? { reviewProvenance } : {}), statedTerms: {
       planName: str(t.planName, 120), recurringAmount: money(t.recurringAmount), currency: ccy(t.currency),
       interval: t.interval === "monthly" || t.interval === "yearly" ? t.interval : null,
+      recurrenceStatus: ["recurring", "not-recurring", "usage-based"].includes(String(t.recurrenceStatus)) ? t.recurrenceStatus : "unknown",
+      autoRenewStatus: t.autoRenewStatus === "enabled" || t.autoRenewStatus === "disabled" ? t.autoRenewStatus : "unknown",
       effectiveDate: isoDate(t.effectiveDate),
       product: ["chatgpt-subscription", "openai-api", "other", "unknown"].includes(t.product) ? t.product : "unknown",
       reason: str(t.reason, 300), ambiguous: t.ambiguous === true,
@@ -245,9 +261,65 @@ export function extractEmailStatedTerms(text: string, subject = ""): EmailStated
   const conflict = new Set(values.map((v) => JSON.stringify(v))).size > 1 || new Set(plans.map((p) => p.toLowerCase())).size > 1 || (monthly && yearly);
   const value = conflict ? undefined : values[0];
   const product: BillingProduct = /chatgpt/i.test(source) ? "chatgpt-subscription" : /openai\s+api|api\s+(?:usage|credit)/i.test(source) ? "openai-api" : /plan|subscription|monthly|annual/i.test(source) ? "other" : "unknown";
+  const explicitlyNotRecurring = /\b(?:not recurring|non[- ]recurring|one[- ]time (?:purchase|charge|payment)|does not renew)\b/i.test(source);
+  const explicitlyRecurring = /\b(?:recurring|subscription|renews? (?:monthly|yearly|annually)|billed (?:monthly|annually|yearly))\b/i.test(source);
+  const recurrenceStatus: RecurrenceStatus = product === "openai-api" && /\b(?:usage[- ]based|pay as you go|api usage|usage charges?)\b/i.test(source)
+    ? "usage-based"
+    : explicitlyNotRecurring ? "not-recurring" : (explicitlyRecurring || Boolean(value)) ? "recurring" : "unknown";
+  const autoRenewStatus: AutoRenewStatus = /\b(?:auto-?renew(?:al)? (?:is )?(?:off|disabled)|will not auto-?renew)\b/i.test(source)
+    ? "disabled"
+    : /\b(?:auto-?renew(?:al)? (?:is )?(?:on|enabled)|automatically renews?)\b/i.test(source) ? "enabled" : "unknown";
   const inlinePlan = /\b(ChatGPT\s+[A-Za-z0-9+.-]+)\s+plan\b/i.exec(source)?.[1] ?? "";
   if (!plans[0] && !inlinePlan && !value && product === "unknown") return null;
-  return { planName: conflict ? "" : plans[0] ?? inlinePlan, recurringAmount: value?.amount ?? null, currency: value?.currency ?? null, interval: value?.interval ?? (monthly !== yearly ? monthly ? "monthly" : yearly ? "yearly" : null : null), effectiveDate: /\b(?:effective|billing date)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(source)?.[1] ?? "", product, reason: conflict ? "Conflicting plan or rate statements require review." : value ? "Email explicitly states a recurring rate and currency." : "Plan terms found without an unambiguous recurring rate.", ambiguous: conflict || Boolean((monthly || yearly) && !value) };
+  return { planName: conflict ? "" : plans[0] ?? inlinePlan, recurringAmount: value?.amount ?? null, currency: value?.currency ?? null, interval: value?.interval ?? (monthly !== yearly ? monthly ? "monthly" : yearly ? "yearly" : null : null), recurrenceStatus, autoRenewStatus, effectiveDate: /\b(?:effective|billing date)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(source)?.[1] ?? "", product, reason: conflict ? "Conflicting plan or rate statements require review." : value ? "Email explicitly states a recurring rate and currency." : recurrenceStatus !== "unknown" ? "Email explicitly states the billing arrangement; no fixed rate is inferred." : "Plan terms found without an unambiguous recurring rate.", ambiguous: conflict || Boolean((monthly || yearly) && !value) };
+}
+
+export interface ServiceBillingDisplay {
+  rate: string;
+  recurrence: RecurrenceStatus;
+  recurrenceLabel: string;
+  recurrenceSource: string;
+  autoRenew: AutoRenewStatus;
+  autoRenewSource: string;
+  planName: string;
+}
+
+/** Owner-recorded fields take priority; otherwise use only matched, unambiguous source-email terms. */
+export function serviceBillingDisplay(service: SubscriptionRecord, evidence: SubscriptionEvidence[]): ServiceBillingDisplay {
+  const email = evidence
+    .filter((item) => item.subscriptionId === service.id && item.matchStatus === "matched" && item.statedTerms && !item.statedTerms.ambiguous)
+    .sort((a, b) => (b.receivedAt || b.recordedAt).localeCompare(a.receivedAt || a.recordedAt))[0];
+  const stated = email?.statedTerms;
+  const explicitOwnerStatus = service.recurrenceStatus && service.recurrenceStatus !== "unknown" ? service.recurrenceStatus : null;
+  const ownerCadenceRecurring = service.cadence === "monthly" || service.cadence === "yearly";
+  const recurrence: RecurrenceStatus = explicitOwnerStatus ?? (ownerCadenceRecurring ? "recurring" : stated?.recurrenceStatus && stated.recurrenceStatus !== "unknown" ? stated.recurrenceStatus : stated?.product === "openai-api" ? "usage-based" : "unknown");
+  const interval = service.cadence === "monthly" || service.cadence === "yearly" ? service.cadence : stated?.interval ?? null;
+  const recurrenceLabel = recurrence === "recurring" ? `Recurring${interval ? ` — ${interval}` : ""}` : recurrence === "not-recurring" ? "Not recurring" : recurrence === "usage-based" ? "Usage-based" : "Recurring status unconfirmed";
+  const recurrenceSource = explicitOwnerStatus || ownerCadenceRecurring ? (service.recurrenceSource || "Owner-recorded setting") : email ? `Email received ${email.receivedAt ? formatZoned(email.receivedAt) : "date not recorded"}` : "Not recorded";
+  const autoRenew = service.autoRenewStatus && service.autoRenewStatus !== "unknown" ? service.autoRenewStatus : stated?.autoRenewStatus ?? "unknown";
+  const autoRenewSource = service.autoRenewStatus && service.autoRenewStatus !== "unknown" ? (service.autoRenewSource || "Owner-recorded setting") : email && stated?.autoRenewStatus && stated.autoRenewStatus !== "unknown" ? `Email received ${email.receivedAt ? formatZoned(email.receivedAt) : "date not recorded"}` : "Not recorded";
+  const sourceRate = stated?.recurringAmount !== null && stated?.recurringAmount !== undefined && stated.currency ? `${stated.currency} $${stated.recurringAmount.toFixed(2)}${stated.interval === "monthly" ? " / month" : stated.interval === "yearly" ? " / year" : ""}` : null;
+  const ownerRate = service.knownCost ? `${service.knownCost.currency} $${service.knownCost.amount.toFixed(2)}${service.cadence === "monthly" ? " / month" : service.cadence === "yearly" ? " / year" : recurrence === "not-recurring" ? " one-time" : ""}` : null;
+  return {
+    rate: recurrence === "usage-based" ? "Usage-based" : ownerRate ?? sourceRate ?? "Rate unknown",
+    recurrence,
+    recurrenceLabel,
+    recurrenceSource,
+    autoRenew,
+    autoRenewSource,
+    planName: service.planName || stated?.planName || "Plan not recorded",
+  };
+}
+
+export function serviceBillingCounts(services: SubscriptionRecord[], evidence: SubscriptionEvidence[]) {
+  const displays = services.map((service) => serviceBillingDisplay(service, evidence));
+  return {
+    services: services.length,
+    recurring: displays.filter((item) => item.recurrence === "recurring").length,
+    notRecurring: displays.filter((item) => item.recurrence === "not-recurring").length,
+    usageBased: displays.filter((item) => item.recurrence === "usage-based").length,
+    unconfirmed: displays.filter((item) => item.recurrence === "unknown").length,
+  };
 }
 
 export function mergeEvidence(existing: SubscriptionEvidence[], incoming: SubscriptionEvidence[]) {

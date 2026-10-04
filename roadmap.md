@@ -222,6 +222,13 @@
 - [x] Verify the preview build and focused interaction flow without a live mailbox or paid-provider call.
 - [ ] BLOCKED on John: run the bounded signed-in mailbox check and visually verify service cards after preview repair.
 
+## Subscription service-card recurrence clarity — 4 Oct 2026
+- [x] Show each compact service card's rate, currency and separate recurring, not-recurring, usage-based or unconfirmed state.
+- [x] Keep billing cadence separate from auto-renew status and preserve optional owner/source provenance without a schema change.
+- [x] Add actual service, recurring, non-recurring, usage-based and unconfirmed counts without summing currencies.
+- [x] Verify mixed monthly/yearly/non-recurring/usage/unknown records and source-email terms in tests.
+- [ ] Owner signed-in visual check remains required; no mailbox scan or owner-data write was run by the builder.
+
 ## Subscriptions queued owner checks — 4 Oct 2026
 - [x] Confirm historical payment labels never imply payment without supporting evidence; saved email rows remain evidence needing review and Finance receipts retain explicit payment state.
 - [x] Confirm Elsie’s routine Subscriptions review uses a fresh AAL2 owner snapshot with saved service terms, evidence categories/review counts and last-check scope; it remains advisory.

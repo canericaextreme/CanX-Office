@@ -14,6 +14,8 @@ import {
   weeklyView,
   formatZoned,
   gmailLink,
+  serviceBillingCounts,
+  serviceBillingDisplay,
   type LastCheck,
   type SubscriptionEvidence,
   type SubscriptionRecord,
@@ -28,10 +30,6 @@ import type { GmailScanConfig } from "@/lib/gmail-scan-window";
 
 const money = (amount: number | null, currency: string | null) =>
   amount === null ? "Unknown" : `${amount.toFixed(2)} ${currency ?? "(currency not stated)"}`;
-
-const rate = (s: SubscriptionRecord) => s.knownCost
-  ? `${s.knownCost.currency} $${s.knownCost.amount.toFixed(2)}${s.cadence === "monthly" ? " / month" : s.cadence === "yearly" ? " / year" : " · billing cycle not confirmed"}`
-  : "Cost unknown";
 
 export function SubscriptionManager() {
   const owner = useOwnerSession();
@@ -89,6 +87,7 @@ export function SubscriptionManager() {
   const serviceEvidence = focusedService
     ? shownEvidence.filter((item) => item.subscriptionId === focusedService.id && item.statedTerms).slice().sort((a, b) => (b.receivedAt ?? b.recordedAt).localeCompare(a.receivedAt ?? a.recordedAt))
     : [];
+  const focusedBilling = focusedService ? serviceBillingDisplay(focusedService, shownEvidence) : null;
 
   async function persist(next: SubscriptionRecord[]) {
     if (!owner.accessToken) return;
@@ -129,7 +128,7 @@ export function SubscriptionManager() {
     );
   }
 
-  if (state === "ready" && focusedService) {
+  if (state === "ready" && focusedService && focusedBilling) {
     return (
       <Card className="border-border bg-card">
         <CardHeader><CardTitle className="text-base">Office subscriptions</CardTitle></CardHeader>
@@ -139,12 +138,14 @@ export function SubscriptionManager() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">{focusedService.name}</h2>
-                <p className="text-sm text-muted-foreground">{focusedService.planName || "Plan not recorded"} · {focusedService.scope === "office" ? "Office" : focusedService.scope === "personal" ? "Personal" : "Scope unknown"}</p>
+                <p className="text-sm text-muted-foreground">{focusedBilling.planName} · {focusedService.scope === "office" ? "Office" : focusedService.scope === "personal" ? "Personal" : "Scope unknown"}</p>
               </div>
-              <p className="text-xl font-semibold text-canx-green">{rate(focusedService)}</p>
+              <p className="text-xl font-semibold text-canx-green">{focusedBilling.rate} · {focusedBilling.recurrenceLabel}</p>
             </div>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <Detail label="Owner-confirmed billing cycle" value={focusedService.cadence === "unknown" ? "Unknown" : focusedService.cadence} />
+              <Detail label="Recurring schedule" value={`${focusedBilling.recurrenceLabel} · ${focusedBilling.recurrenceSource}`} />
+              <Detail label="Auto-renew" value={`${focusedBilling.autoRenew === "enabled" ? "Enabled" : focusedBilling.autoRenew === "disabled" ? "Disabled" : "Not recorded"} · ${focusedBilling.autoRenewSource}`} />
               <Detail label="Confirmed rate source" value={focusedService.knownCost ? `${focusedService.knownCost.source}${focusedService.knownCost.asOf ? ` · ${focusedService.knownCost.asOf}` : " · date not recorded"}` : "Not recorded"} />
               <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis} · ${focusedService.nextRenewal.source}` : "Unknown"} />
               <Detail label="Usage and top-ups" value="Separate from the confirmed fixed rate and Finance paid totals" />
@@ -166,7 +167,7 @@ export function SubscriptionManager() {
                   if (!stated) return null;
                   const link = gmailLink(item.mailbox, item.messageId);
                   return <li key={item.id} className="rounded-md border border-border p-3 text-sm">
-                    <div className="font-medium">Email states: {stated.planName || "Plan unknown"} · {stated.recurringAmount !== null && stated.currency ? `${stated.currency} $${stated.recurringAmount.toFixed(2)}` : "Rate unknown"}{stated.interval ? ` / ${stated.interval === "monthly" ? "month" : "year"}` : ""}</div>
+                    <div className="font-medium">Email states: {stated.planName || "Plan unknown"} · {stated.recurringAmount !== null && stated.currency ? `${stated.currency} $${stated.recurringAmount.toFixed(2)}` : "Rate unknown"}{stated.interval ? ` / ${stated.interval === "monthly" ? "month" : "year"}` : ""} · {stated.recurrenceStatus === "recurring" ? "Recurring" : stated.recurrenceStatus === "not-recurring" ? "Not recurring" : stated.recurrenceStatus === "usage-based" ? "Usage-based" : "Recurring status unconfirmed"}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{stated.product.replaceAll("-", " ")} · {stated.effectiveDate || "billing/effective date not stated"} · {stated.reason}</div>
                     <div className="mt-1 text-xs text-muted-foreground">Received {item.receivedAt ? formatZoned(item.receivedAt) : "Not recorded"} · {item.mailbox || "mailbox not recorded"}</div>
                     {link && <a className="mt-2 inline-flex items-center gap-1 text-xs text-canx-blue underline" href={link} target="_blank" rel="noreferrer">Open source email<ExternalLink className="h-3 w-3" /></a>}
@@ -240,9 +241,9 @@ export function SubscriptionManager() {
 
         <EvidenceMonthCards evidence={shownEvidence} loading={prefsLoad.state === "loading"} onOpen={openFocus} />
 
-        {state === "ready" && <h3 className="pt-2 text-sm font-semibold">Your services ({subs.length})</h3>}
+        {state === "ready" && <ServiceSummary subscriptions={subs} evidence={shownEvidence} />}
         {state === "ready" && (
-          <ServiceCards subscriptions={subs} onOpen={(id) => { setServiceFocus(id); window.scrollTo?.({ top: 0 }); }} />
+          <ServiceCards subscriptions={subs} evidence={shownEvidence} onOpen={(id) => { setServiceFocus(id); window.scrollTo?.({ top: 0 }); }} />
         )}
 
         {state === "ready" && !editing && (
@@ -293,6 +294,8 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
     domains: value.senderDomains.join(", "),
     scope: value.scope,
     cadence: value.cadence,
+    recurrenceStatus: value.recurrenceStatus ?? "unknown",
+    autoRenewStatus: value.autoRenewStatus ?? "unknown",
     amount: value.knownCost ? String(value.knownCost.amount) : "",
     currency: value.knownCost?.currency ?? "",
     asOf: value.knownCost?.asOf ?? "",
@@ -322,6 +325,10 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         senderDomains: f.domains.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean),
         scope: f.scope,
         cadence: f.cadence,
+        recurrenceStatus: f.recurrenceStatus,
+        recurrenceSource: f.recurrenceStatus === "unknown" ? "" : "John",
+        autoRenewStatus: f.autoRenewStatus,
+        autoRenewSource: f.autoRenewStatus === "unknown" ? "" : "John",
         knownCost: cost,
         nextRenewal: f.renewal ? { date: f.renewal, basis: f.basis as "explicit" | "estimated", source: "John" } : null,
         history,
@@ -337,6 +344,8 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       <label className={field}>Currency (e.g. CAD, USD)<Input maxLength={3} value={f.currency} onChange={set("currency")} /></label>
       <label className={field}>Cost confirmed on<Input type="date" value={f.asOf} onChange={set("asOf")} /></label>
       <label className={field}>Billing cycle<select className={select} value={f.cadence} onChange={set("cadence")}><option value="unknown">Unknown</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="other">Other</option></select></label>
+      <label className={field}>Recurring schedule<select className={select} value={f.recurrenceStatus} onChange={set("recurrenceStatus")}><option value="unknown">Unconfirmed</option><option value="recurring">Recurring</option><option value="not-recurring">Not recurring</option><option value="usage-based">Usage-based</option></select></label>
+      <label className={field}>Auto-renew<select className={select} value={f.autoRenewStatus} onChange={set("autoRenewStatus")}><option value="unknown">Not recorded</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label>
       <label className={field}>Next renewal date<Input type="date" value={f.renewal} onChange={set("renewal")} /></label>
       <label className={field}>Renewal date is<select className={select} value={f.basis} onChange={set("basis")}><option value="estimated">My estimate</option><option value="explicit">Stated on a bill or notice</option></select></label>
       <label className={`${field} sm:col-span-2`}>Notes<Input value={f.notes} onChange={set("notes")} /></label>
@@ -348,19 +357,24 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
   );
 }
 
-function ServiceCards({ subscriptions, onOpen }: { subscriptions: SubscriptionRecord[]; onOpen: (id: string) => void }) {
+function ServiceSummary({ subscriptions, evidence }: { subscriptions: SubscriptionRecord[]; evidence: SubscriptionEvidence[] }) {
+  const counts = serviceBillingCounts(subscriptions, evidence);
+  return <div className="pt-2"><h3 className="text-sm font-semibold">Your services</h3><p className="text-xs text-muted-foreground">{counts.services} services · {counts.recurring} recurring · {counts.notRecurring} not recurring · {counts.usageBased} usage-based · {counts.unconfirmed} unconfirmed</p></div>;
+}
+
+function ServiceCards({ subscriptions, evidence, onOpen }: { subscriptions: SubscriptionRecord[]; evidence: SubscriptionEvidence[]; onOpen: (id: string) => void }) {
   const visible = subscriptions.slice(0, 6);
   const overflow = subscriptions.slice(6);
   return <section aria-label="Subscription service cards" className="space-y-3">
     {subscriptions.length === 0 ? <p className="text-sm text-muted-foreground">No services saved.</p> : (
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {visible.map((s) => <Button key={s.id} variant="outline" className="h-auto min-h-24 justify-between gap-3 p-3 text-left" aria-label={`${s.name}: ${rate(s)} — open service details`} onClick={() => onOpen(s.id)}>
-          <span className="min-w-0"><span className="block truncate font-semibold">{s.name}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{s.planName || "Plan not recorded"} · {s.cadence === "unknown" ? "Cycle unknown" : s.cadence}</span></span>
-          <span className={s.knownCost ? "shrink-0 text-right text-sm font-semibold text-canx-green" : "shrink-0 text-right text-sm text-muted-foreground"}>{rate(s)}<ChevronRight className="ml-auto mt-1 h-4 w-4" /></span>
-        </Button>)}
+        {visible.map((s) => { const display = serviceBillingDisplay(s, evidence); return <Button key={s.id} variant="outline" className="h-auto min-h-24 justify-between gap-3 p-3 text-left" aria-label={`${s.name}: ${display.rate} · ${display.recurrenceLabel} — open service details`} onClick={() => onOpen(s.id)}>
+          <span className="min-w-0"><span className="block truncate font-semibold">{s.name}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{display.planName}</span></span>
+          <span className={display.rate !== "Rate unknown" ? "shrink-0 text-right text-sm font-semibold text-canx-green" : "shrink-0 text-right text-sm text-muted-foreground"}><span className="block">{display.rate}</span><span className="mt-1 block text-xs font-normal">{display.recurrenceLabel}</span><ChevronRight className="ml-auto mt-1 h-4 w-4" /></span>
+        </Button>; })}
       </div>
     )}
-    {overflow.length > 0 && <Select onValueChange={onOpen}><SelectTrigger className="w-full sm:w-72" aria-label="Open another saved service"><SelectValue placeholder={`${overflow.length} more service${overflow.length === 1 ? "" : "s"}`} /></SelectTrigger><SelectContent>{overflow.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} · {rate(s)}</SelectItem>)}</SelectContent></Select>}
+    {overflow.length > 0 && <Select onValueChange={onOpen}><SelectTrigger className="w-full sm:w-72" aria-label="Open another saved service"><SelectValue placeholder={`${overflow.length} more service${overflow.length === 1 ? "" : "s"}`} /></SelectTrigger><SelectContent>{overflow.map((s) => { const display = serviceBillingDisplay(s, evidence); return <SelectItem key={s.id} value={s.id}>{s.name} · {display.rate} · {display.recurrenceLabel}</SelectItem>; })}</SelectContent></Select>}
   </section>;
 }
 
