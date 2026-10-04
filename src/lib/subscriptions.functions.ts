@@ -6,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { cleanSubscriptionList, type LastCheck, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
 import type { GmailScanConfig } from "./gmail-scan-window";
 import type { RoutineReviewItem } from "./subscriptions-review";
+import { buildSubscriptionsSkillAudit, type SubscriptionSkillAuditReport } from "./subscriptions-skill-audit";
 
 export interface SubscriptionsResult<T> {
   ok: boolean;
@@ -22,7 +23,7 @@ async function owner(accessToken: string) {
   const backend = await import("./canx-backend.server");
   if (!backend.readBackendConfig()) return { ok: false as const, message: backend.DENY_MESSAGES.backend_not_configured };
   const verified = await backend.verifyOwner(accessToken);
-  return verified.ok ? { ok: true as const, userId: verified.userId } : { ok: false as const, message: verified.message };
+  return verified.ok ? { ok: true as const, userId: verified.userId, aal: verified.aal } : { ok: false as const, message: verified.message };
 }
 
 export const listSubscriptions = createServerFn({ method: "POST" })
@@ -88,3 +89,28 @@ export async function runElsieSubscriptionReview(accessToken: string): Promise<E
 export const reviewRoutineSubscriptionEvidence = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: token(input) }))
   .handler(async ({ data }): Promise<ElsieReviewResult> => runElsieSubscriptionReview(data.accessToken));
+
+export type SubscriptionSkillAuditResult =
+  | { ok: true; message: string; report: SubscriptionSkillAuditReport }
+  | { ok: false; message: string; report: null };
+
+export async function runSubscriptionsSkillAudit(accessToken: string, buildId = "unknown"): Promise<SubscriptionSkillAuditResult> {
+  const who = await owner(accessToken);
+  if (!who.ok) return { ok: false, message: who.message, report: null };
+  const backend = await import("./canx-backend.server");
+  const config = backend.readBackendConfig();
+  if (!config) return { ok: false, message: "The CanX account is not configured, so the skill check could not run.", report: null };
+  const store = await import("./subscriptions-store.server");
+  const snapshot = await import("./room-snapshot.server");
+  const rooms = await import("./room-snapshot");
+  const subscriptionsTarget = rooms.roomTargetForRoute("/subscriptions");
+  const financeTarget = rooms.roomTargetForRoute("/finance");
+  const checkedAt = new Date().toISOString();
+  const [state, subscriptionsSnapshot, financeSnapshot] = await Promise.all([
+    store.readSubscriptionState(accessToken).catch(() => null),
+    subscriptionsTarget ? snapshot.readRoomSnapshotWith({ config, token: accessToken, aal: who.aal, target: subscriptionsTarget, buildId, rest: backend.restRequest }).catch(() => null) : null,
+    financeTarget ? snapshot.readRoomSnapshotWith({ config, token: accessToken, aal: who.aal, target: financeTarget, buildId, rest: backend.restRequest }).catch(() => null) : null,
+  ]);
+  const report = buildSubscriptionsSkillAudit({ subscriptions: state?.subscriptions ?? [], evidence: state?.evidence ?? [], subscriptionsSnapshot, financeSnapshot, checkedAt });
+  return { ok: true, message: `${report.completed} completed, ${report.blocked} blocked${report.notAttempted ? `, ${report.notAttempted} not attempted` : ""}. Installed instructions were checked; this did not mark any skill live-tested.`, report };
+}
