@@ -57,6 +57,11 @@ export interface SubscriptionEvidence {
   deadlineBasis?: "absolute" | "relative-to-received";
   classificationAmbiguous?: boolean;
   statedTerms?: EmailStatedTerms;
+  reviewProvenance?: {
+    by: "elsie-deterministic";
+    reason: string;
+    at: string;
+  };
 }
 
 export type BillingInterval = "monthly" | "yearly";
@@ -161,9 +166,14 @@ export function cleanEvidenceList(input: unknown): SubscriptionEvidence[] {
   return input.slice(0, MAX_EVIDENCE).flatMap((e) => {
     const r = e as Partial<SubscriptionEvidence>;
     if (typeof r?.id !== "string" || typeof r.kind !== "string" || typeof r.messageId !== "string") return [];
-    if (!r.statedTerms) return [r as SubscriptionEvidence];
+    const reviewProvenance = r.reviewProvenance?.by === "elsie-deterministic" ? {
+      by: "elsie-deterministic" as const,
+      reason: str(r.reviewProvenance.reason, 300),
+      at: str(r.reviewProvenance.at, 40),
+    } : undefined;
+    if (!r.statedTerms) return [{ ...r, ...(reviewProvenance ? { reviewProvenance } : {}) } as SubscriptionEvidence];
     const t = r.statedTerms as EmailStatedTerms;
-    return [{ ...r, statedTerms: {
+    return [{ ...r, ...(reviewProvenance ? { reviewProvenance } : {}), statedTerms: {
       planName: str(t.planName, 120), recurringAmount: money(t.recurringAmount), currency: ccy(t.currency),
       interval: t.interval === "monthly" || t.interval === "yearly" ? t.interval : null,
       effectiveDate: isoDate(t.effectiveDate),

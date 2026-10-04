@@ -156,6 +156,13 @@
 - [x] Require same service, amount, currency, later evidence, and same invoice reference or billing month before displaying a resolution.
 - [ ] Owner signed-in visual check remains required; no mailbox scan was run by the builder.
 
+## Elsie routine Subscriptions review (2026-10-04)
+- [x] Add conservative deterministic eligibility with distinct review provenance and reasons.
+- [x] Add owner/MFA-protected verified batch save and compact Subscriptions action.
+- [x] Route explicit typed and live-voice requests to the same operation; keep questions and negations read-only.
+- [x] Verify mixed 120-item, idempotency, preservation and failed-readback behavior in tests.
+- [ ] Owner must run the review signed in and inspect the items left for John.
+
 - [x] Office Manager Voice Mode: Talk button, live transcript, auto-send on pause, spoken answers, Mute/Stop listening/Repeat answer/End Voice Mode, browser-only speech, typed fallback. No recordings stored; approval rules unchanged.
 
 ## Manager voice upgrade (2026-09-11)

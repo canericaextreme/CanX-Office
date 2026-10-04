@@ -17,7 +17,9 @@ import {
   type SubscriptionEvidence,
   type SubscriptionRecord,
 } from "./subscriptions";
+import { ELSIE_REVIEW_BY, selectRoutineReviews, type RoutineReviewItem } from "./subscriptions-review";
 import { cleanGmailScanConfig, type GmailScanConfig } from "./gmail-scan-window";
+import { cleanMailPreferences } from "./mail-preferences";
 
 type Backend = typeof import("./canx-backend.server");
 
@@ -85,6 +87,46 @@ export async function setEvidenceReview(token: string, ownerId: string, id: stri
     (d) => cleanEvidenceList(d["subscriptionEvidence"]).some((e) => e.id === id && e.review === review),
   );
   return res.ok;
+}
+
+export interface RoutineReviewSaveResult {
+  ok: boolean;
+  reviewed: number;
+  alreadyReviewed: number;
+  leftForJohn: number;
+  items: RoutineReviewItem[];
+}
+
+export async function reviewRoutineEvidence(token: string, ownerId: string): Promise<RoutineReviewSaveResult> {
+  const backend = await import("./canx-backend.server");
+  let selected: RoutineReviewItem[] = [];
+  let alreadyReviewed = 0;
+  let leftForJohn = 0;
+  const stamp = new Date().toISOString();
+  const res = await cas(
+    backend, token, ownerId,
+    (d) => {
+      const evidence = cleanEvidenceList(d["subscriptionEvidence"]);
+      const subscriptions = cleanSubscriptionList(d["subscriptions"] ?? []) ?? [];
+      selected = selectRoutineReviews(evidence, subscriptions, cleanMailPreferences(d["mailPreferences"]));
+      const ids = new Set(selected.map((item) => item.id));
+      alreadyReviewed = evidence.filter((e) => e.review === "reviewed").length;
+      leftForJohn = evidence.filter((e) => e.review === "needs-review" && !ids.has(e.id)).length;
+      if (selected.length === 0) return d;
+      const reasons = new Map(selected.map((item) => [item.id, item.reason]));
+      return { ...d, subscriptionEvidence: evidence.map((e) => ids.has(e.id) ? { ...e, review: "reviewed" as const, reviewProvenance: { by: ELSIE_REVIEW_BY, reason: reasons.get(e.id) ?? "Routine deterministic review.", at: stamp } } : e) };
+    },
+    (d) => {
+      const stored = new Map(cleanEvidenceList(d["subscriptionEvidence"]).map((e) => [e.id, e]));
+      return selected.every((item) => {
+        const e = stored.get(item.id);
+        return e?.review === "reviewed" && e.reviewProvenance?.by === ELSIE_REVIEW_BY && e.reviewProvenance.reason === item.reason && e.reviewProvenance.at === stamp;
+      });
+    },
+  );
+  if (!res.ok) return { ok: false, reviewed: 0, alreadyReviewed: 0, leftForJohn: 0, items: [] };
+  if (selected.length > 0) await audit(backend, token, ownerId, "finance.subscriptions.elsie_review", { reviewed: selected.length, leftForJohn });
+  return { ok: true, reviewed: selected.length, alreadyReviewed, leftForJohn, items: selected };
 }
 
 export async function appendEvidence(token: string, ownerId: string, incoming: SubscriptionEvidence[]) {
