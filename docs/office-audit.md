@@ -21,7 +21,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 12 | Subscriptions | subscriptions, mail evidence, mail rules | Subscriptions (4), Finance (4) | No vendor usage data; no exact receipt linkage |
 | 13 | Finance | receipt totals (two-step) | Finance (4) | No bank/accounting ledger |
 | 14 | Work Board | tasks, change log | Operations (4), Foreman (4) | No crew dispatch / calendar |
-| 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending |
+| 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending; shared GitHub status failure under diagnosis |
 | 16 | Safe Highways | static boundary | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
 | 17 | Research | files, reports only | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
@@ -47,3 +47,9 @@ Installed = instructions present · Connected = every input readable · Executab
 - John approved US$10 per build. The CLI uses `--max-budget-usd 10`; no automatic larger budget or retry is authorised. Builds require the shared private GitHub dispatch connection and owner/MFA verification. GitHub Actions requires a separate repository secret for the Claude API; presence and a real successful build are not yet verified.
 - `claude-chat` is a separate Supabase Edge Function reading the existing Vault key at request time. The browser invokes it by name. It validates owner/MFA, checks existing budget reservations before paid replies, exposes a non-billable models check, and never returns the key. A chat reply is not a code edit or build.
 - No Finance or Elsie voice source file was changed. A live owner-authenticated Claude reply and build remain required before marking either path verified.
+
+
+## Shared build status diagnostics (4 October 2026)
+- John reported the same request/response processing error from Claude and Codex status checks. The root cause and both live runners remain unverified.
+- Both bridges now report the fixed GitHub operation, request/JSON/processing stage, HTTP status when available, and an allowlisted cause code. Raw exception text, response bodies, headers, credentials and owner tokens are never included. Status checks remain GET-only; dispatch failures never trigger retries.
+- After publication, repeat both owner-authenticated status checks and record the displayed diagnostic before changing any credentials or routing.
