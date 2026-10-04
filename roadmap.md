@@ -217,7 +217,7 @@
 - [x] Keep deterministic request-aware routing at three task skills, omitted-procedure disclosure, original core rules and shared typed/live-voice submit path.
 - [x] Reconcile Subscriptions inputs against its shared snapshot; instructions remain distinct from connectors and owner live verification.
 - [ ] BLOCKED on John: signed-in owner checks the Subscriptions room, dated two-mailbox catch-up/resume, totals/labels, month/review filters, expiry/promotion evidence and each installed procedure.
-- [ ] Do not install another room until John confirms Subscriptions works.
+- [x] Superseded 3 Oct 18:14 Whitehorse: John authorised whole-office wiring.
 
 ## Subscription service cards and billing-statement extraction — 4 Oct 2026
 - [x] Replace expanded service rows with bounded clickable cards and a focused detail/back view.
@@ -249,4 +249,10 @@
 ## Service edit selection fix (2026-10-04)
 - [x] Edit opens the exact selected service by stable ID across switching, cancel and reopen; saves only that record.
 - [ ] Owner signed-in check on Lovable/OpenAI edit remains required.
-- [ ] Resume full-office audit/skill installation (paused for this fix).
+
+## Whole-office wiring (2026-10-04)
+- [x] Install every named master-map job and the five actual-room skills; reserved/legacy stay inert.
+- [x] Whole-office check through Elsie's shared typed/voice path: every room, every installed procedure, sources read/not read, missing inputs, next task, build-handoff status; never marks live-tested.
+- [x] Checklist saved at docs/office-audit.md; AGENTS scope rule replaced.
+- [ ] Shared roster / Idea Lab storage — blocked: needs John-approved schema change.
+- [ ] Codex build handoff live readiness — blocked: GitHub repo variable/secret not verifiable from here.

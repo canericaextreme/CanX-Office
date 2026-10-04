@@ -40,21 +40,14 @@ describe("Office Skills registry", () => {
       expect(s.provenance).toMatch(/CanX_Office_Skills_Map/);
     }
     for (const s of OFFICE_SKILLS) expect(s.liveTested).toBe(false);
-    const scoped = OFFICE_SKILLS.filter((s) => s.instructionReady && (s.kind === "outline" || s.kind === "draft"));
-    expect(scoped.map((s) => s.id).sort()).toEqual([
-      "finance.budget-variance-review", "finance.receipt-reconciliation", "finance.renewal-watch",
-      "subscriptions.plan-change-review", "subscriptions.renewal-check", "subscriptions.tool-value-review", "subscriptions.vendor-dependency-check",
-    ]);
-    for (const s of scoped) {
+    const named = OFFICE_SKILLS.filter((s) => s.kind === "outline" || s.kind === "draft");
+    expect(named.length).toBeGreaterThanOrEqual(60);
+    for (const s of named) {
       expect(s.instructionReady, s.id).toBe(true);
       expect(s.routingTested, s.id).toBe(true);
       expect(s.steps.length, s.id).toBeGreaterThanOrEqual(5);
       expect(s.output.length, s.id).toBeGreaterThanOrEqual(5);
       expect(s.provenance, s.id).toMatch(/John|master map/i);
-    }
-    for (const s of OFFICE_SKILLS.filter((x) => (x.kind === "outline" || x.kind === "draft") && !scoped.includes(x))) {
-      expect(s.instructionReady, s.id).toBe(false);
-      expect(s.routingTested, s.id).toBe(false);
     }
     for (const s of OFFICE_SKILLS.filter((x) => x.kind === "reserved" || x.kind === "legacy")) expect(s.instructionReady).toBe(false);
   });
@@ -99,7 +92,7 @@ describe("deterministic skill router", () => {
     expect(broad.omitted.length).toBeGreaterThan(0);
     expect(broad.instructions).toMatch(/Bounded selection disclosure/);
   });
-  it("routes every scoped Subscriptions job, and no parked room job", () => {
+  it("routes every Subscriptions job and other room jobs", () => {
     const cases: Array<[string, string]> = [
       ["renewal check", "subscriptions.renewal-check"], ["plan change review", "subscriptions.plan-change-review"],
       ["tool value review", "subscriptions.tool-value-review"], ["vendor dependency check", "subscriptions.vendor-dependency-check"],
@@ -110,7 +103,7 @@ describe("deterministic skill router", () => {
       const selected = routeSkillsForRoom(request, "/subscriptions").skills.map((s) => s.id);
       expect(selected, request).toContain(id);
     }
-    expect(routeSkillsForRoom("legal issue spotter", "/legal").skills.map((s) => s.id)).not.toContain("legal.legal-issue-spotter");
+    expect(routeSkillsForRoom("legal issue spotter", "/legal").skills.map((s) => s.id)).toContain("legal.legal-issue-spotter");
   });
   it("does not route reserved/history entries and contains no record data", () => {
     const r = routeSkills("future reserved phase 0 planning stripe integration");
