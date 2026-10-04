@@ -366,7 +366,8 @@ export function weeklyView(subscriptions: SubscriptionRecord[], evidence: Subscr
   const week = officeWeek(now);
   const emails = evidence.filter((e) => {
     if (e.matchStatus === "personal") return false;
-    const d = evidenceDate(e).day;
+    if (!e.receivedAt) return false;
+    const d = zonedDate(e.receivedAt);
     return d >= week.start && d <= week.end;
   }).sort((a, b) => evidenceDate(b).day.localeCompare(evidenceDate(a).day));
   const alerts = evidence.filter((e) => e.matchStatus !== "personal").flatMap((e) => {
