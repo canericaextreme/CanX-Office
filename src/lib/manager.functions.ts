@@ -25,6 +25,7 @@ import { routeSkills } from "@/lib/office-skills";
 import { isExplicitReceiptSyncRequest, receiptSyncOutcome, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 import { parseMailRuleCommand, type MailRuleCommand } from "@/lib/mail-preferences";
 import { parseElsieReviewCommand } from "@/lib/subscriptions-review";
+import { parseSubscriptionsSkillAuditCommand } from "@/lib/subscriptions-skill-audit";
 import { runMailRuleCommandWith } from "@/lib/mail-rule-command";
 import { protectedCategoryOf } from "@/lib/protected-actions";
 import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
@@ -1627,6 +1628,14 @@ export const managerChat = createServerFn({ method: "POST" })
       const { runElsieSubscriptionReview } = await import("@/lib/subscriptions.functions");
       const result = await runElsieSubscriptionReview(data.accessToken);
       return { ok: result.ok, code: result.ok ? "ok" : "context_unavailable", provider: "none", state: result.ok ? "verified" : "configured_unverified", model: null, text: result.ok ? [result.message, ...result.items.map((item) => `${item.vendor}: ${item.reason} Source: ${item.mailbox || "mailbox not recorded"}${item.receivedAt ? `, received ${item.receivedAt}` : ", date not recorded"}.`)].join("\n") : "", ...(result.ok ? {} : { detail: result.message }), toolCalls: [], actionResults: [] };
+    }
+    const auditCommand = parseSubscriptionsSkillAuditCommand(latestRequest);
+    if (auditCommand === "run") {
+      const { runSubscriptionsSkillAudit } = await import("@/lib/subscriptions.functions");
+      const result = await runSubscriptionsSkillAudit(data.accessToken, data.buildId ?? "unknown");
+      if (!result.ok) return { ok: false, code: "context_unavailable", provider: "none", state: "configured_unverified", model: null, text: "", detail: result.message, toolCalls: [], actionResults: [] };
+      const detail = result.report.items.map((audit) => `${audit.name}: ${audit.status}. ${audit.result} Reason: ${audit.reason} Sources: ${audit.sources.join("; ") || "none"}. Checked ${audit.checkedAt}. Owner live-tested: no.`);
+      return { ok: true, code: "ok", provider: "none", state: "verified", model: null, text: [result.message, ...detail].join("\n"), toolCalls: [], actionResults: [], skillsUsed: { registryVersion: result.report.registryVersion, skills: result.report.items.map(({ id, name, version }) => ({ id, name, version })) } };
     }
     if (isExplicitReceiptSyncRequest(latestRequest)) {
       const result = await runReceiptSync({

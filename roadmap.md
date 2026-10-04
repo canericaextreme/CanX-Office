@@ -163,6 +163,14 @@
 - [x] Verify mixed 120-item, idempotency, preservation and failed-readback behavior in tests.
 - [ ] Owner must run the review signed in and inspect the items left for John.
 
+## Elsie all-Subscriptions skill check (2026-10-04)
+- [x] Route the exact room-wide command through the shared typed/live-voice Office request path without the three-task omission.
+- [x] Enumerate all eight installed Subscriptions and linked Finance procedures from the canonical registry.
+- [x] Use fresh owner/MFA-scoped Subscriptions and Finance reads, with per-skill completed, blocked or not-attempted evidence and checked time.
+- [x] Keep missing usage, dependency, ledger and exact receipt-linkage inputs blocked; never infer execution or mark skills live-tested.
+- [x] Test exact command, full enumeration, failed-source handling, blocked prerequisites, questions, negation and hypothetical wording.
+- [ ] John must run the command signed in and review its real results; the builder did not perform a live room audit.
+
 - [x] Office Manager Voice Mode: Talk button, live transcript, auto-send on pause, spoken answers, Mute/Stop listening/Repeat answer/End Voice Mode, browser-only speech, typed fallback. No recordings stored; approval rules unchanged.
 
 ## Manager voice upgrade (2026-09-11)
