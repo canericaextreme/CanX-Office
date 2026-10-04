@@ -91,17 +91,17 @@ describe("Subscriptions room layout with 120 saved emails", () => {
 
   it("shows bounded service cards and opens a focused service detail with Back", async () => {
     render(<SubscriptionManager />);
-    const lovable = await screen.findByRole("button", { name: "Lovable: USD $24.00 / month — open service details" });
+    const lovable = await screen.findByRole("button", { name: "Lovable: USD $24.00 / month · Recurring — monthly — open service details" });
     expect(lovable.textContent).toContain("Business");
     expect(lovable.textContent).toContain("USD $24.00 / month");
     expect(screen.getByRole("combobox", { name: "Open another saved service" })).toBeTruthy();
     expect(screen.queryByText("Confirmed rate source")).toBeNull();
     fireEvent.click(lovable);
     const details = screen.getByRole("region", { name: "Lovable subscription details" });
-    expect(within(details).getByText("USD $24.00 / month")).toBeTruthy();
+    expect(within(details).getByText("USD $24.00 / month · Recurring — monthly")).toBeTruthy();
     expect(screen.getByText("John · 2026-10-01")).toBeTruthy();
     expect(screen.getByText(/No unambiguous recurring plan terms/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back to Subscriptions" }));
-    expect(await screen.findByRole("button", { name: "Lovable: USD $24.00 / month — open service details" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Lovable: USD $24.00 / month · Recurring — monthly — open service details" })).toBeTruthy();
   });
 });
