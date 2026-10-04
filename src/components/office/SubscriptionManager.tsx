@@ -133,7 +133,7 @@ export function SubscriptionManager() {
       <Card className="border-border bg-card">
         <CardHeader><CardTitle className="text-base">Office subscriptions</CardTitle></CardHeader>
         <CardContent className="space-y-4" aria-live="polite">
-          <Button variant="ghost" size="sm" onClick={() => setServiceFocus(null)}><ArrowLeft className="h-4 w-4" />Back to Subscriptions</Button>
+          <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setServiceFocus(null); }}><ArrowLeft className="h-4 w-4" />Back to Subscriptions</Button>
           <section aria-label={`${focusedService.name} subscription details`} className="space-y-4 rounded-md border border-canx-blue/40 bg-canx-blue/5 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -176,7 +176,7 @@ export function SubscriptionManager() {
               </ul>
             )}
           </section>
-          {editing && <SubscriptionEditor value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => persist(subs.map((s) => s.id === rec.id ? rec : s))} />}
+          {editing && editing.id === focusedService.id && <SubscriptionEditor key={editing.id} value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => persist(subs.map((s) => s.id === focusedService.id ? { ...rec, id: focusedService.id } : s))} />}
         </CardContent>
       </Card>
     );
@@ -243,7 +243,7 @@ export function SubscriptionManager() {
 
         {state === "ready" && <ServiceSummary subscriptions={subs} evidence={shownEvidence} />}
         {state === "ready" && (
-          <ServiceCards subscriptions={subs} evidence={shownEvidence} onOpen={(id) => { setServiceFocus(id); window.scrollTo?.({ top: 0 }); }} />
+          <ServiceCards subscriptions={subs} evidence={shownEvidence} onOpen={(id) => { setEditing(null); setServiceFocus(id); window.scrollTo?.({ top: 0 }); }} />
         )}
 
         {state === "ready" && !editing && (
@@ -268,7 +268,7 @@ export function SubscriptionManager() {
           </section>
         )}
 
-        {editing && <SubscriptionEditor value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => {
+        {editing && <SubscriptionEditor key={editing.id || "new-service"} value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => {
           const exists = rec.id && subs.some((s) => s.id === rec.id);
           persist(exists ? subs.map((s) => (s.id === rec.id ? rec : s)) : [...subs, rec]);
         }} />}
