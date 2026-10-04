@@ -1,9 +1,10 @@
 /**
  * Subscriptions page truth regression (3 October 2026, narrowed 4 October 2026):
  * the static "Previous provider records" card (Lovable / Supabase / Email
- * sending) no longer renders on the visible page. The saved SubscriptionManager
- * list is the only subscription list shown. The historical AI Workers card
- * stays visible with its dated snapshot labels.
+ * sending) no longer renders on the visible page, and per the owner's explicit
+ * follow-up the historical AI Workers September 11 snapshot card is removed
+ * too. The saved SubscriptionManager list is the only subscription content
+ * shown. No database or history records are touched by this display change.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -19,21 +20,16 @@ describe("Subscriptions page shows no static provider-records card", () => {
     expect(page).not.toContain("Static record; billing not verified here");
   });
 
+  it("removes the AI Workers historical snapshot card", () => {
+    expect(page).not.toContain("AiWorkersDetails");
+    expect(page).not.toContain("AI Workers");
+    expect(page).not.toContain("Historical snapshot");
+    expect(page).not.toContain("September 11, 2026");
+  });
+
   it("shows the saved SubscriptionManager list exactly once", () => {
     expect(page).toContain("<SubscriptionManager />");
     expect(page.match(/<SubscriptionManager \/>/g)).toHaveLength(1);
-  });
-
-  it("keeps the AI Workers card visible with its historical labels", () => {
-    expect(page).toContain("<AiWorkersDetails />");
-    expect(page).toContain('aria-label="Open AI Workers subscription verification details"');
-    expect(page).toContain("Historical snapshot — not current");
-    expect(page).toContain("Current spend is unknown");
-    expect(page).toContain("Unknown — not verified");
-  });
-
-  it("renders the AI Workers card below the saved list, not above it", () => {
-    expect(page.indexOf("<SubscriptionManager />")).toBeLessThan(page.indexOf("<AiWorkersDetails />"));
   });
 
   it("makes no green verified claim anywhere on the page", () => {
