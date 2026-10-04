@@ -605,7 +605,7 @@ function toEvidence(
     classificationReason: classification.reason.slice(0, 300),
     deadlineWhat: classification.deadlineWhat,
     deadlineDate: classification.deadlineDate,
-    deadlineBasis: classification.deadlineBasis || undefined,
+    ...(classification.deadlineBasis ? { deadlineBasis: classification.deadlineBasis } : {}),
     classificationAmbiguous: classification.ambiguous,
   };
 }
