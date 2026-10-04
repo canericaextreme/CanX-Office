@@ -41,51 +41,45 @@ afterEach(cleanup);
 const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe("Subscriptions room layout with 120 saved emails", () => {
-  it("puts Month, Evidence type and Needs review before every long list, grouped by month", async () => {
+  it("hub shows compact month cards with counts and no email evidence rows", async () => {
     render(<SubscriptionManager />);
-    const month = await screen.findByRole("combobox", { name: "Filter evidence by month" });
-    await waitFor(() => expect(screen.getByRole("button", { name: /^Needs review \(40\)$/ })).toBeTruthy());
-    const type = screen.getByRole("combobox", { name: "Filter evidence by type" });
-    const review = screen.getByRole("button", { name: /^Needs review \(40\)$/ });
-
-    const weekly = screen.getByRole("region", { name: "This week in subscriptions" });
+    const oct = await screen.findByRole("button", { name: /^October 2026: 40 item\(s\), \d+ need review — open month$/ });
+    expect(screen.getByRole("button", { name: /^September 2026: 40 item\(s\)/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^August 2026: 40 item\(s\)/ })).toBeTruthy();
+    // No evidence rows, invoice labels or vendor lines on the hub.
+    expect(screen.queryByText(/Invoice — amount due as stated/)).toBeNull();
+    expect(screen.queryByText(/Vendor \d+/)).toBeNull();
+    expect(screen.queryByRole("region", { name: "This week in subscriptions" })).toBeNull();
+    // Category cards and month cards sit before the folded mail review.
     const mailReview = screen.getByText(/Saved mail review and Ignore rules \(120 saved email/);
-    for (const control of [month, type, review]) {
-      expect(before(control, weekly)).toBe(true);
-      expect(before(control, mailReview)).toBe(true);
-    }
-
-    // Three real month groups; only the newest is open, older months are collapsed.
-    const archive = screen.getByRole("region", { name: "Billing evidence from email" });
-    const oct = within(archive).getByRole("button", { name: /October 2026.*40 item\(s\).*need review/ });
-    const sep = within(archive).getByRole("button", { name: /September 2026.*40 item\(s\)/ });
-    const aug = within(archive).getByRole("button", { name: /August 2026.*40 item\(s\)/ });
-    expect(oct.getAttribute("aria-expanded")).toBe("true");
-    expect(sep.getAttribute("aria-expanded")).toBe("false");
-    expect(aug.getAttribute("aria-expanded")).toBe("false");
-    expect(within(archive).getAllByRole("listitem")).toHaveLength(40);
-
-    // Long weekly/alert lists are folded away and, when opened, labelled rather than silently cut.
-    const details = weekly.querySelectorAll("details");
-    expect(details).toHaveLength(2);
-    details.forEach((d) => expect(d.open).toBe(false));
-    expect(within(weekly).getByText(/Alerts waiting for review \(\d+\)/)).toBeTruthy();
-    expect(within(weekly).getByText(/Showing 5 of \d+ alerts\./)).toBeTruthy();
+    expect(before(oct, mailReview)).toBe(true);
+    expect(before(screen.getByRole("button", { name: /^Needs review: 40 — open list$/ }), oct)).toBe(true);
   });
 
-  it("category cards open the month list with the matching filter", async () => {
+  it("a month card opens only that month, with filters, and Back returns to the compact hub", async () => {
     render(<SubscriptionManager />);
-    const card = await screen.findByRole("button", { name: /^Needs review: 40 — open in month list$/ });
-    const archive = screen.getByRole("region", { name: "Billing evidence from email" });
-    expect(before(card, archive)).toBe(true);
-    fireEvent.click(card);
-    await waitFor(() => expect(screen.getByRole("button", { name: /^Needs review \(40\)$/ }).getAttribute("aria-pressed")).toBe("true"));
-    within(archive).getAllByRole("listitem").forEach((li) => expect(li.textContent).toContain("Needs review"));
+    fireEvent.click(await screen.findByRole("button", { name: /^September 2026: 40 item/ }));
+    const view = screen.getByRole("region", { name: "Billing evidence from email" });
+    expect(within(view).getByRole("heading", { name: "September 2026" })).toBeTruthy();
+    expect(within(view).getByRole("combobox", { name: "Filter evidence by type" })).toBeTruthy();
+    expect(within(view).getByRole("button", { name: /^Needs review \(\d+\)$/ })).toBeTruthy();
+    expect(within(view).getByText("Showing 20 of 40.")).toBeTruthy();
+    expect(within(view).getAllByRole("listitem")).toHaveLength(20);
+    within(view).getAllByRole("listitem").forEach((li) => expect(li.textContent).toMatch(/2026-09|Sep/));
+    // The hub (month cards, mail review) is replaced, not stacked above.
+    expect(screen.queryByRole("button", { name: /^October 2026: 40 item/ })).toBeNull();
+    expect(screen.queryByText(/Saved mail review and Ignore rules/)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Promotions & offers: 20 — open in month list$/ }));
-    await waitFor(() => expect(screen.getByRole("button", { name: /^Needs review \(40\)$/ }).getAttribute("aria-pressed")).toBe("false"));
-    const items = within(archive).getAllByRole("listitem");
-    expect(items.length).toBeGreaterThan(0);
-    items.forEach((li) => expect(li.textContent).toContain("Promotion or offer"));
+    fireEvent.click(within(view).getAllByRole("button", { name: /Back to Subscriptions/ })[0]!);
+    expect(await screen.findByRole("button", { name: /^October 2026: 40 item/ })).toBeTruthy();
+    expect(screen.queryByText(/Vendor \d+/)).toBeNull();
+  });
+
+  it("a category card opens a filtered list across months", async () => {
+    render(<SubscriptionManager />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Promotions & offers: 20 — open list$/ }));
+    const view = screen.getByRole("region", { name: "Billing evidence from email" });
+    within(view).getAllByRole("listitem").forEach((li) => expect(li.textContent).toContain("Promotion or offer"));
+    expect(within(view).getByText("Showing 20 of 20.")).toBeTruthy();
   });
 });

@@ -36,53 +36,54 @@ describe("monthly subscription evidence", () => {
     ]);
   });
 
-  it("opens the newest month first, expands older months, and filters needs-review items", () => {
-    const onMark = vi.fn();
+  it("hub shows month cards only; a card opens that month and Back returns", () => {
     render(<SubscriptionEvidenceArchive evidence={[
       item("September reviewed", { receivedAt: "2026-09-20T18:00:00.000Z" }),
       item("October reviewed", { receivedAt: "2026-10-02T18:00:00.000Z" }),
       item("October review", { kind: "unpaid-invoice", receivedAt: "2026-10-01T18:00:00.000Z", review: "needs-review" }),
       item("Undated review", { review: "needs-review" }),
-    ]} loading={false} onMark={onMark} />);
-
+    ]} loading={false} onMark={vi.fn()} />);
+    expect(screen.queryByText(/October reviewed/)).toBeNull();
+    expect(screen.queryByText(/Invoice/)).toBeNull();
+    expect(screen.getByRole("button", { name: /Date not recorded: 1 item\(s\), 1 need review/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /October 2026: 2 item\(s\), 1 need review/ }));
+    expect(screen.getByRole("heading", { name: "October 2026" })).toBeTruthy();
     expect(screen.getByText(/October reviewed/)).toBeTruthy();
     expect(screen.queryByText(/September reviewed/)).toBeNull();
-    const september = screen.getByRole("button", { name: /September 2026.*1 item.*0 need review/i });
-    september.focus();
-    expect(document.activeElement).toBe(september);
-    fireEvent.click(september);
-    expect(screen.getByText(/September reviewed/)).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Needs review (2)" }));
-    expect(screen.getByRole("button", { name: "Needs review (2)" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Needs review (1)" }));
     expect(screen.queryByText(/October reviewed/)).toBeNull();
     expect(screen.getByText(/October review/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Date not recorded.*1 item.*1 need review/i })).toBeTruthy();
-    expect(screen.queryByText(/Undated review/)).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: /Back to Subscriptions/ })[0]!);
+    expect(screen.getByRole("button", { name: /September 2026: 1 item/ })).toBeTruthy();
+    expect(screen.queryByText(/October review ·|October review/)).toBeNull();
   });
 
-  it("exposes a keyboard-ready month selector containing only months present", () => {
-    render(<SubscriptionEvidenceArchive evidence={[
-      item("August", { documentDate: "2026-08-15" }),
-      item("October", { receivedAt: "2026-10-02T18:00:00.000Z" }),
-    ]} loading={false} onMark={vi.fn()} />);
-    const trigger = screen.getByRole("combobox", { name: "Filter evidence by month" });
-    trigger.focus();
-    expect(document.activeElement).toBe(trigger);
-    fireEvent.keyDown(trigger, { key: "ArrowDown" });
-    const listbox = screen.getByRole("listbox");
-    expect(within(listbox).getByText("All months (2)")).toBeTruthy();
-    expect(within(listbox).getByText("October 2026 (1)")).toBeTruthy();
-    expect(within(listbox).getByText("August 2026 (1)")).toBeTruthy();
-    expect(within(listbox).queryByText(/September/)).toBeNull();
+  it("focused view pages long months with a genuine count", () => {
+    const many = Array.from({ length: 45 }, (_, n) => item(`Bulk ${n}`, { receivedAt: `2026-10-${String((n % 27) + 1).padStart(2, "0")}T18:00:00.000Z` }));
+    render(<SubscriptionEvidenceArchive evidence={many} loading={false} onMark={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /October 2026: 45 item/ }));
+    expect(screen.getByText("Showing 20 of 45.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Show 20 more" }));
+    expect(screen.getByText("Showing 40 of 45.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Show 5 more" }));
+    expect(screen.getByText("Showing 45 of 45.")).toBeTruthy();
   });
 
-  it("filters deadlines and promotions without mixing them", () => {
+  it("keeps many months in a bounded chooser, not a giant grid", () => {
+    const months = Array.from({ length: 10 }, (_, n) => item(`M${n}`, { receivedAt: `2025-${String(n + 1).padStart(2, "0")}-10T18:00:00.000Z` }));
+    render(<SubscriptionEvidenceArchive evidence={months} loading={false} onMark={vi.fn()} />);
+    expect(screen.getAllByRole("button", { name: /— open month$/ })).toHaveLength(6);
+    expect(screen.getByRole("combobox", { name: "Open an older month" })).toBeTruthy();
+    expect(screen.getByText("Older months (4)")).toBeTruthy();
+  });
+
+  it("filters deadlines and promotions without mixing them in the focused view", () => {
     render(<SubscriptionEvidenceArchive evidence={[
       item("deadline", { kind: "deadline-notice", deadlineWhat: "domain", deadlineDate: "2026-10-20" }),
       item("promotion", { kind: "promotion" }),
       item("receipt", { kind: "receipt" }),
     ]} loading={false} onMark={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Date not recorded: 3 item/ }));
     const typeFilter = screen.getByRole("combobox", { name: "Filter evidence by type" });
     fireEvent.click(typeFilter);
     fireEvent.click(screen.getByText("Deadlines and renewals"));

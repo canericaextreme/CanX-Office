@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, CalendarClock, CircleAlert, ExternalLink, FileText, MailQuestion, ReceiptText, TrendingUp } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { AlertTriangle, ArrowLeft, CalendarClock, ChevronRight, CircleAlert, ExternalLink, FileText, MailQuestion, ReceiptText, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { evidenceDate, evidenceMonthGroups, formatZoned, gmailLink, OFFICE_TIMEZONE, type SubscriptionEvidence } from "@/lib/subscriptions";
@@ -106,106 +105,136 @@ export function matchesArchiveContext(item: SubscriptionEvidence, context: Archi
   return true;
 }
 
-/** A request from elsewhere on the page (e.g. a summary card) to show the archive with these filters. */
-export interface ArchiveRequest { context: ArchiveContext; reviewOnly: boolean; key: number }
+/** Which focused list is open: one month (or every month) with a type and review filter. */
+export interface ArchiveView { month: string; context: ArchiveContext; reviewOnly: boolean }
 
 export const ARCHIVE_ID = "subscription-evidence-archive";
+/** Hub shows at most this many month cards; older months go in a chooser, never a giant grid. */
+export const HUB_MONTH_CARDS = 6;
+/** Focused list page size; "Show more" reveals the next page with a genuine count. */
+export const FOCUS_PAGE = 20;
 
-export function SubscriptionEvidenceArchive({ evidence, loading, onMark, request }: { evidence: SubscriptionEvidence[]; loading: boolean; onMark: (id: string, review: "reviewed" | "dismissed") => void; request?: ArchiveRequest | null }) {
-  const allGroups = useMemo(() => evidenceMonthGroups(evidence), [evidence]);
-  const [month, setMonth] = useState("all");
-  const [context, setContext] = useState<ArchiveContext>("all");
-  const [reviewOnly, setReviewOnly] = useState(false);
-  const [openMonths, setOpenMonths] = useState<string[]>(() => allGroups[0] ? [allGroups[0].key] : []);
-  useEffect(() => {
-    if (allGroups[0] && openMonths.length === 0) setOpenMonths([allGroups[0].key]);
-  }, [allGroups, openMonths.length]);
-  useEffect(() => {
-    if (!request) return;
-    setMonth("all");
-    setContext(request.context);
-    setReviewOnly(request.reviewOnly);
-    const first = allGroups.find((group) => group.items.some((item) => (!request.reviewOnly || item.review === "needs-review") && matchesArchiveContext(item, request.context)));
-    setOpenMonths(first ? [first.key] : []);
-    // Only a new request (new key) re-applies filters; later manual changes are kept.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request?.key]);
-  const groups = useMemo(() => allGroups
-    .filter((group) => month === "all" || group.key === month)
-    .map((group) => ({ ...group, items: group.items.filter((item) => {
-      if (reviewOnly && item.review !== "needs-review") return false;
-      return matchesArchiveContext(item, context);
-    }) }))
-    .filter((group) => group.items.length > 0), [allGroups, context, month, reviewOnly]);
-  const reviewCount = evidence.filter((item) => item.review === "needs-review").length;
-  const chooseMonth = (value: string) => {
-    setMonth(value);
-    setOpenMonths(value === "all" ? (allGroups[0] ? [allGroups[0].key] : []) : [value]);
-  };
-  const toggleReview = () => {
-    const next = !reviewOnly;
-    setReviewOnly(next);
-    if (next) {
-      const firstReviewMonth = allGroups.find((group) => group.needsReview > 0);
-      setOpenMonths(firstReviewMonth ? [firstReviewMonth.key] : []);
-    } else {
-      setOpenMonths(month === "all" ? (allGroups[0] ? [allGroups[0].key] : []) : [month]);
-    }
-  };
-
+function TypeFilter({ value, onChange }: { value: ArchiveContext; onChange: (v: ArchiveContext) => void }) {
   return (
-    <section id={ARCHIVE_ID} aria-label="Billing evidence from email" className="scroll-mt-4 rounded-lg border border-border bg-muted/10 p-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <label className="space-y-1 text-xs font-medium">
+      <span className="block">Evidence type</span>
+      <Select value={value} onValueChange={(v) => onChange(v as ArchiveContext)}>
+        <SelectTrigger className="w-52" aria-label="Filter evidence by type"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All evidence</SelectItem>
+          <SelectItem value="receipts">Receipts</SelectItem>
+          <SelectItem value="invoices">Invoices due</SelectItem>
+          <SelectItem value="deadlines">Deadlines and renewals</SelectItem>
+          <SelectItem value="promotions">Promotions and offers</SelectItem>
+          <SelectItem value="payment-issues">Payment issues</SelectItem>
+        </SelectContent>
+      </Select>
+    </label>
+  );
+}
+
+/** Compact hub: month cards only. No email rows are rendered here. */
+export function EvidenceMonthCards({ evidence, loading, onOpen }: { evidence: SubscriptionEvidence[]; loading: boolean; onOpen: (view: ArchiveView) => void }) {
+  const groups = useMemo(() => evidenceMonthGroups(evidence), [evidence]);
+  const reviewCount = evidence.filter((item) => item.review === "needs-review").length;
+  const shown = groups.slice(0, HUB_MONTH_CARDS);
+  const older = groups.slice(HUB_MONTH_CARDS);
+  return (
+    <section id={ARCHIVE_ID} aria-label="Billing evidence by month" className="scroll-mt-4 rounded-lg border border-border bg-muted/10 p-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h3 tabIndex={-1} className="text-sm font-semibold outline-none">Billing evidence by month ({reviewCount} to review)</h3>
-          <p className="text-xs text-muted-foreground">Organized by source-email month in {OFFICE_TIMEZONE}. Evidence never changes a confirmed cost or date. No tax or deductibility judgement is made.</p>
+          <h3 className="text-sm font-semibold">Billing evidence by month</h3>
+          <p className="text-xs text-muted-foreground">{evidence.length} saved email item(s), grouped by source-email month in {OFFICE_TIMEZONE}. Tap a month to open it. These are email evidence counts, not money totals.</p>
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="space-y-1 text-xs font-medium">
-            <span className="block">Month</span>
-            <Select value={month} onValueChange={chooseMonth}>
-              <SelectTrigger className="w-52" aria-label="Filter evidence by month"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All months ({evidence.length})</SelectItem>
-                {allGroups.map((group) => <SelectItem key={group.key} value={group.key}>{group.label} ({group.items.length})</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="space-y-1 text-xs font-medium">
-            <span className="block">Evidence type</span>
-            <Select value={context} onValueChange={(value) => setContext(value as ArchiveContext)}>
-              <SelectTrigger className="w-52" aria-label="Filter evidence by type"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All evidence</SelectItem>
-                <SelectItem value="receipts">Receipts</SelectItem>
-                <SelectItem value="invoices">Invoices due</SelectItem>
-                <SelectItem value="deadlines">Deadlines and renewals</SelectItem>
-                <SelectItem value="promotions">Promotions and offers</SelectItem>
-                <SelectItem value="payment-issues">Payment issues</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
-          <Button variant={reviewOnly ? "default" : "outline"} aria-pressed={reviewOnly} onClick={toggleReview}>
-            <AlertTriangle className="h-4 w-4" aria-hidden /> Needs review ({reviewCount})
-          </Button>
-        </div>
+        <Button variant="outline" className="min-h-10" disabled={reviewCount === 0} onClick={() => onOpen({ month: "all", context: "all", reviewOnly: true })}>
+          <AlertTriangle className="h-4 w-4" aria-hidden /> Needs review ({reviewCount})
+        </Button>
       </div>
-      {loading ? <p className="mt-3 text-sm text-muted-foreground">Loading your saved mail choices…</p> : evidence.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No active evidence recorded. Ignored emails remain available in Saved mail review.</p> : groups.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No evidence matches these filters.</p> : (
-        <Accordion type="multiple" value={openMonths} onValueChange={setOpenMonths} className="mt-3 space-y-2">
-          {groups.map((group) => (
-            <AccordionItem key={group.key} value={group.key} className="rounded-md border border-border/60 px-3">
-              <AccordionTrigger className="gap-3 no-underline hover:no-underline">
-                <span>{group.label}</span>
-                <span className="ml-auto mr-2 text-xs text-muted-foreground">{group.items.length} item(s) · {group.needsReview} need review</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                {group.dateBasis === "evidence-date" ? <p className="mb-2 text-xs text-muted-foreground">Grouped by explicitly recorded evidence date because source-email received times are unavailable.</p> : null}
-                <ul className="space-y-2">{group.items.map((item) => <EvidenceItem key={item.id} evidence={item} onMark={onMark} />)}</ul>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+      {loading ? <p className="mt-3 text-sm text-muted-foreground">Loading your saved mail choices…</p> : groups.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No active evidence recorded. Ignored emails remain available in Saved mail review.</p> : (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {shown.map((group) => (
+              <button key={group.key} type="button" onClick={() => onOpen({ month: group.key, context: "all", reviewOnly: false })}
+                aria-label={`${group.label}: ${group.items.length} item(s), ${group.needsReview} need review — open month`}
+                className={`flex min-h-20 flex-col justify-between rounded-lg border border-border/60 border-l-4 p-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${group.key === "not-recorded" ? "border-l-border" : group.needsReview > 0 ? "border-l-canx-yellow" : "border-l-finance-teal"}`}>
+                <span className="flex items-center justify-between gap-2 text-sm font-semibold text-foreground">{group.label}<ChevronRight className="h-4 w-4 opacity-60" aria-hidden /></span>
+                <span className="mt-1 flex flex-wrap gap-x-3 text-xs">
+                  <span className="text-muted-foreground">{group.items.length} item(s)</span>
+                  <span className={group.needsReview > 0 ? "font-medium text-canx-yellow" : "text-muted-foreground"}>{group.needsReview} need review</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {older.length > 0 ? (
+            <label className="mt-3 block space-y-1 text-xs font-medium">
+              <span className="block">Older months ({older.length})</span>
+              <Select value="" onValueChange={(key) => onOpen({ month: key, context: "all", reviewOnly: false })}>
+                <SelectTrigger className="w-60" aria-label="Open an older month"><SelectValue placeholder="Choose an older month" /></SelectTrigger>
+                <SelectContent>{older.map((g) => <SelectItem key={g.key} value={g.key}>{g.label} ({g.items.length} · {g.needsReview} to review)</SelectItem>)}</SelectContent>
+              </Select>
+            </label>
+          ) : null}
+        </>
       )}
     </section>
   );
+}
+
+/** Focused view of one month (or every month for a filter), paged with genuine counts. */
+export function EvidenceFocusView({ evidence, view, onView, onBack, onMark }: { evidence: SubscriptionEvidence[]; view: ArchiveView; onView: (view: ArchiveView) => void; onBack: () => void; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
+  const groups = useMemo(() => evidenceMonthGroups(evidence), [evidence]);
+  const group = view.month === "all" ? null : groups.find((g) => g.key === view.month) ?? null;
+  const source = view.month === "all" ? groups.flatMap((g) => g.items) : group?.items ?? [];
+  const items = source.filter((item) => (!view.reviewOnly || item.review === "needs-review") && matchesArchiveContext(item, view.context));
+  const reviewInScope = source.filter((item) => item.review === "needs-review").length;
+  const [limit, setLimit] = useState(FOCUS_PAGE);
+  useEffect(() => setLimit(FOCUS_PAGE), [view.month, view.context, view.reviewOnly]);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus({ preventScroll: false }); }, [view.month]);
+  const title = view.month === "all" ? "All months" : group?.label ?? "Month not found";
+  const visible = items.slice(0, limit);
+  return (
+    <section id={ARCHIVE_ID} aria-label="Billing evidence from email" className="scroll-mt-4 space-y-3 rounded-lg border border-border bg-muted/10 p-3">
+      <Button variant="outline" className="min-h-10" onClick={onBack}><ArrowLeft className="h-4 w-4" aria-hidden /> Back to Subscriptions</Button>
+      <div>
+        <h3 ref={heading} tabIndex={-1} className="text-base font-semibold outline-none">{title}{view.reviewOnly ? " — needs review" : ""}</h3>
+        <p className="text-xs text-muted-foreground">{source.length} item(s) in this {view.month === "all" ? "archive" : "month"} · {reviewInScope} need review. Dates from source-email received time in {OFFICE_TIMEZONE}. Evidence never changes a confirmed cost or date; no tax judgement is made.</p>
+        {group?.dateBasis === "evidence-date" ? <p className="text-xs text-muted-foreground">Grouped by explicitly recorded evidence date because source-email received times are unavailable.</p> : null}
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="space-y-1 text-xs font-medium">
+          <span className="block">Month</span>
+          <Select value={view.month} onValueChange={(month) => onView({ ...view, month })}>
+            <SelectTrigger className="w-52" aria-label="Filter evidence by month"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All months ({evidence.length})</SelectItem>
+              {groups.map((g) => <SelectItem key={g.key} value={g.key}>{g.label} ({g.items.length})</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </label>
+        <TypeFilter value={view.context} onChange={(context) => onView({ ...view, context })} />
+        <Button variant={view.reviewOnly ? "default" : "outline"} className="min-h-10" aria-pressed={view.reviewOnly} onClick={() => onView({ ...view, reviewOnly: !view.reviewOnly })}>
+          <AlertTriangle className="h-4 w-4" aria-hidden /> Needs review ({reviewInScope})
+        </Button>
+      </div>
+      {items.length === 0 ? <p className="text-sm text-muted-foreground">No evidence matches these filters.</p> : (
+        <>
+          <ul className="space-y-2">{visible.map((item) => <EvidenceItem key={item.id} evidence={item} onMark={onMark} />)}</ul>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>Showing {visible.length} of {items.length}.</span>
+            {visible.length < items.length ? <Button size="sm" variant="outline" className="min-h-9" onClick={() => setLimit(limit + FOCUS_PAGE)}>Show {Math.min(FOCUS_PAGE, items.length - visible.length)} more</Button> : null}
+          </div>
+        </>
+      )}
+      <Button variant="ghost" className="min-h-10" onClick={onBack}><ArrowLeft className="h-4 w-4" aria-hidden /> Back to Subscriptions</Button>
+    </section>
+  );
+}
+
+/** Self-contained hub + focused view (used by tests and anywhere without page-level state). */
+export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evidence: SubscriptionEvidence[]; loading: boolean; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
+  const [view, setView] = useState<ArchiveView | null>(null);
+  return view
+    ? <EvidenceFocusView evidence={evidence} view={view} onView={setView} onBack={() => setView(null)} onMark={onMark} />
+    : <EvidenceMonthCards evidence={evidence} loading={loading} onOpen={setView} />;
 }

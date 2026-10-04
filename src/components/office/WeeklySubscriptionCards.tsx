@@ -69,7 +69,7 @@ export function LastCheckSummary({ check }: { check: LastCheck | null }) {
 }
 
 /** How many rows a long list shows before an explicit, labelled "Show all" button. */
-export const LIST_PREVIEW = 5;
+export const LIST_PREVIEW = 3;
 
 function ShowMore({ total, shown, open, onToggle, what }: { total: number; shown: number; open: boolean; onToggle: () => void; what: string }) {
   if (total <= LIST_PREVIEW) return null;
@@ -102,11 +102,11 @@ export function SubscriptionOverview({ view, lastCheck, evidence, onOpenArchive 
       <LastCheckSummary check={lastCheck} />
       <div>
         <h3 className="text-sm font-semibold">Saved billing evidence by category ({evidence.length})</h3>
-        <p className="text-xs text-muted-foreground">Tap a card to open the month-by-month list below with that filter. Counts are saved billing evidence only, not the whole inbox. {view.week.label}: {view.emails.length} email(s), {view.alerts.length} item(s) waiting for review.</p>
+        <p className="text-xs text-muted-foreground">Tap a card to open that list on its own page. Counts are saved billing evidence only, not the whole inbox. {view.week.label}: {view.emails.length} email(s), {view.alerts.length} item(s) waiting for review.</p>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {SUMMARY.map((c) => (
             <button key={c.id} type="button" onClick={() => onOpenArchive?.({ context: c.context, reviewOnly: c.reviewOnly })}
-              aria-label={`${c.label}: ${count(c)} — open in month list`}
+              aria-label={`${c.label}: ${count(c)} — open list`}
               className={`group flex min-h-16 items-start gap-2 rounded-lg border p-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${c.tone}`}>
               <c.Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span className="min-w-0 flex-1">
