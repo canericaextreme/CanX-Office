@@ -76,4 +76,21 @@ describe("monthly subscription evidence", () => {
     expect(within(listbox).getByText("August 2026 (1)")).toBeTruthy();
     expect(within(listbox).queryByText(/September/)).toBeNull();
   });
+
+  it("filters deadlines and promotions without mixing them", () => {
+    render(<SubscriptionEvidenceArchive evidence={[
+      item("deadline", { kind: "deadline-notice", deadlineWhat: "domain", deadlineDate: "2026-10-20" }),
+      item("promotion", { kind: "promotion" }),
+      item("receipt", { kind: "receipt" }),
+    ]} loading={false} onMark={vi.fn()} />);
+    const typeFilter = screen.getByRole("combobox", { name: "Filter evidence by type" });
+    fireEvent.click(typeFilter);
+    fireEvent.click(screen.getByText("Deadlines and renewals"));
+    expect(screen.getByText(/Service or account deadline · deadline/)).toBeTruthy();
+    expect(screen.queryByText(/Promotion or offer · promotion/)).toBeNull();
+    fireEvent.click(typeFilter);
+    fireEvent.click(screen.getByText("Promotions and offers"));
+    expect(screen.getByText(/Promotion or offer · promotion/)).toBeTruthy();
+    expect(screen.queryByText(/Service or account deadline · deadline/)).toBeNull();
+  });
 });

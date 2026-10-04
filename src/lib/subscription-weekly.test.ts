@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyDocument, gmailLink, officeWeek, weeklyView, zonedDate, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
+import { classifyBillingContext, classifyDocument, gmailLink, officeWeek, weeklyView, zonedDate, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
 
 const ev = (o: Partial<SubscriptionEvidence>): SubscriptionEvidence => ({
   id: "e1", kind: "receipt", matchStatus: "matched", subscriptionId: "s1", candidateIds: [], vendor: "Lovable",
@@ -47,5 +47,30 @@ describe("weekly subscription cards", () => {
     expect(classifyDocument("We were unable to process your card", "Your payment was declined")).toBe("failed-payment");
     expect(gmailLink("canerica14@gmail.com", "18f0a1b2c3d4")).toBe("https://mail.google.com/mail/?authuser=canerica14%40gmail.com#all/18f0a1b2c3d4");
     expect(gmailLink("x@y.com", "../bad")).toBe("");
+  });
+
+  it("separates renewal deadlines from promotional expiry", () => {
+    expect(classifyBillingContext("Your subscription expires on 2026-10-20")).toMatchObject({ kind: "deadline-notice", deadlineWhat: "subscription", deadlineDate: "2026-10-20" });
+    expect(classifyBillingContext("Limited-time discount offer expires on 2026-10-20")).toMatchObject({ kind: "promotion", deadlineDate: "" });
+    expect(classifyBillingContext("This offer expires; your account remains active")).toMatchObject({ kind: "promotion", deadlineDate: "" });
+  });
+
+  it("anchors relative trial and account deadlines to the received day in Whitehorse", () => {
+    expect(classifyBillingContext("Your account expires in 9 days", "", "2026-10-01T06:30:00Z")).toMatchObject({ deadlineWhat: "account", deadlineDate: "2026-10-09", deadlineBasis: "relative-to-received" });
+    expect(classifyBillingContext("Your trial ends in 7 days", "", "2026-10-01T07:30:00Z")).toMatchObject({ deadlineWhat: "trial", deadlineDate: "2026-10-08", deadlineBasis: "relative-to-received" });
+    expect(classifyBillingContext("Your trial ends in 7 days")).toMatchObject({ deadlineWhat: "trial", deadlineDate: "", ambiguous: false });
+  });
+
+  it("keeps credentials distinct and ignores negated expiry wording", () => {
+    expect(classifyBillingContext("Your API key expires on 2026-10-12")).toMatchObject({ kind: "deadline-notice", deadlineWhat: "api-key" });
+    expect(classifyBillingContext("Your account does not expire")).toMatchObject({ kind: "unknown", deadlineDate: "" });
+  });
+
+  it("adds sourced service deadlines but never promotional expiry to coming due", () => {
+    const deadline = ev({ id: "deadline", kind: "deadline-notice", deadlineWhat: "api-key", deadlineDate: "2026-10-12", deadlineBasis: "absolute", amount: null });
+    const offer = ev({ id: "offer", kind: "promotion", deadlineDate: "", amount: null });
+    const view = weeklyView([], [deadline, offer], NOW);
+    expect(view.comingDue).toHaveLength(1);
+    expect(view.comingDue[0]).toMatchObject({ what: "api-key", daysAway: 9, action: expect.stringContaining("credential") });
   });
 });

@@ -10,6 +10,8 @@ const LABELS: Record<SubscriptionEvidence["kind"], string> = {
   receipt: "Receipt evidence",
   "unpaid-invoice": "Invoice — amount due as stated",
   "renewal-notice": "Renewal notice",
+  "deadline-notice": "Service or account deadline",
+  promotion: "Promotion or offer",
   "price-change": "Price change notice",
   "failed-payment": "Failed or declined payment",
   unknown: "Unclassified evidence",
@@ -27,6 +29,8 @@ const TONES: Record<SubscriptionEvidence["kind"], { border: string; icon: string
   receipt: { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: ReceiptText },
   "unpaid-invoice": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: FileText },
   "renewal-notice": { border: "border-l-canx-blue", icon: "bg-canx-blue/15 text-canx-blue", Icon: CalendarClock },
+  "deadline-notice": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: CalendarClock },
+  promotion: { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
   "price-change": { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
   "failed-payment": { border: "border-l-destructive", icon: "bg-destructive/15 text-destructive", Icon: CircleAlert },
   unknown: { border: "border-l-border", icon: "bg-muted text-muted-foreground", Icon: MailQuestion },
@@ -76,6 +80,8 @@ function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; on
         </span>
       </div>
       <div className="mt-1 text-muted-foreground">Document date: {evidence.documentDate || "not stated"} · Renewal: {evidence.renewalDate ? `${evidence.renewalDate} (stated)` : "not stated"}</div>
+      {evidence.classificationReason ? <div className="text-muted-foreground">Classification: {evidence.classificationReason}</div> : null}
+      {evidence.deadlineWhat && evidence.deadlineWhat !== "unknown" ? <div className="text-muted-foreground">What expires or is due: {evidence.deadlineWhat.replace("-", " ")} · Deadline: {evidence.deadlineDate || "not recorded — review source email"}</div> : null}
       <div className="text-muted-foreground">Source: {evidence.mailbox || "linked mailbox"} · message {evidence.messageId.slice(0, 12)} · {MATCH_LABEL[evidence.matchStatus]}</div>
       <EvidenceLinks evidence={evidence} />
       {evidence.review === "needs-review" ? (
@@ -91,6 +97,7 @@ function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; on
 export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evidence: SubscriptionEvidence[]; loading: boolean; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
   const allGroups = useMemo(() => evidenceMonthGroups(evidence), [evidence]);
   const [month, setMonth] = useState("all");
+  const [context, setContext] = useState("all");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [openMonths, setOpenMonths] = useState<string[]>(() => allGroups[0] ? [allGroups[0].key] : []);
   useEffect(() => {
@@ -98,8 +105,14 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
   }, [allGroups, openMonths.length]);
   const groups = useMemo(() => allGroups
     .filter((group) => month === "all" || group.key === month)
-    .map((group) => ({ ...group, items: reviewOnly ? group.items.filter((item) => item.review === "needs-review") : group.items }))
-    .filter((group) => group.items.length > 0), [allGroups, month, reviewOnly]);
+    .map((group) => ({ ...group, items: group.items.filter((item) => {
+      if (reviewOnly && item.review !== "needs-review") return false;
+      if (context === "deadlines") return item.kind === "deadline-notice" || item.kind === "renewal-notice" || item.kind === "unpaid-invoice";
+      if (context === "promotions") return item.kind === "promotion";
+      if (context === "payment-issues") return item.kind === "failed-payment" || item.kind === "unpaid-invoice";
+      return true;
+    }) }))
+    .filter((group) => group.items.length > 0), [allGroups, context, month, reviewOnly]);
   const reviewCount = evidence.filter((item) => item.review === "needs-review").length;
   const chooseMonth = (value: string) => {
     setMonth(value);
@@ -131,6 +144,18 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
               <SelectContent>
                 <SelectItem value="all">All months ({evidence.length})</SelectItem>
                 {allGroups.map((group) => <SelectItem key={group.key} value={group.key}>{group.label} ({group.items.length})</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </label>
+          <label className="space-y-1 text-xs font-medium">
+            <span className="block">Evidence type</span>
+            <Select value={context} onValueChange={setContext}>
+              <SelectTrigger className="w-52" aria-label="Filter evidence by type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All evidence</SelectItem>
+                <SelectItem value="deadlines">Deadlines and renewals</SelectItem>
+                <SelectItem value="promotions">Promotions and offers</SelectItem>
+                <SelectItem value="payment-issues">Payment issues</SelectItem>
               </SelectContent>
             </Select>
           </label>

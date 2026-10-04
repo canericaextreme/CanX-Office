@@ -71,7 +71,7 @@ describe("classification and matching", () => {
 
   it("Gmail query covers aliases, senders and renewal/billing notices", () => {
     const q = buildGmailQuery(subs);
-    for (const term of ["from:openai.com", "chatgpt", "renewal", "billing", "\"price change\"", "receipt", "invoice"]) expect(q).toContain(term);
+    for (const term of ["from:openai.com", "chatgpt", "renewal", "billing", "expiry", "expiration", "auto-renew", "\"trial ending\"", "\"account suspension\"", "\"price change\"", "receipt", "invoice"]) expect(q).toContain(term);
     expect(q).toContain("newer_than:1y");
   });
 });
@@ -127,6 +127,19 @@ describe("end-to-end filing with synthetic mail", () => {
     const flags = priceChangeFlags(subs, written.evidence);
     expect(flags[0]).toMatchObject({ confirmed: { amount: 20, currency: "USD" }, seen: { amount: 25, currency: "USD" } });
     expect(openai.knownCost?.amount).toBe(20); // never silently overwritten
+  });
+
+  it("saves account expiry and promotion as evidence but never as Finance receipts", async () => {
+    const { d, written } = deps({ a: [
+      doc({ messageId: "expiry", subject: "Account notice", text: "Your OpenAI account expires in 9 days", receivedAt: "2026-10-01T06:30:00Z" }),
+      doc({ messageId: "offer", subject: "Special offer", text: "OpenAI discount offer expires on 2026-10-20" }),
+    ] });
+    await runReceiptSyncWith(d, { accessToken: "t", request: "check subscriptions" });
+    expect(written.receipts).toHaveLength(0);
+    expect(written.evidence).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "deadline-notice", deadlineWhat: "account", deadlineDate: "2026-10-09", deadlineBasis: "relative-to-received" }),
+      expect.objectContaining({ kind: "promotion", deadlineDate: "" }),
+    ]));
   });
 
   it("missing or ambiguous dates and currency stay unknown", async () => {
