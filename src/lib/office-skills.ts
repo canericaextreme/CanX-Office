@@ -430,27 +430,15 @@ const APPROVALS: Record<string, string> = {
 };
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const SUBSCRIPTIONS_SCOPE = new Set([
-  "Finance — Receipt Reconciliation", "Finance — Budget Variance Review", "Finance — Renewal Watch",
-  "Subscriptions — Renewal Check", "Subscriptions — Plan Change Review", "Subscriptions — Tool Value Review", "Subscriptions — Vendor Dependency Check",
-]);
-const INSTALLED_PROVENANCE = "Expanded and installed in the Subscriptions room by John's corrected instruction on 4 Oct 2026; app-owned wording preserves the named master-map job and grants no new capability.";
+/** Finance jobs that also serve the Subscriptions room. */
+const SUBSCRIPTIONS_LINKED = new Set(["Finance — Receipt Reconciliation", "Finance — Budget Variance Review", "Finance — Renewal Watch"]);
+const INSTALLED_PROVENANCE = "Installed office-wide under John's 3 Oct 2026 18:14 Whitehorse instruction to make the whole office live (supersedes the 4 Oct room-by-room parking); app-owned wording preserves the named master-map job and grants no new capability.";
 
 function installed(masterRoom: string, prefix: string, job: string, routes: string[], yellow: string, red: string): OfficeSkill {
   const profile = CONNECTIONS[prefix] ?? { inputs: ["John's request", "fresh room snapshot"], connected: ["request text", "room files/reports"], missing: [] };
   const purpose = JOB_PURPOSE[job] ?? `Perform the named ${job} review from available evidence.`;
   const scopedName = `${prefix} — ${job}`;
-  const scoped = SUBSCRIPTIONS_SCOPE.has(scopedName);
-  const scopedRoutes = scoped && prefix === "Finance" ? [...routes, "/subscriptions"] : routes;
-  if (!scoped) return {
-    id: `${slug(prefix)}.${slug(job)}`, name: scopedName, masterRoom, routes, kind: "outline",
-    purpose: "Named in the master map; full instructions are parked until John moves to this room.",
-    useWhen: "Not installed. John is working through one room at a time, starting with Subscriptions.",
-    inputs: [], steps: [], output: [], guardrails: UNIVERSAL_GUARDRAILS,
-    status: { yellow, red, returnToGreen: "Not defined yet." }, finalCheck: "Not defined yet.", ownerApprovalRequired: "Per master boundaries.",
-    version: "0.0.0-outline", lastReviewed: "2026-10-04", provenance: `${MASTER}: named skill under ${masterRoom}. Parked by John's 4 Oct 2026 room-by-room scope correction; not installed or executable.`,
-    instructionReady: false, toolConnected: false, connectedInputs: [], missingInputs: ["Full instructions parked until John authorises this room"], routingTested: false, liveTested: false,
-  };
+  const scopedRoutes = SUBSCRIPTIONS_LINKED.has(scopedName) ? [...routes, "/subscriptions"] : routes;
   return {
     id: `${slug(prefix)}.${slug(job)}`, name: scopedName, masterRoom, routes: scopedRoutes, kind: "outline",
     purpose,
