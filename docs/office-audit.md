@@ -34,6 +34,9 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 - Server settings present (names only): `CANX_CODEX_GITHUB_TOKEN`, `CANX_CODEX_ENABLED`, `OPENAI_API_KEY`. Whether the GitHub token can dispatch, whether the repository variable `CANX_CODEX_ENABLED=true` and the repository secret `OPENAI_API_KEY` are set on GitHub is **not verified** from here. The whole-office check runs a read-only workflow listing to report it.
 - Difference from this builder: this assistant edits the Lovable project directly. Elsie works only through the GitHub draft-change pipeline above and does not have this assistant's access.
 
+## Readiness levels (4 Oct 2026)
+Installed = instructions present · Connected = every input readable · Executable = a real Elsie action runs it · Blocked = a named input is missing. Executable today: Skill Router, Owner Decision Filter, Daily Office Review ("check all the rooms", saved as an Office Health room report), and the eight Subscriptions/Finance procedures ("follow all the skills in the Subscriptions room", saved as a Subscriptions room report). Research Source Check and Security Incident Triage are blocked (no web/standards search, no security-event feed). Gaps with no approved definition: Analytics, Family Continuity instructions.
+
 ## Open next tasks
 1. Shared storage for the Office Team roster and Idea Lab scores (would need a schema change, so John must approve).
 2. Owner opens each room signed in on the current build (release gate).
