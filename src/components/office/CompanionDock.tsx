@@ -100,7 +100,7 @@ export function CompanionDock() {
           setHidden(false);
         }}
         aria-label="Restore the CanX chatbot"
-        className="fixed bottom-4 left-0 z-40 flex h-12 w-28 -translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-1 rounded-xl border border-slate-950 bg-slate-900 text-white shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="fixed bottom-4 left-0 z-40 flex cursor-pointer h-12 w-28 -translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-1 rounded-xl border border-slate-950 bg-slate-900 text-white shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="text-sm font-bold">Chatbot</span>
         <AssistantFace active={active} />
@@ -185,7 +185,7 @@ export function CompanionDock() {
           onClick={minimizeCompanion}
           aria-label="Minimize the CanX chatbot"
           title="Minimize chatbot"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-white hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex cursor-pointer h-7 w-7 items-center justify-center rounded-md text-white hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Minus className="h-4 w-4" />
         </button>
@@ -209,7 +209,7 @@ export function CompanionDock() {
         rel="noopener noreferrer"
         onPointerDown={(event) => event.stopPropagation()}
         aria-label="Open ChatGPT in a new tab"
-        className="flex min-h-9 w-full items-center justify-center rounded-md border border-slate-500 px-1 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex cursor-pointer min-h-9 w-full items-center justify-center rounded-md border border-slate-500 px-1 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Open ChatGPT
       </a>
