@@ -144,12 +144,12 @@ export function SubscriptionManager() {
               <p className="text-xl font-semibold text-canx-green">{focusedBilling.rate} · {focusedBilling.recurrenceLabel}</p>
             </div>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <Detail label="Owner-confirmed billing cycle" value={focusedService.cadence === "unknown" ? "Unknown" : focusedService.cadence} />
+              <Detail label="Billing cycle" value={focusedService.cadence === "unknown" ? "Unknown" : focusedService.cadence} />
               <Detail label="Recurring schedule" value={`${focusedBilling.recurrenceLabel} · ${focusedBilling.recurrenceSource}`} />
               <Detail label="Auto-renew" value={`${focusedBilling.autoRenew === "enabled" ? "Enabled" : focusedBilling.autoRenew === "disabled" ? "Disabled" : "Not recorded"} · ${focusedBilling.autoRenewSource}`} />
-              <Detail label="Confirmed rate source" value={focusedService.knownCost ? `${focusedService.knownCost.source}${focusedService.knownCost.asOf ? ` · ${focusedService.knownCost.asOf}` : " · date not recorded"}` : "Not recorded"} />
-              <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis} · ${focusedService.nextRenewal.source}` : "Unknown"} />
-              <Detail label="Usage and top-ups" value="Separate from the confirmed fixed rate and Finance paid totals" />
+              <Detail label="Rate source" value={focusedService.knownCost ? `${focusedService.knownCost.source}${focusedService.knownCost.asOf ? ` · ${focusedService.knownCost.asOf}` : " · date not recorded"}` : "Not recorded"} />
+              <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis === "explicit" ? "Stated on a bill or notice" : "My estimate"}` : "Unknown"} />
+              <Detail label="Usage and top-ups" value="Separate from the fixed rate and Finance paid totals" />
             </dl>
             {focusedService.websiteUrl && (
               <a className="inline-flex min-h-11 items-center gap-1 rounded-md border border-canx-blue/60 px-3 text-sm font-medium text-canx-blue underline underline-offset-2" href={focusedService.websiteUrl} target="_blank" rel="noreferrer" aria-label={`Open the ${focusedService.name} website in a new tab`}>Open website<ExternalLink className="h-4 w-4" /></a>
@@ -262,7 +262,7 @@ export function SubscriptionManager() {
         {state === "ready" && saved && !editing && suggestedStarters(subs).length > 0 && (
           <section aria-label="Suggested services" className="rounded-md border border-border/50 p-3">
             <h3 className="text-sm font-semibold">Suggested services not in your list</h3>
-            <p className="text-xs text-muted-foreground">Nothing is added unless you press Add. Cost, cadence and renewal stay unknown until you confirm them.</p>
+            <p className="text-xs text-muted-foreground">Nothing is added unless you press Add. Cost, cadence and renewal stay unknown until you enter them.</p>
             <ul className="mt-2 space-y-2">
               {suggestedStarters(subs).map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -366,7 +366,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       <label className={field}>Scope<select className={select} value={f.scope} onChange={set("scope")}><option value="office">Office</option><option value="personal">Personal</option><option value="unknown">Unknown</option></select></label>
       <label className={field}>Other names (comma separated)<Input value={f.aliases} onChange={set("aliases")} /></label>
       <label className={field}>Sender domains (e.g. openai.com)<Input value={f.domains} onChange={set("domains")} /></label>
-      <label className={field}>Owner-confirmed fixed rate (leave blank if unknown)<Input type="text" inputMode="decimal" autoComplete="off" placeholder="e.g. 224.50" value={f.amount} onChange={set("amount")} aria-invalid={Boolean(amountError)} />{amountError && <span className="block text-xs text-red-400">{amountError}</span>}</label>
+      <label className={field}>Subscription rate (leave blank if unknown)<Input type="text" inputMode="decimal" autoComplete="off" placeholder="e.g. 224.50" value={f.amount} onChange={set("amount")} aria-invalid={Boolean(amountError)} />{amountError && <span className="block text-xs text-red-400">{amountError}</span>}</label>
       <label className={field}>Currency (e.g. CAD, USD)<Input maxLength={3} value={f.currency} onChange={set("currency")} /></label>
       <label className={field}>Billing cycle<select className={select} value={f.cadence} onChange={set("cadence")}><option value="unknown">Unknown</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="other">Other</option></select></label>
       <label className={field}>Recurring schedule<select className={select} value={f.recurrenceStatus} onChange={set("recurrenceStatus")}><option value="unknown">Unconfirmed</option><option value="recurring">Recurring</option><option value="not-recurring">Not recurring</option><option value="usage-based">Usage-based</option></select></label>
