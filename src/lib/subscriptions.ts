@@ -1,23 +1,11 @@
 /**
  * Office subscriptions and billing evidence — pure, testable rules.
- *
- * Rules enforced here (do not relax):
- *  - A subscription record is created or changed only by John. Mail evidence
- *    never overwrites a confirmed cost or renewal date; it is stored beside it
- *    and flagged for review.
- *  - Unknown costs stay unknown (null). Currencies are never mixed.
- *  - A renewal date is "explicit" only when a document states it; anything
- *    John estimates is labelled "estimated". Warnings use sourced dates only.
- *  - Unknown, personal or conflicting senders are never treated as office
- *    expenses automatically; they go to review.
- *  - No tax eligibility or deductibility is ever claimed.
  */
 
 export type SubscriptionScope = "office" | "personal" | "unknown";
 export type RenewalBasis = "explicit" | "estimated";
 export type EvidenceKind = "receipt" | "unpaid-invoice" | "renewal-notice" | "deadline-notice" | "promotion" | "price-change" | "failed-payment" | "unknown";
 export type DeadlineWhat = "subscription" | "trial" | "service" | "account" | "domain" | "api-key" | "credential" | "payment-card" | "payment" | "unknown";
-/** "unverified-sender": named by alias only, and John has not yet verified a sender domain for that service. Always review. */
 export type MatchStatus = "matched" | "unknown" | "conflict" | "personal" | "unverified-sender";
 
 export interface BillingEntry {
@@ -30,11 +18,11 @@ export interface BillingEntry {
 export interface SubscriptionRecord {
   id: string;
   name: string;
+  planName?: string;
   aliases: string[];
   senderDomains: string[];
   scope: SubscriptionScope;
   cadence: "monthly" | "yearly" | "other" | "unknown";
-  /** Confirmed by John. null = unknown. */
   knownCost: { amount: number; currency: string; asOf: string; source: string } | null;
   nextRenewal: { date: string; basis: RenewalBasis; source: string } | null;
   history: BillingEntry[];
@@ -53,7 +41,6 @@ export interface SubscriptionEvidence {
   currency: string | null;
   documentDate: string;
   renewalDate: string;
-  /** Only explicit — evidence never invents an estimate. */
   renewalBasis: "explicit" | "";
   mailbox: string;
   messageId: string;
@@ -61,34 +48,43 @@ export interface SubscriptionEvidence {
   from: string;
   subject: string;
   fingerprint: string;
-  /** Gmail internalDate (ISO) of the source email. Absent on older records = unknown. */
   receivedAt?: string;
   recordedAt: string;
   review: "needs-review" | "reviewed" | "dismissed";
-  /** Derived from the bounded source text at ingestion; absent on historical evidence without retained text. */
   classificationReason?: string;
   deadlineWhat?: DeadlineWhat;
   deadlineDate?: string;
   deadlineBasis?: "absolute" | "relative-to-received";
   classificationAmbiguous?: boolean;
+  statedTerms?: EmailStatedTerms;
+}
+
+export type BillingInterval = "monthly" | "yearly";
+export type BillingProduct = "chatgpt-subscription" | "openai-api" | "other" | "unknown";
+
+export interface EmailStatedTerms {
+  planName: string;
+  recurringAmount: number | null;
+  currency: string | null;
+  interval: BillingInterval | null;
+  effectiveDate: string;
+  product: BillingProduct;
+  reason: string;
+  ambiguous: boolean;
 }
 
 export const MAX_SUBSCRIPTIONS = 200;
 export const MAX_EVIDENCE = 1_000;
 
-/** Starter suggestions shown only until John saves his own list. Never saved automatically. */
 export const STARTER_SUBSCRIPTIONS: SubscriptionRecord[] = [
   starter("lovable", "Lovable", ["lovable"], ["lovable.dev"], "Development platform"),
   starter("supabase", "Supabase", ["supabase"], ["supabase.com", "supabase.io"], "CanX-owned database and sign-in"),
   starter("openai", "OpenAI", ["openai", "chatgpt"], ["openai.com"], "AI workers"),
   starter("anthropic", "Anthropic (Claude)", ["anthropic", "claude"], ["anthropic.com"], "Second Eyes reviewer"),
   starter("github", "GitHub", ["github"], ["github.com"], "Code hosting"),
-  // John said on 2026-10-03 that the office uses Sintra AI. No sender domain is
-  // trusted until John verifies one, so every Sintra email goes to review.
-  starter("sintra-ai", "Sintra AI", ["sintra ai", "sintra"], [], "Usage confirmed by John on 2026-10-03. Sender address not yet verified; cost, cadence and renewal unknown."),
+  starter("sintra-ai", "Sintra AI", ["sintra ai", "sintra"], [], "Usage confirmed by John on 2026-10-03."),
 ];
 
-/** Starter suggestions missing from John's saved list (by id or name). Never added automatically. */
 export function suggestedStarters(saved: SubscriptionRecord[]): SubscriptionRecord[] {
   const ids = new Set(saved.map((s) => s.id));
   const names = new Set(saved.map((s) => s.name.trim().toLowerCase()));
@@ -99,6 +95,7 @@ function starter(id: string, name: string, aliases: string[], domains: string[],
   return {
     id: `s-${id}`,
     name,
+    planName: "",
     aliases,
     senderDomains: domains,
     scope: "office",
@@ -110,8 +107,6 @@ function starter(id: string, name: string, aliases: string[], domains: string[],
     updatedAt: "",
   };
 }
-
-/* ------------------------------ validation ------------------------------ */
 
 const str = (v: unknown, max: number) =>
   typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max) : "";
@@ -136,26 +131,21 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
   const currency = cost ? ccy(cost["currency"]) : null;
   const renewal = (r["nextRenewal"] ?? null) as Record<string, unknown> | null;
   const renewalDate = renewal ? isoDate(renewal["date"]) : "";
-  const scope = r["scope"] === "office" || r["scope"] === "personal" ? r["scope"] : "unknown";
-  const cadence = ["monthly", "yearly", "other"].includes(String(r["cadence"])) ? (r["cadence"] as SubscriptionRecord["cadence"]) : "unknown";
   return {
-    id: str(r["id"], 60) || `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    id: str(r["id"], 60) || `s-${Date.now().toString(36)}`,
     name,
+    planName: str(r["planName"], 120),
     aliases: list(r["aliases"], 12),
     senderDomains: list(r["senderDomains"], 12).filter((d) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d)),
-    scope,
-    cadence,
+    scope: r["scope"] === "office" || r["scope"] === "personal" ? r["scope"] : "unknown",
+    cadence: ["monthly", "yearly", "other"].includes(String(r["cadence"])) ? (r["cadence"] as SubscriptionRecord["cadence"]) : "unknown",
     knownCost: amount !== null && currency ? { amount, currency, asOf: isoDate(cost?.["asOf"]), source: str(cost?.["source"], 200) || "John" } : null,
-    nextRenewal: renewalDate
-      ? { date: renewalDate, basis: renewal?.["basis"] === "explicit" ? "explicit" : "estimated", source: str(renewal?.["source"], 200) || "John" }
-      : null,
-    history: Array.isArray(r["history"])
-      ? (r["history"] as unknown[]).slice(0, 120).flatMap((h) => {
-          const e = (h ?? {}) as Record<string, unknown>;
-          const date = isoDate(e["date"]);
-          return date ? [{ date, amount: money(e["amount"]), currency: ccy(e["currency"]), source: str(e["source"], 200) }] : [];
-        })
-      : [],
+    nextRenewal: renewalDate ? { date: renewalDate, basis: renewal?.["basis"] === "explicit" ? "explicit" : "estimated", source: str(renewal?.["source"], 200) || "John" } : null,
+    history: Array.isArray(r["history"]) ? (r["history"] as unknown[]).slice(0, 120).flatMap((h) => {
+      const e = (h ?? {}) as Record<string, unknown>;
+      const date = isoDate(e["date"]);
+      return date ? [{ date, amount: money(e["amount"]), currency: ccy(e["currency"]), source: str(e["source"], 200) }] : [];
+    }) : [],
     notes: str(r["notes"], 1000),
     updatedAt: str(r["updatedAt"], 40),
   };
@@ -163,24 +153,25 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
 
 export function cleanSubscriptionList(input: unknown): SubscriptionRecord[] | null {
   if (!Array.isArray(input) || input.length > MAX_SUBSCRIPTIONS) return null;
-  const out: SubscriptionRecord[] = [];
-  for (const row of input) {
-    const clean = cleanSubscription(row);
-    if (!clean) return null;
-    out.push(clean);
-  }
-  return out;
+  return input.map(cleanSubscription).filter((s): s is SubscriptionRecord => s !== null);
 }
 
 export function cleanEvidenceList(input: unknown): SubscriptionEvidence[] {
   if (!Array.isArray(input)) return [];
-  return input.slice(0, MAX_EVIDENCE).filter((e): e is SubscriptionEvidence => {
+  return input.slice(0, MAX_EVIDENCE).flatMap((e) => {
     const r = e as Partial<SubscriptionEvidence>;
-    return typeof r?.id === "string" && typeof r.kind === "string" && typeof r.messageId === "string";
+    if (typeof r?.id !== "string" || typeof r.kind !== "string" || typeof r.messageId !== "string") return [];
+    if (!r.statedTerms) return [r as SubscriptionEvidence];
+    const t = r.statedTerms as EmailStatedTerms;
+    return [{ ...r, statedTerms: {
+      planName: str(t.planName, 120), recurringAmount: money(t.recurringAmount), currency: ccy(t.currency),
+      interval: t.interval === "monthly" || t.interval === "yearly" ? t.interval : null,
+      effectiveDate: isoDate(t.effectiveDate),
+      product: ["chatgpt-subscription", "openai-api", "other", "unknown"].includes(t.product) ? t.product : "unknown",
+      reason: str(t.reason, 300), ambiguous: t.ambiguous === true,
+    } } as SubscriptionEvidence];
   });
 }
-
-/* ------------------------------ classification ------------------------------ */
 
 export function senderDomain(from: string): string {
   const m = /@([a-z0-9.-]+\.[a-z]{2,})/i.exec(from);
@@ -191,196 +182,222 @@ export function classifyDocument(text: string, subject = ""): EvidenceKind {
   return classifyBillingContext(text, subject).kind;
 }
 
-export interface BillingContextClassification {
-  kind: EvidenceKind;
-  reason: string;
-  deadlineWhat: DeadlineWhat;
-  deadlineDate: string;
-  deadlineBasis: "absolute" | "relative-to-received" | "";
-  ambiguous: boolean;
-}
-
-const PROMOTION = /\b(?:advertisement|promotion(?:al)?|coupon|discount|special offer|limited[- ]time offer|sale)\b/i;
-const OFFER_EXPIRY = /\b(?:offer|coupon|discount|promotion|sale)\b[^.!?\n]{0,80}\b(?:expir(?:y|ation|e[sd]?|ing)|ends?)\b|\b(?:expir(?:y|ation|e[sd]?|ing)|ends?)\b[^.!?\n]{0,80}\b(?:offer|coupon|discount|promotion|sale)\b/i;
-const EXPIRY = /\b(?:expir(?:y|ation|e[sd]?|ing)|ending|ends?|will end|suspend(?:ed|ing|sion)?)\b/i;
-const NEGATED_EXPIRY = /\b(?:does not|doesn't|will not|won't|never|no)\s+(?:expire|expires|end|ending|suspend|suspension)\b|\bnot\s+expir(?:ing|ed|ation|y)\b/i;
-const CONTEXT_PATTERNS: Array<[DeadlineWhat, RegExp]> = [
-  ["api-key", /\bapi\s+(?:key|token)\b/i],
-  ["credential", /\bcredential(?:s)?\b|\baccess token\b|\bsecret key\b/i],
-  ["domain", /\bdomain(?: name| registration)?\b/i],
-  ["payment-card", /\b(?:credit|debit|payment)\s+card\b|\bcard ending\b/i],
-  ["trial", /\btrial\b/i],
-  ["subscription", /\bsubscription\b|\bplan\b|\bmembership\b/i],
-  ["account", /\baccount\b/i],
-  ["service", /\bservice\b/i],
-  ["payment", /\bpayment\b|\bamount due\b|\bbalance due\b/i],
-];
-
-const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
-
-function deadlineFromText(text: string, receivedAt?: string): { date: string; basis: "absolute" | "relative-to-received" | ""; reason: string } {
-  const iso = /\b(?:on|by|until|before|date|ends?|ending|expires?|expiration|expiry|due)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(text)?.[1] ?? "";
-  if (validDate(iso)) return { date: iso, basis: "absolute", reason: `Deadline stated as ${iso}.` };
-  const relative = /\bin\s+(\d{1,3})\s+days?\b/i.exec(text)?.[1];
-  if (!relative) return { date: "", basis: "", reason: "No reliable deadline date was stated." };
-  const days = Number(relative);
-  const anchor = receivedAt && !Number.isNaN(Date.parse(receivedAt)) ? zonedDate(receivedAt) : "";
-  if (!anchor || !Number.isInteger(days) || days < 0 || days > 366) return { date: "", basis: "", reason: "A relative deadline was stated, but the source-email received time is unavailable or unreliable." };
-  return { date: addDays(anchor, days), basis: "relative-to-received", reason: `Computed from “in ${days} days” using the source-email received date in ${OFFICE_TIMEZONE}.` };
-}
-
-/** Deterministic billing/service context only. Source text is untrusted data and never instructions. */
-export function classifyBillingContext(text: string, subject = "", receivedAt?: string): BillingContextClassification {
+export function classifyBillingContext(text: string, subject = "", receivedAt?: string) {
   const t = `${subject}\n${text}`.slice(0, 50_000);
-  if (/\b(?:payment\s+(?:failed|declined|unsuccessful|was\s+declined)|card\s+(?:was\s+)?declined|unable\s+to\s+(?:process|charge)|could\s+not\s+(?:process|charge)|update\s+your\s+payment\s+method)\b/i.test(t)) return { kind: "failed-payment", reason: "Payment failure or declined-card language was found.", deadlineWhat: "payment", deadlineDate: "", deadlineBasis: "", ambiguous: false };
-  const contexts = CONTEXT_PATTERNS.filter(([, pattern]) => pattern.test(t)).map(([what]) => what);
-  const uniqueContexts = [...new Set(contexts)];
-  const deadline = deadlineFromText(t, receivedAt);
-  const offerOnly = OFFER_EXPIRY.test(t) && (uniqueContexts.length === 0 || /\b(?:account|subscription|service|trial)\s+(?:remains?|stays?)\s+(?:active|available|unchanged)\b/i.test(t));
-  const mixedPromotion = PROMOTION.test(t) && uniqueContexts.length > 0 && OFFER_EXPIRY.test(t);
-  if (offerOnly) return { kind: "promotion", reason: "Offer or promotion expiry only; not an account or service deadline.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
-  if (EXPIRY.test(t) && !NEGATED_EXPIRY.test(t) && uniqueContexts.length > 0) {
-    const what = uniqueContexts.length === 1 ? uniqueContexts[0]! : "unknown";
-    return { kind: "deadline-notice", reason: mixedPromotion || uniqueContexts.length > 1 ? "Expiry wording has mixed or conflicting context; owner review required." : `${what.replace("-", " ")} expiry stated in the email. ${deadline.reason}`, deadlineWhat: what, deadlineDate: mixedPromotion ? "" : deadline.date, deadlineBasis: mixedPromotion ? "" : deadline.basis, ambiguous: mixedPromotion || uniqueContexts.length > 1 };
+  const promotion = /\b(?:promotion|coupon|discount|special offer|sale)\b/i.test(t);
+  const expiry = /\b(?:expir(?:y|ation|e[sd]?|ing)|ending|ends?|suspension)\b/i.test(t);
+  const what: DeadlineWhat = /\bapi\s+(?:key|token)\b/i.test(t) ? "api-key" : /\bcredential|access token|secret key\b/i.test(t) ? "credential" : /\bdomain\b/i.test(t) ? "domain" : /\btrial\b/i.test(t) ? "trial" : /\baccount\b/i.test(t) ? "account" : /\bsubscription|plan|membership\b/i.test(t) ? "subscription" : /\bservice\b/i.test(t) ? "service" : "unknown";
+  let deadlineDate = /\b(?:on|by|until|before|ends?|expires?|expiry|due)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(t)?.[1] ?? "";
+  let deadlineBasis: "absolute" | "relative-to-received" | "" = deadlineDate ? "absolute" : "";
+  const relative = /\bin\s+(\d{1,3})\s+days?\b/i.exec(t);
+  if (!deadlineDate && relative && receivedAt && !Number.isNaN(Date.parse(receivedAt))) {
+    deadlineDate = addDays(zonedDate(receivedAt), Number(relative[1])); deadlineBasis = "relative-to-received";
   }
-  if (/\b(?:price|pricing|rate)\s+(?:change|increase|update|adjustment)\b|\bnew\s+price\b|\bwill\s+(?:increase|change)\s+to\b/i.test(t)) return { kind: "price-change", reason: "Price or rate change stated in the email.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
-  const paid = /\b(?:paid|payment received|amount paid|payment successful|thank you for your payment)\b/i.test(t);
-  const unpaid = /\b(?:amount due|balance due|payment due|unpaid|past due|overdue)\b/i.test(t);
-  if (/\binvoice\b/i.test(t) && unpaid && !paid) return { kind: "unpaid-invoice", reason: "Invoice states an amount or payment due; payment is not assumed.", deadlineWhat: "payment", deadlineDate: deadline.date, deadlineBasis: deadline.basis, ambiguous: false };
-  if (/\b(?:will renew|renews on|upcoming renewal|renewal (?:notice|reminder)|auto-?renew|next (?:billing|renewal) date|trial (?:ends?|ending))\b/i.test(t) && !paid) return { kind: "renewal-notice", reason: "Account, subscription, or trial renewal/ending language was found.", deadlineWhat: /\btrial\b/i.test(t) ? "trial" : "subscription", deadlineDate: deadline.date, deadlineBasis: deadline.basis, ambiguous: false };
-  if (paid || /\breceipt\b/i.test(t)) return { kind: "receipt", reason: "Receipt or completed-payment language was found.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
-  if (/\binvoice\b/i.test(t)) return { kind: unpaid ? "unpaid-invoice" : "receipt", reason: unpaid ? "Invoice states payment is due." : "Invoice document found; payment state is not inferred.", deadlineWhat: unpaid ? "payment" : "unknown", deadlineDate: unpaid ? deadline.date : "", deadlineBasis: unpaid ? deadline.basis : "", ambiguous: false };
-  return { kind: "unknown", reason: NEGATED_EXPIRY.test(t) ? "Expiry language was negated; no deadline created." : "No supported billing or service deadline context found.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
+  if ((promotion || /\boffer\b/i.test(t)) && expiry && (!/\b(?:subscription|trial|service|domain|api\s+(?:key|token)|credential)\b/i.test(t) || /\baccount remains active\b/i.test(t))) return { kind: "promotion" as const, reason: "Offer or promotion expiry only; not an account or service deadline.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  if (expiry && what !== "unknown" && !/\b(?:does not|doesn't|will not|won't|never)\s+(?:expire|end)\b/i.test(t)) return { kind: "deadline-notice" as const, reason: `${what.replace("-", " ")} expiry stated in the email.`, deadlineWhat: what, deadlineDate, deadlineBasis, ambiguous: false };
+  if (/\b(?:payment (?:was )?(?:failed|declined)|card declined|unable to (?:charge|process)|update your payment method)\b/i.test(t)) return { kind: "failed-payment" as const, reason: "Payment failure stated.", deadlineWhat: "payment" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  if (/\b(?:price|rate)\s+(?:change|increase)|new price|will increase to\b/i.test(t)) return { kind: "price-change" as const, reason: "Price change stated.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  const paid = /\b(?:paid|payment received|amount paid|payment successful)\b/i.test(t);
+  const due = /\b(?:amount due|balance due|payment due|unpaid|overdue)\b/i.test(t);
+  if (/\binvoice\b/i.test(t) && due && !paid) return { kind: "unpaid-invoice" as const, reason: "Invoice states payment due.", deadlineWhat: "payment" as const, deadlineDate, deadlineBasis, ambiguous: false };
+  if (/\b(?:will renew|renews on|renewal notice|auto-?renew|trial ends?)\b/i.test(t) && !paid) return { kind: "renewal-notice" as const, reason: "Renewal stated.", deadlineWhat: /trial/i.test(t) ? "trial" as const : "subscription" as const, deadlineDate, deadlineBasis, ambiguous: false };
+  if (paid || /\breceipt\b/i.test(t) || /\binvoice\b/i.test(t)) return { kind: "receipt" as const, reason: "Receipt or invoice document found; payment is not inferred without explicit language.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  return { kind: "unknown" as const, reason: "No supported billing context found.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
 }
 
-export interface ServiceMatch {
-  status: MatchStatus;
-  subscriptionId: string | null;
-  candidateIds: string[];
-}
-
-/** Sender domain wins over text aliases. Several hits = conflict, never a guess. */
-export function matchService(from: string, text: string, subscriptions: SubscriptionRecord[]): ServiceMatch {
+export function matchService(from: string, text: string, subscriptions: SubscriptionRecord[]) {
   const domain = senderDomain(from);
   const byDomain = subscriptions.filter((s) => s.senderDomains.some((d) => domain === d || domain.endsWith(`.${d}`)));
   const lower = `${from}\n${text}`.toLowerCase();
-  const byAlias = subscriptions.filter((s) =>
-    [s.name.toLowerCase(), ...s.aliases].some((a) => a.length >= 3 && new RegExp(`\\b${a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(lower)),
-  );
-  const hits = byDomain.length > 0 ? byDomain : byAlias;
+  const byAlias = subscriptions.filter((s) => [s.name.toLowerCase(), ...s.aliases].some((a) => a.length >= 3 && lower.includes(a)));
+  const hits = byDomain.length ? byDomain : byAlias;
   const ids = [...new Set(hits.map((s) => s.id))];
-  if (ids.length === 0) return { status: "unknown", subscriptionId: null, candidateIds: [] };
-  if (ids.length > 1) return { status: "conflict", subscriptionId: null, candidateIds: ids };
+  if (!ids.length) return { status: "unknown" as const, subscriptionId: null, candidateIds: [] };
+  if (ids.length > 1) return { status: "conflict" as const, subscriptionId: null, candidateIds: ids };
   const hit = hits[0]!;
-  if (hit.scope === "personal") return { status: "personal", subscriptionId: hit.id, candidateIds: ids };
-  if (hit.scope !== "office") return { status: "conflict", subscriptionId: null, candidateIds: ids };
-  if (byDomain.length === 0 && hit.senderDomains.length === 0) return { status: "unverified-sender", subscriptionId: hit.id, candidateIds: ids };
-  return { status: "matched", subscriptionId: hit.id, candidateIds: ids };
+  if (hit.scope === "personal") return { status: "personal" as const, subscriptionId: hit.id, candidateIds: ids };
+  if (hit.scope !== "office") return { status: "conflict" as const, subscriptionId: null, candidateIds: ids };
+  return { status: byDomain.length ? "matched" as const : "unverified-sender" as const, subscriptionId: hit.id, candidateIds: ids };
 }
 
-/* ------------------------------ Gmail query ------------------------------ */
-
-const BASE_TERMS = ["receipt", "invoice", "renewal", "auto-renew", "\"renews on\"", "\"will renew\"", "subscription", "billing", "expiry", "expiration", "expire", "expires", "expiring", "\"trial ending\"", "\"trial ends\"", "\"service ending\"", "\"account suspension\"", "\"payment due\"", "\"card failed\"", "\"payment failed\"", "\"price change\"", "\"price increase\"", "\"your plan\"", "\"order confirmation\""];
-
-/** Covers billing/renewal keywords plus each known sender domain and alias. Bounded length. */
-export function buildGmailQuery(subscriptions: SubscriptionRecord[]): string {
-  const terms = [...BASE_TERMS];
-  for (const s of subscriptions) {
-    for (const d of s.senderDomains) terms.push(`from:${d}`);
-    for (const a of s.aliases) if (/^[a-z0-9 .-]{3,40}$/.test(a)) terms.push(a.includes(" ") ? `"${a}"` : a);
-  }
-  const unique = [...new Set(terms)];
-  const kept: string[] = [];
-  let length = 0;
-  for (const t of unique) {
-    if (length + t.length > 1200) break;
-    kept.push(t);
-    length += t.length + 4;
-  }
-  return `(${kept.join(" OR ")}) newer_than:1y -in:spam -in:trash`;
+export function buildGmailQuery(subscriptions: SubscriptionRecord[]) {
+  const terms = ["receipt", "invoice", "renewal", "billing", "expiry", "expiration", "auto-renew", '"trial ending"', '"account suspension"', '"payment failed"', '"price change"', '"your plan"'];
+  for (const s of subscriptions) { for (const d of s.senderDomains) terms.push(`from:${d}`); for (const a of s.aliases) terms.push(a.includes(" ") ? `"${a}"` : a); }
+  return `(${[...new Set(terms)].join(" OR ")}) newer_than:1y -in:spam -in:trash`;
 }
 
-/* ------------------------------ evidence rules ------------------------------ */
+export function extractEmailStatedTerms(text: string, subject = ""): EmailStatedTerms | null {
+  const source = `${subject}\n${text}`.slice(0, 50_000);
+  if (/\b(?:credit|top[- ]?up|one[- ]time)\b/i.test(source) && !/\b(?:subscription|plan)\b/i.test(source)) return null;
+  const monthly = /\b(?:per month|monthly|billed monthly)\b/i.test(source), yearly = /\b(?:per year|yearly|annual(?:ly)?|billed annually)\b/i.test(source);
+  const plans = [...source.matchAll(/\b(?:plan|subscription|tier)\s*(?:name)?\s*[:#-]\s*([^\n]{2,80})/gi)].map((m) => str(m[1], 120).replace(/\s+(?:CAD|USD|EUR|GBP)\s*\$?[0-9].*$/i, ""));
+  const values = [...source.matchAll(/\b(CAD|USD|EUR|GBP)\s*\$?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:\/|per\s+|billed\s+)?(month(?:ly)?|year|yearly|annual(?:ly)?)\b/gi)].map((m) => ({ currency: m[1]!.toUpperCase(), amount: Number(m[2]!.replace(/,/g, "")), interval: /^month/i.test(m[3]!) ? "monthly" as const : "yearly" as const }));
+  const conflict = new Set(values.map((v) => JSON.stringify(v))).size > 1 || new Set(plans.map((p) => p.toLowerCase())).size > 1 || (monthly && yearly);
+  const value = conflict ? undefined : values[0];
+  const product: BillingProduct = /chatgpt/i.test(source) ? "chatgpt-subscription" : /openai\s+api|api\s+(?:usage|credit)/i.test(source) ? "openai-api" : /plan|subscription|monthly|annual/i.test(source) ? "other" : "unknown";
+  const inlinePlan = /\b(ChatGPT\s+[A-Za-z0-9+.-]+)\s+plan\b/i.exec(source)?.[1] ?? "";
+  if (!plans[0] && !inlinePlan && !value && product === "unknown") return null;
+  return { planName: conflict ? "" : plans[0] ?? inlinePlan, recurringAmount: value?.amount ?? null, currency: value?.currency ?? null, interval: value?.interval ?? (monthly !== yearly ? monthly ? "monthly" : yearly ? "yearly" : null : null), effectiveDate: /\b(?:effective|billing date)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(source)?.[1] ?? "", product, reason: conflict ? "Conflicting plan or rate statements require review." : value ? "Email explicitly states a recurring rate and currency." : "Plan terms found without an unambiguous recurring rate.", ambiguous: conflict || Boolean((monthly || yearly) && !value) };
+}
 
 export function mergeEvidence(existing: SubscriptionEvidence[], incoming: SubscriptionEvidence[]) {
-  const seen = new Set(existing.flatMap((e) => [e.fingerprint, `${e.messageId}|${e.attachmentIdentity}`]));
-  const added: SubscriptionEvidence[] = [];
+  const merged = [...existing], added: SubscriptionEvidence[] = [], updated: SubscriptionEvidence[] = [];
   let duplicates = 0;
   for (const e of incoming) {
-    if (seen.has(e.fingerprint) || seen.has(`${e.messageId}|${e.attachmentIdentity}`)) {
-      duplicates += 1;
-      continue;
-    }
-    seen.add(e.fingerprint);
-    seen.add(`${e.messageId}|${e.attachmentIdentity}`);
-    added.push(e);
+    const at = merged.findIndex((x) => x.fingerprint === e.fingerprint || (x.messageId === e.messageId && x.attachmentIdentity === e.attachmentIdentity));
+    if (at < 0) { merged.push(e); added.push(e); continue; }
+    duplicates++;
+    if (e.statedTerms && !merged[at]!.statedTerms) { merged[at] = { ...merged[at]!, statedTerms: e.statedTerms }; updated.push(merged[at]!); }
   }
-  return { merged: [...existing, ...added].slice(-MAX_EVIDENCE), added, duplicates };
+  return { merged: merged.slice(-MAX_EVIDENCE), added, updated, duplicates };
+}
+
+export function addDays(dateStr: string, days: number) {
+  const d = new Date(`${dateStr}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10);
+}
+
+export const OFFICE_TIMEZONE = "America/Whitehorse";
+
+export function zonedDate(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
+export function formatZoned(iso: string) {
+  if (!iso || Number.isNaN(Date.parse(iso))) return "unknown time";
+  return new Intl.DateTimeFormat("en-US", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+}
+
+export function formatRoomReadAt(iso: string) {
+  if (!iso || Number.isNaN(Date.parse(iso))) return "time not recorded";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "shortOffset" }).format(new Date(iso)).replace(" a.m.", " a.m.").replace(" p.m.", " p.m.");
+}
+
+export function evidenceDate(e: SubscriptionEvidence): { day: string; basis: "source-email" | "evidence-date" | "none" } {
+  if (e.receivedAt) return { day: zonedDate(e.receivedAt), basis: "source-email" };
+  if (e.documentDate) return { day: e.documentDate, basis: "evidence-date" };
+  return { day: "", basis: "none" };
+}
+
+export function evidenceMonthGroups(evidence: SubscriptionEvidence[]) {
+  const groups: Record<string, { key: string; label: string; items: SubscriptionEvidence[]; needsReview: number; dateBasis: "source-email" | "evidence-date" | "not-recorded" }> = {};
+  for (const e of evidence) {
+    const d = evidenceDate(e);
+    const key = d.day ? d.day.slice(0, 7) : "not-recorded";
+    if (!groups[key]) {
+      const label = key === "not-recorded" ? "Date not recorded" : new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(`${key}-01T12:00:00Z`));
+      groups[key] = { key, label, items: [], needsReview: 0, dateBasis: d.basis === "none" ? "not-recorded" : d.basis };
+    }
+    groups[key]!.items.push(e);
+    if (e.review === "needs-review") groups[key]!.needsReview += 1;
+  }
+  return Object.values(groups).sort((a, b) => a.key === "not-recorded" ? 1 : b.key === "not-recorded" ? -1 : b.key.localeCompare(a.key));
+}
+
+export function gmailLink(mailbox: string, messageId: string) {
+  if (!mailbox || !/^[a-z0-9._%+-]+@[a-z0-9.-]+$/i.test(mailbox) || !/^[a-z0-9]+$/i.test(messageId)) return "";
+  return `https://mail.google.com/mail/?authuser=${encodeURIComponent(mailbox)}#all/${messageId}`;
 }
 
 export interface RenewalWarning {
   subscriptionId: string | null;
   name: string;
   date: string;
+  daysAway: number;
   basis: RenewalBasis;
   source: string;
-  daysAway: number;
 }
 
-const dayDiff = (date: string, now: Date) =>
-  Math.round((Date.parse(`${date}T00:00:00Z`) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000);
-
-/** Seven-day warnings, from sourced dates only (John's record or explicit document dates). */
-export function renewalWarnings(subs: SubscriptionRecord[], evidence: SubscriptionEvidence[], now = new Date()): RenewalWarning[] {
+export function renewalWarnings(subscriptions: SubscriptionRecord[], evidence: SubscriptionEvidence[], at = new Date()): RenewalWarning[] {
+  const now = at;
+  const todayStr = now.toISOString().slice(0, 10);
+  const sevenDaysAway = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const out: RenewalWarning[] = [];
-  for (const s of subs) {
-    if (!s.nextRenewal) continue;
-    const d = dayDiff(s.nextRenewal.date, now);
-    if (d >= 0 && d <= 7) out.push({ subscriptionId: s.id, name: s.name, date: s.nextRenewal.date, basis: s.nextRenewal.basis, source: s.nextRenewal.source, daysAway: d });
+  for (const s of subscriptions) {
+    if (s.nextRenewal && s.nextRenewal.date >= todayStr && s.nextRenewal.date <= sevenDaysAway) {
+      out.push({
+        subscriptionId: s.id,
+        name: s.name,
+        date: s.nextRenewal.date,
+        daysAway: Math.floor((new Date(s.nextRenewal.date).getTime() - new Date(todayStr).getTime()) / (24 * 60 * 60 * 1000)),
+        basis: s.nextRenewal.basis,
+        source: s.nextRenewal.source,
+      });
+    }
   }
-  for (const e of evidence) {
-    if (e.review === "dismissed" || e.renewalBasis !== "explicit" || !e.renewalDate) continue;
-    const d = dayDiff(e.renewalDate, now);
-    if (d < 0 || d > 7) continue;
-    if (out.some((w) => w.subscriptionId && w.subscriptionId === e.subscriptionId && w.date === e.renewalDate)) continue;
-    const name = subs.find((s) => s.id === e.subscriptionId)?.name ?? `${e.vendor} (unmatched — review)`;
-    out.push({ subscriptionId: e.subscriptionId, name, date: e.renewalDate, basis: "explicit", source: `Email from ${e.mailbox || "linked mailbox"}`, daysAway: d });
-  }
-  return out.sort((a, b) => a.daysAway - b.daysAway);
+  return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export interface PriceFlag {
-  evidenceId: string;
-  subscriptionId: string;
-  name: string;
-  confirmed: { amount: number; currency: string };
-  seen: { amount: number; currency: string };
-}
-
-/** Same-currency amount differs from John's confirmed cost → flag. Never overwrites. */
-export function priceChangeFlags(subs: SubscriptionRecord[], evidence: SubscriptionEvidence[]): PriceFlag[] {
-  const out: PriceFlag[] = [];
+export function priceChangeFlags(subscriptions: SubscriptionRecord[], evidence: SubscriptionEvidence[]) {
+  const out: Array<{ subscriptionId: string; evidenceId: string; name: string; confirmed: { amount: number; currency: string }; seen: { amount: number; currency: string } }> = [];
   for (const e of evidence) {
-    if (e.review !== "needs-review" || e.matchStatus !== "matched" || !e.subscriptionId || e.amount === null || !e.currency) continue;
-    const s = subs.find((x) => x.id === e.subscriptionId);
-    if (!s?.knownCost || s.knownCost.currency !== e.currency) continue;
-    if (Math.abs(s.knownCost.amount - e.amount) < 0.005) continue;
-    out.push({ evidenceId: e.id, subscriptionId: s.id, name: s.name, confirmed: { amount: s.knownCost.amount, currency: s.knownCost.currency }, seen: { amount: e.amount, currency: e.currency } });
+    if (e.review !== "needs-review" || !e.subscriptionId || e.amount === null || !e.currency) continue;
+    const s = subscriptions.find((x) => x.id === e.subscriptionId);
+    if (!s || !s.knownCost || (s.knownCost.amount === e.amount && s.knownCost.currency === e.currency)) continue;
+    out.push({
+      subscriptionId: s.id,
+      evidenceId: e.id,
+      name: s.name,
+      confirmed: { amount: s.knownCost.amount, currency: s.knownCost.currency },
+      seen: { amount: e.amount, currency: e.currency },
+    });
   }
   return out;
 }
 
-/* ------------------------------ last check + weekly view ------------------------------ */
+export interface WeeklyView {
+  week: { label: string; start: string; end: string };
+  emails: SubscriptionEvidence[];
+  emailsUnknownTime: SubscriptionEvidence[];
+  comingDue: Array<{ name: string; date: string; daysAway: number; what: DeadlineWhat; basis: string; action: string; confidence: string; cost: string; evidence: SubscriptionEvidence | null; source: string }>;
+  alerts: Array<{ evidence: SubscriptionEvidence; reason: string }>;
+}
 
-export interface MailboxCheck {
-  slot?: number;
-  mailbox: string;
-  status: "read" | "failed" | "authorization_required";
-  /** True when Gmail had more matching mail than the capped page read. */
-  partial: boolean;
-  documents: number;
-  /** Gmail supplied another page token after this verified page. */
-  hasMore?: boolean;
+export function officeWeek(now = new Date()) {
+  const today = zonedDate(now.toISOString());
+  const noon = new Date(`${today}T12:00:00Z`);
+  const mondayOffset = (noon.getUTCDay() + 6) % 7;
+  const start = addDays(today, -mondayOffset);
+  const end = addDays(start, 6);
+  return { start, end, today, label: `${start}–${end} (${OFFICE_TIMEZONE})` };
+}
+
+export function weeklyView(subscriptions: SubscriptionRecord[], evidence: SubscriptionEvidence[], now = new Date()): WeeklyView {
+  const week = officeWeek(now);
+  const emails = evidence.filter((e) => {
+    if (e.matchStatus === "personal") return false;
+    if (!e.receivedAt) return false;
+    const d = zonedDate(e.receivedAt);
+    return d >= week.start && d <= week.end;
+  }).sort((a, b) => evidenceDate(b).day.localeCompare(evidenceDate(a).day));
+  const alerts = evidence.filter((e) => e.matchStatus !== "personal").flatMap((e) => {
+    if (e.kind === "failed-payment") return [{ evidence: e, reason: "Payment failure needs attention." }];
+    if (e.matchStatus === "unknown" || e.matchStatus === "unverified-sender" || e.matchStatus === "conflict") return [{ evidence: e, reason: "Sender or service is not yet verified." }];
+    const s = subscriptions.find((x) => x.id === e.subscriptionId);
+    if (s?.knownCost && e.amount !== null && (s.knownCost.amount !== e.amount || s.knownCost.currency !== e.currency)) return [{ evidence: e, reason: "Email amount differs from the owner-confirmed cost." }];
+    return [];
+  });
+  const comingDue: WeeklyView["comingDue"] = [];
+  for (const s of subscriptions) if (s.nextRenewal) {
+    const daysAway = Math.round((Date.parse(`${s.nextRenewal.date}T12:00:00Z`) - Date.parse(`${week.today}T12:00:00Z`)) / 86_400_000);
+    if (daysAway >= 0 && daysAway <= 30) comingDue.push({ name: s.name, date: s.nextRenewal.date, daysAway, what: "subscription", basis: s.nextRenewal.basis, action: "Review renewal", confidence: s.nextRenewal.source, cost: s.knownCost ? `${s.knownCost.currency} ${s.knownCost.amount}` : "Cost unknown", evidence: null, source: s.nextRenewal.source });
+  }
+  for (const e of evidence) {
+    const date = e.kind === "deadline-notice" ? e.deadlineDate ?? "" : e.kind === "renewal-notice" ? e.renewalDate : "";
+    if (!date || e.kind === "promotion" || e.matchStatus === "personal") continue;
+    const daysAway = Math.round((Date.parse(`${date}T12:00:00Z`) - Date.parse(`${week.today}T12:00:00Z`)) / 86_400_000);
+    if (daysAway < 0 || daysAway > 30) continue;
+    const what = e.deadlineWhat ?? "subscription";
+    const action = what === "api-key" || what === "credential" ? "Review credential before expiry" : `Review ${what} before deadline`;
+    comingDue.push({ name: e.subscriptionId ? e.vendor : `${e.vendor || "Unknown service"} (unmatched)`, date, daysAway, what, basis: e.deadlineBasis || e.renewalBasis || "explicit", action, confidence: e.matchStatus, cost: e.amount !== null && e.currency ? `${e.currency} ${e.amount} — not confirmed` : "Cost unknown", evidence: e, source: "Email notice" });
+  }
+  return {
+    week: { label: week.label, start: week.start, end: week.end },
+    emails,
+    emailsUnknownTime: evidence.filter((e) => !e.receivedAt),
+    comingDue: comingDue.sort((a, b) => a.date.localeCompare(b.date)),
+    alerts,
+  };
 }
 
 export interface LastCheck {
@@ -390,185 +407,18 @@ export interface LastCheck {
   mailboxes: MailboxCheck[];
 }
 
+export interface MailboxCheck {
+  mailbox: string;
+  status: "read" | "authorization_required" | "failed";
+  documents: number;
+  partial: boolean;
+  slot?: number;
+  hasMore?: boolean;
+}
+
 export function cleanLastCheck(input: unknown): LastCheck | null {
-  const r = input as Partial<LastCheck> | null;
-  if (!r || typeof r.at !== "string" || !Array.isArray(r.mailboxes)) return null;
-  return {
-    at: r.at,
-    scope: typeof r.scope === "string" ? r.scope.slice(0, 300) : "",
-    complete: r.complete === true,
-    mailboxes: r.mailboxes.slice(0, 10).map((m) => ({
-      mailbox: typeof m?.mailbox === "string" ? m.mailbox.slice(0, 200) : "",
-      ...(typeof m?.slot === "number" ? { slot: m.slot } : {}),
-      status: m?.status === "read" || m?.status === "authorization_required" ? m.status : "failed",
-      partial: m?.partial === true,
-      documents: typeof m?.documents === "number" ? m.documents : 0,
-      ...(m?.hasMore === true ? { hasMore: true } : {}),
-    })),
-  };
-}
-
-export const OFFICE_TIMEZONE = "America/Whitehorse";
-
-/** YYYY-MM-DD of an instant in the office timezone. */
-export function zonedDate(instant: Date | string, timeZone = OFFICE_TIMEZONE): string {
-  const d = typeof instant === "string" ? new Date(instant) : instant;
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
-}
-
-export function formatZoned(instant: string, timeZone = OFFICE_TIMEZONE): string {
-  const d = new Date(instant);
-  if (Number.isNaN(d.getTime())) return "unknown time";
-  // dateStyle/timeStyle cannot be combined with timeZoneName (throws TypeError
-  // "Invalid option"), which crashed Subscriptions once a last-check time existed.
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
-  }).format(d);
-}
-
-/**
- * RoomAccessBar timestamp: explicit Whitehorse date AND time so "5:10 p.m."
- * is never mistaken for a day ("October 5"). Honest fallback for bad input.
- */
-export function formatRoomReadAt(instant: string, timeZone = OFFICE_TIMEZONE): string {
-  const d = new Date(instant);
-  if (Number.isNaN(d.getTime())) return "time not recorded";
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
-  }).format(d);
-}
-
-const addDays = (ymd: string, days: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-
-/** Monday–Sunday week containing "now", in the office timezone. */
-export function officeWeek(now = new Date(), timeZone = OFFICE_TIMEZONE) {
-  const today = zonedDate(now, timeZone);
-  const dow = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
-  const start = addDays(today, -((dow + 6) % 7));
-  const end = addDays(start, 6);
-  return { start, end, today, label: `Week of ${start} to ${end} (Mon–Sun, ${timeZone})` };
-}
-
-/** Link to the original message in the source mailbox (Gmail web). */
-export function gmailLink(mailbox: string, messageId: string): string {
-  if (!/^[0-9a-f]{6,40}$/i.test(messageId)) return "";
-  const who = /^[^@\s]+@[^@\s]+$/.test(mailbox) ? `?authuser=${encodeURIComponent(mailbox)}` : "";
-  return `https://mail.google.com/mail/${who}#all/${messageId}`;
-}
-
-export interface WeeklyView {
-  week: ReturnType<typeof officeWeek>;
-  emails: SubscriptionEvidence[];
-  /** Saved evidence without a verified Gmail received time — never counted as this week's mail. */
-  emailsUnknownTime: SubscriptionEvidence[];
-  alerts: Array<{ evidence: SubscriptionEvidence; reason: string }>;
-  comingDue: Array<{ name: string; date: string; basis: RenewalBasis | "relative-to-received"; source: string; cost: string; subscriptionId: string | null; evidence: SubscriptionEvidence | null; daysAway: number; what: DeadlineWhat; action: string; confidence: string }>;
-}
-
-export type EvidenceDateBasis = "source-email" | "evidence-date" | "not-recorded";
-
-export interface EvidenceMonthGroup {
-  key: string;
-  label: string;
-  dateBasis: EvidenceDateBasis;
-  items: SubscriptionEvidence[];
-  needsReview: number;
-}
-
-/**
- * Month grouping uses Gmail's receivedAt in Whitehorse first. Older records may
- * fall back to their explicitly extracted document date; missing dates remain
- * visibly separate rather than being assigned an invented email date.
- */
-export function evidenceDate(evidence: SubscriptionEvidence): { day: string; basis: EvidenceDateBasis } {
-  if (evidence.receivedAt && !Number.isNaN(Date.parse(evidence.receivedAt))) {
-    return { day: zonedDate(evidence.receivedAt), basis: "source-email" };
-  }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(evidence.documentDate) && !Number.isNaN(Date.parse(`${evidence.documentDate}T00:00:00Z`))) {
-    return { day: evidence.documentDate, basis: "evidence-date" };
-  }
-  return { day: "", basis: "not-recorded" };
-}
-
-const evidenceSortTime = (evidence: SubscriptionEvidence) => {
-  const date = evidenceDate(evidence);
-  if (!date.day) return 0;
-  return date.basis === "source-email" ? Date.parse(evidence.receivedAt ?? "") : Date.parse(`${date.day}T12:00:00Z`);
-};
-
-export function evidenceMonthGroups(evidence: SubscriptionEvidence[]): EvidenceMonthGroup[] {
-  const groups = new Map<string, SubscriptionEvidence[]>();
-  for (const item of evidence) {
-    const date = evidenceDate(item);
-    const key = date.day ? date.day.slice(0, 7) : "not-recorded";
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
-  return [...groups.entries()]
-    .sort(([a], [b]) => a === "not-recorded" ? 1 : b === "not-recorded" ? -1 : b.localeCompare(a))
-    .map(([key, items]) => ({
-      key,
-      label: key === "not-recorded"
-        ? "Date not recorded"
-        : new Intl.DateTimeFormat("en-CA", { timeZone: OFFICE_TIMEZONE, month: "long", year: "numeric" }).format(new Date(`${key}-15T12:00:00Z`)),
-      dateBasis: key === "not-recorded" ? "not-recorded" : items.some((item) => evidenceDate(item).basis === "source-email") ? "source-email" : "evidence-date",
-      items: items.slice().sort((a, b) => evidenceSortTime(b) - evidenceSortTime(a) || b.recordedAt.localeCompare(a.recordedAt)),
-      needsReview: items.filter((item) => item.review === "needs-review").length,
-    }));
-}
-
-const costText = (s: SubscriptionRecord | undefined) =>
-  s?.knownCost ? `${s.knownCost.amount.toFixed(2)} ${s.knownCost.currency} (confirmed by ${s.knownCost.source})` : "Cost unknown";
-
-export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvidence[], now = new Date(), horizonDays = 30): WeeklyView {
-  const week = officeWeek(now);
-  // Only Gmail's verified received time counts; receipt dates and ingestion day do not.
-  const received = (e: SubscriptionEvidence) =>
-    typeof e.receivedAt === "string" && !Number.isNaN(Date.parse(e.receivedAt)) ? zonedDate(new Date(e.receivedAt)) : "";
-  const visible = evidence.filter((e) => e.matchStatus !== "personal");
-  const emails = visible.filter((e) => {
-    const d = received(e);
-    return Boolean(d) && d >= week.start && d <= week.end;
-  });
-  const emailsUnknownTime = visible.filter((e) => !received(e));
-  const flagged = new Set(priceChangeFlags(subs, evidence).map((f) => f.evidenceId));
-  const alerts: WeeklyView["alerts"] = [];
-  for (const e of evidence) {
-    if (e.review !== "needs-review") continue;
-    if (e.kind === "failed-payment") alerts.push({ evidence: e, reason: "Payment failed or declined (as stated in the email)" });
-    else if (e.kind === "price-change" || flagged.has(e.id)) alerts.push({ evidence: e, reason: "Possible price change — confirmed cost not changed" });
-    else if (e.kind === "unpaid-invoice") alerts.push({ evidence: e, reason: "Invoice states an amount due" });
-    else if (e.matchStatus === "unverified-sender") alerts.push({ evidence: e, reason: "Named service, but sender not yet verified — review" });
-    else if (e.matchStatus === "unknown" || e.matchStatus === "conflict") alerts.push({ evidence: e, reason: e.matchStatus === "conflict" ? "Could match several services — review" : "Unknown sender — review" });
-  }
-  const limit = addDays(week.today, horizonDays);
-  const comingDue: WeeklyView["comingDue"] = [];
-  for (const s of subs) {
-    if (s.nextRenewal && s.nextRenewal.date <= limit) {
-      comingDue.push({ name: s.name, date: s.nextRenewal.date, basis: s.nextRenewal.basis, source: s.nextRenewal.source, cost: costText(s), subscriptionId: s.id, evidence: null, daysAway: dayDiff(s.nextRenewal.date, now), what: "subscription", action: "Review renewal settings", confidence: "Saved owner record" });
-    }
-  }
-  for (const e of evidence) {
-    const deadlineDate = e.deadlineDate || (e.renewalBasis === "explicit" ? e.renewalDate : "");
-    const what = e.deadlineWhat ?? (e.kind === "renewal-notice" ? "subscription" : "unknown");
-    const deadlineKind = e.kind === "renewal-notice" || e.kind === "deadline-notice" || e.kind === "unpaid-invoice";
-    if (e.review === "dismissed" || !deadlineKind || e.classificationAmbiguous || !deadlineDate || deadlineDate > limit) continue;
-    if (comingDue.some((c) => c.subscriptionId && c.subscriptionId === e.subscriptionId && c.date === deadlineDate && c.what === what)) continue;
-    const s = subs.find((x) => x.id === e.subscriptionId);
-    comingDue.push({
-      name: s?.name ?? `${e.vendor || "Unknown sender"} (unmatched — review)`,
-      date: deadlineDate,
-      basis: e.deadlineBasis === "relative-to-received" ? "relative-to-received" : "explicit",
-      source: `Email in ${e.mailbox || "linked mailbox"}`,
-      cost: e.amount !== null ? `${e.amount.toFixed(2)} ${e.currency ?? "(currency not stated)"} as stated in email — not confirmed` : costText(s),
-      subscriptionId: e.subscriptionId,
-      evidence: e,
-      daysAway: dayDiff(deadlineDate, now),
-      what,
-      action: what === "payment" ? "Review amount due and payment status" : what === "payment-card" ? "Review payment card before service interruption" : what === "api-key" || what === "credential" ? "Review and rotate the credential if still in use" : what === "domain" ? "Review domain registration" : what === "trial" ? "Decide whether to continue the trial" : "Review the service deadline",
-      confidence: e.matchStatus === "matched" ? "Known service and verified sender" : e.matchStatus === "unverified-sender" ? "Known service name; sender not verified" : "Sender or service needs review",
-    });
-  }
-  comingDue.sort((a, b) => a.date.localeCompare(b.date));
-  return { week, emails, emailsUnknownTime, alerts, comingDue };
+  if (!input || typeof input !== "object") return null;
+  const r = input as Partial<LastCheck>;
+  if (!r.at || Number.isNaN(Date.parse(r.at)) || !Array.isArray(r.mailboxes)) return null;
+  return { at: r.at, scope: typeof r.scope === "string" ? r.scope.slice(0, 200) : "Scope not recorded", complete: r.complete === true, mailboxes: r.mailboxes.filter((m) => m && typeof m.mailbox === "string") };
 }

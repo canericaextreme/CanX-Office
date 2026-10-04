@@ -21,6 +21,7 @@ import {
   buildGmailQuery,
   classifyBillingContext,
   classifyDocument,
+  extractEmailStatedTerms,
   matchService,
   mergeEvidence,
   type EvidenceKind,
@@ -492,11 +493,13 @@ export async function runReceiptSyncWith(
   let evidenceNote = "";
   const freshEvidence = mergeEvidence(state.evidence ?? [], evidence);
   evidenceDuplicates = freshEvidence.duplicates;
-  if (freshEvidence.added.length > 0) {
+  if (freshEvidence.added.length > 0 || freshEvidence.updated.length > 0) {
     if (!deps.writeEvidence) {
       evidenceNote = " Subscription evidence was found but could not be saved in this environment.";
     } else {
-      const saved = await deps.writeEvidence(input.accessToken, owner.userId, freshEvidence.added);
+      // The store re-merges against the latest owner document. Sending all source
+      // rows lets a safely re-read message enrich its existing evidence in place.
+      const saved = await deps.writeEvidence(input.accessToken, owner.userId, evidence);
       if (saved.ok) {
         evidenceAdded = saved.added;
         evidenceDuplicates += saved.duplicates;
@@ -581,6 +584,7 @@ function toEvidence(
   const renewal = RENEWAL_DATE.exec(document.text)?.[1] ?? receipt?.expectedRenewalDate ?? "";
   const valid = renewal && !Number.isNaN(Date.parse(`${renewal}T00:00:00Z`)) ? renewal : "";
   const fingerprint = receipt?.contentFingerprint ?? fingerprintText(document.text);
+  const statedTerms = kind === "promotion" ? null : extractEmailStatedTerms(document.text, document.subject ?? "");
   return {
     id: `ev-${fingerprint.slice(0, 24)}`,
     kind,
@@ -607,6 +611,7 @@ function toEvidence(
     deadlineDate: classification.deadlineDate,
     ...(classification.deadlineBasis ? { deadlineBasis: classification.deadlineBasis } : {}),
     classificationAmbiguous: classification.ambiguous,
+    ...(statedTerms ? { statedTerms } : {}),
   };
 }
 

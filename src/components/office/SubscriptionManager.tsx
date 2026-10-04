@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, ChevronRight, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CalendarClock, ChevronRight, ExternalLink, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/office/StatusBadge";
 import { useOwnerSession } from "@/lib/owner-session";
 import {
@@ -11,6 +12,8 @@ import {
   priceChangeFlags,
   renewalWarnings,
   weeklyView,
+  formatZoned,
+  gmailLink,
   type LastCheck,
   type SubscriptionEvidence,
   type SubscriptionRecord,
@@ -26,6 +29,10 @@ import type { GmailScanConfig } from "@/lib/gmail-scan-window";
 const money = (amount: number | null, currency: string | null) =>
   amount === null ? "Unknown" : `${amount.toFixed(2)} ${currency ?? "(currency not stated)"}`;
 
+const rate = (s: SubscriptionRecord) => s.knownCost
+  ? `${s.knownCost.currency} $${s.knownCost.amount.toFixed(2)}${s.cadence === "monthly" ? " / month" : s.cadence === "yearly" ? " / year" : " · billing cycle not confirmed"}`
+  : "Cost unknown";
+
 export function SubscriptionManager() {
   const owner = useOwnerSession();
   const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -39,6 +46,7 @@ export function SubscriptionManager() {
   const [scanConfig, setScanConfig] = useState<GmailScanConfig | null>(null);
   // When set, the room shows only the focused month/filter view, replacing the hub.
   const [focus, setFocus] = useState<ArchiveView | null>(null);
+  const [serviceFocus, setServiceFocus] = useState<string | null>(null);
   const openArchive = useCallback((req: { context: ArchiveContext; reviewOnly: boolean }) => {
     setFocus({ month: "all", ...req });
   }, []);
@@ -76,6 +84,10 @@ export function SubscriptionManager() {
   const flags = useMemo(() => priceChangeFlags(saved ? subs : [], shownEvidence), [subs, shownEvidence, saved]);
   const weekly = useMemo(() => weeklyView(saved ? subs : [], shownEvidence), [subs, shownEvidence, saved]);
   const review = shownEvidence.filter((e) => e.review === "needs-review");
+  const focusedService = serviceFocus ? subs.find((s) => s.id === serviceFocus) ?? null : null;
+  const serviceEvidence = focusedService
+    ? shownEvidence.filter((item) => item.subscriptionId === focusedService.id && item.statedTerms).slice().sort((a, b) => (b.receivedAt ?? b.recordedAt).localeCompare(a.receivedAt ?? a.recordedAt))
+    : [];
 
   async function persist(next: SubscriptionRecord[]) {
     if (!owner.accessToken) return;
@@ -100,6 +112,58 @@ export function SubscriptionManager() {
         <CardContent className="space-y-3" aria-live="polite">
           {message && state === "ready" && <p className="text-xs text-muted-foreground">{message}</p>}
           <EvidenceFocusView evidence={shownEvidence} view={focus} onView={setFocus} onBack={() => setFocus(null)} onMark={mark} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (state === "ready" && focusedService) {
+    return (
+      <Card className="border-border bg-card">
+        <CardHeader><CardTitle className="text-base">Office subscriptions</CardTitle></CardHeader>
+        <CardContent className="space-y-4" aria-live="polite">
+          <Button variant="ghost" size="sm" onClick={() => setServiceFocus(null)}><ArrowLeft className="h-4 w-4" />Back to Subscriptions</Button>
+          <section aria-label={`${focusedService.name} subscription details`} className="space-y-4 rounded-md border border-canx-blue/40 bg-canx-blue/5 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">{focusedService.name}</h2>
+                <p className="text-sm text-muted-foreground">{focusedService.planName || "Plan not recorded"} · {focusedService.scope === "office" ? "Office" : focusedService.scope === "personal" ? "Personal" : "Scope unknown"}</p>
+              </div>
+              <p className="text-xl font-semibold text-canx-green">{rate(focusedService)}</p>
+            </div>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <Detail label="Owner-confirmed billing cycle" value={focusedService.cadence === "unknown" ? "Unknown" : focusedService.cadence} />
+              <Detail label="Confirmed rate source" value={focusedService.knownCost ? `${focusedService.knownCost.source}${focusedService.knownCost.asOf ? ` · ${focusedService.knownCost.asOf}` : " · date not recorded"}` : "Not recorded"} />
+              <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis} · ${focusedService.nextRenewal.source}` : "Unknown"} />
+              <Detail label="Usage and top-ups" value="Separate from the confirmed fixed rate and Finance paid totals" />
+            </dl>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setEditing(focusedService)}><Pencil className="h-4 w-4" />Edit service</Button>
+              <Button size="sm" variant="ghost" aria-label={`Remove ${focusedService.name}`} disabled={busy} onClick={() => persist(subs.filter((x) => x.id !== focusedService.id))}><Trash2 className="h-4 w-4" />Remove</Button>
+            </div>
+          </section>
+          <section aria-labelledby="email-stated-terms" className="space-y-2">
+            <div>
+              <h3 id="email-stated-terms" className="text-sm font-semibold">Email-stated plan and rate</h3>
+              <p className="text-xs text-muted-foreground">Source evidence only. It does not replace owner-confirmed settings or prove payment.</p>
+            </div>
+            {serviceEvidence.length === 0 ? <p className="rounded-md border border-border p-3 text-sm text-muted-foreground">No unambiguous recurring plan terms have been extracted from readable email yet.</p> : (
+              <ul className="space-y-2">
+                {serviceEvidence.slice(0, 5).map((item) => {
+                  const stated = item.statedTerms;
+                  if (!stated) return null;
+                  const link = gmailLink(item.mailbox, item.messageId);
+                  return <li key={item.id} className="rounded-md border border-border p-3 text-sm">
+                    <div className="font-medium">Email states: {stated.planName || "Plan unknown"} · {stated.recurringAmount !== null && stated.currency ? `${stated.currency} $${stated.recurringAmount.toFixed(2)}` : "Rate unknown"}{stated.interval ? ` / ${stated.interval === "monthly" ? "month" : "year"}` : ""}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{stated.product.replaceAll("-", " ")} · {stated.effectiveDate || "billing/effective date not stated"} · {stated.reason}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Received {item.receivedAt ? formatZoned(item.receivedAt) : "Not recorded"} · {item.mailbox || "mailbox not recorded"}</div>
+                    {link && <a className="mt-2 inline-flex items-center gap-1 text-xs text-canx-blue underline" href={link} target="_blank" rel="noreferrer">Open source email<ExternalLink className="h-3 w-3" /></a>}
+                  </li>;
+                })}
+              </ul>
+            )}
+          </section>
+          {editing && <SubscriptionEditor value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => persist(subs.map((s) => s.id === rec.id ? rec : s))} />}
         </CardContent>
       </Card>
     );
@@ -156,31 +220,7 @@ export function SubscriptionManager() {
 
         {state === "ready" && <h3 className="pt-2 text-sm font-semibold">Your services ({subs.length})</h3>}
         {state === "ready" && (
-          <ul className="space-y-2">
-            {subs.map((s) => (
-              <li key={s.id} className="rounded-lg border border-border/50 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium">{s.name} <span className="text-xs text-muted-foreground">· {s.scope === "office" ? "Office" : s.scope === "personal" ? "Personal" : "Scope unknown"}</span></div>
-                    <div className="text-xs text-muted-foreground">
-                      Cost: {s.knownCost ? `${money(s.knownCost.amount, s.knownCost.currency)}${s.knownCost.asOf ? ` as of ${s.knownCost.asOf}` : ""} (${s.knownCost.source})` : "Unknown"} · Cadence: {s.cadence}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Next renewal: {s.nextRenewal ? `${s.nextRenewal.date} — ${s.nextRenewal.basis === "explicit" ? "stated in source" : "estimated"} (${s.nextRenewal.source})` : "Unknown"}
-                    </div>
-                    {s.history.length > 0 && (
-                      <div className="text-xs text-muted-foreground">History: {s.history.map((h) => `${h.date} ${money(h.amount, h.currency)}`).join("; ")}</div>
-                    )}
-                    {s.notes && <div className="text-xs text-muted-foreground">{s.notes}</div>}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" aria-label={`Edit ${s.name}`} onClick={() => setEditing(s)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" aria-label={`Remove ${s.name}`} disabled={busy} onClick={() => persist(subs.filter((x) => x.id !== s.id))}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ServiceCards subscriptions={subs} onOpen={(id) => { setServiceFocus(id); window.scrollTo?.({ top: 0 }); }} />
         )}
 
         {state === "ready" && !editing && (
@@ -226,6 +266,7 @@ export function SubscriptionManager() {
 function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: SubscriptionRecord; busy: boolean; onSave: (r: SubscriptionRecord) => void; onCancel: () => void }) {
   const [f, setF] = useState({
     name: value.name,
+    planName: value.planName ?? "",
     aliases: value.aliases.join(", "),
     domains: value.senderDomains.join(", "),
     scope: value.scope,
@@ -254,6 +295,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         ...value,
         id: value.id || `s-${Date.now().toString(36)}`,
         name: f.name.trim(),
+        planName: f.planName.trim(),
         aliases: f.aliases.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean),
         senderDomains: f.domains.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean),
         scope: f.scope,
@@ -265,10 +307,11 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       });
     }}>
       <label className={field}>Service name<Input required value={f.name} onChange={set("name")} /></label>
+      <label className={field}>Plan name (optional)<Input value={f.planName} onChange={set("planName")} placeholder="Only when known" /></label>
       <label className={field}>Scope<select className={select} value={f.scope} onChange={set("scope")}><option value="office">Office</option><option value="personal">Personal</option><option value="unknown">Unknown</option></select></label>
       <label className={field}>Other names (comma separated)<Input value={f.aliases} onChange={set("aliases")} /></label>
       <label className={field}>Sender domains (e.g. openai.com)<Input value={f.domains} onChange={set("domains")} /></label>
-      <label className={field}>Confirmed cost (leave blank if unknown)<Input inputMode="decimal" value={f.amount} onChange={set("amount")} /></label>
+      <label className={field}>Owner-confirmed fixed rate (leave blank if unknown)<Input inputMode="decimal" value={f.amount} onChange={set("amount")} /></label>
       <label className={field}>Currency (e.g. CAD, USD)<Input maxLength={3} value={f.currency} onChange={set("currency")} /></label>
       <label className={field}>Cost confirmed on<Input type="date" value={f.asOf} onChange={set("asOf")} /></label>
       <label className={field}>Billing cycle<select className={select} value={f.cadence} onChange={set("cadence")}><option value="unknown">Unknown</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="other">Other</option></select></label>
@@ -281,4 +324,24 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       </div>
     </form>
   );
+}
+
+function ServiceCards({ subscriptions, onOpen }: { subscriptions: SubscriptionRecord[]; onOpen: (id: string) => void }) {
+  const visible = subscriptions.slice(0, 6);
+  const overflow = subscriptions.slice(6);
+  return <section aria-label="Subscription service cards" className="space-y-3">
+    {subscriptions.length === 0 ? <p className="text-sm text-muted-foreground">No services saved.</p> : (
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {visible.map((s) => <Button key={s.id} variant="outline" className="h-auto min-h-24 justify-between gap-3 p-3 text-left" aria-label={`${s.name}: ${rate(s)} — open service details`} onClick={() => onOpen(s.id)}>
+          <span className="min-w-0"><span className="block truncate font-semibold">{s.name}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{s.planName || "Plan not recorded"} · {s.cadence === "unknown" ? "Cycle unknown" : s.cadence}</span></span>
+          <span className={s.knownCost ? "shrink-0 text-right text-sm font-semibold text-canx-green" : "shrink-0 text-right text-sm text-muted-foreground"}>{rate(s)}<ChevronRight className="ml-auto mt-1 h-4 w-4" /></span>
+        </Button>)}
+      </div>
+    )}
+    {overflow.length > 0 && <Select onValueChange={onOpen}><SelectTrigger className="w-full sm:w-72" aria-label="Open another saved service"><SelectValue placeholder={`${overflow.length} more service${overflow.length === 1 ? "" : "s"}`} /></SelectTrigger><SelectContent>{overflow.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} · {rate(s)}</SelectItem>)}</SelectContent></Select>}
+  </section>;
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return <div><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 font-medium">{value}</dd></div>;
 }

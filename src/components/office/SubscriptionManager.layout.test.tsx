@@ -2,7 +2,7 @@
 import React from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SubscriptionEvidence } from "@/lib/subscriptions";
+import type { SubscriptionEvidence, SubscriptionRecord } from "@/lib/subscriptions";
 
 vi.mock("@tanstack/react-router", () => ({ Link: ({ to, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }) => <a href={to} {...props}>{children}</a> }));
 vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => ({ shared: true, accessToken: "owner-token" }) }));
@@ -22,9 +22,15 @@ const EVIDENCE: SubscriptionEvidence[] = Array.from({ length: 120 }, (_, i) => {
     review: i % 3 === 0 ? "needs-review" : "reviewed",
   } as SubscriptionEvidence;
 });
+const SERVICES: SubscriptionRecord[] = [
+  { id: "lovable", name: "Lovable", planName: "Business", aliases: [], senderDomains: ["lovable.dev"], scope: "office", cadence: "monthly", knownCost: { amount: 24, currency: "USD", asOf: "2026-10-01", source: "John" }, nextRenewal: null, history: [], notes: "", updatedAt: "" },
+  { id: "supabase", name: "Supabase", aliases: [], senderDomains: ["supabase.com"], scope: "office", cadence: "unknown", knownCost: null, nextRenewal: null, history: [], notes: "", updatedAt: "" },
+  { id: "openai", name: "OpenAI API", aliases: [], senderDomains: ["openai.com"], scope: "office", cadence: "other", knownCost: null, nextRenewal: null, history: [], notes: "", updatedAt: "" },
+  ...Array.from({ length: 5 }, (_, i) => ({ id: `extra-${i}`, name: `Extra ${i}`, aliases: [], senderDomains: [], scope: "office" as const, cadence: "unknown" as const, knownCost: null, nextRenewal: null, history: [], notes: "", updatedAt: "" })),
+];
 
 vi.mock("@/lib/subscriptions.functions", () => ({
-  listSubscriptions: vi.fn(async () => ({ ok: true, message: "", data: { saved: true, subscriptions: [], evidence: EVIDENCE, lastCheck: null, scanConfig: null } })),
+  listSubscriptions: vi.fn(async () => ({ ok: true, message: "", data: { saved: true, subscriptions: SERVICES, evidence: EVIDENCE, lastCheck: null, scanConfig: null } })),
   saveSubscriptionList: vi.fn(), reviewSubscriptionEvidence: vi.fn(),
 }));
 vi.mock("@/lib/mail-preferences.functions", () => ({
@@ -81,5 +87,21 @@ describe("Subscriptions room layout with 120 saved emails", () => {
     const view = screen.getByRole("region", { name: "Billing evidence from email" });
     within(view).getAllByRole("listitem").forEach((li) => expect(li.textContent).toContain("Promotion or offer"));
     expect(within(view).getByText("Showing 20 of 20.")).toBeTruthy();
+  });
+
+  it("shows bounded service cards and opens a focused service detail with Back", async () => {
+    render(<SubscriptionManager />);
+    const lovable = await screen.findByRole("button", { name: "Lovable: USD $24.00 / month — open service details" });
+    expect(lovable.textContent).toContain("Business");
+    expect(lovable.textContent).toContain("USD $24.00 / month");
+    expect(screen.getByRole("combobox", { name: "Open another saved service" })).toBeTruthy();
+    expect(screen.queryByText("Confirmed rate source")).toBeNull();
+    fireEvent.click(lovable);
+    const details = screen.getByRole("region", { name: "Lovable subscription details" });
+    expect(within(details).getByText("USD $24.00 / month")).toBeTruthy();
+    expect(screen.getByText("John · 2026-10-01")).toBeTruthy();
+    expect(screen.getByText(/No unambiguous recurring plan terms/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back to Subscriptions" }));
+    expect(await screen.findByRole("button", { name: "Lovable: USD $24.00 / month — open service details" })).toBeTruthy();
   });
 });

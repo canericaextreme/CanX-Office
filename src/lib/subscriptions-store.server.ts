@@ -90,6 +90,7 @@ export async function setEvidenceReview(token: string, ownerId: string, id: stri
 export async function appendEvidence(token: string, ownerId: string, incoming: SubscriptionEvidence[]) {
   const backend = await import("./canx-backend.server");
   let added: SubscriptionEvidence[] = [];
+  let updated: SubscriptionEvidence[] = [];
   let duplicates = 0;
   const res = await cas(
     backend, token, ownerId,
@@ -97,15 +98,19 @@ export async function appendEvidence(token: string, ownerId: string, incoming: S
       // Re-merged against the LATEST doc on every attempt, so a concurrent review status is kept.
       const merged = mergeEvidence(cleanEvidenceList(d["subscriptionEvidence"]), incoming);
       added = merged.added;
+      updated = merged.updated;
       duplicates = merged.duplicates;
       return { ...d, subscriptionEvidence: merged.merged };
     },
     (d) => {
       const stored = new Map(cleanEvidenceList(d["subscriptionEvidence"]).map((e) => [e.id, e]));
-      return added.every((e) => stored.get(e.id)?.fingerprint === e.fingerprint && stored.get(e.id)?.messageId === e.messageId);
+      return [...added, ...updated].every((e) => {
+        const row = stored.get(e.id);
+        return row?.fingerprint === e.fingerprint && row.messageId === e.messageId && JSON.stringify(row.statedTerms ?? null) === JSON.stringify(e.statedTerms ?? null);
+      });
     },
   );
-  if (res.ok && added.length > 0) await audit(backend, token, ownerId, "finance.subscriptions.evidence", { added: added.length });
+  if (res.ok && (added.length > 0 || updated.length > 0)) await audit(backend, token, ownerId, "finance.subscriptions.evidence", { added: added.length, updated: updated.length });
   return { ok: res.ok, added: res.ok ? added.length : 0, duplicates: res.ok ? duplicates : 0 };
 }
 
