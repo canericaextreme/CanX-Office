@@ -65,7 +65,7 @@ describe("Subscriptions room layout with 120 saved emails", () => {
     expect(within(view).getByRole("button", { name: /^Needs review \(\d+\)$/ })).toBeTruthy();
     expect(within(view).getByText("Showing 20 of 40.")).toBeTruthy();
     expect(within(view).getAllByRole("listitem")).toHaveLength(20);
-    within(view).getAllByRole("listitem").forEach((li) => expect(li.textContent).toMatch(/Sept/));
+    within(view).getAllByRole("listitem").forEach((li) => expect(li.textContent).toMatch(/2026-09|Sep/));
     // The hub (month cards, mail review) is replaced, not stacked above.
     expect(screen.queryByRole("button", { name: /^October 2026: 40 item/ })).toBeNull();
     expect(screen.queryByText(/Saved mail review and Ignore rules/)).toBeNull();
