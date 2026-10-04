@@ -95,8 +95,18 @@ export function SubscriptionManager() {
     setBusy(true);
     const res = await saveSubscriptionList({ data: { accessToken: owner.accessToken, subscriptions: next } }).catch(() => null);
     setBusy(false);
-    setMessage(res?.message ?? "The save could not be verified.");
-    if (res?.ok) { setEditing(null); load(); }
+    if (res?.ok) {
+      // Verified save: close the editor, return to the read view, say "Saved".
+      setMessage("Saved.");
+      toast.success("Saved");
+      setEditing(null);
+      load();
+    } else {
+      // Failure keeps the form open with the entered values intact.
+      const msg = res?.message ?? "The save could not be verified.";
+      setMessage(msg);
+      toast.error(msg);
+    }
   }
 
   async function mark(id: string, review: "reviewed" | "dismissed") {
@@ -377,7 +387,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       {urlError && <p id="website-url-error" role="alert" className="text-xs text-destructive sm:col-span-2">{urlError}</p>}
       <label className={`${field} sm:col-span-2`}>Notes<Input value={f.notes} onChange={set("notes")} /></label>
       <div className="flex gap-2 sm:col-span-2">
-        <Button type="submit" size="sm" disabled={busy || !f.name.trim()}>Save</Button>
+        <Button type="submit" size="sm" disabled={busy || !f.name.trim()}>{busy ? "Saving…" : "Save"}</Button>
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
     </form>
