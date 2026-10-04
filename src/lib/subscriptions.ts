@@ -258,8 +258,9 @@ export function addDays(dateStr: string, days: number) {
 
 export const OFFICE_TIMEZONE = "America/Whitehorse";
 
-export function zonedDate(iso: string) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+export function zonedDate(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
 export function formatZoned(iso: string) {
@@ -402,7 +403,16 @@ export interface LastCheck {
   at: string;
   scope: string;
   complete: boolean;
-  mailboxes: Array<{ mailbox: string; status: "read" | "authorization_required" | "failed"; documents: number; partial: boolean }>;
+  mailboxes: MailboxCheck[];
+}
+
+export interface MailboxCheck {
+  mailbox: string;
+  status: "read" | "authorization_required" | "failed";
+  documents: number;
+  partial: boolean;
+  slot?: number;
+  hasMore?: boolean;
 }
 
 export function cleanLastCheck(input: unknown): LastCheck | null {
