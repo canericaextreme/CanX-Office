@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Eye, Loader2, Building2, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -261,7 +261,7 @@ export function SecondEyesPanel() {
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Claude — Second Eyes, independent review"
+          aria-label="Claude connection"
           className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
         >
           <Eye className="h-5 w-5" />
@@ -273,7 +273,7 @@ export function SecondEyesPanel() {
         </TooltipTrigger>
       </SheetTrigger>
       <TooltipContent side="bottom" align="end" collisionPadding={12} className="w-48 max-w-[calc(100vw-2rem)] whitespace-normal break-words border border-slate-600 bg-slate-950 px-3 py-2 text-center text-sm leading-relaxed text-white">
-        Ask Elsie about Claude
+        Claude connection
       </TooltipContent>
       </Tooltip>
       </TooltipProvider>
@@ -284,14 +284,22 @@ export function SecondEyesPanel() {
         className="flex w-full max-w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-lg"
       >
         <SheetHeader className="border-b border-border p-4 text-left">
-          <SheetTitle className="text-base">Claude — Second Eyes</SheetTitle>
+          <SheetTitle className="text-base">Claude connection</SheetTitle>
           <p className="text-xs text-muted-foreground">
-            An independent review. Claude does not run this office, cannot approve, build, spend, send or change
-            anything, and may disagree with the Office Manager. John decides.
+            Open Claude or use its Office build entry below. Reviews in this panel are read-only;
+            they do not edit or publish the office. John decides.
           </p>
         </SheetHeader>
 
         <div className="space-y-4 p-4">
+          <nav aria-label="Claude connections" className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://claude.ai/" target="_blank" rel="noreferrer">Open Claude</a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/build-testing" onClick={() => setOpen(false)}>Claude builds in Office</Link>
+            </Button>
+          </nav>
           <div className="rounded-lg border border-border/60 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">Claude connection</span>
