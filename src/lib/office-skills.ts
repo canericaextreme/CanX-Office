@@ -537,6 +537,53 @@ export const UNMATCHED_MASTER_ENTRIES = [
 ];
 export function skillsForRoute(route: string): OfficeSkill[] { return OFFICE_SKILLS.filter((s) => s.routes.includes(route)); }
 
+/* ------------------------- readiness levels (installed / connected / executable / blocked) ------------------------- */
+
+/**
+ * Skills that a real, owner-verified Elsie action actually runs today (src/lib/manager.functions.ts).
+ * Listing a skill here never sets liveTested; owner verification remains separate.
+ */
+export const EXECUTABLE_ACTIONS: Record<string, string> = {
+  "office-manager.skill-router": "Runs on every typed and voice request (deterministic selection, at most three task skills).",
+  "approvals.owner-decision-filter": "Applied on every request; protected actions stop at an approval request for John.",
+  "office-manager.daily-review": "\"Check all the rooms\" — reads every room fresh as the owner and saves the result as an Office Health room report.",
+  "finance.subscription-review": "\"Follow all the skills in the Subscriptions room\" — runs with a saved Subscriptions room report.",
+  "subscriptions.renewal-check": "Runs in the Subscriptions room-wide skill check.",
+  "subscriptions.plan-change-review": "Runs in the Subscriptions room-wide skill check.",
+  "subscriptions.tool-value-review": "Runs in the Subscriptions room-wide skill check.",
+  "subscriptions.vendor-dependency-check": "Runs in the Subscriptions room-wide skill check.",
+  "finance.receipt-reconciliation": "Runs in the Subscriptions room-wide skill check (needs two-step sign-in for receipts).",
+  "finance.budget-variance-review": "Runs in the Subscriptions room-wide skill check (needs two-step sign-in for receipts).",
+  "finance.renewal-watch": "Runs in the Subscriptions room-wide skill check.",
+};
+
+export type SkillReadiness = "executable" | "connected" | "blocked" | "parked" | "reserved" | "legacy";
+export function skillReadiness(s: OfficeSkill): SkillReadiness {
+  if (s.kind === "reserved") return "reserved";
+  if (s.kind === "legacy") return "legacy";
+  if (!s.instructionReady) return "parked";
+  if (EXECUTABLE_ACTIONS[s.id]) return "executable";
+  return s.toolConnected ? "connected" : "blocked";
+}
+
+/** John's intended loop, in order, using the saved core definitions only. */
+export const DAILY_LOOP_IDS = ["office-manager.daily-review", "office-manager.skill-router", "approvals.owner-decision-filter", "finance.subscription-review", "research.source-check", "security.incident-triage"] as const;
+export function dailyLoop(): Array<{ skill: OfficeSkill; readiness: SkillReadiness; how: string }> {
+  return DAILY_LOOP_IDS.map((id) => OFFICE_SKILLS.find((s) => s.id === id)).filter((s): s is OfficeSkill => Boolean(s)).map((skill) => {
+    const readiness = skillReadiness(skill);
+    const how = EXECUTABLE_ACTIONS[skill.id] ?? (skill.missingInputs.length ? `Advice only from what John supplies. Missing: ${skill.missingInputs.join("; ")}` : "Advice from connected room records; no dedicated action yet.");
+    return { skill, readiness, how };
+  });
+}
+
+/** Rooms in the current office synopsis with no approved instruction in the saved master map. Shown as gaps, never invented. */
+export const INSTRUCTION_GAPS: Array<{ route: string; room: string; gap: string }> = [
+  { route: "/analytics", room: "Analytics", gap: "No approved Analytics instructions exist in the saved master map. Needs John's definition before anything is installed." },
+  { route: "/family-continuity", room: "Family Continuity", gap: "Only the Training jobs are mapped. No approved family-continuity instructions (for example handover or family access) exist yet." },
+];
+ROOM_SKILL_MAP["/analytics"] = { masterRooms: [], coverage: "draft-gap", note: "No approved instructions — gap waiting for John's definition." };
+ROOM_SKILL_MAP["/family-continuity"] = { masterRooms: ["Training"], coverage: "mapped", note: "Hosts the central Skills page. Family-continuity instructions are a gap." };
+
 /* ------------------------------ deterministic runtime router ------------------------------ */
 
 const ALWAYS = ["office-manager.skill-router", "approvals.owner-decision-filter"];
