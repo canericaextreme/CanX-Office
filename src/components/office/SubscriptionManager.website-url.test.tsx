@@ -40,6 +40,26 @@ describe("cleanWebsiteUrl", () => {
   });
 });
 
+describe("Service card website link", () => {
+  it("shows Open website on the card and clicking it does not open details", async () => {
+    render(<SubscriptionManager />);
+    const link = await screen.findByRole("link", { name: /Open the Lovable website/ });
+    expect(link.getAttribute("href")).toBe("https://lovable.dev/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    fireEvent.click(link);
+    expect(screen.queryByRole("button", { name: /Back to Subscriptions/ })).toBeNull();
+    // Card click still opens details.
+    fireEvent.click(screen.getByRole("button", { name: /^Lovable:/ }));
+    expect(await screen.findByRole("button", { name: /Back to Subscriptions/ })).toBeTruthy();
+  });
+
+  it("cards without a saved URL show no website link", async () => {
+    render(<SubscriptionManager />);
+    await screen.findByRole("button", { name: /^Lovable:/ });
+    expect(screen.queryByRole("link", { name: /Open the Supabase website/ })).toBeNull();
+  });
+});
+
 describe("Service website link", () => {
   it("shows an Open website link only when a URL is saved, per service", async () => {
     render(<SubscriptionManager />);
