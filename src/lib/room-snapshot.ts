@@ -105,12 +105,12 @@ export interface RoomSkillInfo {
 
 export function roomSkillInfo(route: string): RoomSkillInfo {
   const linked = skillsForRoute(route);
-  const ready = linked.filter((s) => s.kind === "core" && s.instructionReady);
+  const ready = linked.filter((s) => s.instructionReady);
   return {
     registryVersion: SKILLS_REGISTRY_VERSION,
     coverage: ROOM_SKILL_MAP[route]?.coverage ?? "auxiliary",
     ready: ready.map((s) => ({ id: s.id, name: s.name, version: s.version })),
-    notInstalled: linked.filter((s) => !(s.kind === "core" && s.instructionReady)).map((s) => ({ id: s.id, name: s.name, kind: s.kind })),
+    notInstalled: linked.filter((s) => !s.instructionReady).map((s) => ({ id: s.id, name: s.name, kind: s.kind })),
   };
 }
 
@@ -205,7 +205,7 @@ export function roomLimits(target: RoomTarget, sources: SourceResult[], skills: 
     if (s.kind === "live" && s.status !== "read") limits.push(`${s.label}: ${s.detail || "not read"} — nothing is reported for it.`);
   }
   if (!skills.ready.length) limits.push(skills.coverage === "reserved" ? "Reserved room: no skill is installed." : "No specialist skill is installed for this room; Elsie can still read it, save a room report, and create or assign a Work Board task using the built-in room procedure.");
-  if (skills.notInstalled.length) limits.push(`${skills.notInstalled.length} linked skill(s) are outlines or drafts and are not run.`);
+  if (skills.notInstalled.length) limits.push(`${skills.notInstalled.length} linked entry is reserved or history-only and is not run.`);
   if (target.route === "/safe-highways") limits.push("Safe Highways itself is outside this office and is never modified.");
   return limits;
 }
@@ -233,7 +233,7 @@ export function assembleSnapshot(target: RoomTarget, sources: SourceResult[], ch
 export const GENERAL_ROOM_PROCEDURE =
   "Built-in room procedure: (1) answer from this snapshot only, citing the checked time and source labels; static = app setup, device = not visible to you; " +
   "(2) to save a room report or create/assign a task, use only the existing tools and say it is saved only after the readback confirms it; " +
-  "(3) for anything needing a specialist skill that is not installed here, say so and offer a Work Board task instead.";
+  "(3) installed instructions grant no new capability: name any missing connector or input and offer a Work Board task instead.";
 
 /** Text block for Elsie. Record titles are fenced as untrusted data. */
 export function snapshotForModel(s: RoomSnapshot, why: "current" | "named"): string {
