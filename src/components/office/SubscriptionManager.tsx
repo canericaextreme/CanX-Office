@@ -151,7 +151,9 @@ export function SubscriptionManager() {
               <Detail label="Usage and top-ups" value="Separate from the confirmed fixed rate and Finance paid totals" />
             </dl>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setEditing(focusedService)}><Pencil className="h-4 w-4" />Edit service</Button>
+              {editing?.id === focusedService.id
+                ? <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Close editor</Button>
+                : <Button size="sm" variant="outline" onClick={() => setEditing(subs.find((s) => s.id === focusedService.id) ?? null)}><Pencil className="h-4 w-4" />Edit {focusedService.name}</Button>}
               <Button size="sm" variant="ghost" aria-label={`Remove ${focusedService.name}`} disabled={busy} onClick={() => persist(subs.filter((x) => x.id !== focusedService.id))}><Trash2 className="h-4 w-4" />Remove</Button>
             </div>
           </section>
@@ -308,7 +310,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
   const field = "space-y-1 text-xs";
   const select = "h-10 w-full rounded-md border border-input bg-background px-2 text-sm";
   return (
-    <form className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2" onSubmit={(e) => {
+    <form aria-label={value.id ? `Edit ${value.name}` : "Add a service"} data-service-id={value.id || "new"} ref={(el) => el?.scrollIntoView?.({ block: "nearest" })} className="grid gap-3 rounded-md border-2 border-canx-blue/60 p-3 sm:grid-cols-2" onSubmit={(e) => {
       e.preventDefault();
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
         ? { amount, currency: f.currency.toUpperCase(), asOf: f.asOf, source: "John" } : null;
@@ -335,6 +337,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         notes: f.notes,
       });
     }}>
+      <h3 className="text-sm font-semibold sm:col-span-2">{value.id ? `Editing: ${value.name}` : "Adding a new service"}</h3>
       <label className={field}>Service name<Input required value={f.name} onChange={set("name")} /></label>
       <label className={field}>Plan name (optional)<Input value={f.planName} onChange={set("planName")} placeholder="Only when known" /></label>
       <label className={field}>Scope<select className={select} value={f.scope} onChange={set("scope")}><option value="office">Office</option><option value="personal">Personal</option><option value="unknown">Unknown</option></select></label>
