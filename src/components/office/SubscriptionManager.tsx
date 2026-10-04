@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, CalendarClock, ChevronRight, ExternalLink, ListChecks, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,8 +96,18 @@ export function SubscriptionManager() {
     setBusy(true);
     const res = await saveSubscriptionList({ data: { accessToken: owner.accessToken, subscriptions: next } }).catch(() => null);
     setBusy(false);
-    setMessage(res?.message ?? "The save could not be verified.");
-    if (res?.ok) { setEditing(null); load(); }
+    if (res?.ok) {
+      // Verified save: close the editor, return to the read view, say "Saved".
+      setMessage("Saved.");
+      toast.success("Saved");
+      setEditing(null);
+      load();
+    } else {
+      // Failure keeps the form open with the entered values intact.
+      const msg = res?.message ?? "The save could not be verified.";
+      setMessage(msg);
+      toast.error(msg);
+    }
   }
 
   async function mark(id: string, review: "reviewed" | "dismissed") {
@@ -134,6 +145,7 @@ export function SubscriptionManager() {
       <Card className="border-border bg-card">
         <CardHeader><CardTitle className="text-base">Office subscriptions</CardTitle></CardHeader>
         <CardContent className="space-y-4" aria-live="polite">
+          {message && <p className="text-xs text-muted-foreground">{message}</p>}
           <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setServiceFocus(null); }}><ArrowLeft className="h-4 w-4" />Back to Subscriptions</Button>
           <section aria-label={`${focusedService.name} subscription details`} className="space-y-4 rounded-md border border-canx-blue/40 bg-canx-blue/5 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -377,7 +389,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       {urlError && <p id="website-url-error" role="alert" className="text-xs text-destructive sm:col-span-2">{urlError}</p>}
       <label className={`${field} sm:col-span-2`}>Notes<Input value={f.notes} onChange={set("notes")} /></label>
       <div className="flex gap-2 sm:col-span-2">
-        <Button type="submit" size="sm" disabled={busy || !f.name.trim()}>Save</Button>
+        <Button type="submit" size="sm" disabled={busy || !f.name.trim()}>{busy ? "Saving…" : "Save"}</Button>
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
     </form>
