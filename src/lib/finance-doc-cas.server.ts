@@ -94,7 +94,8 @@ export async function casUpdateFinanceDoc(opts: {
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object") {
-    return `{${Object.keys(value as Doc).sort().map((k) => `${JSON.stringify(k)}:${canonical((value as Doc)[k])}`).join(",")}}`;
+    // Keys holding `undefined` are dropped, exactly as JSON/jsonb drops them on write.
+    return `{${Object.keys(value as Doc).filter((k) => (value as Doc)[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonical((value as Doc)[k])}`).join(",")}}`;
   }
   return JSON.stringify(value ?? null);
 }
