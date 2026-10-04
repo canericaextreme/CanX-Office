@@ -99,7 +99,11 @@ export function SubscriptionManager() {
       return;
     }
     setBusy(true);
-    const res = await saveSubscriptionList({ data: { accessToken: owner.accessToken, subscriptions: next } }).catch(() => null);
+    let thrown = "";
+    const res = await saveSubscriptionList({ data: { accessToken: owner.accessToken, subscriptions: next } }).catch((e: unknown) => {
+      thrown = e instanceof Error && e.message ? e.message.slice(0, 200) : "";
+      return null;
+    });
     setBusy(false);
     if (res?.ok) {
       // Verified save: close the editor, return to the read view, say "Saved".
@@ -109,9 +113,11 @@ export function SubscriptionManager() {
       load();
     } else {
       // Failure keeps the form open with the entered values intact.
-      const msg = res?.message ?? "The save could not be verified.";
+      const msg = res?.message ?? `Not saved: the office could not reach the save service${thrown ? ` (${thrown})` : ""}. Your typing is kept — try Save again.`;
       setMessage(msg);
       toast.error(msg);
+      // Refresh what is actually stored; the open form keeps John's draft.
+      load();
     }
   }
 
