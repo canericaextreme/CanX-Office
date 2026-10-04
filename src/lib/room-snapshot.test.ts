@@ -126,9 +126,10 @@ describe("room targeting and skills", () => {
     expect(roomsForRequest("what's in this room?", "/legal")).toEqual([{ route: "/legal", why: "current" }]);
     expect(roomsForRequest("hello", undefined)).toEqual([]);
   });
-  it("room routing adds only instruction-ready core skills; empty room keeps base routing", () => {
-    const fin = routeSkillsForRoom("", "/subscriptions");
+  it("room routing selects the requested installed skill; empty requests keep only the always-on pair", () => {
+    const fin = routeSkillsForRoom("subscription review", "/subscriptions");
     expect(fin.skills.map((s) => s.id)).toContain("finance.subscription-review");
+    expect(routeSkillsForRoom("", "/subscriptions").skills).toEqual(routeSkills("").skills);
     expect(routeSkillsForRoom("hello", "/future").skills).toEqual(routeSkills("hello").skills);
     for (const t of ROOM_TARGETS) {
       const snap = assembleSnapshot(t, [], "2026-10-03T00:00:00Z", "b");

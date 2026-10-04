@@ -459,7 +459,7 @@ function installed(masterRoom: string, prefix: string, job: string, routes: stri
   };
 }
 
-const INSTALLED: OfficeSkill[] = INSTALLED_ROWS.flatMap(([room, prefix, names, routes, y, r, c, m, tc]) => names.map((name) => installed(room, prefix, name, routes, y, r)));
+const INSTALLED: OfficeSkill[] = INSTALLED_ROWS.flatMap(([room, prefix, names, routes, y, r]) => names.map((name) => installed(room, prefix, name, routes, y, r)));
 
 /* ------------------------------ installed actual-room additions ------------------------------ */
 

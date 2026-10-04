@@ -32,13 +32,12 @@ export interface RoomCheckRecord {
   failure: string;
 }
 
-/** The router's room skills (minus the always-on pair) must equal what the snapshot advertises. */
+/** Every advertised installed skill must be selectable by its exact job name in this room. */
 export function skillRouteMatches(snapshot: RoomSnapshot): boolean {
-  const routed = routeSkillsForRoom("", snapshot.route).skills.map((s) => s.id);
-  const always = routeSkillsForRoom("", null).skills.map((s) => s.id);
-  const expected = snapshot.skills.ready.map((s) => s.id).filter((id) => !always.includes(id)).slice(0, 3);
-  const got = routed.filter((id) => !always.includes(id));
-  return expected.length === got.length && expected.every((id) => got.includes(id));
+  return snapshot.skills.ready.every((skill) => {
+    const job = skill.name.split(" — ").at(-1) ?? skill.name;
+    return routeSkillsForRoom(`Run ${job}`, snapshot.route).skills.some((selected) => selected.id === skill.id);
+  });
 }
 
 export function evaluateSnapshot(
