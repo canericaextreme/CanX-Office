@@ -304,7 +304,6 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
     autoRenewStatus: value.autoRenewStatus ?? "unknown",
     amount: value.knownCost ? String(value.knownCost.amount) : "",
     currency: value.knownCost?.currency ?? "",
-    asOf: value.knownCost?.asOf ?? "",
     renewal: value.nextRenewal?.date ?? "",
     basis: value.nextRenewal?.basis ?? "estimated",
     notes: value.notes,
@@ -330,8 +329,13 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         setAmountError("Enter a valid amount with up to 2 decimal places (e.g. 224.50), or leave it blank.");
         return;
       }
+      // Saving a valid cost + currency IS the owner's confirmation — no separate
+      // control. An unchanged cost keeps its original confirmation date; a new or
+      // changed cost is dated today. Unknown costs and email-extracted terms are
+      // never confirmed by saving unrelated fields.
+      const unchanged = Boolean(value.knownCost && amount !== null && value.knownCost.amount === amount && value.knownCost.currency === f.currency.toUpperCase());
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
-        ? { amount, currency: f.currency.toUpperCase(), asOf: f.asOf, source: "John" } : null;
+        ? { amount, currency: f.currency.toUpperCase(), asOf: unchanged ? value.knownCost!.asOf : new Date().toISOString().slice(0, 10), source: "John" } : null;
       // A changed confirmed cost moves the old one into dated history; nothing is lost.
       const history = value.knownCost && (!cost || cost.amount !== value.knownCost.amount || cost.currency !== value.knownCost.currency)
         ? [...value.history, { date: value.knownCost.asOf || new Date().toISOString().slice(0, 10), amount: value.knownCost.amount, currency: value.knownCost.currency, source: value.knownCost.source }]
@@ -364,7 +368,6 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       <label className={field}>Sender domains (e.g. openai.com)<Input value={f.domains} onChange={set("domains")} /></label>
       <label className={field}>Owner-confirmed fixed rate (leave blank if unknown)<Input type="text" inputMode="decimal" autoComplete="off" placeholder="e.g. 224.50" value={f.amount} onChange={set("amount")} aria-invalid={Boolean(amountError)} />{amountError && <span className="block text-xs text-red-400">{amountError}</span>}</label>
       <label className={field}>Currency (e.g. CAD, USD)<Input maxLength={3} value={f.currency} onChange={set("currency")} /></label>
-      <label className={field}>Cost confirmed on<Input type="date" value={f.asOf} onChange={set("asOf")} /></label>
       <label className={field}>Billing cycle<select className={select} value={f.cadence} onChange={set("cadence")}><option value="unknown">Unknown</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="other">Other</option></select></label>
       <label className={field}>Recurring schedule<select className={select} value={f.recurrenceStatus} onChange={set("recurrenceStatus")}><option value="unknown">Unconfirmed</option><option value="recurring">Recurring</option><option value="not-recurring">Not recurring</option><option value="usage-based">Usage-based</option></select></label>
       <label className={field}>Auto-renew<select className={select} value={f.autoRenewStatus} onChange={set("autoRenewStatus")}><option value="unknown">Not recorded</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label>
