@@ -330,8 +330,13 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         setAmountError("Enter a valid amount with up to 2 decimal places (e.g. 224.50), or leave it blank.");
         return;
       }
+      // Saving a valid cost + currency IS the owner's confirmation — no separate
+      // control. An unchanged cost keeps its original confirmation date; a new or
+      // changed cost is dated today. Unknown costs and email-extracted terms are
+      // never confirmed by saving unrelated fields.
+      const unchanged = Boolean(value.knownCost && amount !== null && value.knownCost.amount === amount && value.knownCost.currency === f.currency.toUpperCase());
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
-        ? { amount, currency: f.currency.toUpperCase(), asOf: f.asOf, source: "John" } : null;
+        ? { amount, currency: f.currency.toUpperCase(), asOf: unchanged ? value.knownCost!.asOf : new Date().toISOString().slice(0, 10), source: "John" } : null;
       // A changed confirmed cost moves the old one into dated history; nothing is lost.
       const history = value.knownCost && (!cost || cost.amount !== value.knownCost.amount || cost.currency !== value.knownCost.currency)
         ? [...value.history, { date: value.knownCost.asOf || new Date().toISOString().slice(0, 10), amount: value.knownCost.amount, currency: value.knownCost.currency, source: value.knownCost.source }]
