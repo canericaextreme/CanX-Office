@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/office/StatusBadge";
 import { useOwnerSession } from "@/lib/owner-session";
 import {
   STARTER_SUBSCRIPTIONS,
+  cleanWebsiteUrl,
   suggestedStarters,
   priceChangeFlags,
   renewalWarnings,
@@ -150,6 +151,9 @@ export function SubscriptionManager() {
               <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis} · ${focusedService.nextRenewal.source}` : "Unknown"} />
               <Detail label="Usage and top-ups" value="Separate from the confirmed fixed rate and Finance paid totals" />
             </dl>
+            {focusedService.websiteUrl && (
+              <a className="inline-flex min-h-11 items-center gap-1 rounded-md border border-canx-blue/60 px-3 text-sm font-medium text-canx-blue underline underline-offset-2" href={focusedService.websiteUrl} target="_blank" rel="noreferrer" aria-label={`Open the ${focusedService.name} website in a new tab`}>Open website<ExternalLink className="h-4 w-4" /></a>
+            )}
             <div className="flex gap-2">
               {editing?.id === focusedService.id
                 ? <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Close editor</Button>
@@ -304,14 +308,21 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
     renewal: value.nextRenewal?.date ?? "",
     basis: value.nextRenewal?.basis ?? "estimated",
     notes: value.notes,
+    website: value.websiteUrl ?? "",
   });
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const [urlError, setUrlError] = useState("");
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setF({ ...f, [k]: e.target.value }); if (k === "website") setUrlError(""); };
   const amount = f.amount.trim() === "" ? null : Number(f.amount);
   const field = "space-y-1 text-xs";
   const select = "h-10 w-full rounded-md border border-input bg-background px-2 text-sm";
   return (
     <form aria-label={value.id ? `Edit ${value.name}` : "Add a service"} data-service-id={value.id || "new"} className="grid gap-3 rounded-md border-2 border-canx-blue/60 p-3 sm:grid-cols-2" onSubmit={(e) => {
       e.preventDefault();
+      const websiteUrl = cleanWebsiteUrl(f.website);
+      if (f.website.trim() && !websiteUrl) {
+        setUrlError("Enter a full web address starting with http:// or https://, or leave it blank.");
+        return;
+      }
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
         ? { amount, currency: f.currency.toUpperCase(), asOf: f.asOf, source: "John" } : null;
       // A changed confirmed cost moves the old one into dated history; nothing is lost.
@@ -335,6 +346,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         nextRenewal: f.renewal ? { date: f.renewal, basis: f.basis as "explicit" | "estimated", source: "John" } : null,
         history,
         notes: f.notes,
+        websiteUrl,
       });
     }}>
       <h3 className="text-sm font-semibold sm:col-span-2">{value.id ? `Editing: ${value.name}` : "Adding a new service"}</h3>
@@ -351,6 +363,8 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       <label className={field}>Auto-renew<select className={select} value={f.autoRenewStatus} onChange={set("autoRenewStatus")}><option value="unknown">Not recorded</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label>
       <label className={field}>Next renewal date<Input type="date" value={f.renewal} onChange={set("renewal")} /></label>
       <label className={field}>Renewal date is<select className={select} value={f.basis} onChange={set("basis")}><option value="estimated">My estimate</option><option value="explicit">Stated on a bill or notice</option></select></label>
+      <label className={`${field} sm:col-span-2`}>Website link (optional)<Input type="text" inputMode="url" placeholder="https://example.com" value={f.website} onChange={set("website")} aria-invalid={urlError ? true : undefined} aria-describedby={urlError ? "website-url-error" : undefined} /></label>
+      {urlError && <p id="website-url-error" role="alert" className="text-xs text-destructive sm:col-span-2">{urlError}</p>}
       <label className={`${field} sm:col-span-2`}>Notes<Input value={f.notes} onChange={set("notes")} /></label>
       <div className="flex gap-2 sm:col-span-2">
         <Button type="submit" size="sm" disabled={busy || !f.name.trim()}>Save</Button>

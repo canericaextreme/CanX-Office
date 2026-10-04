@@ -33,6 +33,7 @@ export interface SubscriptionRecord {
   nextRenewal: { date: string; basis: RenewalBasis; source: string } | null;
   history: BillingEntry[];
   notes: string;
+  websiteUrl?: string | undefined;
   updatedAt: string;
 }
 
@@ -137,6 +138,18 @@ const ccy = (v: unknown) => {
 const list = (v: unknown, max: number) =>
   Array.isArray(v) ? v.map((x) => str(x, 120).toLowerCase()).filter(Boolean).slice(0, max) : [];
 
+export function cleanWebsiteUrl(input: unknown): string | undefined {
+  const raw = str(input, 500).trim();
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return undefined;
+    return u.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export function cleanSubscription(input: unknown): SubscriptionRecord | null {
   const r = (input ?? {}) as Record<string, unknown>;
   const name = str(r["name"], 120);
@@ -166,6 +179,7 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
       return date ? [{ date, amount: money(e["amount"]), currency: ccy(e["currency"]), source: str(e["source"], 200) }] : [];
     }) : [],
     notes: str(r["notes"], 1000),
+    websiteUrl: cleanWebsiteUrl(r["websiteUrl"]),
     updatedAt: str(r["updatedAt"], 40),
   };
 }
