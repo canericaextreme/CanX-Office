@@ -1,4 +1,5 @@
 import type { SubscriptionEvidence, SubscriptionRecord } from "./subscriptions";
+import { preferenceFor, type MailPreferences } from "./mail-preferences";
 
 export const ELSIE_REVIEW_BY = "elsie-deterministic" as const;
 
@@ -50,8 +51,9 @@ export function routineReviewDecision(e: SubscriptionEvidence, subscriptions: Su
   return { eligible: false, reason: "This evidence type is not eligible for automatic routine review." };
 }
 
-export function selectRoutineReviews(evidence: SubscriptionEvidence[], subscriptions: SubscriptionRecord[]): RoutineReviewItem[] {
+export function selectRoutineReviews(evidence: SubscriptionEvidence[], subscriptions: SubscriptionRecord[], preferences?: MailPreferences): RoutineReviewItem[] {
   return evidence.flatMap((e) => {
+    if (preferences && preferenceFor(preferences, e.mailbox, e.messageId, e.from).action === "ignore") return [];
     const decision = routineReviewDecision(e, subscriptions);
     return decision.eligible ? [{ id: e.id, vendor: e.vendor || "Unknown service", reason: decision.reason, mailbox: e.mailbox, messageId: e.messageId, receivedAt: e.receivedAt ?? "" }] : [];
   });

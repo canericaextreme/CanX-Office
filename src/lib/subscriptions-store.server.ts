@@ -19,6 +19,7 @@ import {
 } from "./subscriptions";
 import { ELSIE_REVIEW_BY, selectRoutineReviews, type RoutineReviewItem } from "./subscriptions-review";
 import { cleanGmailScanConfig, type GmailScanConfig } from "./gmail-scan-window";
+import { cleanMailPreferences } from "./mail-preferences";
 
 type Backend = typeof import("./canx-backend.server");
 
@@ -107,7 +108,7 @@ export async function reviewRoutineEvidence(token: string, ownerId: string): Pro
     (d) => {
       const evidence = cleanEvidenceList(d["subscriptionEvidence"]);
       const subscriptions = cleanSubscriptionList(d["subscriptions"] ?? []) ?? [];
-      selected = selectRoutineReviews(evidence, subscriptions);
+      selected = selectRoutineReviews(evidence, subscriptions, cleanMailPreferences(d["mailPreferences"]));
       const ids = new Set(selected.map((item) => item.id));
       alreadyReviewed = evidence.filter((e) => e.review === "reviewed").length;
       leftForJohn = evidence.filter((e) => e.review === "needs-review" && !ids.has(e.id)).length;
