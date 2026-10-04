@@ -180,7 +180,7 @@ const CORE: OfficeSkill[] = [
     ownerApprovalRequired: "Any purchase, upgrade, cancellation or money commitment.",
     version: "1.0.0", lastReviewed: "2026-10-03", provenance: `${MASTER}: 'Example: Finance — Subscription Review' (verbatim fields); build order 4.`,
     instructionReady: true, toolConnected: false,
-    connectedInputs: ["Finance receipt aggregate (and receipt details when asked)"],
+    connectedInputs: ["Finance receipt aggregate (counts/totals)", "Subscription names", "Mail evidence counts"],
     missingInputs: ["Subscription records and billing evidence are shown in the Subscriptions room but are not yet in Elsie's context", "No usage data source"],
     routingTested: true, liveTested: false,
   },
@@ -259,7 +259,7 @@ const CORE: OfficeSkill[] = [
     ownerApprovalRequired: "Yellow/red task changes per existing approval rules.",
     version: "1.0.0", lastReviewed: "2026-10-03", provenance: `${MASTER}: Operations room skill 'Project Health Review'; build order 7. ${EXPANDED}`,
     instructionReady: true, toolConnected: true,
-    connectedInputs: ["Work Board tasks/projects"], missingInputs: [],
+    connectedInputs: ["Work Board tasks", "Recent change log", "Project register metadata"], missingInputs: ["Resource allocation/calendar", "Milestone tracking logic"],
     routingTested: true, liveTested: false,
   },
   {
@@ -459,7 +459,7 @@ function installed(masterRoom: string, prefix: string, job: string, routes: stri
   };
 }
 
-const INSTALLED: OfficeSkill[] = INSTALLED_ROWS.flatMap(([room, prefix, names, routes, y, r]) => names.map((name) => installed(room, prefix, name, routes, y, r)));
+const INSTALLED: OfficeSkill[] = INSTALLED_ROWS.flatMap(([room, prefix, names, routes, y, r, c, m, tc]) => names.map((name) => installed(room, prefix, name, routes, y, r)));
 
 /* ------------------------------ installed actual-room additions ------------------------------ */
 
