@@ -21,7 +21,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 12 | Subscriptions | subscriptions, mail evidence, mail rules | Subscriptions (4), Finance (4) | No vendor usage data; no exact receipt linkage |
 | 13 | Finance | receipt totals (two-step) | Finance (4) | No bank/accounting ledger |
 | 14 | Work Board | tasks, change log | Operations (4), Foreman (4) | No crew dispatch / calendar |
-| 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only |
+| 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending |
 | 16 | Safe Highways | static boundary | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
 | 17 | Research | files, reports only | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
@@ -41,3 +41,9 @@ Installed = instructions present · Connected = every input readable · Executab
 1. Shared storage for the Office Team roster and Idea Lab scores (would need a schema change, so John must approve).
 2. Owner opens each room signed in on the current build (release gate).
 3. Confirm the GitHub repository variable/secret for the Codex job, then run one owner-requested build.
+
+## Claude coding and builds (4 October 2026)
+- Claude has a separate on-demand build entry in Build & Testing, targeting `canericaextreme/CanX-Office` only. Its `canx-claude.yml` runner edits allowed source files and the fixed runner runs typecheck/tests/build. A separate trusted publisher opens a draft change; Claude itself has no GitHub write or deployment credential. Completed checked changes follow the owner's standing release policy. This is not equivalent to all connectors available in this ChatGPT session.
+- John approved US$10 per build. The CLI uses `--max-budget-usd 10`; no automatic larger budget or retry is authorised. Builds require the shared private GitHub dispatch connection and owner/MFA verification. GitHub Actions requires a separate repository secret for the Claude API; presence and a real successful build are not yet verified.
+- `claude-chat` is a separate Supabase Edge Function reading the existing Vault key at request time. The browser invokes it by name. It validates owner/MFA, checks existing budget reservations before paid replies, exposes a non-billable models check, and never returns the key. A chat reply is not a code edit or build.
+- No Finance or Elsie voice source file was changed. A live owner-authenticated Claude reply and build remain required before marking either path verified.

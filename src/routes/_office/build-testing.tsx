@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClaudeBuildPanel } from "@/components/office/ClaudeBuildPanel";
 import { CodexBuildPanel } from "@/components/office/CodexBuildPanel";
 import { OfficeHealthPanel } from "@/components/office/OfficeHealthPanel";
 import { RoomConnectionCheck } from "@/components/office/RoomConnectionCheck";
@@ -32,6 +33,7 @@ function BuildTesting() {
     <RoomShell>
       <div className="space-y-6">
         <CodexBuildPanel />
+        <ClaudeBuildPanel />
         <OfficeHealthPanel />
         <RoomConnectionCheck />
         <Card className="border-border bg-card">

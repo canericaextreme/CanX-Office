@@ -52,7 +52,7 @@ export const OFFICE_CONNECTIONS: OfficeConnection[] = [
     id: "claude",
     name: "Claude — independent reviewer (Anthropic)",
     purpose:
-      "A second opinion on plans and security, clearly labelled as Claude review. Uses the same owner sign-in, two-step verification and spending limits as the Office Manager. Needs ANTHROPIC_API_KEY and ANTHROPIC_MODEL on the server. Nothing in this office speaks as Claude.",
+      "A second opinion on plans and security, clearly labelled as Claude review. Uses the same owner sign-in, two-step verification and spending limits as the Office Manager. Needs the Claude credential and a deliberately selected model on the server. Nothing in this office speaks as Claude.",
     stage: "next",
   },
 
