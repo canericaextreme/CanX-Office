@@ -245,3 +245,8 @@
 
 ## Subscription review-routing follow-up
 - [ ] Do not blanket-approve existing needs-review records; design exception routing with explicit source/confidence rules and separate review state.
+
+## Service edit selection fix (2026-10-04)
+- [x] Edit opens the exact selected service by stable ID across switching, cancel and reopen; saves only that record.
+- [ ] Owner signed-in check on Lovable/OpenAI edit remains required.
+- [ ] Resume full-office audit/skill installation (paused for this fix).
