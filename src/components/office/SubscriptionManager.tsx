@@ -270,7 +270,7 @@ export function SubscriptionManager() {
           </section>
         )}
 
-        {editing && <SubscriptionEditor key={editing.id || "new-service"} value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => {
+        {editing && !serviceFocus && <SubscriptionEditor key={editing.id || "new-service"} value={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(rec) => {
           const exists = rec.id && subs.some((s) => s.id === rec.id);
           persist(exists ? subs.map((s) => (s.id === rec.id ? rec : s)) : [...subs, rec]);
         }} />}
@@ -310,7 +310,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
   const field = "space-y-1 text-xs";
   const select = "h-10 w-full rounded-md border border-input bg-background px-2 text-sm";
   return (
-    <form aria-label={value.id ? `Edit ${value.name}` : "Add a service"} data-service-id={value.id || "new"} ref={(el) => el?.scrollIntoView?.({ block: "nearest" })} className="grid gap-3 rounded-md border-2 border-canx-blue/60 p-3 sm:grid-cols-2" onSubmit={(e) => {
+    <form aria-label={value.id ? `Edit ${value.name}` : "Add a service"} data-service-id={value.id || "new"} className="grid gap-3 rounded-md border-2 border-canx-blue/60 p-3 sm:grid-cols-2" onSubmit={(e) => {
       e.preventDefault();
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
         ? { amount, currency: f.currency.toUpperCase(), asOf: f.asOf, source: "John" } : null;
