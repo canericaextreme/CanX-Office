@@ -1,12 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { BookOpenCheck } from "lucide-react";
-import { skillsForRoute, ROOM_SKILL_MAP, type OfficeSkill } from "@/lib/office-skills";
+import { skillsForRoute, skillReadiness, INSTRUCTION_GAPS, ROOM_SKILL_MAP, type OfficeSkill } from "@/lib/office-skills";
 
 export function skillStatusLabel(s: OfficeSkill): string {
-  if (s.instructionReady) return s.toolConnected ? "Installed instructions · inputs connected · awaiting live test" : "Installed instructions · partial connection · awaiting live test";
-  if (s.kind === "reserved") return "Reserved";
-  if (s.kind === "legacy") return "Legacy entry";
-  return "Parked · instructions not installed";
+  switch (skillReadiness(s)) {
+    case "executable": return "Installed · connected · executable by Elsie · owner live test pending";
+    case "connected": return "Installed · inputs connected · advice only (no dedicated action)";
+    case "blocked": return `Installed · blocked for action: ${s.missingInputs[0] ?? "missing input"}`;
+    case "reserved": return "Reserved";
+    case "legacy": return "Legacy entry";
+    default: return "Parked · instructions not installed";
+  }
 }
 
 /** Read-only list of skills linked to this room. Instructions live only on the Office Skills page. */
@@ -22,7 +26,7 @@ export function RoomSkillsLink({ route }: { route: string }) {
         </h2>
         <Link to="/skills" className="text-xs font-medium text-primary underline-offset-2 hover:underline">Open Office Skills</Link>
       </div>
-      {map?.coverage === "draft-gap" && <p className="mt-1 text-xs text-muted-foreground">This room's proposed instruction remains parked until John authorises work here.</p>}
+      {INSTRUCTION_GAPS.filter((g) => g.route === route).map((g) => <p key={g.route} className="mt-1 text-xs text-muted-foreground">Gap: {g.gap}</p>)}
       {map?.coverage === "reserved" && <p className="mt-1 text-xs text-muted-foreground">Reserved room — no worker or skill is installed.</p>}
       {skills.length > 0 && (
         <ul className="mt-2 grid gap-1 sm:grid-cols-2">

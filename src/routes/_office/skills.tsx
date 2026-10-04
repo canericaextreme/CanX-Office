@@ -4,7 +4,7 @@ import { RoomShell } from "@/components/office/RoomShell";
 import { skillStatusLabel } from "@/components/office/RoomSkillsLink";
 import { Input } from "@/components/ui/input";
 import {
-  MASTER_SOURCE, OFFICE_SKILLS, ROOM_SKILL_MAP, SKILLS_REGISTRY_VERSION, STORAGE_DECISION, UNMATCHED_MASTER_ENTRIES,
+  MASTER_SOURCE, OFFICE_SKILLS, INSTRUCTION_GAPS, dailyLoop, skillReadiness, ROOM_SKILL_MAP, SKILLS_REGISTRY_VERSION, STORAGE_DECISION, UNMATCHED_MASTER_ENTRIES,
   type OfficeSkill, type SkillKind,
 } from "@/lib/office-skills";
 import { OFFICE_MAP_ROOMS } from "@/lib/office-map";
@@ -25,8 +25,8 @@ export const Route = createFileRoute("/_office/skills")({
 
 const GROUPS: Array<[SkillKind, string]> = [
   ["core", "Installed core skills (master build order)"],
-  ["outline", "Named room instructions (Subscriptions installed; other rooms parked)"],
-  ["draft", "Actual-room drafts (parked)"],
+  ["outline", "Named room instructions (installed office-wide)"],
+  ["draft", "Actual-room instructions"],
   ["reserved", "Reserved"],
   ["legacy", "Legacy entries (history only)"],
 ];
@@ -83,6 +83,21 @@ function Skills() {
           </section>
         );
       })}
+      <section aria-labelledby="loop-h" className="mb-6 rounded-lg border border-border bg-background/40 p-3">
+        <h2 id="loop-h" className="mb-2 text-sm font-semibold text-foreground">Elsie's review loop (in order)</h2>
+        <ol className="space-y-1 text-xs">
+          {dailyLoop().map(({ skill, readiness, how }, i) => (
+            <li key={skill.id}><span className="font-medium text-foreground">{i + 1}. {skill.name}</span> — <span className="uppercase tracking-wide">{readiness}</span>. <span className="text-muted-foreground">{how}</span></li>
+          ))}
+        </ol>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Totals: {(["executable", "connected", "blocked", "parked"] as const).map((k) => `${OFFICE_SKILLS.filter((s) => skillReadiness(s) === k).length} ${k}`).join(" · ")}. None is owner live-tested yet; the loop runs only when John asks.
+        </p>
+      </section>
+      <section aria-labelledby="gaps-h" className="mb-6">
+        <h2 id="gaps-h" className="mb-2 text-sm font-semibold text-foreground">Instruction gaps (no approved definition)</h2>
+        <ul className="space-y-1 text-xs text-muted-foreground">{INSTRUCTION_GAPS.map((g) => <li key={g.route}><span className="font-medium text-foreground">{g.room}</span> — {g.gap}</li>)}</ul>
+      </section>
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-semibold text-foreground">Room coverage (19 numbered rooms)</h2>
         <ul className="grid gap-1 text-xs sm:grid-cols-2">
