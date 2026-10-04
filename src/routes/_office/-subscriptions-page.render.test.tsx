@@ -1,14 +1,22 @@
 // @vitest-environment happy-dom
-import React from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/office/RoomShell", () => ({
-  RoomShell: ({ children }: { children: React.ReactNode }) => <div data-testid="room-shell">{children}</div>,
-}));
-vi.mock("@/components/office/SubscriptionManager", () => ({
-  SubscriptionManager: () => <div data-testid="saved-list">SAVED SUBSCRIPTION LIST</div>,
-}));
+// Mock factories run before the test file's own imports, so React is loaded
+// inside each factory rather than referenced from module scope.
+vi.mock("@/components/office/RoomShell", async () => {
+  const React = await import("react");
+  return {
+    RoomShell: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", { "data-testid": "room-shell" }, children),
+  };
+});
+vi.mock("@/components/office/SubscriptionManager", async () => {
+  const React = await import("react");
+  return {
+    SubscriptionManager: () => React.createElement("div", { "data-testid": "saved-list" }, "SAVED SUBSCRIPTION LIST"),
+  };
+});
 
 import { Route } from "@/routes/_office/subscriptions";
 
