@@ -197,3 +197,16 @@
 - [x] Reconcile Subscriptions inputs against its shared snapshot; instructions remain distinct from connectors and owner live verification.
 - [ ] BLOCKED on John: signed-in owner checks the Subscriptions room, dated two-mailbox catch-up/resume, totals/labels, month/review filters, expiry/promotion evidence and each installed procedure.
 - [ ] Do not install another room until John confirms Subscriptions works.
+
+## Subscription service cards and billing-statement extraction — 4 Oct 2026
+- [ ] Replace expanded service rows with bounded clickable cards and a focused detail/back view.
+- [ ] Preserve an optional owner-recorded plan name through validation, saving and exports without changing old records.
+- [ ] During bounded Gmail processing, extract only explicitly stated plan, recurring amount/currency, interval and effective/billing date from readable source content.
+- [ ] Keep email-stated terms separate from owner-confirmed cost and renewal fields, with mailbox/message/date provenance and a reason.
+- [ ] Reject monthly-rate inference from annual charges, one-time receipts, tax totals, credits/top-ups, ambiguous dollar signs, promotions or conflicting terms.
+- [ ] Enrich matching historical evidence only when the same message is read again, preserving deduplication, Ignore and review decisions.
+- [ ] Add representative Lovable, Supabase, ChatGPT and OpenAI API fixtures plus negative/conflict tests; run full tests, typecheck and preview build.
+- [ ] BLOCKED on John: run the bounded signed-in mailbox check and visually verify service cards after preview repair.
+
+## Subscription review-routing follow-up
+- [ ] Do not blanket-approve existing needs-review records; design exception routing with explicit source/confidence rules and separate review state.
