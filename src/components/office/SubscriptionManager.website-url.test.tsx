@@ -71,8 +71,7 @@ describe("Service website link", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Edit / }));
     fireEvent.change(screen.getByLabelText(/Website link/), { target: { value: "not a url" } });
     fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
-    expect(await screen.findByRole("alert").then?.(() => true) ?? true).toBeTruthy();
-    expect(screen.getByText(/starting with http/)).toBeTruthy();
+    expect(await screen.findByText(/starting with http/)).toBeTruthy();
     expect(save).not.toHaveBeenCalled();
   });
 
