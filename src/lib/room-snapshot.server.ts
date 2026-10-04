@@ -151,11 +151,35 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       }
       if (def.key === "subscriptions") {
         const subs = arr("subscriptions");
-        return result(def, { count: subs.length, items: subs.slice(0, MAX_ITEMS).map((s) => text(s["name"], 80)).filter(Boolean), latestAt: updated });
+        const items = subs.slice(0, MAX_ITEMS).map((s) => {
+          const name = text(s["name"], 80);
+          if (!name) return "";
+          const plan = text(s["planName"], 80) || "plan not recorded";
+          const cadence = ["monthly", "yearly", "other"].includes(text(s["cadence"], 20)) ? text(s["cadence"], 20) : "cycle unknown";
+          const knownCost = s["knownCost"] && typeof s["knownCost"] === "object" ? s["knownCost"] as Row : null;
+          const amount = knownCost && typeof knownCost["amount"] === "number" && Number.isFinite(knownCost["amount"]) ? knownCost["amount"] : null;
+          const currency = knownCost ? text(knownCost["currency"], 8).toUpperCase() : "";
+          const rate = amount !== null && /^[A-Z]{3}$/.test(currency) ? `${currency} ${amount} owner-confirmed` : "cost unknown";
+          return `${name} · ${plan} · ${rate} · ${cadence}`;
+        }).filter(Boolean);
+        return result(def, { count: subs.length, items, latestAt: updated, detail: "saved service names and owner-confirmed terms only; email-stated terms remain separate" });
       }
       if (def.key === "mail-evidence") {
         const last = doc && doc["subscriptionLastCheck"] && typeof doc["subscriptionLastCheck"] === "object" ? (doc["subscriptionLastCheck"] as Row) : null;
-        return result(def, { count: arr("subscriptionEvidence").length, latestAt: last ? text(last["at"], 40) || updated : updated, detail: last ? `last email check ${last["complete"] === true ? "complete" : "partial or not confirmed"}` : "no email check recorded" });
+        const evidence = arr("subscriptionEvidence");
+        const needsReview = evidence.filter((e) => e["review"] === "needs-review").length;
+        const emailTerms = evidence.filter((e) => e["statedTerms"] && typeof e["statedTerms"] === "object").length;
+        const kinds = new Map<string, number>();
+        for (const e of evidence) {
+          const kind = text(e["kind"], 40) || "unknown";
+          kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+        }
+        const items = [
+          `needs review: ${needsReview}`,
+          `email-stated plan/rate evidence: ${emailTerms}`,
+          ...[...kinds.entries()].sort((a, b) => b[1] - a[1]).slice(0, Math.max(0, MAX_ITEMS - 2)).map(([kind, count]) => `${kind}: ${count}`),
+        ];
+        return result(def, { count: evidence.length, items, latestAt: last ? text(last["at"], 40) || updated : updated, detail: last ? `saved evidence summary; last email check ${last["complete"] === true ? "complete within recorded scope" : "partial or not confirmed"}; email terms do not prove payment or replace owner-confirmed rates` : "saved evidence summary; no email check recorded" });
       }
       const prefs = doc && doc["mailPreferences"] && typeof doc["mailPreferences"] === "object" ? (doc["mailPreferences"] as Row) : null;
       const senders = prefs && Array.isArray(prefs["senders"]) ? (prefs["senders"] as Row[]) : [];

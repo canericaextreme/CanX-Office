@@ -206,14 +206,14 @@
 - [x] Reject monthly-rate inference from annual charges, one-time receipts, tax totals, credits/top-ups, ambiguous dollar signs, promotions or conflicting terms.
 - [x] Enrich matching historical evidence only when the same message is read again, preserving deduplication, Ignore and review decisions.
 - [x] Add representative Lovable, Supabase, ChatGPT and OpenAI API fixtures plus negative/conflict tests.
-- [ ] Verify the preview build and authenticated visual flow without a live mailbox or paid-provider call.
+- [x] Verify the preview build and focused interaction flow without a live mailbox or paid-provider call.
 - [ ] BLOCKED on John: run the bounded signed-in mailbox check and visually verify service cards after preview repair.
 
 ## Subscriptions queued owner checks — 4 Oct 2026
-- [ ] Confirm historical payment labels never imply payment without supporting evidence.
-- [ ] Confirm Elsie’s routine Subscriptions review uses current saved evidence and remains advisory.
-- [ ] Confirm recurring-rate displays keep owner-confirmed and email-stated values distinct.
-- [ ] Confirm every installed Subscriptions skill has meaningful diagnostics, deterministic routing, and honest connector/live-test status.
+- [x] Confirm historical payment labels never imply payment without supporting evidence; saved email rows remain evidence needing review and Finance receipts retain explicit payment state.
+- [x] Confirm Elsie’s routine Subscriptions review uses a fresh AAL2 owner snapshot with saved service terms, evidence categories/review counts and last-check scope; it remains advisory.
+- [x] Confirm recurring-rate displays keep owner-confirmed and email-stated values distinct, including annual billing and unknown currency/cycle cases.
+- [x] Confirm every installed Subscriptions skill has meaningful diagnostics, deterministic routing, and honest connector/live-test status; all remain `toolConnected: false` and `liveTested: false` pending John’s signed-in checks.
 
 ## Subscription review-routing follow-up
 - [ ] Do not blanket-approve existing needs-review records; design exception routing with explicit source/confidence rules and separate review state.
