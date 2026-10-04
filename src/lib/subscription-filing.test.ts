@@ -103,8 +103,9 @@ describe("source-grounded recurring plan terms", () => {
   it("cleans optional fields and enriches one matching row without changing its review decision", () => {
     const terms = extractEmailStatedTerms("Plan: Pro\nUSD $24 per month");
     expect(terms).toBeTruthy();
+    if (!terms) throw new Error("Expected terms fixture to parse");
     const prior = ev({ id: "same", review: "dismissed" });
-    const incoming = { ...prior, review: "needs-review" as const, statedTerms: terms ?? undefined };
+    const incoming = { ...prior, review: "needs-review" as const, statedTerms: terms };
     const merged = mergeEvidence([prior], [incoming]);
     expect(merged).toMatchObject({ duplicates: 1 });
     expect(merged.updated).toHaveLength(1);

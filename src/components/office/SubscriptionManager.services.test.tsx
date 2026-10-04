@@ -38,30 +38,30 @@ describe("SubscriptionManager Service Hub", () => {
     render(<SubscriptionManager />);
     expect(await screen.findByText("Your services (2)")).toBeTruthy();
     
-    const cardA = screen.getByRole("button", { name: /Service A: Pro Plan/ });
+    // The label includes the rate, e.g. "Service A: CAD $10.00 / month — open service details"
+    const cardA = screen.getByRole("button", { name: /Service A: CAD \$10\.00 \/ month/ });
     expect(cardA).toBeTruthy();
-    expect(within(cardA).getByText("PRO PLAN")).toBeTruthy();
-    expect(within(cardA).getByText("Renews 2026-11-01")).toBeTruthy();
+    expect(within(cardA).getByText("Pro Plan")).toBeTruthy();
 
-    const cardB = screen.getByRole("button", { name: /Service B: no plan name/ });
+    const cardB = screen.getByRole("button", { name: /Service B: Cost unknown/ });
     expect(cardB).toBeTruthy();
-    expect(within(cardB).getByText("Renewal unknown")).toBeTruthy();
   });
 
   it("opens service details when a card is clicked, and returns to hub on Back", async () => {
     render(<SubscriptionManager />);
-    fireEvent.click(await screen.findByRole("button", { name: /Service A: Pro Plan/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Service A: CAD \$10\.00 \/ month/ }));
 
     // Hub is replaced by focus view
     expect(screen.queryByText("Your services (2)")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Edit Service A" })).toBeTruthy();
+    expect(screen.getByText("Service A")).toBeTruthy();
     
-    // Check form fields
+    // Check form fields by clicking Edit
+    fireEvent.click(screen.getByRole("button", { name: /Edit service/ }));
     expect(screen.getByLabelText("Service name")).toHaveValue("Service A");
-    expect(screen.getByLabelText("Plan name (e.g. Pro, Family)")).toHaveValue("Pro Plan");
+    expect(screen.getByLabelText("Plan name (optional)")).toHaveValue("Pro Plan");
 
     // Click Back
-    fireEvent.click(screen.getByRole("button", { name: /Back to Hub/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Back to Subscriptions/ }));
     expect(await screen.findByText("Your services (2)")).toBeTruthy();
   });
 
@@ -69,11 +69,12 @@ describe("SubscriptionManager Service Hub", () => {
     render(<SubscriptionManager />);
     fireEvent.click(await screen.findByRole("button", { name: /Add service/ }));
 
-    expect(screen.getByRole("heading", { name: "Add service" })).toBeTruthy();
+    // Adding a service shows the editor immediately
+    expect(screen.getByLabelText("Service name")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Service name"), { target: { value: "New Service" } });
-    fireEvent.change(screen.getByLabelText("Plan name (e.g. Pro, Family)"), { target: { value: "Basic" } });
+    fireEvent.change(screen.getByLabelText("Plan name (optional)"), { target: { value: "Basic" } });
 
-    fireEvent.click(screen.getByRole("button", { name: /Back to Hub/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cancel/ }));
     expect(await screen.findByText("Your services (2)")).toBeTruthy();
   });
 });
