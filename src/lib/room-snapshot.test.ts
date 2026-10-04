@@ -101,10 +101,15 @@ describe("fresh reads and failures", () => {
     expect(JSON.stringify(snap)).not.toMatch(/Secret Vendor/);
   });
   it("Subscriptions reads saved services, evidence and mail rules from one doc read", async () => {
-    const rest = fakeRest({ finance_receipts: [{ doc: { subscriptions: [{ name: "OpenAI" }], subscriptionEvidence: [{}, {}], subscriptionLastCheck: { at: "2026-10-03T19:35:48Z", complete: false }, mailPreferences: { senders: [{ action: "ignore", sender: "news@shop.com" }], messages: [] }, receipts: [] } }] });
+    const rest = fakeRest({ finance_receipts: [{ doc: { subscriptions: [{ name: "OpenAI", planName: "Business", cadence: "monthly", knownCost: { amount: 24, currency: "USD" } }], subscriptionEvidence: [{ kind: "receipt", review: "needs-review", statedTerms: { planName: "Pro" } }, { kind: "renewal-notice", review: "reviewed" }], subscriptionLastCheck: { at: "2026-10-03T19:35:48Z", complete: false }, mailPreferences: { senders: [{ action: "ignore", sender: "news@shop.com" }], messages: [] }, receipts: [] } }] });
     const snap = await read("/subscriptions", rest);
-    expect(snap.sources.find((s) => s.key === "subscriptions")?.items).toEqual(["OpenAI"]);
-    expect(snap.sources.find((s) => s.key === "mail-evidence")).toMatchObject({ count: 2, latestAt: "2026-10-03T19:35:48Z" });
+    expect(snap.sources.find((s) => s.key === "subscriptions")?.items).toEqual(["OpenAI · Business · USD 24 owner-confirmed · monthly"]);
+    expect(snap.sources.find((s) => s.key === "mail-evidence")).toMatchObject({
+      count: 2,
+      latestAt: "2026-10-03T19:35:48Z",
+      items: ["needs review: 1", "email-stated plan/rate evidence: 1", "receipt: 1", "renewal-notice: 1"],
+    });
+    expect(snap.sources.find((s) => s.key === "mail-evidence")?.detail).toContain("do not prove payment");
     expect(snap.sources.find((s) => s.key === "mail-preferences")?.items).toEqual(["ignore news@shop.com"]);
     expect(rest.calls.filter((p) => p.startsWith("finance_receipts"))).toHaveLength(1);
   });
