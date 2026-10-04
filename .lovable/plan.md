@@ -1,21 +1,22 @@
-# Finance category navigation and scoped email commands
+# Compact subscription service cards
 
-## Scope
-- Turn the four existing Finance summary cards into accessible navigation for Income, Expenses, Receipts, and Tax prep.
-- Keep the Finance hub compact; opening a card replaces the hub with that section near the top and provides a clear Back to Finance control.
-- Reuse the current receipt import, receipt editing, totals, reconciliation, and budget displays. Receipt rows open their existing saved details; empty Finance sections state exactly what is unavailable or not recorded.
-- Preserve owner sign-in, two-step verification, current storage and save behavior, and every existing financial record.
-- Add restrained green, teal, and navy Finance accents using shared design tokens.
+## What will change
+- Keep the Subscriptions hub short by replacing the expanded service rows with a bounded set of clickable service cards and an overflow chooser when needed.
+- Show each service’s confirmed fixed rate prominently, with its currency and billing cycle; show “Cost unknown” when John has not confirmed one.
+- Keep ChatGPT subscriptions separate from OpenAI API usage and never infer a plan, tier, currency, or cost.
+- Open one focused service detail view at a time, with a clear Back to Subscriptions action. Details will show plan, confirmed cost source/date, renewal evidence, history, notes, and separate usage/top-up wording.
+- Improve the existing editor with an optional plan-name field and clearer “confirmed fixed rate” labels.
 
-## Email command routing
-- Recognize only the explicit short commands “check my email”, “check the emails”, “check both mailboxes”, and “can you check my email”, including harmless punctuation or an Elsie/Astra prefix.
-- Route them through the existing authenticated receipt/subscription email check used by the button.
-- Keep status questions, negated requests, hypothetical/discussion wording, long or multi-step requests out of ingestion.
-- Keep the result explicit that this is a bounded billing/renewal/service-sender check, with each mailbox result and complete/partial/failed state; it is never described as the whole inbox.
-- Update concise live-voice guidance without exceeding the existing byte budget.
+## Data safety
+- Add `planName` only as an optional field in the existing saved subscription record, including validation and round-trip preservation. Existing records remain valid and unchanged until John saves an edit.
+- Do not change schemas, migrations, email records, Finance totals, or owner data during development.
+- Annual records will display as annual billing, not as a made-up monthly equivalent.
+
+## Review-routing follow-up
+- Add a separate roadmap item: existing needs-review records must not be blanket-approved; future exception routing needs explicit source/confidence rules and its own state.
+- This follow-up will not alter review states in this UI task.
 
 ## Verification
-- Add interaction tests for every Finance card by mouse and keyboard, populated and empty sections, receipt-detail opening, and Back to Finance.
-- Add positive and negative email-intent tests plus manager pre-route and voice-guidance regressions.
-- Run focused tests, the full test suite, TypeScript checking, and a production build for preview validation.
-- Do not run Gmail, call paid AI, alter financial data, change the schema, impersonate the owner, or publish.
+- Add record-cleaning tests for optional plan names and old records.
+- Add populated interaction tests proving the hub stays compact, rates are truthful, service cards open details, and Back restores the hub.
+- Run the relevant/full tests, TypeScript check, and preview build. Do not publish or call Gmail or paid services.
