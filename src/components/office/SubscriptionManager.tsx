@@ -311,8 +311,11 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
     website: value.websiteUrl ?? "",
   });
   const [urlError, setUrlError] = useState("");
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setF({ ...f, [k]: e.target.value }); if (k === "website") setUrlError(""); };
-  const amount = f.amount.trim() === "" ? null : Number(f.amount);
+  const [amountError, setAmountError] = useState("");
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setF({ ...f, [k]: e.target.value }); if (k === "website") setUrlError(""); if (k === "amount") setAmountError(""); };
+  // Free-text entry so "224." and "0.05" can be typed naturally; validated on save.
+  const amountText = f.amount.trim();
+  const amount = amountText === "" ? null : /^\d+(\.\d{1,2})?$/.test(amountText) ? Number(amountText) : null;
   const field = "space-y-1 text-xs";
   const select = "h-10 w-full rounded-md border border-input bg-background px-2 text-sm";
   return (
@@ -321,6 +324,10 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       const websiteUrl = cleanWebsiteUrl(f.website);
       if (f.website.trim() && !websiteUrl) {
         setUrlError("Enter a full web address starting with http:// or https://, or leave it blank.");
+        return;
+      }
+      if (amountText !== "" && amount === null) {
+        setAmountError("Enter a valid amount with up to 2 decimal places (e.g. 224.50), or leave it blank.");
         return;
       }
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
@@ -355,7 +362,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       <label className={field}>Scope<select className={select} value={f.scope} onChange={set("scope")}><option value="office">Office</option><option value="personal">Personal</option><option value="unknown">Unknown</option></select></label>
       <label className={field}>Other names (comma separated)<Input value={f.aliases} onChange={set("aliases")} /></label>
       <label className={field}>Sender domains (e.g. openai.com)<Input value={f.domains} onChange={set("domains")} /></label>
-      <label className={field}>Owner-confirmed fixed rate (leave blank if unknown)<Input inputMode="decimal" value={f.amount} onChange={set("amount")} /></label>
+      <label className={field}>Owner-confirmed fixed rate (leave blank if unknown)<Input type="text" inputMode="decimal" autoComplete="off" placeholder="e.g. 224.50" value={f.amount} onChange={set("amount")} aria-invalid={Boolean(amountError)} />{amountError && <span className="block text-xs text-red-400">{amountError}</span>}</label>
       <label className={field}>Currency (e.g. CAD, USD)<Input maxLength={3} value={f.currency} onChange={set("currency")} /></label>
       <label className={field}>Cost confirmed on<Input type="date" value={f.asOf} onChange={set("asOf")} /></label>
       <label className={field}>Billing cycle<select className={select} value={f.cadence} onChange={set("cadence")}><option value="unknown">Unknown</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="other">Other</option></select></label>
