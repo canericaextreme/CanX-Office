@@ -55,3 +55,5 @@ Installed = instructions present · Connected = every input readable · Executab
 - After publication, repeat both owner-authenticated status checks and record the displayed diagnostic before changing any credentials or routing.
 
 - Live owner check on the diagnostic update returned `GH_REDIRECT_REJECTED; workflow list; request; GET`. Both bridges now use manual redirect mode; a redirect response is reported as a safe HTTP status, never followed. A direct unauthenticated endpoint read succeeded, but owner-authenticated Office status still requires retesting after publication.
+
+- The live manual-redirect revision returned `GH_HTTP_403; workflow list; GET`. Both GitHub wrappers lacked an explicit `User-Agent`, required by GitHub REST. Added a fixed application identifier to GET and POST requests and regression assertions for both providers. No credentials or connection settings changed. The authenticated live status check and runners remain unverified until the owner retests this revision.

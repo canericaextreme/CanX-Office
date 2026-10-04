@@ -47,7 +47,10 @@ describe.each(providers)('$name GitHub diagnostics', ({ run }) => {
     expect(result.detail).toContain('GH_REQUEST_FAILED; build dispatch; request; POST');
     expect(result.detail).not.toContain(secret);
     expect(deps.fetch).toHaveBeenCalledTimes(2);
-    for (const [, init] of deps.fetch.mock.calls) expect(init?.redirect).toBe('manual');
+    for (const [, init] of deps.fetch.mock.calls) {
+      expect(init?.redirect).toBe('manual');
+      expect(new Headers(init?.headers).get('User-Agent')).toBe('CanX-Office-build-bridge');
+    }
   });
   it('uses manual mode for runtimes rejecting redirect-error mode, without following redirects', async () => {
     const deps = setup();
@@ -77,6 +80,7 @@ describe.each(providers)('$name GitHub diagnostics', ({ run }) => {
     expect(await run(deps, secret)).toMatchObject({ ok: true, runs: [] });
     expect(deps.fetch).toHaveBeenCalledOnce();
     expect(deps.fetch.mock.calls[0]![1]?.body).toBeUndefined();
+    expect(new Headers(deps.fetch.mock.calls[0]![1]?.headers).get('User-Agent')).toBe('CanX-Office-build-bridge');
   });
 });
 describe('safe diagnostic classification', () => {

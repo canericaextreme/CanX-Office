@@ -20,6 +20,7 @@ async function api(deps: ClaudeBuildDeps, path: string, trace: BuildGitHubTrace,
   traceBuildGitHubRequest(trace, path, init);
   // Inspect redirects explicitly. Never forward the GitHub credential to a redirected destination.
   return deps.fetch(ROOT + path, { ...init, redirect: 'manual', signal: AbortSignal.timeout(15000), headers: {
+    'User-Agent': 'CanX-Office-build-bridge',
     Accept: 'application/vnd.github+json', Authorization: `Bearer ${deps.githubToken}`,
     'X-GitHub-Api-Version': '2026-03-10', 'Content-Type': 'application/json',
   } });
