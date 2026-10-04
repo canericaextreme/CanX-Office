@@ -76,7 +76,8 @@ describe("default categories follow explicit provenance only", () => {
     expect(idx.items.find((i) => i.kind === "project")).toMatchObject({ title: "Trail Tales book", provenance: "Derived from 1 Work Board task(s) and 1 document(s)" });
     const skills = idx.items.filter((i) => i.kind === "skill");
     expect(skills).toHaveLength(OFFICE_SKILLS.length);
-    expect(skills.filter((s) => /outline — not installed/.test(s.version ?? "")).length).toBe(OFFICE_SKILLS.filter((s) => s.kind === "outline").length);
+    expect(skills.filter((s) => /installed instructions/.test(s.version ?? "")).length).toBe(OFFICE_SKILLS.filter((s) => s.instructionReady).length);
+    expect(skills.filter((s) => /reserved|legacy/.test(s.version ?? "")).length).toBe(OFFICE_SKILLS.filter((s) => !s.instructionReady).length);
   });
 });
 
