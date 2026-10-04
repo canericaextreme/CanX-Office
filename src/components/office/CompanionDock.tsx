@@ -13,20 +13,20 @@ const HIDDEN_KEY = "canx.companion.hidden";
 function AssistantFace({ active }: { active: boolean }) {
   return (
     <svg viewBox="0 0 48 48" className="h-10 w-10 sm:h-12 sm:w-12" aria-hidden="true" focusable="false">
-      <circle cx="24" cy="24" r="23" className="fill-primary/15" />
+      <circle cx="24" cy="24" r="23" className="fill-white/15" />
       <path
         d="M12 22a12 12 0 0 1 24 0v6a12 12 0 0 1-12 12h-3"
-        className="fill-none stroke-primary"
+        className="fill-none stroke-white"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
-      <rect x="7" y="21" width="6" height="10" rx="3" className="fill-primary" />
-      <rect x="35" y="21" width="6" height="10" rx="3" className="fill-primary" />
-      <circle cx="19" cy="24" r="2.2" className="fill-foreground" />
-      <circle cx="29" cy="24" r="2.2" className="fill-foreground" />
+      <rect x="7" y="21" width="6" height="10" rx="3" className="fill-white" />
+      <rect x="35" y="21" width="6" height="10" rx="3" className="fill-white" />
+      <circle cx="19" cy="24" r="2.2" className="fill-white" />
+      <circle cx="29" cy="24" r="2.2" className="fill-white" />
       <path
         d={active ? "M18 30c2 3 10 3 12 0" : "M18 30c2 2 10 2 12 0"}
-        className="fill-none stroke-foreground"
+        className="fill-none stroke-white"
         strokeWidth="2"
         strokeLinecap="round"
       />
@@ -100,10 +100,10 @@ export function CompanionDock() {
           setHidden(false);
         }}
         aria-label="Restore the CanX chatbot"
-        className="fixed bottom-4 left-4 z-40 flex h-12 w-28 items-center justify-center gap-1 rounded-xl border border-border bg-card/95 text-primary shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="fixed bottom-4 left-4 z-40 flex h-12 w-28 items-center justify-center gap-1 rounded-xl border border-slate-950 bg-slate-900 text-white shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <AssistantFace active={active} />
-        <span className="text-xs font-semibold">Chatbot</span>
+        <span className="text-sm font-bold">Chatbot</span>
       </button>
     );
   }
@@ -148,7 +148,7 @@ export function CompanionDock() {
       <p
         role="alert"
         data-testid="canx-companion-share-error"
-        className="fixed bottom-48 left-4 z-40 max-w-64 rounded-lg border border-border bg-card/95 p-2 text-xs text-foreground shadow-lg backdrop-blur"
+        className="fixed bottom-48 left-4 z-40 max-w-64 rounded-lg border border-slate-950 bg-slate-900 p-2 text-white text-xs text-foreground shadow-lg backdrop-blur"
       >
         {shareError}
       </p>
@@ -169,7 +169,7 @@ export function CompanionDock() {
       tabIndex={0}
       title="Drag to move"
       style={pos ? { left: pos.left, top: pos.top } : { left: 16, bottom: 16 }}
-      className={`fixed z-40 flex h-36 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-40 sm:w-32 ${
+      className={`fixed z-40 flex h-36 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-40 sm:w-32 ${
         dragging ? "opacity-90" : ""
       }`}
     >
@@ -185,7 +185,7 @@ export function CompanionDock() {
           onClick={minimizeCompanion}
           aria-label="Minimize the CanX chatbot"
           title="Minimize chatbot"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-white hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Minus className="h-4 w-4" />
         </button>
@@ -196,7 +196,7 @@ export function CompanionDock() {
         data-testid="canx-companion-status-text"
         role="status"
         aria-live="polite"
-        className="w-full shrink-0 truncate px-1 text-center text-[10px] leading-tight text-muted-foreground"
+        className="w-full shrink-0 truncate px-1 text-center text-[10px] leading-tight text-slate-200"
         title={chat.missingSetting ? `${label} (setting needed: ${chat.missingSetting})` : label}
       >
         {label}
@@ -209,7 +209,7 @@ export function CompanionDock() {
         rel="noopener noreferrer"
         onPointerDown={(event) => event.stopPropagation()}
         aria-label="Open ChatGPT in a new tab"
-        className="flex min-h-9 w-full items-center justify-center rounded-md border border-border px-1 text-xs font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-9 w-full items-center justify-center rounded-md border border-slate-500 px-1 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Open ChatGPT
       </a>
