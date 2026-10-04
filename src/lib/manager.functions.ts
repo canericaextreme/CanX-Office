@@ -1639,7 +1639,9 @@ export const managerChat = createServerFn({ method: "POST" })
       const result = await runSubscriptionsSkillAudit(data.accessToken, data.buildId ?? "unknown");
       if (!result.ok) return { ok: false, code: "context_unavailable", provider: "none", state: "configured_unverified", model: null, text: "", detail: result.message, toolCalls: [], actionResults: [] };
       const detail = result.report.items.map((audit) => `${audit.name}: ${audit.status}. ${audit.result} Reason: ${audit.reason} Sources: ${audit.sources.join("; ") || "none"}. Checked ${audit.checkedAt}. Owner live-tested: no.`);
-      return { ok: true, code: "ok", provider: "none", state: "verified", model: null, text: [result.message, ...detail].join("\n"), toolCalls: [], actionResults: [], skillsUsed: { registryVersion: result.report.registryVersion, skills: result.report.items.map(({ id, name, version }) => ({ id, name, version })) } };
+      const rec = await import("@/lib/skill-run-record.server");
+      const saved = await rec.saveSkillRunRecord({ accessToken: data.accessToken, roomId: "subscriptions", title: `Subscriptions skill check — ${result.report.completed} completed, ${result.report.blocked} blocked`, detail: result.report.items.map((a) => `${a.name}: ${a.status}. ${a.result} Reason: ${a.reason}`).join("\n") });
+      return { ok: true, code: "ok", provider: "none", state: "verified", model: null, text: [result.message, ...detail, rec.skillRunRecordLine(saved, "Subscriptions")].join("\n"), toolCalls: [], actionResults: [], skillsUsed: { registryVersion: result.report.registryVersion, skills: result.report.items.map(({ id, name, version }) => ({ id, name, version })) } };
     }
     const officeAudit = parseOfficeAuditCommand(latestRequest);
     if (officeAudit === "status") {
@@ -1649,7 +1651,10 @@ export const managerChat = createServerFn({ method: "POST" })
       const { runOfficeAudit } = await import("@/lib/office-audit.server");
       const out = await runOfficeAudit(data.accessToken, data.buildId ?? "unknown");
       if (!out.ok) return { ok: false, code: "context_unavailable", provider: "none", state: "configured_unverified", model: null, text: "", detail: out.message, toolCalls: [], actionResults: [] };
-      return { ok: true, code: "ok", provider: "none", state: "verified", model: null, text: formatOfficeAudit(out.report), toolCalls: [], actionResults: [] };
+      const officeText = formatOfficeAudit(out.report);
+      const rec = await import("@/lib/skill-run-record.server");
+      const saved = await rec.saveSkillRunRecord({ accessToken: data.accessToken, roomId: "health", title: "Whole-office room check (Daily Office Review)", detail: officeText });
+      return { ok: true, code: "ok", provider: "none", state: "verified", model: null, text: `${officeText}\n${rec.skillRunRecordLine(saved, "Office Health")}`, toolCalls: [], actionResults: [] };
     }
     if (isExplicitReceiptSyncRequest(latestRequest)) {
       const result = await runReceiptSync({
