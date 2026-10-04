@@ -33,7 +33,7 @@ export interface SubscriptionRecord {
   nextRenewal: { date: string; basis: RenewalBasis; source: string } | null;
   history: BillingEntry[];
   notes: string;
-  websiteUrl?: string;
+  websiteUrl?: string | undefined;
   updatedAt: string;
 }
 
