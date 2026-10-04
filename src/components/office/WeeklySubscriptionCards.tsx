@@ -88,7 +88,7 @@ const SUMMARY: Array<{ id: string; label: string; context: ArchiveContext; revie
   { id: "deadlines", label: "Deadlines & renewals", context: "deadlines", reviewOnly: false, Icon: CalendarClock, tone: "border-canx-blue/50 bg-canx-blue/10 text-canx-blue", hint: "Renewal, account and invoice dates" },
   { id: "receipts", label: "Receipts", context: "receipts", reviewOnly: false, Icon: ReceiptText, tone: "border-finance-teal/50 bg-finance-teal/10 text-finance-teal", hint: "Email evidence — not yet a Finance receipt" },
   { id: "invoices", label: "Invoices due", context: "invoices", reviewOnly: false, Icon: FileText, tone: "border-canx-yellow/40 bg-canx-yellow/5 text-canx-yellow", hint: "Amount due as the email states" },
-  { id: "payment", label: "Payment issues", context: "payment-issues", reviewOnly: false, Icon: CircleAlert, tone: "border-destructive/40 bg-destructive/10 text-destructive", hint: "Failed payments and unpaid invoices" },
+  { id: "payment", label: "Payment issues", context: "payment-issues", reviewOnly: false, Icon: CircleAlert, tone: "border-destructive/40 bg-destructive/10 text-destructive", hint: "Failed payments and invoices still due" },
   { id: "promotions", label: "Promotions & offers", context: "promotions", reviewOnly: false, Icon: Tag, tone: "border-border bg-muted/30 text-muted-foreground", hint: "Never a bill or deadline" },
 ];
 
