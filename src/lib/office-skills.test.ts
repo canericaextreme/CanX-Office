@@ -111,3 +111,18 @@ describe("deterministic skill router", () => {
     expect(r.instructions).not.toMatch(/receipt total|@gmail\.com/i);
   });
 });
+
+import { dailyLoop, skillReadiness, INSTRUCTION_GAPS, EXECUTABLE_ACTIONS, OFFICE_SKILLS as ALL } from "./office-skills";
+describe("readiness levels and review loop", () => {
+  it("runs the saved loop in order and never claims live tests", () => {
+    const loop = dailyLoop();
+    expect(loop.map((x) => x.skill.id)).toEqual(["office-manager.daily-review", "office-manager.skill-router", "approvals.owner-decision-filter", "finance.subscription-review", "research.source-check", "security.incident-triage"]);
+    expect(loop.find((x) => x.skill.id === "research.source-check")!.readiness).toBe("blocked");
+    expect(loop.find((x) => x.skill.id === "security.incident-triage")!.readiness).toBe("blocked");
+    expect(ALL.every((s) => s.liveTested === false)).toBe(true);
+  });
+  it("only marks real actions executable and lists gaps", () => {
+    for (const id of Object.keys(EXECUTABLE_ACTIONS)) expect(skillReadiness(ALL.find((s) => s.id === id)!)).toBe("executable");
+    expect(INSTRUCTION_GAPS.map((g) => g.route)).toEqual(["/analytics", "/family-continuity"]);
+  });
+});

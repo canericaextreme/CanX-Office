@@ -17,7 +17,7 @@ export function skillStatusLabel(s: OfficeSkill): string {
 export function RoomSkillsLink({ route }: { route: string }) {
   const skills = skillsForRoute(route);
   const map = ROOM_SKILL_MAP[route];
-  if (!skills.length && !map) return null;
+  if (!skills.length && !map && !INSTRUCTION_GAPS.some((g) => g.route === route)) return null;
   return (
     <section aria-label="Room skills" className="my-4 rounded-lg border border-border bg-card/60 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">

@@ -581,7 +581,6 @@ export const INSTRUCTION_GAPS: Array<{ route: string; room: string; gap: string 
   { route: "/analytics", room: "Analytics", gap: "No approved Analytics instructions exist in the saved master map. Needs John's definition before anything is installed." },
   { route: "/family-continuity", room: "Family Continuity", gap: "Only the Training jobs are mapped. No approved family-continuity instructions (for example handover or family access) exist yet." },
 ];
-ROOM_SKILL_MAP["/analytics"] = { masterRooms: [], coverage: "draft-gap", note: "No approved instructions — gap waiting for John's definition." };
 ROOM_SKILL_MAP["/family-continuity"] = { masterRooms: ["Training"], coverage: "mapped", note: "Hosts the central Skills page. Family-continuity instructions are a gap." };
 
 /* ------------------------------ deterministic runtime router ------------------------------ */
