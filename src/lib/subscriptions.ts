@@ -33,6 +33,7 @@ export interface SubscriptionRecord {
   nextRenewal: { date: string; basis: RenewalBasis; source: string } | null;
   history: BillingEntry[];
   notes: string;
+  websiteUrl?: string;
   updatedAt: string;
 }
 
@@ -166,6 +167,7 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
       return date ? [{ date, amount: money(e["amount"]), currency: ccy(e["currency"]), source: str(e["source"], 200) }] : [];
     }) : [],
     notes: str(r["notes"], 1000),
+    websiteUrl: cleanWebsiteUrl(r["websiteUrl"]),
     updatedAt: str(r["updatedAt"], 40),
   };
 }
