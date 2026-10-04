@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Minus } from "lucide-react";
 import { COMPANION_OPEN_EVENT } from "@/lib/companion-bridge";
 import { CompanionWorkPanel, type Observation } from "@/components/office/CompanionWorkPanel";
 import { useCompanionPosition } from "@/lib/companion-position";
@@ -99,16 +99,16 @@ export function CompanionDock() {
           window.localStorage.removeItem(HIDDEN_KEY);
           setHidden(false);
         }}
-        aria-label="Restore the CanX companion"
-        className="fixed bottom-24 left-0 z-40 flex h-12 w-9 items-center justify-center rounded-r-xl border border-l-0 border-border bg-card/95 text-primary shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Restore the CanX chatbot"
+        className="fixed bottom-4 left-4 z-40 flex h-12 w-28 items-center justify-center gap-1 rounded-xl border border-border bg-card/95 text-primary shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <AssistantFace active={false} />
+        <AssistantFace active={active} />
+        <span className="text-xs font-semibold">Chatbot</span>
       </button>
     );
   }
 
-  const closeCompanion = () => {
-    chat.stop();
+  const minimizeCompanion = () => {
     setWorkOpen(false);
     window.localStorage.setItem(HIDDEN_KEY, "1");
     setHidden(true);
@@ -182,11 +182,12 @@ export function CompanionDock() {
         <button
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={closeCompanion}
-          aria-label="Close the CanX companion"
+          onClick={minimizeCompanion}
+          aria-label="Minimize the CanX chatbot"
+          title="Minimize chatbot"
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <X className="h-4 w-4" />
+          <Minus className="h-4 w-4" />
         </button>
       </div>
 
