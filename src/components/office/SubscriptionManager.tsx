@@ -326,6 +326,10 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
         setUrlError("Enter a full web address starting with http:// or https://, or leave it blank.");
         return;
       }
+      if (amountText !== "" && amount === null) {
+        setAmountError("Enter a valid amount with up to 2 decimal places (e.g. 224.50), or leave it blank.");
+        return;
+      }
       const cost = amount !== null && Number.isFinite(amount) && /^[A-Za-z]{3}$/.test(f.currency)
         ? { amount, currency: f.currency.toUpperCase(), asOf: f.asOf, source: "John" } : null;
       // A changed confirmed cost moves the old one into dated history; nothing is lost.
