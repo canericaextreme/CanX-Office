@@ -27,12 +27,12 @@ describe("compact CanX companion", () => {
   });
 
   it("keeps a compact footprint with room for the ChatGPT link and drags from the shell", () => {
-    expect(dockSource).toContain("h-40 w-28");
-    expect(dockSource).toContain("sm:h-44 sm:w-32");
+    expect(dockSource).toContain("h-36 w-28");
+    expect(dockSource).toContain("sm:h-40 sm:w-32");
     expect(dockSource).toContain("canx-companion-drag-handle");
     expect(dockSource).toContain("onPointerDown={onPointerDown}");
-    // Chat, Work, X and the external link must not begin a drag.
-    expect(dockSource.match(/onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/g)).toHaveLength(4);
+    // Minimize and the external link must not begin a drag.
+    expect(dockSource.match(/onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/g)).toHaveLength(2);
   });
 
   it("offers the requested ChatGPT link without embedding it or showing transcript text", () => {
@@ -40,6 +40,8 @@ describe("compact CanX companion", () => {
     expect(dockSource).toContain('target="_blank"');
     expect(dockSource).toContain('rel="noopener noreferrer"');
     expect(dockSource).not.toContain("window.open");
+    expect(dockSource).not.toContain("onClick={toggleChat}");
+    expect(dockSource).not.toContain("onClick={toggleWork}");
     expect(dockSource).not.toContain("iframe");
     expect(dockSource).not.toMatch(/\{messages|interimTranscript|message\.content/);
   });
