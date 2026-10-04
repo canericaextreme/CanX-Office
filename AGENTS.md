@@ -40,3 +40,6 @@ John explicitly requested automatic publication after every completed CanX Offic
 - Preserve user records, secrets, budgets, authentication and rollback history. No force pushes, secret exposure, new spending, provider subscriptions, database migrations or unrelated changes are authorised by this release policy.
 - Record the source commit and deployment result. A pending deployment is not a successful publication. Publishing and signed-in functional verification are separate: do not mark health or voice verified merely because publication succeeds.
 - A ChatGPT evening release automation is a release check, not a continuous signed-in Office health monitor. Existing owner/MFA health requirements remain.
+
+## Owner-only connection shutdown — 4 October 2026
+John explicitly requested that only he may turn off either Claude or ChatGPT/Codex once connected. Neither colleague may disable, revoke, remove, replace, or sever the other's Office access on its own initiative. Changes to either connection's enablement, credentials, routing, or removal require John's explicit instruction for that change; ordinary coding or standing publication authorisation does not authorise shutdown. Build candidates affecting these controls must remain proposals until that owner instruction is present. Do not claim the Office can disable the external ChatGPT or Claude account.
