@@ -33,9 +33,10 @@ describe("AI Workers subscription verification", () => {
     expect(subscriptionsSource).not.toMatch(/API key[:=]\s*[A-Za-z0-9_-]{16,}/);
   });
 
-  it("no longer calls Supabase proposed and marks its billing unverified", () => {
+  it("no longer calls Supabase proposed and drops its static row", () => {
     expect(subscriptionsSource).not.toContain("Supabase (proposed)");
-    expect(subscriptionsSource).toContain("billing not verified here.");
+    expect(subscriptionsSource).not.toContain("Static record; billing not verified here");
+    expect(subscriptionsSource).toContain("current billing for OpenAI, Claude and Supabase is unknown");
   });
 
   it("labels the C$100 Manager AI figure as an internal policy limit", () => {

@@ -3,7 +3,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Bot, ChevronRight, Pencil, ShieldCheck } from "lucide-react";
 import { RoomShell } from "@/components/office/RoomShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/office/StatusBadge";
 import { SubscriptionManager } from "@/components/office/SubscriptionManager";
 import { Button } from "@/components/ui/button";
@@ -30,16 +29,6 @@ export const Route = createFileRoute("/_office/subscriptions")({
   component: Subscriptions,
 });
 
-/**
- * Static historical infrastructure notes — NOT a live or verified list.
- * The authoritative subscription list is the saved SubscriptionManager list
- * above. These entries predate it and their status is unknown / not current.
- */
-const SUBS = [
-  { name: "Lovable", cost: "Unknown — not verified", status: "grey" as const, note: "Development platform. Static record; billing not verified here." },
-  { name: "Supabase", cost: "Unknown — not verified", status: "grey" as const, note: "CanX-owned database and sign-in. Static record; billing not verified here." },
-  { name: "Email sending", cost: "Unknown", status: "grey" as const, note: "Not connected" },
-];
 
 /**
  * A dated historical snapshot, kept for the record. It is NOT current spend:
@@ -57,33 +46,14 @@ export const AI_WORKERS_VERIFICATION = {
     "OpenAI Platform Usage and API key activity checked September 11, 2026. Not re-checked since, so current billing is unknown.",
 } as const;
 
-function Subscriptions() {
+export function Subscriptions() {
   return (
     <RoomShell>
       <SubscriptionManager />
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">Previous provider records</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Static historical notes kept for the record. Verification status is unknown and not current — these are not live checks. Your saved subscription list above is the authoritative list.
-          </p>
-          {SUBS.map((sub) => (
-            <div key={sub.name} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-              <div>
-                <div className="font-medium">{sub.name}</div>
-                <div className="text-xs text-muted-foreground">{sub.note}</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">{sub.cost}</span>
-                <StatusBadge tone={sub.status} />
-              </div>
-            </div>
-          ))}
-          <AiWorkersDetails />
-        </CardContent>
-      </Card>
+      {/* Historical AI Workers record stays visible while John reviews it. */}
+      <div className="mt-6">
+        <AiWorkersDetails />
+      </div>
     </RoomShell>
   );
 }
