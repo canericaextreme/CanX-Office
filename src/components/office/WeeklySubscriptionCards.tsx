@@ -7,6 +7,8 @@ const KIND: Record<SubscriptionEvidence["kind"], string> = {
   receipt: "Receipt evidence",
   "unpaid-invoice": "Invoice — amount due as stated",
   "renewal-notice": "Renewal notice",
+  "deadline-notice": "Service or account deadline",
+  promotion: "Promotion or offer",
   "price-change": "Price change notice",
   "failed-payment": "Failed / declined payment",
   unknown: "Unclassified",
@@ -101,13 +103,14 @@ export function WeeklySubscriptionCards({ view, lastCheck }: { view: WeeklyView;
           )}
         </article>
         <article className="rounded-lg border border-border bg-muted/20 p-3" aria-labelledby="wk-due">
-          <h3 id="wk-due" className="flex items-center gap-2 text-sm font-semibold"><CalendarClock className="h-4 w-4" aria-hidden /> Coming due — next 30 days ({view.comingDue.length})</h3>
-          {view.comingDue.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">No sourced renewal date in the next 30 days.</p> : (
+          <h3 id="wk-due" className="flex items-center gap-2 text-sm font-semibold"><CalendarClock className="h-4 w-4" aria-hidden /> Deadlines — overdue and next 30 days ({view.comingDue.length})</h3>
+          {view.comingDue.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">No sourced account, service, payment or renewal deadline is recorded.</p> : (
             <ul className="mt-2 space-y-2">
               {view.comingDue.map((c, i) => (
-                <li key={`${c.name}-${c.date}-${i}`} className="text-xs">
-                  <div className="font-medium text-foreground">{c.date} · {c.name}</div>
-                  <div className="text-muted-foreground">{c.basis === "explicit" ? "Date stated on a bill/email" : "Your estimate — not confirmed"} · {c.cost}</div>
+                <li key={`${c.name}-${c.date}-${i}`} className={`rounded-md border-l-4 p-2 text-xs ${c.daysAway < 0 ? "border-l-destructive bg-destructive/10" : "border-l-canx-yellow bg-canx-yellow/10"}`}>
+                  <div className="font-medium text-foreground">{c.date} · {c.name} · {c.daysAway < 0 ? `${Math.abs(c.daysAway)} day(s) overdue` : c.daysAway === 0 ? "Due today" : `${c.daysAway} day(s) left`}</div>
+                  <div className="text-muted-foreground">What: {c.what.replace("-", " ")} · {c.basis === "relative-to-received" ? `Calculated from source-email received time in ${OFFICE_TIMEZONE}` : c.basis === "explicit" ? "Date stated on a bill/email" : "Your estimate — not confirmed"}</div>
+                  <div className="text-muted-foreground">{c.action} · {c.confidence} · {c.cost}</div>
                   {c.evidence ? <SourceLinks e={c.evidence} /> : <span className="text-muted-foreground">Source: {c.source || "your saved service list"}</span>}
                 </li>
               ))}

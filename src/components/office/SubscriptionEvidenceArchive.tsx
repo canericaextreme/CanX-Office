@@ -10,6 +10,8 @@ const LABELS: Record<SubscriptionEvidence["kind"], string> = {
   receipt: "Receipt evidence",
   "unpaid-invoice": "Invoice — amount due as stated",
   "renewal-notice": "Renewal notice",
+  "deadline-notice": "Service or account deadline",
+  promotion: "Promotion or offer",
   "price-change": "Price change notice",
   "failed-payment": "Failed or declined payment",
   unknown: "Unclassified evidence",
@@ -27,6 +29,8 @@ const TONES: Record<SubscriptionEvidence["kind"], { border: string; icon: string
   receipt: { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: ReceiptText },
   "unpaid-invoice": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: FileText },
   "renewal-notice": { border: "border-l-canx-blue", icon: "bg-canx-blue/15 text-canx-blue", Icon: CalendarClock },
+  "deadline-notice": { border: "border-l-canx-yellow", icon: "bg-canx-yellow/15 text-canx-yellow", Icon: CalendarClock },
+  promotion: { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
   "price-change": { border: "border-l-finance-teal", icon: "bg-finance-teal/15 text-finance-teal", Icon: TrendingUp },
   "failed-payment": { border: "border-l-destructive", icon: "bg-destructive/15 text-destructive", Icon: CircleAlert },
   unknown: { border: "border-l-border", icon: "bg-muted text-muted-foreground", Icon: MailQuestion },
@@ -76,6 +80,8 @@ function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; on
         </span>
       </div>
       <div className="mt-1 text-muted-foreground">Document date: {evidence.documentDate || "not stated"} · Renewal: {evidence.renewalDate ? `${evidence.renewalDate} (stated)` : "not stated"}</div>
+      {evidence.classificationReason ? <div className="text-muted-foreground">Classification: {evidence.classificationReason}</div> : null}
+      {evidence.deadlineWhat && evidence.deadlineWhat !== "unknown" ? <div className="text-muted-foreground">What expires or is due: {evidence.deadlineWhat.replace("-", " ")} · Deadline: {evidence.deadlineDate || "not recorded — review source email"}</div> : null}
       <div className="text-muted-foreground">Source: {evidence.mailbox || "linked mailbox"} · message {evidence.messageId.slice(0, 12)} · {MATCH_LABEL[evidence.matchStatus]}</div>
       <EvidenceLinks evidence={evidence} />
       {evidence.review === "needs-review" ? (

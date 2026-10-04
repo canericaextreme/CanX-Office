@@ -232,7 +232,7 @@ function deadlineFromText(text: string, receivedAt?: string): { date: string; ba
 /** Deterministic billing/service context only. Source text is untrusted data and never instructions. */
 export function classifyBillingContext(text: string, subject = "", receivedAt?: string): BillingContextClassification {
   const t = `${subject}\n${text}`.slice(0, 50_000);
-  if (/\b(?:payment\s+(?:failed|declined|unsuccessful|was\s+declined)|card\s+(?:was\s+)?declined|unable\s+to\s+(?:process|charge)|could\s+not\s+(?:process|charge)|update\s+your\s+payment\s+method)\b/i.test(t)) return "failed-payment";
+  if (/\b(?:payment\s+(?:failed|declined|unsuccessful|was\s+declined)|card\s+(?:was\s+)?declined|unable\s+to\s+(?:process|charge)|could\s+not\s+(?:process|charge)|update\s+your\s+payment\s+method)\b/i.test(t)) return { kind: "failed-payment", reason: "Payment failure or declined-card language was found.", deadlineWhat: "payment", deadlineDate: "", deadlineBasis: "", ambiguous: false };
   const contexts = CONTEXT_PATTERNS.filter(([, pattern]) => pattern.test(t)).map(([what]) => what);
   const uniqueContexts = [...new Set(contexts)];
   const deadline = deadlineFromText(t, receivedAt);
@@ -532,7 +532,7 @@ export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvi
   const limit = addDays(week.today, horizonDays);
   const comingDue: WeeklyView["comingDue"] = [];
   for (const s of subs) {
-    if (s.nextRenewal && s.nextRenewal.date >= week.today && s.nextRenewal.date <= limit) {
+    if (s.nextRenewal && s.nextRenewal.date <= limit) {
       comingDue.push({ name: s.name, date: s.nextRenewal.date, basis: s.nextRenewal.basis, source: s.nextRenewal.source, cost: costText(s), subscriptionId: s.id, evidence: null, daysAway: dayDiff(s.nextRenewal.date, now), what: "subscription", action: "Review renewal settings", confidence: "Saved owner record" });
     }
   }
@@ -540,7 +540,7 @@ export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvi
     const deadlineDate = e.deadlineDate || (e.renewalBasis === "explicit" ? e.renewalDate : "");
     const what = e.deadlineWhat ?? (e.kind === "renewal-notice" ? "subscription" : "unknown");
     const deadlineKind = e.kind === "renewal-notice" || e.kind === "deadline-notice" || e.kind === "unpaid-invoice";
-    if (e.review === "dismissed" || !deadlineKind || e.classificationAmbiguous || !deadlineDate || deadlineDate > limit || dayDiff(deadlineDate, now) < -30) continue;
+    if (e.review === "dismissed" || !deadlineKind || e.classificationAmbiguous || !deadlineDate || deadlineDate > limit) continue;
     if (comingDue.some((c) => c.subscriptionId && c.subscriptionId === e.subscriptionId && c.date === deadlineDate && c.what === what)) continue;
     const s = subs.find((x) => x.id === e.subscriptionId);
     comingDue.push({

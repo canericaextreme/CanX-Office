@@ -428,7 +428,7 @@ export async function runReceiptSyncWith(
     // Alias-only mentions of a service with no verified sender are filed as
     // review evidence only when they look like billing; promotions are skipped.
     if (match.status === "unverified-sender" && kind !== "unknown") evidence.push(toEvidence(document, classification, match, result.receipt));
-    else if (match.status === "matched" || kind === "renewal-notice" || kind === "deadline-notice" || kind === "price-change" || kind === "failed-payment" || match.status === "personal") {
+    else if (match.status === "matched" || kind === "renewal-notice" || kind === "deadline-notice" || kind === "promotion" || kind === "price-change" || kind === "failed-payment" || match.status === "personal") {
       evidence.push(toEvidence(document, classification, match, result.receipt));
     }
     if (kind === "renewal-notice" || kind === "deadline-notice" || kind === "promotion" || kind === "price-change" || kind === "failed-payment") continue; // notices are not receipts
