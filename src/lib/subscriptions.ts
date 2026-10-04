@@ -201,7 +201,8 @@ export function cleanEvidenceList(input: unknown): SubscriptionEvidence[] {
     const r = e as Partial<SubscriptionEvidence>;
     if (typeof r?.id !== "string" || typeof r.kind !== "string" || typeof r.messageId !== "string") return [];
     const terms = cleanEmailStatedTerms(r.statedTerms);
-    return [{ ...r, ...(terms ? { statedTerms: terms } : {}) } as SubscriptionEvidence];
+    const { statedTerms: _discarded, ...base } = r;
+    return [{ ...base, ...(terms ? { statedTerms: terms } : {}) } as SubscriptionEvidence];
   });
 }
 

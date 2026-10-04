@@ -8,6 +8,9 @@ import {
   priceChangeFlags,
   renewalWarnings,
   cleanSubscription,
+  cleanEvidenceList,
+  extractEmailStatedTerms,
+  mergeEvidence,
   type SubscriptionEvidence,
   type SubscriptionRecord,
 } from "./subscriptions";
@@ -73,6 +76,41 @@ describe("classification and matching", () => {
     const q = buildGmailQuery(subs);
     for (const term of ["from:openai.com", "chatgpt", "renewal", "billing", "expiry", "expiration", "auto-renew", "\"trial ending\"", "\"account suspension\"", "\"price change\"", "receipt", "invoice"]) expect(q).toContain(term);
     expect(q).toContain("newer_than:1y");
+  });
+});
+
+describe("source-grounded recurring plan terms", () => {
+  it("extracts explicit monthly Lovable and yearly Supabase terms without converting annual charges", () => {
+    expect(extractEmailStatedTerms("Plan: Lovable Pro\nRecurring rate: USD $24.00 per month\nEffective: 2026-10-04")).toMatchObject({
+      planName: "Lovable Pro", recurringAmount: 24, currency: "USD", interval: "monthly", effectiveDate: "2026-10-04", ambiguous: false,
+    });
+    expect(extractEmailStatedTerms("Subscription: Supabase Pro\nCAD $300 billed annually")).toMatchObject({
+      planName: "Supabase Pro", recurringAmount: 300, currency: "CAD", interval: "yearly",
+    });
+  });
+
+  it("distinguishes ChatGPT subscriptions from OpenAI API usage", () => {
+    expect(extractEmailStatedTerms("Your ChatGPT Plus plan is USD $24 per month")).toMatchObject({ product: "chatgpt-subscription", recurringAmount: 24, interval: "monthly" });
+    expect(extractEmailStatedTerms("OpenAI API credit top-up USD 24.00; tax USD 2.40; one-time purchase")).toBeNull();
+  });
+
+  it("does not guess from bare dollars, tax, promotions, or conflicting rates", () => {
+    expect(extractEmailStatedTerms("Plan: Pro. Total $24 monthly including tax")).toMatchObject({ recurringAmount: null, currency: null, ambiguous: true });
+    expect(extractEmailStatedTerms("Promotion: Pro plan is 50% off; offer expires tomorrow")).toMatchObject({ recurringAmount: null });
+    expect(extractEmailStatedTerms("Plan: Pro\nUSD $24 per month\nUSD $30 per month")).toMatchObject({ recurringAmount: null, ambiguous: true });
+  });
+
+  it("cleans optional fields and enriches one matching row without changing its review decision", () => {
+    const terms = extractEmailStatedTerms("Plan: Pro\nUSD $24 per month");
+    expect(terms).toBeTruthy();
+    const prior = ev({ id: "same", review: "dismissed" });
+    const incoming = { ...prior, review: "needs-review" as const, statedTerms: terms ?? undefined };
+    const merged = mergeEvidence([prior], [incoming]);
+    expect(merged).toMatchObject({ duplicates: 1 });
+    expect(merged.updated).toHaveLength(1);
+    expect(merged.merged).toHaveLength(1);
+    expect(merged.merged[0]).toMatchObject({ review: "dismissed", statedTerms: { recurringAmount: 24 } });
+    expect(cleanEvidenceList([{ ...incoming, statedTerms: { ...terms, recurringAmount: -4 } }])[0]?.statedTerms?.recurringAmount).toBeNull();
   });
 });
 
