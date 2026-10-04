@@ -158,15 +158,102 @@ export function cleanSubscriptionList(input: unknown): SubscriptionRecord[] | nu
 
 export function cleanEvidenceList(input: unknown): SubscriptionEvidence[] {
   if (!Array.isArray(input)) return [];
-  return input.slice(0, MAX_EVIDENCE).filter((e): e is SubscriptionEvidence => {
+  return input.slice(0, MAX_EVIDENCE).flatMap((e) => {
     const r = e as Partial<SubscriptionEvidence>;
-    return typeof r?.id === "string" && typeof r.kind === "string" && typeof r.messageId === "string";
+    if (typeof r?.id !== "string" || typeof r.kind !== "string" || typeof r.messageId !== "string") return [];
+    if (!r.statedTerms) return [r as SubscriptionEvidence];
+    const t = r.statedTerms as EmailStatedTerms;
+    return [{ ...r, statedTerms: {
+      planName: str(t.planName, 120), recurringAmount: money(t.recurringAmount), currency: ccy(t.currency),
+      interval: t.interval === "monthly" || t.interval === "yearly" ? t.interval : null,
+      effectiveDate: isoDate(t.effectiveDate),
+      product: ["chatgpt-subscription", "openai-api", "other", "unknown"].includes(t.product) ? t.product : "unknown",
+      reason: str(t.reason, 300), ambiguous: t.ambiguous === true,
+    } } as SubscriptionEvidence];
   });
 }
 
 export function senderDomain(from: string): string {
   const m = /@([a-z0-9.-]+\.[a-z]{2,})/i.exec(from);
   return m ? m[1]!.toLowerCase() : "";
+}
+
+export function classifyDocument(text: string, subject = ""): EvidenceKind {
+  return classifyBillingContext(text, subject).kind;
+}
+
+export function classifyBillingContext(text: string, subject = "", receivedAt?: string) {
+  const t = `${subject}\n${text}`.slice(0, 50_000);
+  const promotion = /\b(?:promotion|coupon|discount|special offer|sale)\b/i.test(t);
+  const expiry = /\b(?:expir(?:y|ation|e[sd]?|ing)|ending|ends?|suspension)\b/i.test(t);
+  const what: DeadlineWhat = /\bapi\s+(?:key|token)\b/i.test(t) ? "api-key" : /\bcredential|access token|secret key\b/i.test(t) ? "credential" : /\bdomain\b/i.test(t) ? "domain" : /\btrial\b/i.test(t) ? "trial" : /\baccount\b/i.test(t) ? "account" : /\bsubscription|plan|membership\b/i.test(t) ? "subscription" : /\bservice\b/i.test(t) ? "service" : "unknown";
+  let deadlineDate = /\b(?:on|by|until|before|ends?|expires?|expiry|due)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(t)?.[1] ?? "";
+  let deadlineBasis: "absolute" | "relative-to-received" | "" = deadlineDate ? "absolute" : "";
+  const relative = /\bin\s+(\d{1,3})\s+days?\b/i.exec(t);
+  if (!deadlineDate && relative && receivedAt && !Number.isNaN(Date.parse(receivedAt))) {
+    deadlineDate = addDays(zonedDate(receivedAt), Number(relative[1])); deadlineBasis = "relative-to-received";
+  }
+  if (promotion && expiry) return { kind: "promotion" as const, reason: "Offer or promotion expiry only; not an account or service deadline.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  if (expiry && what !== "unknown" && !/\b(?:does not|doesn't|will not|won't|never)\s+(?:expire|end)\b/i.test(t)) return { kind: "deadline-notice" as const, reason: `${what.replace("-", " ")} expiry stated in the email.`, deadlineWhat: what, deadlineDate, deadlineBasis, ambiguous: false };
+  if (/\b(?:payment failed|card declined|unable to charge|update your payment method)\b/i.test(t)) return { kind: "failed-payment" as const, reason: "Payment failure stated.", deadlineWhat: "payment" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  if (/\b(?:price|rate)\s+(?:change|increase)|new price|will increase to\b/i.test(t)) return { kind: "price-change" as const, reason: "Price change stated.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  const paid = /\b(?:paid|payment received|amount paid|payment successful)\b/i.test(t);
+  const due = /\b(?:amount due|balance due|payment due|unpaid|overdue)\b/i.test(t);
+  if (/\binvoice\b/i.test(t) && due && !paid) return { kind: "unpaid-invoice" as const, reason: "Invoice states payment due.", deadlineWhat: "payment" as const, deadlineDate, deadlineBasis, ambiguous: false };
+  if (/\b(?:will renew|renews on|renewal notice|auto-?renew|trial ends?)\b/i.test(t) && !paid) return { kind: "renewal-notice" as const, reason: "Renewal stated.", deadlineWhat: /trial/i.test(t) ? "trial" as const : "subscription" as const, deadlineDate, deadlineBasis, ambiguous: false };
+  if (paid || /\breceipt\b/i.test(t) || /\binvoice\b/i.test(t)) return { kind: "receipt" as const, reason: "Receipt or invoice document found; payment is not inferred without explicit language.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  return { kind: "unknown" as const, reason: "No supported billing context found.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+}
+
+export function matchService(from: string, text: string, subscriptions: SubscriptionRecord[]) {
+  const domain = senderDomain(from);
+  const byDomain = subscriptions.filter((s) => s.senderDomains.some((d) => domain === d || domain.endsWith(`.${d}`)));
+  const lower = `${from}\n${text}`.toLowerCase();
+  const byAlias = subscriptions.filter((s) => [s.name.toLowerCase(), ...s.aliases].some((a) => a.length >= 3 && lower.includes(a)));
+  const hits = byDomain.length ? byDomain : byAlias;
+  const ids = [...new Set(hits.map((s) => s.id))];
+  if (!ids.length) return { status: "unknown" as const, subscriptionId: null, candidateIds: [] };
+  if (ids.length > 1) return { status: "conflict" as const, subscriptionId: null, candidateIds: ids };
+  const hit = hits[0]!;
+  if (hit.scope === "personal") return { status: "personal" as const, subscriptionId: hit.id, candidateIds: ids };
+  if (hit.scope !== "office") return { status: "conflict" as const, subscriptionId: null, candidateIds: ids };
+  return { status: byDomain.length ? "matched" as const : "unverified-sender" as const, subscriptionId: hit.id, candidateIds: ids };
+}
+
+export function buildGmailQuery(subscriptions: SubscriptionRecord[]) {
+  const terms = ["receipt", "invoice", "renewal", "billing", "expiry", "expiration", "auto-renew", '"trial ending"', '"account suspension"', '"price change"'];
+  for (const s of subscriptions) { for (const d of s.senderDomains) terms.push(`from:${d}`); for (const a of s.aliases) terms.push(a); }
+  return `(${[...new Set(terms)].join(" OR ")}) newer_than:1y -in:spam -in:trash`;
+}
+
+export function extractEmailStatedTerms(text: string, subject = ""): EmailStatedTerms | null {
+  const source = `${subject}\n${text}`.slice(0, 50_000);
+  if (/\b(?:credit|top[- ]?up|one[- ]time)\b/i.test(source) && !/\b(?:subscription|plan)\b/i.test(source)) return null;
+  const monthly = /\b(?:per month|monthly|billed monthly)\b/i.test(source), yearly = /\b(?:per year|yearly|annual(?:ly)?|billed annually)\b/i.test(source);
+  const plans = [...source.matchAll(/\b(?:plan|subscription|tier)\s*(?:name)?\s*[:#-]\s*([^\n]{2,80})/gi)].map((m) => str(m[1], 120).replace(/\s+(?:CAD|USD|EUR|GBP)\s*\$?[0-9].*$/i, ""));
+  const values = [...source.matchAll(/\b(CAD|USD|EUR|GBP)\s*\$?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:\/|per\s+|billed\s+)?(month(?:ly)?|year|yearly|annual(?:ly)?)\b/gi)].map((m) => ({ currency: m[1]!.toUpperCase(), amount: Number(m[2]!.replace(/,/g, "")), interval: /^month/i.test(m[3]!) ? "monthly" as const : "yearly" as const }));
+  const conflict = new Set(values.map((v) => JSON.stringify(v))).size > 1 || new Set(plans.map((p) => p.toLowerCase())).size > 1 || (monthly && yearly);
+  const value = conflict ? undefined : values[0];
+  const product: BillingProduct = /chatgpt/i.test(source) ? "chatgpt-subscription" : /openai\s+api|api\s+(?:usage|credit)/i.test(source) ? "openai-api" : /plan|subscription|monthly|annual/i.test(source) ? "other" : "unknown";
+  const inlinePlan = /\b(ChatGPT\s+[A-Za-z0-9+.-]+)\s+plan\b/i.exec(source)?.[1] ?? "";
+  if (!plans[0] && !inlinePlan && !value && product === "unknown") return null;
+  return { planName: conflict ? "" : plans[0] ?? inlinePlan, recurringAmount: value?.amount ?? null, currency: value?.currency ?? null, interval: value?.interval ?? (monthly !== yearly ? monthly ? "monthly" : yearly ? "yearly" : null : null), effectiveDate: /\b(?:effective|billing date)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(source)?.[1] ?? "", product, reason: conflict ? "Conflicting plan or rate statements require review." : value ? "Email explicitly states a recurring rate and currency." : "Plan terms found without an unambiguous recurring rate.", ambiguous: conflict || Boolean((monthly || yearly) && !value) };
+}
+
+export function mergeEvidence(existing: SubscriptionEvidence[], incoming: SubscriptionEvidence[]) {
+  const merged = [...existing], added: SubscriptionEvidence[] = [], updated: SubscriptionEvidence[] = [];
+  let duplicates = 0;
+  for (const e of incoming) {
+    const at = merged.findIndex((x) => x.fingerprint === e.fingerprint || (x.messageId === e.messageId && x.attachmentIdentity === e.attachmentIdentity));
+    if (at < 0) { merged.push(e); added.push(e); continue; }
+    duplicates++;
+    if (e.statedTerms && !merged[at]!.statedTerms) { merged[at] = { ...merged[at]!, statedTerms: e.statedTerms }; updated.push(merged[at]!); }
+  }
+  return { merged: merged.slice(-MAX_EVIDENCE), added, updated, duplicates };
+}
+
+export function addDays(dateStr: string, days: number) {
+  const d = new Date(`${dateStr}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10);
 }
 
 export const OFFICE_TIMEZONE = "America/Whitehorse";
