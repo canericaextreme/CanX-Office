@@ -363,7 +363,7 @@ function SubscriptionEditor({ value, busy, onSave, onCancel }: { value: Subscrip
       <label className={field}>Auto-renew<select className={select} value={f.autoRenewStatus} onChange={set("autoRenewStatus")}><option value="unknown">Not recorded</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label>
       <label className={field}>Next renewal date<Input type="date" value={f.renewal} onChange={set("renewal")} /></label>
       <label className={field}>Renewal date is<select className={select} value={f.basis} onChange={set("basis")}><option value="estimated">My estimate</option><option value="explicit">Stated on a bill or notice</option></select></label>
-      <label className={`${field} sm:col-span-2`}>Website link (optional)<Input type="url" inputMode="url" placeholder="https://example.com" value={f.website} onChange={set("website")} aria-invalid={urlError ? true : undefined} aria-describedby={urlError ? "website-url-error" : undefined} /></label>
+      <label className={`${field} sm:col-span-2`}>Website link (optional)<Input type="text" inputMode="url" placeholder="https://example.com" value={f.website} onChange={set("website")} aria-invalid={urlError ? true : undefined} aria-describedby={urlError ? "website-url-error" : undefined} /></label>
       {urlError && <p id="website-url-error" role="alert" className="text-xs text-destructive sm:col-span-2">{urlError}</p>}
       <label className={`${field} sm:col-span-2`}>Notes<Input value={f.notes} onChange={set("notes")} /></label>
       <div className="flex gap-2 sm:col-span-2">
