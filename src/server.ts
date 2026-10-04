@@ -59,6 +59,8 @@ const SECURITY_HEADERS: Record<string, string> = {
 function withSecurityHeaders(response: Response): Response {
   try {
     const headers = new Headers(response.headers);
+    // Public version marker for this connection repair; contains no user data.
+    headers.set("X-CanX-Build-Diagnostics", "2026-10-04-manual-redirect");
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
     return new Response(response.body, {
       status: response.status,
