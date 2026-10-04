@@ -169,7 +169,7 @@ export function CompanionDock() {
       tabIndex={0}
       title="Drag to move"
       style={pos ? { left: pos.left, top: pos.top } : { left: 16, bottom: 16 }}
-      className={`fixed z-40 flex h-40 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-44 sm:w-32 ${
+      className={`fixed z-40 flex h-36 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-40 sm:w-32 ${
         dragging ? "opacity-90" : ""
       }`}
     >
@@ -203,28 +203,6 @@ export function CompanionDock() {
       </p>
 
 
-      <div className="flex w-full gap-1.5">
-        <button
-          type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={toggleChat}
-          aria-pressed={chat.on}
-          aria-label={chat.on ? "End the CanX Chat voice conversation" : "Start a CanX Chat voice conversation"}
-          className="min-h-9 flex-1 rounded-md bg-primary px-1 text-xs font-semibold text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {chat.on ? "Stop" : "Chat"}
-        </button>
-        <button
-          type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={toggleWork}
-          aria-pressed={workOpen}
-          aria-label={workOpen ? "Close the Office Work assistant window" : "Open the Office Work assistant window"}
-          className="min-h-9 flex-1 rounded-md border border-border bg-secondary px-1 text-xs font-semibold text-secondary-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Work
-        </button>
-      </div>
       <a
         href="https://chatgpt.com/"
         target="_blank"
