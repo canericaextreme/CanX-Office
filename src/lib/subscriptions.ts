@@ -57,6 +57,11 @@ export interface SubscriptionEvidence {
   deadlineBasis?: "absolute" | "relative-to-received";
   classificationAmbiguous?: boolean;
   statedTerms?: EmailStatedTerms;
+  reviewProvenance?: {
+    by: "elsie-deterministic";
+    reason: string;
+    at: string;
+  };
 }
 
 export type BillingInterval = "monthly" | "yearly";

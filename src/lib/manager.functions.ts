@@ -24,6 +24,7 @@ import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { routeSkills } from "@/lib/office-skills";
 import { isExplicitReceiptSyncRequest, receiptSyncOutcome, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 import { parseMailRuleCommand, type MailRuleCommand } from "@/lib/mail-preferences";
+import { parseElsieReviewCommand } from "@/lib/subscriptions-review";
 import { runMailRuleCommandWith } from "@/lib/mail-rule-command";
 import { protectedCategoryOf } from "@/lib/protected-actions";
 import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
@@ -1621,6 +1622,12 @@ export const managerChat = createServerFn({ method: "POST" })
     const request = data;
     const mailCommand = parseMailRuleCommand(latestRequest);
     if (mailCommand) return runMailRuleCommand(data.accessToken, mailCommand);
+    const reviewCommand = parseElsieReviewCommand(latestRequest);
+    if (reviewCommand === "run") {
+      const { runElsieSubscriptionReview } = await import("@/lib/subscriptions.functions");
+      const result = await runElsieSubscriptionReview(data.accessToken);
+      return { ok: result.ok, code: result.ok ? "ok" : "context_unavailable", provider: "none", state: result.ok ? "verified" : "configured_unverified", model: null, text: result.ok ? [result.message, ...result.items.map((item) => `${item.vendor}: ${item.reason} Source: ${item.mailbox || "mailbox not recorded"}${item.receivedAt ? `, received ${item.receivedAt}` : ", date not recorded"}.`)].join("\n") : "", detail: result.ok ? undefined : result.message, toolCalls: [], actionResults: [] };
+    }
     if (isExplicitReceiptSyncRequest(latestRequest)) {
       const result = await runReceiptSync({
         accessToken: data.accessToken,

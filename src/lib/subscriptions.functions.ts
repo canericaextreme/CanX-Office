@@ -5,6 +5,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { cleanSubscriptionList, type LastCheck, type SubscriptionEvidence, type SubscriptionRecord } from "./subscriptions";
 import type { GmailScanConfig } from "./gmail-scan-window";
+import type { RoutineReviewItem } from "./subscriptions-review";
 
 export interface SubscriptionsResult<T> {
   ok: boolean;
@@ -64,3 +65,26 @@ export const reviewSubscriptionEvidence = createServerFn({ method: "POST" })
     const ok = await store.setEvidenceReview(data.accessToken, who.userId, data.id, data.review);
     return { ok, message: ok ? "Updated." : "The change could not be verified.", data: null };
   });
+
+export interface ElsieReviewResult {
+  ok: boolean;
+  message: string;
+  reviewed: number;
+  alreadyReviewed: number;
+  leftForJohn: number;
+  items: RoutineReviewItem[];
+}
+
+export async function runElsieSubscriptionReview(accessToken: string): Promise<ElsieReviewResult> {
+  const who = await owner(accessToken);
+  if (!who.ok) return { ok: false, message: who.message, reviewed: 0, alreadyReviewed: 0, leftForJohn: 0, items: [] };
+  const store = await import("./subscriptions-store.server");
+  const result = await store.reviewRoutineEvidence(accessToken, who.userId);
+  return result.ok
+    ? { ...result, message: `Elsie’s deterministic review was saved and read back: ${result.reviewed} newly reviewed, ${result.alreadyReviewed} already reviewed, ${result.leftForJohn} left for John. Reviewed does not mean paid, filed in Finance or currently healthy.` }
+    : { ...result, message: "The routine review could not be read back, so no items are reported as reviewed." };
+}
+
+export const reviewRoutineSubscriptionEvidence = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => ({ accessToken: token(input) }))
+  .handler(async ({ data }): Promise<ElsieReviewResult> => runElsieSubscriptionReview(data.accessToken));

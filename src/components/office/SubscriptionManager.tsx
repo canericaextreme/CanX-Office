@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, CalendarClock, ChevronRight, ExternalLink, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CalendarClock, ChevronRight, ExternalLink, ListChecks, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ import { SubscriptionOverview } from "@/components/office/WeeklySubscriptionCard
 import { EvidenceFocusView, EvidenceMonthCards, type ArchiveContext, type ArchiveView } from "@/components/office/SubscriptionEvidenceArchive";
 import { MailReviewPanel, useMailPreferences } from "@/components/office/MailReviewPanel";
 import { visibleEvidence } from "@/lib/mail-preferences";
-import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
+import { listSubscriptions, reviewRoutineSubscriptionEvidence, reviewSubscriptionEvidence, saveSubscriptionList, type ElsieReviewResult } from "@/lib/subscriptions.functions";
 import type { GmailScanConfig } from "@/lib/gmail-scan-window";
 
 const money = (amount: number | null, currency: string | null) =>
@@ -47,6 +47,7 @@ export function SubscriptionManager() {
   // When set, the room shows only the focused month/filter view, replacing the hub.
   const [focus, setFocus] = useState<ArchiveView | null>(null);
   const [serviceFocus, setServiceFocus] = useState<string | null>(null);
+  const [elsieReview, setElsieReview] = useState<ElsieReviewResult | null>(null);
   const openArchive = useCallback((req: { context: ArchiveContext; reviewOnly: boolean }) => {
     setFocus({ month: "all", ...req });
   }, []);
@@ -103,6 +104,17 @@ export function SubscriptionManager() {
     const res = await reviewSubscriptionEvidence({ data: { accessToken: owner.accessToken, id, review } }).catch(() => null);
     setMessage(res?.message ?? "The change could not be verified.");
     if (res?.ok) load();
+  }
+
+  async function runElsieReview() {
+    if (!owner.accessToken || busy) return;
+    setBusy(true);
+    const res = await reviewRoutineSubscriptionEvidence({ data: { accessToken: owner.accessToken } }).catch(() => null);
+    setBusy(false);
+    const result = res ?? { ok: false, message: "The routine review could not be verified.", reviewed: 0, alreadyReviewed: 0, leftForJohn: 0, items: [] };
+    setElsieReview(result);
+    setMessage(result.message);
+    if (result.ok) load();
   }
 
   if (state !== "idle" && focus) {
@@ -185,6 +197,16 @@ export function SubscriptionManager() {
       </CardHeader>
       <CardContent className="space-y-4" aria-live="polite">
         <CheckEmailsNow accessToken={owner.accessToken ?? null} onVerified={load} savedScan={scanConfig} />
+        <section aria-label="Elsie routine subscription review" className="rounded-md border border-finance-teal/40 bg-finance-teal/5 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><h3 className="text-sm font-semibold">Elsie review</h3><p className="text-xs text-muted-foreground">Marks only routine, confidently understood email evidence reviewed. It never means paid, filed, ignored or owner-confirmed.</p></div>
+            <Button size="sm" variant="outline" disabled={busy || state !== "ready"} onClick={runElsieReview}><ListChecks className="h-4 w-4" />Review routine emails</Button>
+          </div>
+          {elsieReview ? <div className="mt-2 text-xs" role="status">
+            <p>{elsieReview.message}</p>
+            {elsieReview.items.length > 0 ? <details className="mt-2"><summary className="cursor-pointer font-medium">See {elsieReview.items.length} reviewed item(s) and reasons</summary><ul className="mt-2 max-h-56 space-y-2 overflow-auto">{elsieReview.items.map((item) => <li key={item.id}><span className="font-medium">{item.vendor}</span> · {item.reason}<span className="block text-muted-foreground">Source: {item.mailbox || "mailbox not recorded"} · {item.receivedAt ? formatZoned(item.receivedAt) : "date not recorded"}</span></li>)}</ul></details> : null}
+          </div> : null}
+        </section>
         {state === "loading" && <p className="text-sm text-muted-foreground">Loading subscriptions…</p>}
         {state === "error" && <p className="text-sm text-destructive">{message || "Subscriptions could not be read."}</p>}
         {message && state === "ready" && <p className="text-xs text-muted-foreground">{message}</p>}
