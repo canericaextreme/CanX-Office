@@ -62,6 +62,19 @@ const STATE_FROM_REASON: Record<string, OwnerState> = {
   backend_error: "error",
 };
 
+/** Bounded startup: no step may leave the entrance on "Opening…" forever. */
+export const STARTUP_TIMEOUTS = { config: 20_000, session: 10_000, verify: 15_000 } as const;
+
+export class StartupTimeoutError extends Error {
+  constructor(public step: string) { super(`startup step timed out: ${step}`); }
+}
+
+export function withStartupTimeout<T>(work: Promise<T>, ms: number, step: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new StartupTimeoutError(step)), ms); });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
 const DEVICE_ONLY = "No CanX-owned database is connected, so the office is saving on this device only.";
 
 /**
@@ -122,8 +135,25 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   const refreshGeneration = useRef(0);
   const refresh = useCallback(async () => {
     const generation = ++refreshGeneration.current;
-    const supabase = await loadCanxSupabase();
-    if (generation !== refreshGeneration.current) return;
+    const current = () => generation === refreshGeneration.current;
+    const fail = (text: string) => {
+      if (!current()) return;
+      setAccessToken(null);
+      setAal(null);
+      setUserId(null);
+      setState("error");
+      setMessage(text);
+    };
+    let supabase: Awaited<ReturnType<typeof loadCanxSupabase>>;
+    try {
+      supabase = await withStartupTimeout(loadCanxSupabase(), STARTUP_TIMEOUTS.config, "config");
+    } catch {
+      if (!current()) return;
+      setConfigured(false);
+      fail("The office sign-in settings did not load in time. Your account and records are not affected. Try again.");
+      return;
+    }
+    if (!current()) return;
     if (!supabase) {
       setConfigured(false);
       setState("backend_missing");
@@ -132,15 +162,20 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     setConfigured(true);
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token ?? null;
+    let token: string | null;
     try {
-      const result = await verifyOwnerSession({ data: { accessToken: token ?? "" } });
-      if (generation === refreshGeneration.current) applyResult(token, result);
+      const { data } = await withStartupTimeout(supabase.auth.getSession(), STARTUP_TIMEOUTS.session, "session");
+      token = data.session?.access_token ?? null;
     } catch {
-      if (generation !== refreshGeneration.current) return;
-      setState("error");
-      setMessage("The office could not check your sign-in.");
+      fail("This browser did not return your saved sign-in in time. Nothing was signed out or deleted. Try again.");
+      return;
+    }
+    if (!current()) return;
+    try {
+      const result = await withStartupTimeout(verifyOwnerSession({ data: { accessToken: token ?? "" } }), STARTUP_TIMEOUTS.verify, "verify");
+      if (current()) applyResult(token, result);
+    } catch {
+      fail("The office could not check your sign-in in time. Nothing was signed out. Try again.");
     }
   }, [applyResult]);
 
@@ -149,30 +184,34 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
     let unsubscribe: (() => void) | undefined;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
-      const supabase = await loadCanxSupabase();
-      if (!active) return;
-      if (supabase) {
-        const { data } = supabase.auth.onAuthStateChange((event: string) => {
-          if (event === "SIGNED_OUT") {
-            ++refreshGeneration.current;
-            clearAllSnapshots(browserStore());
-            setAccessToken(null);
-            setEmail(null);
-            setUserId(null);
-            setAal(null);
-            setState("signed_out");
-          }
-          // Leave the auth callback before calling getSession (auth holds a lock).
-          // TOKEN_REFRESHED must propagate the new token to Astra and its save queue.
-          if (["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT", "TOKEN_REFRESHED", "MFA_CHALLENGE_VERIFIED", "USER_UPDATED"].includes(event)) {
-            clearTimeout(refreshTimer);
-            refreshTimer = setTimeout(() => { if (active) void refresh(); }, 0);
-          }
-        });
-        unsubscribe = () => data.subscription.unsubscribe();
+      try {
+        const supabase = await withStartupTimeout(loadCanxSupabase(), STARTUP_TIMEOUTS.config, "config");
+        if (!active) return;
+        if (supabase) {
+          const { data } = supabase.auth.onAuthStateChange((event: string) => {
+            if (event === "SIGNED_OUT") {
+              ++refreshGeneration.current;
+              clearAllSnapshots(browserStore());
+              setAccessToken(null);
+              setEmail(null);
+              setUserId(null);
+              setAal(null);
+              setState("signed_out");
+            }
+            // Leave the auth callback before calling getSession (auth holds a lock).
+            // TOKEN_REFRESHED must propagate the new token to Astra and its save queue.
+            if (["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT", "TOKEN_REFRESHED", "MFA_CHALLENGE_VERIFIED", "USER_UPDATED"].includes(event)) {
+              clearTimeout(refreshTimer);
+              refreshTimer = setTimeout(() => { if (active) void refresh(); }, 0);
+            }
+          });
+          unsubscribe = () => data.subscription.unsubscribe();
+        }
+      } catch {
+        // refresh() below reports the failure honestly and offers Retry.
       }
-      await refresh();
-    })();
+      if (active) await refresh();
+    })().catch(() => { /* refresh() never rejects; keep startup from leaking errors. */ });
     return () => {
       active = false;
       ++refreshGeneration.current;

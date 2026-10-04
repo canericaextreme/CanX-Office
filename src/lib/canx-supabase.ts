@@ -23,7 +23,13 @@ export async function loadCanxSupabase(): Promise<SupabaseClient | null> {
         let config: Awaited<ReturnType<typeof getBrowserBackendConfig>> = null;
         // A deployment or brief network failure must not strand the entry screen.
         for (let attempt = 0; attempt < 3; attempt++) {
-          try { config = await getBrowserBackendConfig(); } catch { /* Retry below. */ }
+          try {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            config = await Promise.race([
+              getBrowserBackendConfig(),
+              new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("config timeout")), 5_000); }),
+            ]).finally(() => clearTimeout(timer));
+          } catch { /* Retry below. */ }
           if (config) break;
           if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
         }
