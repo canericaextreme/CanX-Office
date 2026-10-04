@@ -7,7 +7,7 @@ type Rest = (config: never, token: string, path: string, init?: RequestInit) => 
  * then re-reads it by exact id and content. Returns not-saved/unverified honestly; never retries.
  */
 export async function saveSkillRunRecord(input: {
-  accessToken: string; userId: string; roomId: string; title: string; detail: string; now?: string;
+  accessToken: string; userId?: string; roomId: string; title: string; detail: string; now?: string;
   deps?: { config: unknown; rest: Rest };
 }): Promise<{ ok: true; id: string } | { ok: false; reason: "not_configured" | "not_saved" | "unverified" }> {
   let config = input.deps?.config;
@@ -18,9 +18,16 @@ export async function saveSkillRunRecord(input: {
     rest = backend.restRequest as unknown as Rest;
   }
   if (!config) return { ok: false, reason: "not_configured" };
+  let userId = input.userId;
+  if (!userId) {
+    const backend = await import("./canx-backend.server");
+    const who = await backend.verifyOwner(input.accessToken).catch(() => null);
+    if (!who?.ok) return { ok: false, reason: "not_saved" };
+    userId = who.userId;
+  }
   const id = crypto.randomUUID();
   const detail = input.detail.slice(0, 2000);
-  const row = { id, owner_id: input.userId, kind: "decision", title: input.title.slice(0, 200), detail, owner_name: "John",
+  const row = { id, owner_id: userId, kind: "decision", title: input.title.slice(0, 200), detail, owner_name: "John",
     provenance: "ai-proposal", source: roomReportSource(input.roomId), created_at: input.now ?? new Date().toISOString() };
   const saved = await rest(config as never, input.accessToken, "office_notes", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify([row]) }).catch(() => null);
   if (!saved?.ok) return { ok: false, reason: "not_saved" };
