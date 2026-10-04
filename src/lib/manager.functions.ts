@@ -1630,6 +1630,9 @@ export const managerChat = createServerFn({ method: "POST" })
       return { ok: result.ok, code: result.ok ? "ok" : "context_unavailable", provider: "none", state: result.ok ? "verified" : "configured_unverified", model: null, text: result.ok ? [result.message, ...result.items.map((item) => `${item.vendor}: ${item.reason} Source: ${item.mailbox || "mailbox not recorded"}${item.receivedAt ? `, received ${item.receivedAt}` : ", date not recorded"}.`)].join("\n") : "", ...(result.ok ? {} : { detail: result.message }), toolCalls: [], actionResults: [] };
     }
     const auditCommand = parseSubscriptionsSkillAuditCommand(latestRequest);
+    if (auditCommand === "status") {
+      return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null, text: "That was a status question, so I did not run or record a Subscriptions skill check. Ask me to follow all the skills in the Subscriptions room when you want a fresh owner-verified check.", toolCalls: [], actionResults: [] };
+    }
     if (auditCommand === "run") {
       const { runSubscriptionsSkillAudit } = await import("@/lib/subscriptions.functions");
       const result = await runSubscriptionsSkillAudit(data.accessToken, data.buildId ?? "unknown");

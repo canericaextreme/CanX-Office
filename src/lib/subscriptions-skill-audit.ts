@@ -26,13 +26,13 @@ export interface SubscriptionSkillAuditReport {
   items: SubscriptionSkillAuditItem[];
 }
 
-const AUDIT_PHRASE = /\b(?:follow|run|check|audit)\b.*\b(?:all|every)\b.*\bskills?\b.*\bsubscriptions?\s+room\b|\bsubscriptions?\s+room\b.*\b(?:all|every)\b.*\bskills?\b/i;
+const AUDIT_PHRASE = /\b(?:follow(?:ed)?|run|check(?:ed)?|audit(?:ed)?)\b.*\b(?:all|every)\b.*\bskills?\b.*\bsubscriptions?\s+room\b|\bsubscriptions?\s+room\b.*\b(?:all|every)\b.*\bskills?\b/i;
 
 export function parseSubscriptionsSkillAuditCommand(text: string): SubscriptionSkillAuditCommand {
   const compact = text.trim().replace(/\s+/g, " ");
   if (!compact || compact.length > 300 || !AUDIT_PHRASE.test(compact)) return null;
   if (/\b(?:do not|don't|dont|never|not now)\b/i.test(compact) || /\b(?:if|would|could|can)\b.*\b(?:follow|run|check|audit)\b/i.test(compact)) return null;
-  if (/\?$/.test(compact) || /\b(?:have|did|has)\b.*\b(?:skills?|audit|check)\b/i.test(compact)) return "status";
+  if (/\?$/.test(compact) || /\b(?:have|did|has)\b.*\b(?:followed|run|checked|audited)\b/i.test(compact)) return "status";
   return "run";
 }
 
