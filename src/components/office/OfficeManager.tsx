@@ -152,6 +152,15 @@ type Tab = ConsoleView;
 export const VOICE_CHECK_SENTENCE =
   "Voice check. If you can hear this sentence, the speaking voice works on this device.";
 
+function OfficeWorkerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="6" r="3" />
+      <path d="M4 21v-3a8 8 0 0 1 16 0v3M8 12l4 4 4-4M12 16l-2 5h4l-2-5" />
+    </svg>
+  );
+}
+
 export function OfficeManager() {
   const router = useRouter();
   const observeRoom = useServerFn(observeCurrentRoom);
@@ -1165,16 +1174,16 @@ export function OfficeManager() {
           aria-expanded={false}
           aria-controls="office-manager-panel"
           aria-label="Open Office Manager Elsie"
-          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center justify-center gap-1 rounded-xl border border-border bg-card/95 px-2 text-xs font-semibold text-primary shadow-lg backdrop-blur hover:bg-muted"
+          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center justify-center gap-2 rounded-xl border border-slate-950 bg-slate-900 px-2 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:text-white"
         >
-          <Bot className="h-5 w-5" aria-hidden="true" /> Office Manager Elsie
+          <OfficeWorkerIcon /> <span className="whitespace-normal leading-tight">Office Manager Elsie</span>
         </Button>
       )}
 
       {open && minimized && (
         <div
           aria-label="Office Manager, minimised"
-          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center rounded-xl border border-border bg-card/95 px-1 shadow-lg backdrop-blur"
+          className="fixed bottom-4 right-4 z-40 flex h-12 w-44 items-center rounded-xl border border-slate-950 bg-slate-900 px-1 text-white shadow-lg"
         >
           <button
             type="button"
@@ -1182,15 +1191,15 @@ export function OfficeManager() {
             aria-controls="office-manager-panel"
             title={liveState}
             onClick={() => setMinimized(false)}
-            className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-md text-xs font-semibold text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-md text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Bot className="h-5 w-5 shrink-0" aria-hidden="true" /> Office Manager Elsie
+            <OfficeWorkerIcon /> <span className="leading-tight">Office Manager Elsie</span>
             <span role="status" aria-live="polite" className="sr-only">{liveState}</span>
           </button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-8 w-8 shrink-0 text-white hover:bg-slate-800 hover:text-white"
             aria-label="Close the Office Manager"
             onClick={closeManager}
           >
