@@ -7,8 +7,8 @@ export async function readBuildPipelineState(accessToken: string): Promise<Build
   const enabled = process.env["CANX_CODEX_ENABLED"] === "true";
   if (!tokenPresent || !enabled) return { tokenPresent, enabled, liveCheck: "not-attempted", detail: "" };
   try {
-    const { checkCodexBuilds } = await import("./codex-builds.functions");
-    const res = await checkCodexBuilds(accessToken);
+    const { runCodexBuildOperation } = await import("./codex-builds.functions");
+    const res = await runCodexBuildOperation(accessToken);
     return { tokenPresent, enabled, liveCheck: res.ok ? "ok" : "failed", detail: res.ok ? "" : res.detail.slice(0, 200) };
   } catch {
     return { tokenPresent, enabled, liveCheck: "failed", detail: "The workflow read did not complete." };

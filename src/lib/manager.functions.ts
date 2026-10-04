@@ -26,6 +26,7 @@ import { isExplicitReceiptSyncRequest, receiptSyncOutcome, runReceiptSync } from
 import { parseMailRuleCommand, type MailRuleCommand } from "@/lib/mail-preferences";
 import { parseElsieReviewCommand } from "@/lib/subscriptions-review";
 import { parseSubscriptionsSkillAuditCommand } from "@/lib/subscriptions-skill-audit";
+import { formatOfficeAudit, parseOfficeAuditCommand } from "@/lib/office-audit";
 import { runMailRuleCommandWith } from "@/lib/mail-rule-command";
 import { protectedCategoryOf } from "@/lib/protected-actions";
 import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
@@ -1639,6 +1640,16 @@ export const managerChat = createServerFn({ method: "POST" })
       if (!result.ok) return { ok: false, code: "context_unavailable", provider: "none", state: "configured_unverified", model: null, text: "", detail: result.message, toolCalls: [], actionResults: [] };
       const detail = result.report.items.map((audit) => `${audit.name}: ${audit.status}. ${audit.result} Reason: ${audit.reason} Sources: ${audit.sources.join("; ") || "none"}. Checked ${audit.checkedAt}. Owner live-tested: no.`);
       return { ok: true, code: "ok", provider: "none", state: "verified", model: null, text: [result.message, ...detail].join("\n"), toolCalls: [], actionResults: [], skillsUsed: { registryVersion: result.report.registryVersion, skills: result.report.items.map(({ id, name, version }) => ({ id, name, version })) } };
+    }
+    const officeAudit = parseOfficeAuditCommand(latestRequest);
+    if (officeAudit === "status") {
+      return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null, text: "That was a status question, so I did not run a whole-office check. Ask me to check all the rooms when you want a fresh owner-verified audit.", toolCalls: [], actionResults: [] };
+    }
+    if (officeAudit === "run") {
+      const { runOfficeAudit } = await import("@/lib/office-audit.server");
+      const out = await runOfficeAudit(data.accessToken, data.buildId ?? "unknown");
+      if (!out.ok) return { ok: false, code: "context_unavailable", provider: "none", state: "configured_unverified", model: null, text: "", detail: out.message, toolCalls: [], actionResults: [] };
+      return { ok: true, code: "ok", provider: "none", state: "verified", model: null, text: formatOfficeAudit(out.report), toolCalls: [], actionResults: [] };
     }
     if (isExplicitReceiptSyncRequest(latestRequest)) {
       const result = await runReceiptSync({
