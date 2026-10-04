@@ -92,7 +92,12 @@ export function SubscriptionManager() {
   const focusedBilling = focusedService ? serviceBillingDisplay(focusedService, shownEvidence) : null;
 
   async function persist(next: SubscriptionRecord[]) {
-    if (!owner.accessToken) return;
+    if (!owner.accessToken) {
+      const msg = "Not saved: owner sign-in is not active. Sign in again and retry.";
+      setMessage(msg);
+      toast.error(msg);
+      return;
+    }
     setBusy(true);
     const res = await saveSubscriptionList({ data: { accessToken: owner.accessToken, subscriptions: next } }).catch(() => null);
     setBusy(false);

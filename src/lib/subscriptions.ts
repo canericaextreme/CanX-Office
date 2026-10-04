@@ -139,11 +139,16 @@ const list = (v: unknown, max: number) =>
   Array.isArray(v) ? v.map((x) => str(x, 120).toLowerCase()).filter(Boolean).slice(0, max) : [];
 
 export function cleanWebsiteUrl(input: unknown): string | undefined {
-  const raw = str(input, 500).trim();
-  if (!raw) return undefined;
+  if (typeof input !== "string") return undefined;
+  let raw = input.trim();
+  if (!raw || raw.length > 2000 || /[\u0000-\u001f\u007f\s]/.test(raw)) return undefined;
+  // An accidental double paste ("http://https://site") keeps the last scheme.
+  raw = raw.replace(/^(?:https?:\/\/)+(https?:\/\/)/i, "$1");
   try {
     const u = new URL(raw);
     if (u.protocol !== "http:" && u.protocol !== "https:") return undefined;
+    // A real site needs a dotted host; "https//..." from a double scheme does not.
+    if (!u.hostname.includes(".") || u.hostname.startsWith(".") || u.hostname.endsWith(".")) return undefined;
     return u.toString();
   } catch {
     return undefined;
