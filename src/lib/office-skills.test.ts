@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  MASTER_NAMED_SKILLS, OFFICE_SKILLS, ROOM_SKILL_MAP, routeSkills, skillsForRoute, UNMATCHED_MASTER_ENTRIES,
+  MASTER_NAMED_SKILLS, OFFICE_SKILLS, ROOM_SKILL_MAP, routeSkills, routeSkillsForRoom, skillsForRoute, UNMATCHED_MASTER_ENTRIES,
 } from "./office-skills";
 import { OFFICE_MAP_ROOMS } from "./office-map";
 
@@ -40,7 +40,14 @@ describe("Office Skills registry", () => {
       expect(s.provenance).toMatch(/CanX_Office_Skills_Map/);
     }
     for (const s of OFFICE_SKILLS) expect(s.liveTested).toBe(false);
-    for (const s of OFFICE_SKILLS.filter((x) => x.kind !== "core")) expect(s.instructionReady).toBe(false);
+    for (const s of OFFICE_SKILLS.filter((x) => x.kind === "outline" || x.kind === "draft")) {
+      expect(s.instructionReady, s.id).toBe(true);
+      expect(s.routingTested, s.id).toBe(true);
+      expect(s.steps.length, s.id).toBeGreaterThanOrEqual(5);
+      expect(s.output.length, s.id).toBeGreaterThanOrEqual(5);
+      expect(s.provenance, s.id).toMatch(/John|master map/i);
+    }
+    for (const s of OFFICE_SKILLS.filter((x) => x.kind === "reserved" || x.kind === "legacy")) expect(s.instructionReady).toBe(false);
   });
 
   it("source lives in the repository, not a ChatGPT Skill Library", () => {
@@ -66,10 +73,26 @@ describe("deterministic skill router", () => {
     expect(routeSkills("run the daily review").skills.some((s) => s.id === "office-manager.daily-review")).toBe(true);
     expect(routeSkills("source check this claim").instructions).toMatch(/NO live web\/research search tool/);
   });
-  it("never loads outlines/drafts and contains no record data", () => {
-    const r = routeSkills("legal privacy check, capture idea, renewal check, daily review, security incident, blockers");
-    for (const s of r.skills) expect(OFFICE_SKILLS.find((x) => x.id === s.id)!.kind).toBe("core");
-    expect(r.skills.length).toBeLessThanOrEqual(5);
+  it("routes every installed job specifically and excludes it from unrelated chatter", () => {
+    const installed = OFFICE_SKILLS.filter((s) => s.instructionReady && !["office-manager.skill-router", "approvals.owner-decision-filter"].includes(s.id));
+    for (const skill of installed) {
+      const job = skill.name.split(" — ").at(-1) ?? skill.name;
+      expect(routeSkills(`Please run ${job}`).skills.map((s) => s.id), skill.id).toContain(skill.id);
+      expect(routeSkills("hello Elsie, how are you?").skills.map((s) => s.id), skill.id).not.toContain(skill.id);
+    }
+  });
+  it("prioritizes exact request matches, caps task instructions at three, and discloses omitted broad-review skills", () => {
+    const exact = routeSkillsForRoom("receipt reconciliation", "/finance");
+    expect(exact.skills.map((s) => s.id)).toContain("finance.receipt-reconciliation");
+    expect(exact.skills.map((s) => s.id)).not.toContain("finance.budget-variance-review");
+    const broad = routeSkillsForRoom("review this room", "/work-board");
+    expect(broad.skills).toHaveLength(5);
+    expect(broad.omitted.length).toBeGreaterThan(0);
+    expect(broad.instructions).toMatch(/Bounded selection disclosure/);
+  });
+  it("does not route reserved/history entries and contains no record data", () => {
+    const r = routeSkills("future reserved phase 0 planning stripe integration");
+    expect(r.skills).toHaveLength(2);
     expect(r.instructions).not.toMatch(/receipt total|@gmail\.com/i);
   });
 });

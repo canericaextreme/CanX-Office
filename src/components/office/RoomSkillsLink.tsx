@@ -3,9 +3,7 @@ import { BookOpenCheck } from "lucide-react";
 import { skillsForRoute, ROOM_SKILL_MAP, type OfficeSkill } from "@/lib/office-skills";
 
 export function skillStatusLabel(s: OfficeSkill): string {
-  if (s.kind === "core") return s.toolConnected ? "Instructions ready · inputs connected · not live-tested" : "Instructions ready · some inputs missing · not live-tested";
-  if (s.kind === "outline") return "Named outline — not installed";
-  if (s.kind === "draft") return "Draft proposal — not approved";
+  if (s.instructionReady) return s.toolConnected ? "Installed instructions · inputs connected · awaiting live test" : "Installed instructions · partial connection · awaiting live test";
   if (s.kind === "reserved") return "Reserved";
   return "Legacy entry";
 }
@@ -23,7 +21,7 @@ export function RoomSkillsLink({ route }: { route: string }) {
         </h2>
         <Link to="/skills" className="text-xs font-medium text-primary underline-offset-2 hover:underline">Open Office Skills</Link>
       </div>
-      {map?.coverage === "draft-gap" && <p className="mt-1 text-xs text-muted-foreground">This room is not in the master skills map yet; only draft proposals exist.</p>}
+      {map?.coverage === "draft-gap" && <p className="mt-1 text-xs text-muted-foreground">This room has an installed app-owned instruction outside the original master map; connected inputs and live testing remain separate.</p>}
       {map?.coverage === "reserved" && <p className="mt-1 text-xs text-muted-foreground">Reserved room — no worker or skill is installed.</p>}
       {skills.length > 0 && (
         <ul className="mt-2 grid gap-1 sm:grid-cols-2">

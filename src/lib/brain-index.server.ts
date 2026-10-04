@@ -114,7 +114,7 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
   sources.push({ key: "skills", label: "Office Skills registry (app setup)", status: "read", count: OFFICE_SKILLS.length, detail: "built into the app; not live data" });
   for (const s of OFFICE_SKILLS) items.push({
     key: `skill:${s.id}`, kind: "skill", title: s.name, room: null, folder: null, at: null, provenance: "Office Skills registry (app setup)",
-    version: `v${s.version} · ${s.kind === "core" && s.instructionReady ? "ready instructions" : s.kind === "outline" ? "outline — not installed" : s.kind === "draft" ? "draft — not approved" : s.kind}`,
+    version: `v${s.version} · ${s.instructionReady ? "installed instructions" : s.kind}`,
     access: "instructions on the Office Skills page", defaultCategory: "rules-skills", category: "rules-skills", manual: false, route: `/skills#${s.id}`,
   });
 

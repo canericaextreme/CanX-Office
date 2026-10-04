@@ -184,3 +184,10 @@
 
 - [ ] Room connection: John runs the all-room check signed-in on the current preview build (needs owner sign-in + MFA)
 - [ ] Brain categories: John opens Brain signed-in and confirms categories, counts and one re-file (needs owner sign-in + MFA)
+
+## Office Skills installation — 4 Oct 2026
+- [x] Expanded every named master-map outline and all five actual-room drafts into complete, versioned CanX-owned instructions.
+- [x] Added deterministic job-specific and room-aware routing with a maximum of three task skills and explicit omitted-skill disclosure for broad reviews.
+- [x] Preserved the original nine core skills, Future reservation, historical aliases, approval boundaries, and shared typed/live-voice submit path.
+- [x] Reconciled connected and missing inputs against current room snapshots and available actions; no connector, scheduler, external action, or live-test claim was added.
+- [ ] Owner live verification of installed procedures remains pending; compile and routing tests do not count.

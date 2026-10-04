@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { managerRealtimeInstructions, managerRealtimeSessionBody, voiceSessionSkillGuidance } from "./manager-realtime.functions";
-import { OFFICE_SKILLS, SKILLS_REGISTRY_VERSION, routeSkills } from "./office-skills";
+import { OFFICE_SKILLS, SKILLS_REGISTRY_VERSION, routeSkills, routeSkillsForRoom } from "./office-skills";
 
 describe("live voice receives canonical Office Skills guidance", () => {
   for (const mode of ["relay", "direct"] as const) {
@@ -21,7 +21,7 @@ describe("live voice receives canonical Office Skills guidance", () => {
     });
   }
 
-  it("never loads outline, draft, reserved or legacy skills into voice", () => {
+  it("loads only always-on safety skills at session start", () => {
     const guidance = voiceSessionSkillGuidance();
     for (const s of OFFICE_SKILLS.filter((x) => x.kind !== "core")) expect(guidance).not.toContain(`id ${s.id})`);
   });
@@ -32,5 +32,6 @@ describe("live voice receives canonical Office Skills guidance", () => {
     const om = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
     expect(om).toMatch(/useRealtimeManager\([\s\S]{0,1200}sendChat\(/);
     expect(routeSkills("review my subscriptions").skills.map((s) => s.id)).toContain("finance.subscription-review");
+    expect(routeSkillsForRoom("run receipt reconciliation", "/finance").skills.map((s) => s.id)).toContain("finance.receipt-reconciliation");
   });
 });
