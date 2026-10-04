@@ -18,9 +18,7 @@ vi.mock("@/components/office/SubscriptionManager", async () => {
   };
 });
 
-import { Route } from "@/routes/_office/subscriptions";
-
-const Page = Route.options.component as () => React.ReactElement;
+import { Subscriptions } from "@/routes/_office/subscriptions";
 
 afterEach(cleanup);
 
@@ -29,7 +27,7 @@ const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) 
 
 describe("Subscriptions page render", () => {
   it("renders the saved list without the static provider-records card", () => {
-    const { container } = render(<Page />);
+    const { container } = render(<Subscriptions />);
     expect(screen.getByTestId("saved-list")).toBeTruthy();
     // The removed card: heading, explanatory note and its three static rows.
     expect(screen.queryByText("Previous provider records")).toBeNull();
@@ -39,7 +37,7 @@ describe("Subscriptions page render", () => {
   });
 
   it("keeps the AI Workers card below the saved list and opens its historical details", () => {
-    render(<Page />);
+    render(<Subscriptions />);
     const card = screen.getByRole("button", { name: "Open AI Workers subscription verification details" });
     expect(card.textContent).toContain("Historical snapshot from September 11, 2026. Current spend is unknown.");
     expect(before(screen.getByTestId("saved-list"), card)).toBe(true);

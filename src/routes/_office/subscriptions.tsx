@@ -46,7 +46,7 @@ export const AI_WORKERS_VERIFICATION = {
     "OpenAI Platform Usage and API key activity checked September 11, 2026. Not re-checked since, so current billing is unknown.",
 } as const;
 
-function Subscriptions() {
+export function Subscriptions() {
   return (
     <RoomShell>
       <SubscriptionManager />
