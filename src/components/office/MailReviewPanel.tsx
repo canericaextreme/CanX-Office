@@ -39,6 +39,8 @@ export function MailReviewView({
 }) {
   const rows = useMemo(() => reviewRows(evidence, prefs), [evidence, prefs]);
   const shown = filterRows(rows, filter);
+  const [showAll, setShowAll] = useState(false);
+  const visibleRows = showAll ? shown : shown.slice(0, 60);
   const count = (f: ReviewFilter) => filterRows(rows, f).length;
   return (
     <section aria-label="Saved mail review" className="space-y-3">
@@ -58,7 +60,7 @@ export function MailReviewView({
       {note ? <p className="text-xs text-foreground" role="status">{note}</p> : null}
       {shown.length === 0 ? <p className="text-sm text-muted-foreground">No saved mail in this view.</p> : (
         <ul className="space-y-2">
-          {shown.slice(0, 60).map(({ evidence: e, category, why }) => {
+          {visibleRows.map(({ evidence: e, category, why }) => {
             const sender = normalizeSender(e.from);
             const rule = sender ? prefs.senders.find((s) => s.sender === sender) : undefined;
             const msg = prefs.messages.find((m) => m.mailbox === e.mailbox.toLowerCase() && m.messageId === e.messageId);
@@ -93,6 +95,12 @@ export function MailReviewView({
           })}
         </ul>
       )}
+      {shown.length > 60 ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>Showing {visibleRows.length} of {shown.length} in this view.</span>
+          <Button size="sm" variant="outline" className="min-h-10" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>{showAll ? "Show first 60" : `Show all ${shown.length}`}</Button>
+        </div>
+      ) : null}
       <div>
         <h4 className="text-sm font-semibold">Sender rules ({prefs.senders.length})</h4>
         {prefs.senders.length === 0 ? <p className="text-xs text-muted-foreground">No sender rules saved.</p> : (

@@ -185,6 +185,11 @@
 - [ ] Room connection: John runs the all-room check signed-in on the current preview build (needs owner sign-in + MFA)
 - [ ] Brain categories: John opens Brain signed-in and confirms categories, counts and one re-file (needs owner sign-in + MFA)
 
+## Subscriptions layout repair — 4 Oct 2026
+- [x] Owner reported "not categorized": room order is now Check emails → last check + category cards (open month list filtered) + bounded deadlines → month archive (Month / Evidence type / Needs review) → folded weekly emails/alerts → services → folded Saved mail review. Long lists labelled "Showing X of N" with Show all; no data changes.
+- [x] Integrated SubscriptionManager test with 120 items (controls before long lists, older months collapsed, cards filter). 1,081 tests, typecheck, production build passed.
+- [ ] BLOCKED on John: refresh the preview (Ctrl+Shift+R) and check the signed-in Subscriptions room on phone and desktop.
+
 ## Subscriptions Skills installation — 4 Oct 2026
 - [x] Scope correction applied: install only Subscriptions' four named jobs and linked Finance Subscription Review, Renewal Watch, Receipt Reconciliation and Budget Variance procedures; park every other room outline/draft.
 - [x] Keep deterministic request-aware routing at three task skills, omitted-procedure disclosure, original core rules and shared typed/live-voice submit path.

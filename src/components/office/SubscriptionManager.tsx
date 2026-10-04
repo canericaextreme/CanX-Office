@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronRight, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,8 @@ import {
   type SubscriptionRecord,
 } from "@/lib/subscriptions";
 import { CheckEmailsNow } from "@/components/office/CheckEmailsNow";
-import { WeeklySubscriptionCards } from "@/components/office/WeeklySubscriptionCards";
-import { SubscriptionEvidenceArchive } from "@/components/office/SubscriptionEvidenceArchive";
+import { SubscriptionOverview, WeeklyEvidenceDetails } from "@/components/office/WeeklySubscriptionCards";
+import { ARCHIVE_ID, SubscriptionEvidenceArchive, type ArchiveContext, type ArchiveRequest } from "@/components/office/SubscriptionEvidenceArchive";
 import { MailReviewPanel, useMailPreferences } from "@/components/office/MailReviewPanel";
 import { visibleEvidence } from "@/lib/mail-preferences";
 import { listSubscriptions, reviewSubscriptionEvidence, saveSubscriptionList } from "@/lib/subscriptions.functions";
@@ -37,6 +37,16 @@ export function SubscriptionManager() {
   const [busy, setBusy] = useState(false);
   const [lastCheck, setLastCheck] = useState<LastCheck | null>(null);
   const [scanConfig, setScanConfig] = useState<GmailScanConfig | null>(null);
+  const [archiveRequest, setArchiveRequest] = useState<ArchiveRequest | null>(null);
+  const openArchive = useCallback((req: { context: ArchiveContext; reviewOnly: boolean }) => {
+    setArchiveRequest((prev) => ({ ...req, key: (prev?.key ?? 0) + 1 }));
+    // Bring the month list into view and move keyboard focus to its heading.
+    requestAnimationFrame(() => {
+      const el = typeof document !== "undefined" ? document.getElementById(ARCHIVE_ID) : null;
+      el?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      el?.querySelector<HTMLElement>("h3")?.focus({ preventScroll: true });
+    });
+  }, []);
 
   const load = useCallback(() => {
     if (!owner.shared || !owner.accessToken) { setState("idle"); return; }
@@ -100,11 +110,11 @@ export function SubscriptionManager() {
       </CardHeader>
       <CardContent className="space-y-4" aria-live="polite">
         <CheckEmailsNow accessToken={owner.accessToken ?? null} onVerified={load} savedScan={scanConfig} />
-        <WeeklySubscriptionCards view={weekly} lastCheck={lastCheck} />
-        <MailReviewPanel accessToken={owner.accessToken ?? null} evidence={evidence} prefs={prefsLoad} onPrefs={(p) => setPrefsLoad({ state: "ready", prefs: p })} />
         {state === "loading" && <p className="text-sm text-muted-foreground">Loading subscriptions…</p>}
         {state === "error" && <p className="text-sm text-destructive">{message || "Subscriptions could not be read."}</p>}
         {message && state === "ready" && <p className="text-xs text-muted-foreground">{message}</p>}
+
+        <SubscriptionOverview view={weekly} lastCheck={lastCheck} evidence={shownEvidence} onOpenArchive={openArchive} />
 
         {warnings.length > 0 && (
           <section aria-label="Renewals in the next seven days" className="rounded-md border border-canx-yellow/60 bg-canx-yellow/10 p-3">
@@ -131,6 +141,11 @@ export function SubscriptionManager() {
           </section>
         )}
 
+        <SubscriptionEvidenceArchive evidence={shownEvidence} loading={prefsLoad.state === "loading"} onMark={mark} request={archiveRequest} />
+
+        <WeeklyEvidenceDetails view={weekly} onOpenArchive={openArchive} />
+
+        {state === "ready" && <h3 className="pt-2 text-sm font-semibold">Your services ({subs.length})</h3>}
         {state === "ready" && (
           <ul className="space-y-2">
             {subs.map((s) => (
@@ -186,7 +201,14 @@ export function SubscriptionManager() {
           persist(exists ? subs.map((s) => (s.id === rec.id ? rec : s)) : [...subs, rec]);
         }} />}
 
-        <SubscriptionEvidenceArchive evidence={shownEvidence} loading={prefsLoad.state === "loading"} onMark={mark} />
+        <details className="group rounded-lg border border-border bg-muted/10 p-3">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden /> Saved mail review and Ignore rules ({evidence.length} saved email(s))
+          </summary>
+          <div className="mt-2">
+            <MailReviewPanel accessToken={owner.accessToken ?? null} evidence={evidence} prefs={prefsLoad} onPrefs={(p) => setPrefsLoad({ state: "ready", prefs: p })} />
+          </div>
+        </details>
       </CardContent>
     </Card>
   );
