@@ -1,17 +1,19 @@
-# Subscriptions: Elsie routine review pass
+# Full-office operational baseline
 
-## Build
-- Add a deterministic, conservative eligibility classifier for saved Subscriptions evidence. It will review only trustworthy, unambiguous routine items and retain source-specific reasons.
-- Keep failed payments, unresolved invoices, conflicts, unknown or unverified senders, missing required values, unreadable evidence, and ambiguous deadlines for John.
-- Extend the existing owner/MFA-protected, compare-and-swap save path with one verified batch operation. Preserve dismissed/reviewed/ignored decisions and add compatible review provenance without changing the database.
-- Add a compact **Elsie review** action to Subscriptions with a verified summary: newly reviewed, already reviewed, and left for John.
-- Route explicit typed and live-voice review commands through the same authenticated operation; questions, negations, and hypotheticals remain read-only.
+## Scope
+Preserve the completed Subscriptions repairs, then expand the authorised work from Subscriptions-only to every current Office room and auxiliary destination. “Live” means honestly operational in preview where existing verified APIs support it; it never means publish, spend, send, delete, change accounts, or mark untested work green.
+
+## Implementation
+1. Replace the obsolete room-by-room restriction in the governing Office rules with the 3 October full-office authorisation and its safety boundaries.
+2. Expand every current named master-map skill and the five actual-room drafts into complete, versioned, app-owned instructions. Keep reserved, future, and historical entries inactive.
+3. Preserve the normal three-task instruction limit for typed and voice requests, while adding an explicit deterministic whole-office skill audit that enumerates every installed skill without silent omission.
+4. Build the audit from the canonical room map, auxiliary room identities, skill registry, room snapshot contract, and existing actions. For every room, report installed instructions, source/tool/action availability, missing inputs, test state, current-build owner verification state, and exact next task.
+5. Use fresh owner-scoped reads through the existing authentication and two-step verification path. Run only supported internal read-only checks; unsupported external capabilities remain blocked and named precisely.
+6. Save a durable repository checklist so no room is silently dropped in later stages. Add focused tests for full room/skill coverage, bounded routing, blocked inputs, partial source failures, reserved/history exclusions, and no blanket live-tested state.
+7. Verify focused tests, the full suite, types, and preview build. Do not run owner-authenticated checks, mailbox scans, paid calls, migrations, or publication.
 
 ## Technical details
-- Re-read after save and count only exact IDs carrying the deterministic review provenance; partial or failed verification will not claim completion.
-- Review state will explicitly not mean paid, filed in Finance, current, or owner-confirmed.
-- Cover a mixed 120-item fixture, idempotency, save/readback failure, conflicts/currency/missing history, preserved dismissed decisions, and command routing.
-
-## Verification
-- Run focused tests, the full test suite, TypeScript checking, and confirm the preview build status.
-- Do not run the review against John's data, call Gmail or paid services, migrate data, or publish.
+- Canonical rooms: `OFFICE_MAP_ROOMS` plus auxiliary identities from the shared room identity adapter.
+- Canonical procedures: the versioned Office Skills registry; skills remain separate from tools, connections, and live-test evidence.
+- Audit command: explicit whole-office wording through the same `submit_office_request` path used by typed and live voice; status questions and negated/hypothetical requests remain read-only.
+- Output statuses: completed, blocked, or not attempted, each with source/freshness evidence and a required next step. “Configured,” “connected,” “tested,” and “owner verified” remain distinct.
