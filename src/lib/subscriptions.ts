@@ -221,8 +221,8 @@ export function matchService(from: string, text: string, subscriptions: Subscrip
 }
 
 export function buildGmailQuery(subscriptions: SubscriptionRecord[]) {
-  const terms = ["receipt", "invoice", "renewal", "billing", "expiry", "expiration", "auto-renew", '"trial ending"', '"account suspension"', '"price change"'];
-  for (const s of subscriptions) { for (const d of s.senderDomains) terms.push(`from:${d}`); for (const a of s.aliases) terms.push(a); }
+  const terms = ["receipt", "invoice", "renewal", "billing", "expiry", "expiration", "auto-renew", '"trial ending"', '"account suspension"', '"payment failed"', '"price change"', '"your plan"'];
+  for (const s of subscriptions) { for (const d of s.senderDomains) terms.push(`from:${d}`); for (const a of s.aliases) terms.push(a.includes(" ") ? `"${a}"` : a); }
   return `(${[...new Set(terms)].join(" OR ")}) newer_than:1y -in:spam -in:trash`;
 }
 
@@ -263,8 +263,13 @@ export function zonedDate(iso: string) {
 }
 
 export function formatZoned(iso: string) {
-  if (!iso) return "";
-  return new Intl.DateTimeFormat("en-US", { timeZone: OFFICE_TIMEZONE, dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+  if (!iso || Number.isNaN(Date.parse(iso))) return "";
+  return new Intl.DateTimeFormat("en-US", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+}
+
+export function formatRoomReadAt(iso: string) {
+  if (!iso || Number.isNaN(Date.parse(iso))) return "time not recorded";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "shortOffset" }).format(new Date(iso)).replace(" a.m.", " a.m.").replace(" p.m.", " p.m.");
 }
 
 export function evidenceDate(e: SubscriptionEvidence): { day: string; basis: "source-email" | "evidence-date" | "none" } {
@@ -274,13 +279,13 @@ export function evidenceDate(e: SubscriptionEvidence): { day: string; basis: "so
 }
 
 export function evidenceMonthGroups(evidence: SubscriptionEvidence[]) {
-  const groups: Record<string, { key: string; label: string; items: SubscriptionEvidence[]; needsReview: number; dateBasis: "source-email" | "evidence-date" }> = {};
+  const groups: Record<string, { key: string; label: string; items: SubscriptionEvidence[]; needsReview: number; dateBasis: "source-email" | "evidence-date" | "not-recorded" }> = {};
   for (const e of evidence) {
     const d = evidenceDate(e);
     const key = d.day ? d.day.slice(0, 7) : "not-recorded";
     if (!groups[key]) {
       const label = key === "not-recorded" ? "Date not recorded" : new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(`${key}-01T12:00:00Z`));
-      groups[key] = { key, label, items: [], needsReview: 0, dateBasis: d.basis === "source-email" ? "source-email" : "evidence-date" };
+      groups[key] = { key, label, items: [], needsReview: 0, dateBasis: d.basis };
     }
     groups[key]!.items.push(e);
     if (e.review === "needs-review") groups[key]!.needsReview += 1;
@@ -289,8 +294,8 @@ export function evidenceMonthGroups(evidence: SubscriptionEvidence[]) {
 }
 
 export function gmailLink(mailbox: string, messageId: string) {
-  if (!mailbox || !messageId) return "";
-  return `https://mail.google.com/mail/u/${mailbox}/#all/${messageId}`;
+  if (!mailbox || !/^[a-z0-9._%+-]+@[a-z0-9.-]+$/i.test(mailbox) || !/^[a-z0-9]+$/i.test(messageId)) return "";
+  return `https://mail.google.com/mail/?authuser=${encodeURIComponent(mailbox)}#all/${messageId}`;
 }
 
 export interface RenewalWarning {
