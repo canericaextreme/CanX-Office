@@ -8,6 +8,7 @@ import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { roomTargetForRoute, snapshotRef, type RoomSnapshot } from "@/lib/room-snapshot";
 import { recordViewedSnapshot, ROOM_REFRESH_EVENT } from "@/lib/room-snapshot-store";
 import { currentBuildVersion } from "@/lib/office-health";
+import { formatRoomReadAt } from "@/lib/subscriptions";
 
 const VISIBLE_REFRESH_MS = 90_000;
 const REFRESH_EVENTS = [ROOM_REFRESH_EVENT, "canx:room-reports-changed", "canx:workbench-changed"];
@@ -71,9 +72,9 @@ export function RoomAccessBar() {
     ? "Sign in to let Elsie read this room. Nothing is read while signed out."
     : error ? `Not checked: ${error}`
     : !snap ? "Checking this room…"
-    : snap.overall === "fresh" ? `Elsie can read this room · checked ${new Date(snap.checkedAt).toLocaleTimeString()}`
-    : snap.overall === "partial" ? `Elsie can read part of this room · checked ${new Date(snap.checkedAt).toLocaleTimeString()}`
-    : `Elsie could not read this room's records · tried ${new Date(snap.checkedAt).toLocaleTimeString()}`;
+    : snap.overall === "fresh" ? `Elsie can read this room · saved room records read ${formatRoomReadAt(snap.checkedAt)}`
+    : snap.overall === "partial" ? `Elsie can read part of this room · saved room records read ${formatRoomReadAt(snap.checkedAt)}`
+    : `Elsie could not read this room's records · tried ${formatRoomReadAt(snap.checkedAt)}`;
 
   return (
     <section aria-label="Elsie's access to this room" className={`mx-auto mt-3 max-w-6xl rounded-lg border ${tone} bg-card/70 px-3 py-2 text-sm`} data-room-access={snap?.overall ?? (error ? "error" : "none")}>

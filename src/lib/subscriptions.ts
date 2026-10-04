@@ -427,6 +427,18 @@ export function formatZoned(instant: string, timeZone = OFFICE_TIMEZONE): string
   }).format(d);
 }
 
+/**
+ * RoomAccessBar timestamp: explicit Whitehorse date AND time so "5:10 p.m."
+ * is never mistaken for a day ("October 5"). Honest fallback for bad input.
+ */
+export function formatRoomReadAt(instant: string, timeZone = OFFICE_TIMEZONE): string {
+  const d = new Date(instant);
+  if (Number.isNaN(d.getTime())) return "time not recorded";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  }).format(d);
+}
+
 const addDays = (ymd: string, days: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 /** Monday–Sunday week containing "now", in the office timezone. */
