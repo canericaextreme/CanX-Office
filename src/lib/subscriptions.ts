@@ -193,9 +193,9 @@ export function classifyBillingContext(text: string, subject = "", receivedAt?: 
   if (!deadlineDate && relative && receivedAt && !Number.isNaN(Date.parse(receivedAt))) {
     deadlineDate = addDays(zonedDate(receivedAt), Number(relative[1])); deadlineBasis = "relative-to-received";
   }
-  if (promotion && expiry) return { kind: "promotion" as const, reason: "Offer or promotion expiry only; not an account or service deadline.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  if ((promotion || /\boffer\b/i.test(t)) && expiry && (!/\b(?:subscription|trial|service|domain|api\s+(?:key|token)|credential)\b/i.test(t) || /\baccount remains active\b/i.test(t))) return { kind: "promotion" as const, reason: "Offer or promotion expiry only; not an account or service deadline.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
   if (expiry && what !== "unknown" && !/\b(?:does not|doesn't|will not|won't|never)\s+(?:expire|end)\b/i.test(t)) return { kind: "deadline-notice" as const, reason: `${what.replace("-", " ")} expiry stated in the email.`, deadlineWhat: what, deadlineDate, deadlineBasis, ambiguous: false };
-  if (/\b(?:payment failed|card declined|unable to charge|update your payment method)\b/i.test(t)) return { kind: "failed-payment" as const, reason: "Payment failure stated.", deadlineWhat: "payment" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
+  if (/\b(?:payment (?:was )?(?:failed|declined)|card declined|unable to (?:charge|process)|update your payment method)\b/i.test(t)) return { kind: "failed-payment" as const, reason: "Payment failure stated.", deadlineWhat: "payment" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
   if (/\b(?:price|rate)\s+(?:change|increase)|new price|will increase to\b/i.test(t)) return { kind: "price-change" as const, reason: "Price change stated.", deadlineWhat: "unknown" as const, deadlineDate: "", deadlineBasis: "" as const, ambiguous: false };
   const paid = /\b(?:paid|payment received|amount paid|payment successful)\b/i.test(t);
   const due = /\b(?:amount due|balance due|payment due|unpaid|overdue)\b/i.test(t);
@@ -263,7 +263,7 @@ export function zonedDate(iso: string) {
 }
 
 export function formatZoned(iso: string) {
-  if (!iso || Number.isNaN(Date.parse(iso))) return "";
+  if (!iso || Number.isNaN(Date.parse(iso))) return "unknown time";
   return new Intl.DateTimeFormat("en-US", { timeZone: OFFICE_TIMEZONE, year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
 }
 
@@ -285,12 +285,12 @@ export function evidenceMonthGroups(evidence: SubscriptionEvidence[]) {
     const key = d.day ? d.day.slice(0, 7) : "not-recorded";
     if (!groups[key]) {
       const label = key === "not-recorded" ? "Date not recorded" : new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(`${key}-01T12:00:00Z`));
-      groups[key] = { key, label, items: [], needsReview: 0, dateBasis: d.basis };
+      groups[key] = { key, label, items: [], needsReview: 0, dateBasis: d.basis === "none" ? "not-recorded" : d.basis };
     }
     groups[key]!.items.push(e);
     if (e.review === "needs-review") groups[key]!.needsReview += 1;
   }
-  return Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
+  return Object.values(groups).sort((a, b) => a.key === "not-recorded" ? 1 : b.key === "not-recorded" ? -1 : b.key.localeCompare(a.key));
 }
 
 export function gmailLink(mailbox: string, messageId: string) {
@@ -368,7 +368,7 @@ export function weeklyView(subscriptions: SubscriptionRecord[], evidence: Subscr
     const d = evidenceDate(e).day;
     return d >= week.start && d <= week.end;
   }).sort((a, b) => evidenceDate(b).day.localeCompare(evidenceDate(a).day));
-  const alerts = emails.flatMap((e) => {
+  const alerts = evidence.filter((e) => e.matchStatus !== "personal").flatMap((e) => {
     if (e.kind === "failed-payment") return [{ evidence: e, reason: "Payment failure needs attention." }];
     if (e.matchStatus === "unknown" || e.matchStatus === "unverified-sender" || e.matchStatus === "conflict") return [{ evidence: e, reason: "Sender or service is not yet verified." }];
     const s = subscriptions.find((x) => x.id === e.subscriptionId);
