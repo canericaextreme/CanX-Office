@@ -97,6 +97,7 @@ function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; on
 export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evidence: SubscriptionEvidence[]; loading: boolean; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
   const allGroups = useMemo(() => evidenceMonthGroups(evidence), [evidence]);
   const [month, setMonth] = useState("all");
+  const [context, setContext] = useState("all");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [openMonths, setOpenMonths] = useState<string[]>(() => allGroups[0] ? [allGroups[0].key] : []);
   useEffect(() => {
@@ -104,8 +105,14 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
   }, [allGroups, openMonths.length]);
   const groups = useMemo(() => allGroups
     .filter((group) => month === "all" || group.key === month)
-    .map((group) => ({ ...group, items: reviewOnly ? group.items.filter((item) => item.review === "needs-review") : group.items }))
-    .filter((group) => group.items.length > 0), [allGroups, month, reviewOnly]);
+    .map((group) => ({ ...group, items: group.items.filter((item) => {
+      if (reviewOnly && item.review !== "needs-review") return false;
+      if (context === "deadlines") return item.kind === "deadline-notice" || item.kind === "renewal-notice" || item.kind === "unpaid-invoice";
+      if (context === "promotions") return item.kind === "promotion";
+      if (context === "payment-issues") return item.kind === "failed-payment" || item.kind === "unpaid-invoice";
+      return true;
+    }) }))
+    .filter((group) => group.items.length > 0), [allGroups, context, month, reviewOnly]);
   const reviewCount = evidence.filter((item) => item.review === "needs-review").length;
   const chooseMonth = (value: string) => {
     setMonth(value);
@@ -137,6 +144,18 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
               <SelectContent>
                 <SelectItem value="all">All months ({evidence.length})</SelectItem>
                 {allGroups.map((group) => <SelectItem key={group.key} value={group.key}>{group.label} ({group.items.length})</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </label>
+          <label className="space-y-1 text-xs font-medium">
+            <span className="block">Evidence type</span>
+            <Select value={context} onValueChange={setContext}>
+              <SelectTrigger className="w-52" aria-label="Filter evidence by type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All evidence</SelectItem>
+                <SelectItem value="deadlines">Deadlines and renewals</SelectItem>
+                <SelectItem value="promotions">Promotions and offers</SelectItem>
+                <SelectItem value="payment-issues">Payment issues</SelectItem>
               </SelectContent>
             </Select>
           </label>

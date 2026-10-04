@@ -4,7 +4,7 @@
 - [x] Expand bounded Gmail search terms for expiry, renewal, trial, suspension and payment/card failure language.
 - [x] Classify service/account deadlines separately from promotion expiry and identify what expires without overwriting confirmed records.
 - [x] Derive relative deadlines only from source-email received time in Whitehorse and keep ambiguous or unanchored evidence in review.
-- [ ] Verify Coming due details, regressions, full tests, types and preview build without Gmail, database, paid calls or publication.
+- [x] Verify Coming due details, regressions, full tests, types and preview build without Gmail, database, paid calls or publication.
 
 ## Monthly subscription evidence organizer (2026-10-03)
 - [x] Group saved email evidence by honest Whitehorse month with newest month open and undated evidence kept separate.
