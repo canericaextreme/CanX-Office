@@ -94,23 +94,47 @@ function EvidenceItem({ evidence, onMark }: { evidence: SubscriptionEvidence; on
   );
 }
 
-export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evidence: SubscriptionEvidence[]; loading: boolean; onMark: (id: string, review: "reviewed" | "dismissed") => void }) {
+export type ArchiveContext = "all" | "receipts" | "invoices" | "deadlines" | "promotions" | "payment-issues";
+
+/** One shared definition so the summary cards and the archive filter always count the same items. */
+export function matchesArchiveContext(item: SubscriptionEvidence, context: ArchiveContext): boolean {
+  if (context === "receipts") return item.kind === "receipt";
+  if (context === "invoices") return item.kind === "unpaid-invoice";
+  if (context === "deadlines") return item.kind === "deadline-notice" || item.kind === "renewal-notice" || item.kind === "unpaid-invoice";
+  if (context === "promotions") return item.kind === "promotion";
+  if (context === "payment-issues") return item.kind === "failed-payment" || item.kind === "unpaid-invoice";
+  return true;
+}
+
+/** A request from elsewhere on the page (e.g. a summary card) to show the archive with these filters. */
+export interface ArchiveRequest { context: ArchiveContext; reviewOnly: boolean; key: number }
+
+export const ARCHIVE_ID = "subscription-evidence-archive";
+
+export function SubscriptionEvidenceArchive({ evidence, loading, onMark, request }: { evidence: SubscriptionEvidence[]; loading: boolean; onMark: (id: string, review: "reviewed" | "dismissed") => void; request?: ArchiveRequest | null }) {
   const allGroups = useMemo(() => evidenceMonthGroups(evidence), [evidence]);
   const [month, setMonth] = useState("all");
-  const [context, setContext] = useState("all");
+  const [context, setContext] = useState<ArchiveContext>("all");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [openMonths, setOpenMonths] = useState<string[]>(() => allGroups[0] ? [allGroups[0].key] : []);
   useEffect(() => {
     if (allGroups[0] && openMonths.length === 0) setOpenMonths([allGroups[0].key]);
   }, [allGroups, openMonths.length]);
+  useEffect(() => {
+    if (!request) return;
+    setMonth("all");
+    setContext(request.context);
+    setReviewOnly(request.reviewOnly);
+    const first = allGroups.find((group) => group.items.some((item) => (!request.reviewOnly || item.review === "needs-review") && matchesArchiveContext(item, request.context)));
+    setOpenMonths(first ? [first.key] : []);
+    // Only a new request (new key) re-applies filters; later manual changes are kept.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.key]);
   const groups = useMemo(() => allGroups
     .filter((group) => month === "all" || group.key === month)
     .map((group) => ({ ...group, items: group.items.filter((item) => {
       if (reviewOnly && item.review !== "needs-review") return false;
-      if (context === "deadlines") return item.kind === "deadline-notice" || item.kind === "renewal-notice" || item.kind === "unpaid-invoice";
-      if (context === "promotions") return item.kind === "promotion";
-      if (context === "payment-issues") return item.kind === "failed-payment" || item.kind === "unpaid-invoice";
-      return true;
+      return matchesArchiveContext(item, context);
     }) }))
     .filter((group) => group.items.length > 0), [allGroups, context, month, reviewOnly]);
   const reviewCount = evidence.filter((item) => item.review === "needs-review").length;
@@ -130,10 +154,10 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
   };
 
   return (
-    <section aria-label="Billing evidence from email">
+    <section id={ARCHIVE_ID} aria-label="Billing evidence from email" className="scroll-mt-4 rounded-lg border border-border bg-muted/10 p-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold">Billing evidence from email ({reviewCount} to review)</h3>
+          <h3 tabIndex={-1} className="text-sm font-semibold outline-none">Billing evidence by month ({reviewCount} to review)</h3>
           <p className="text-xs text-muted-foreground">Organized by source-email month in {OFFICE_TIMEZONE}. Evidence never changes a confirmed cost or date. No tax or deductibility judgement is made.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -149,10 +173,12 @@ export function SubscriptionEvidenceArchive({ evidence, loading, onMark }: { evi
           </label>
           <label className="space-y-1 text-xs font-medium">
             <span className="block">Evidence type</span>
-            <Select value={context} onValueChange={setContext}>
+            <Select value={context} onValueChange={(value) => setContext(value as ArchiveContext)}>
               <SelectTrigger className="w-52" aria-label="Filter evidence by type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All evidence</SelectItem>
+                <SelectItem value="receipts">Receipts</SelectItem>
+                <SelectItem value="invoices">Invoices due</SelectItem>
                 <SelectItem value="deadlines">Deadlines and renewals</SelectItem>
                 <SelectItem value="promotions">Promotions and offers</SelectItem>
                 <SelectItem value="payment-issues">Payment issues</SelectItem>
