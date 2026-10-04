@@ -30,6 +30,8 @@ export interface BillingEntry {
 export interface SubscriptionRecord {
   id: string;
   name: string;
+  /** Optional owner-recorded plan/tier. Never inferred into the owner record from email. */
+  planName?: string;
   aliases: string[];
   senderDomains: string[];
   scope: SubscriptionScope;
@@ -71,6 +73,22 @@ export interface SubscriptionEvidence {
   deadlineDate?: string;
   deadlineBasis?: "absolute" | "relative-to-received";
   classificationAmbiguous?: boolean;
+  /** Source-grounded recurring terms stated by this email; never owner-confirmed automatically. */
+  statedTerms?: EmailStatedTerms;
+}
+
+export type BillingInterval = "monthly" | "yearly";
+export type BillingProduct = "chatgpt-subscription" | "openai-api" | "other" | "unknown";
+
+export interface EmailStatedTerms {
+  planName: string;
+  recurringAmount: number | null;
+  currency: string | null;
+  interval: BillingInterval | null;
+  effectiveDate: string;
+  product: BillingProduct;
+  reason: string;
+  ambiguous: boolean;
 }
 
 export const MAX_SUBSCRIPTIONS = 200;
@@ -99,6 +117,7 @@ function starter(id: string, name: string, aliases: string[], domains: string[],
   return {
     id: `s-${id}`,
     name,
+    planName: "",
     aliases,
     senderDomains: domains,
     scope: "office",
@@ -141,6 +160,7 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
   return {
     id: str(r["id"], 60) || `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     name,
+    planName: str(r["planName"], 120),
     aliases: list(r["aliases"], 12),
     senderDomains: list(r["senderDomains"], 12).filter((d) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d)),
     scope,
@@ -156,7 +176,7 @@ export function cleanSubscription(input: unknown): SubscriptionRecord | null {
           return date ? [{ date, amount: money(e["amount"]), currency: ccy(e["currency"]), source: str(e["source"], 200) }] : [];
         })
       : [],
-    notes: str(r["notes"], 1000),
+    planName: str(r["planName"], 60),
     updatedAt: str(r["updatedAt"], 40),
   };
 }
@@ -174,10 +194,31 @@ export function cleanSubscriptionList(input: unknown): SubscriptionRecord[] | nu
 
 export function cleanEvidenceList(input: unknown): SubscriptionEvidence[] {
   if (!Array.isArray(input)) return [];
-  return input.slice(0, MAX_EVIDENCE).filter((e): e is SubscriptionEvidence => {
+  return input.slice(0, MAX_EVIDENCE).flatMap((e) => {
     const r = e as Partial<SubscriptionEvidence>;
-    return typeof r?.id === "string" && typeof r.kind === "string" && typeof r.messageId === "string";
+    if (typeof r?.id !== "string" || typeof r.kind !== "string" || typeof r.messageId !== "string") return [];
+    const terms = cleanEmailStatedTerms(r.statedTerms);
+    return [{ ...r, ...(terms ? { statedTerms: terms } : {}) } as SubscriptionEvidence];
   });
+}
+
+function cleanEmailStatedTerms(input: unknown): EmailStatedTerms | null {
+  if (!input || typeof input !== "object") return null;
+  const r = input as Record<string, unknown>;
+  const interval = r["interval"] === "monthly" || r["interval"] === "yearly" ? r["interval"] : null;
+  const product = ["chatgpt-subscription", "openai-api", "other", "unknown"].includes(String(r["product"]))
+    ? r["product"] as BillingProduct
+    : "unknown";
+  return {
+    planName: str(r["planName"], 120),
+    recurringAmount: money(r["recurringAmount"]),
+    currency: ccy(r["currency"]),
+    interval,
+    effectiveDate: isoDate(r["effectiveDate"]),
+    product,
+    reason: str(r["reason"], 300),
+    ambiguous: r["ambiguous"] === true,
+  };
 }
 
 /* ------------------------------ classification ------------------------------ */
@@ -253,6 +294,50 @@ export function classifyBillingContext(text: string, subject = "", receivedAt?: 
   return { kind: "unknown", reason: NEGATED_EXPIRY.test(t) ? "Expiry language was negated; no deadline created." : "No supported billing or service deadline context found.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
 }
 
+/** Extracts only explicit recurring plan terms. Source text is untrusted data, never instructions. */
+export function extractEmailStatedTerms(text: string, subject = ""): EmailStatedTerms | null {
+  const source = `${subject}\n${text}`.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 50_000);
+  const recurring = /\b(?:per\s+month|\/\s*month|monthly|billed\s+monthly|every\s+month)\b/i.test(source);
+  const annual = /\b(?:per\s+year|\/\s*year|yearly|annual(?:ly)?|billed\s+annually)\b/i.test(source);
+  const planHits = [...source.matchAll(/\b(?:plan|subscription|tier)\s*(?:name)?\s*[:#-]\s*([^|\n]{2,80})/gi)]
+    .map((m) => str(m[1], 120).replace(/\s+(?:CAD|USD|EUR|GBP|CA\$|US\$|C\$)\s*\$?[0-9].*$/i, "").trim())
+    .filter(Boolean);
+  const uniquePlans = [...new Set(planHits.map((v) => v.toLowerCase()))];
+  const amountHits = [...source.matchAll(/\b(CAD|USD|EUR|GBP|CA\$|US\$|C\$)\s*\$?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:\/|per\s+|billed\s+)?(month(?:ly)?|year|yearly|annual(?:ly)?)\b/gi)]
+    .filter((m) => !/\b(?:tax|gst|hst|pst|credit|top[- ]?up|one[- ]time|promotion|promo|discount|coupon)\b/i.test(source.slice(Math.max(0, (m.index ?? 0) - 45), (m.index ?? 0) + m[0].length + 45)));
+  const normalizedAmounts = amountHits.map((m) => ({
+    amount: Number(m[2]!.replace(/,/g, "")),
+    currency: /^(?:CAD|CA\$|C\$)$/i.test(m[1]!) ? "CAD" : /^US\$$/i.test(m[1]!) ? "USD" : m[1]!.toUpperCase(),
+    interval: /^month/i.test(m[3]!) ? "monthly" as const : "yearly" as const,
+  })).filter((v) => Number.isFinite(v.amount));
+  const uniqueAmounts = [...new Map(normalizedAmounts.map((v) => [`${v.currency}|${v.amount}|${v.interval}`, v])).values()];
+  const product: BillingProduct = /\bchatgpt\b/i.test(source)
+    ? "chatgpt-subscription"
+    : /\b(?:openai\s+api|api\s+(?:usage|credits?|billing)|token\s+usage)\b/i.test(source)
+      ? "openai-api"
+      : /\b(?:plan|subscription|tier|recurring|monthly|annual)\b/i.test(source) ? "other" : "unknown";
+  const conflict = uniquePlans.length > 1 || uniqueAmounts.length > 1 || (recurring && annual);
+  const term = conflict ? undefined : uniqueAmounts[0];
+  const date = /\b(?:effective|billing date|starts?|renews?)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(source)?.[1] ?? "";
+  const planName = conflict ? "" : (planHits[0] ?? (/\bChatGPT\s+([A-Za-z][A-Za-z0-9 +.-]{1,40})\b/i.exec(source)?.[0] ?? ""));
+  if (!planName && !term && product === "unknown") return null;
+  const interval = term?.interval ?? (recurring !== annual ? (recurring ? "monthly" : annual ? "yearly" : null) : null);
+  return {
+    planName,
+    recurringAmount: term?.amount ?? null,
+    currency: term?.currency ?? null,
+    interval,
+    effectiveDate: validDate(date) ? date : "",
+    product,
+    reason: conflict
+      ? "Conflicting or multiple plan/rate statements were found; owner review required."
+      : term
+        ? `The email explicitly states a ${term.interval} recurring rate with currency.`
+        : "A plan or recurring interval was stated, but no unambiguous recurring rate with currency was found.",
+    ambiguous: conflict || Boolean((recurring || annual) && !term),
+  };
+}
+
 export interface ServiceMatch {
   status: MatchStatus;
   subscriptionId: string | null;
@@ -303,19 +388,33 @@ export function buildGmailQuery(subscriptions: SubscriptionRecord[]): string {
 /* ------------------------------ evidence rules ------------------------------ */
 
 export function mergeEvidence(existing: SubscriptionEvidence[], incoming: SubscriptionEvidence[]) {
-  const seen = new Set(existing.flatMap((e) => [e.fingerprint, `${e.messageId}|${e.attachmentIdentity}`]));
+  const merged = [...existing];
+  const index = new Map<string, number>();
+  existing.forEach((e, i) => {
+    index.set(e.fingerprint, i);
+    index.set(`${e.messageId}|${e.attachmentIdentity}`, i);
+  });
   const added: SubscriptionEvidence[] = [];
+  const updated: SubscriptionEvidence[] = [];
   let duplicates = 0;
   for (const e of incoming) {
-    if (seen.has(e.fingerprint) || seen.has(`${e.messageId}|${e.attachmentIdentity}`)) {
+    const at = index.get(e.fingerprint) ?? index.get(`${e.messageId}|${e.attachmentIdentity}`);
+    if (at !== undefined) {
       duplicates += 1;
+      const prior = merged[at]!;
+      if (e.statedTerms && JSON.stringify(prior.statedTerms ?? null) !== JSON.stringify(e.statedTerms)) {
+        const enriched = { ...prior, statedTerms: e.statedTerms };
+        merged[at] = enriched;
+        updated.push(enriched);
+      }
       continue;
     }
-    seen.add(e.fingerprint);
-    seen.add(`${e.messageId}|${e.attachmentIdentity}`);
+    index.set(e.fingerprint, merged.length);
+    index.set(`${e.messageId}|${e.attachmentIdentity}`, merged.length);
+    merged.push(e);
     added.push(e);
   }
-  return { merged: [...existing, ...added].slice(-MAX_EVIDENCE), added, duplicates };
+  return { merged: merged.slice(-MAX_EVIDENCE), added, updated, duplicates };
 }
 
 export interface RenewalWarning {

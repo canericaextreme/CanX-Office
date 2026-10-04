@@ -21,6 +21,7 @@ import {
   buildGmailQuery,
   classifyBillingContext,
   classifyDocument,
+  extractEmailStatedTerms,
   matchService,
   mergeEvidence,
   type EvidenceKind,
@@ -492,11 +493,13 @@ export async function runReceiptSyncWith(
   let evidenceNote = "";
   const freshEvidence = mergeEvidence(state.evidence ?? [], evidence);
   evidenceDuplicates = freshEvidence.duplicates;
-  if (freshEvidence.added.length > 0) {
+  if (freshEvidence.added.length > 0 || freshEvidence.updated.length > 0) {
     if (!deps.writeEvidence) {
       evidenceNote = " Subscription evidence was found but could not be saved in this environment.";
     } else {
-      const saved = await deps.writeEvidence(input.accessToken, owner.userId, freshEvidence.added);
+      // The store re-merges against the latest owner document. Sending all source
+      // rows lets a safely re-read message enrich its existing evidence in place.
+      const saved = await deps.writeEvidence(input.accessToken, owner.userId, evidence);
       if (saved.ok) {
         evidenceAdded = saved.added;
         evidenceDuplicates += saved.duplicates;
@@ -607,6 +610,7 @@ function toEvidence(
     deadlineDate: classification.deadlineDate,
     ...(classification.deadlineBasis ? { deadlineBasis: classification.deadlineBasis } : {}),
     classificationAmbiguous: classification.ambiguous,
+    ...(extractEmailStatedTerms(document.text, document.subject ?? "") ? { statedTerms: extractEmailStatedTerms(document.text, document.subject ?? "") ?? undefined } : {}),
   };
 }
 
