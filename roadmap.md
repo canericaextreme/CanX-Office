@@ -188,6 +188,7 @@
 ## Subscriptions layout repair — 4 Oct 2026
 - [x] Owner reported "not categorized": room order is now Check emails → last check + category cards (open month list filtered) + bounded deadlines → month archive (Month / Evidence type / Needs review) → folded weekly emails/alerts → services → folded Saved mail review. Long lists labelled "Showing X of N" with Show all; no data changes.
 - [x] Integrated SubscriptionManager test with 120 items (controls before long lists, older months collapsed, cards filter). 1,081 tests, typecheck, production build passed.
+- [x] Refinement (John): hub shows compact month cards only (max 6 + older-month chooser); a month or category card opens a separate page with Back, Type/Needs review filters, 20-per-page "Show more" with real counts; weekly email/alert lists removed from hub; deadlines preview 3. 1,083 tests, typecheck, build passed.
 - [ ] BLOCKED on John: refresh the preview (Ctrl+Shift+R) and check the signed-in Subscriptions room on phone and desktop.
 
 ## Subscriptions Skills installation — 4 Oct 2026
