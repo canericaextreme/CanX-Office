@@ -16,7 +16,7 @@
  * A named outline is NOT executable and NOT verified.
  */
 
-export const SKILLS_REGISTRY_VERSION = "2026-10-04.1";
+export const SKILLS_REGISTRY_VERSION = "2026-10-04.2";
 export const MASTER_SOURCE =
   "CanX_Office_Skills_Map.docx v1 — original 28 Sep 2026; continuity record 30 Sep 2026; last modified 1 Oct 2026";
 export const STORAGE_DECISION =
@@ -180,8 +180,8 @@ const CORE: OfficeSkill[] = [
     ownerApprovalRequired: "Any purchase, upgrade, cancellation or money commitment.",
     version: "1.0.0", lastReviewed: "2026-10-03", provenance: `${MASTER}: 'Example: Finance — Subscription Review' (verbatim fields); build order 4.`,
     instructionReady: true, toolConnected: false,
-    connectedInputs: ["Finance receipt aggregate (counts/totals)", "Subscription names", "Mail evidence counts"],
-    missingInputs: ["Subscription records and billing evidence are shown in the Subscriptions room but are not yet in Elsie's context", "No usage data source"],
+    connectedInputs: ["saved subscription records", "billing-email evidence", "mail Keep/Ignore rules", "bounded mailbox-check status", "Finance receipt aggregate after AAL2"],
+    missingInputs: ["No vendor usage telemetry"],
     routingTested: true, liveTested: false,
   },
   {
@@ -430,13 +430,29 @@ const APPROVALS: Record<string, string> = {
 };
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const INSTALLED_PROVENANCE = "Expanded and installed by John's explicit instruction on 4 Oct 2026; app-owned wording preserves the named master-map job and grants no new capability.";
+const SUBSCRIPTIONS_SCOPE = new Set([
+  "Finance — Receipt Reconciliation", "Finance — Budget Variance Review", "Finance — Renewal Watch",
+  "Subscriptions — Renewal Check", "Subscriptions — Plan Change Review", "Subscriptions — Tool Value Review", "Subscriptions — Vendor Dependency Check",
+]);
+const INSTALLED_PROVENANCE = "Expanded and installed in the Subscriptions room by John's corrected instruction on 4 Oct 2026; app-owned wording preserves the named master-map job and grants no new capability.";
 
 function installed(masterRoom: string, prefix: string, job: string, routes: string[], yellow: string, red: string): OfficeSkill {
   const profile = CONNECTIONS[prefix] ?? { inputs: ["John's request", "fresh room snapshot"], connected: ["request text", "room files/reports"], missing: [] };
   const purpose = JOB_PURPOSE[job] ?? `Perform the named ${job} review from available evidence.`;
+  const scopedName = `${prefix} — ${job}`;
+  const scoped = SUBSCRIPTIONS_SCOPE.has(scopedName);
+  const scopedRoutes = scoped && prefix === "Finance" ? [...routes, "/subscriptions"] : routes;
+  if (!scoped) return {
+    id: `${slug(prefix)}.${slug(job)}`, name: scopedName, masterRoom, routes, kind: "outline",
+    purpose: "Named in the master map; full instructions are parked until John moves to this room.",
+    useWhen: "Not installed. John is working through one room at a time, starting with Subscriptions.",
+    inputs: [], steps: [], output: [], guardrails: UNIVERSAL_GUARDRAILS,
+    status: { yellow, red, returnToGreen: "Not defined yet." }, finalCheck: "Not defined yet.", ownerApprovalRequired: "Per master boundaries.",
+    version: "0.0.0-outline", lastReviewed: "2026-10-04", provenance: `${MASTER}: named skill under ${masterRoom}. Parked by John's 4 Oct 2026 room-by-room scope correction; not installed or executable.`,
+    instructionReady: false, toolConnected: false, connectedInputs: [], missingInputs: ["Full instructions parked until John authorises this room"], routingTested: false, liveTested: false,
+  };
   return {
-    id: `${slug(prefix)}.${slug(job)}`, name: `${prefix} — ${job}`, masterRoom, routes, kind: "outline",
+    id: `${slug(prefix)}.${slug(job)}`, name: scopedName, masterRoom, routes: scopedRoutes, kind: "outline",
     purpose,
     useWhen: `When John explicitly asks to ${job.toLowerCase()} or the current ${prefix} room evidence shows that exact job is needed. Never run on a schedule.`,
     inputs: profile.inputs,
@@ -475,15 +491,15 @@ const ACTUAL_ROOM_DRAFTS: ActualRoomDraft[] = [
 function actualRoomSkill(d: ActualRoomDraft): OfficeSkill {
   return {
     id: d.id, name: d.name, masterRoom: "Actual office room addition", routes: [d.route], kind: "draft", purpose: d.purpose,
-    useWhen: `When John explicitly requests ${d.name.split(" — ")[1]?.toLowerCase() ?? "this review"} in this room. Never scheduled.`, inputs: d.inputs,
-    steps: ["Confirm the exact scope and requested outcome.", "Read the fresh room snapshot and label each input as read, missing, stale, device-only or static.", d.purpose, "Separate evidence from assumptions and stop at any unavailable capability.", "Return findings, source/freshness, missing inputs, status, next action and approval requirement."],
-    output: ["Scoped result", "Evidence and freshness", "Missing capability", "Status and reason", "Recommended next action", "Owner decision required: yes/no"],
+    useWhen: "Draft proposal only — parked until John authorises work in this room.", inputs: [],
+    steps: [],
+    output: [],
     guardrails: [...UNIVERSAL_GUARDRAILS, "Installation adds instructions only; it does not add a connector, scheduler, sensor, sender or authority."],
     status: { yellow: "Required evidence or capability is missing, stale or awaiting review.", red: "A protected control failed or high-risk action is proposed.", returnToGreen: "Evidence supports completion or John's decision and next action are recorded." },
-    finalCheck: "Confirm the result names what was actually read and does not equate compilation, routing tests or connectivity with live verification.",
-    ownerApprovalRequired: "Any data-changing, financial, legal, security, publishing, external-message or production action.",
-    version: "1.0.0", lastReviewed: "2026-10-04", provenance: `Proposed 3 Oct 2026 for an actual room; expanded and approved for instruction installation by John on 4 Oct 2026. Grants no new permissions.`,
-    instructionReady: true, toolConnected: d.missing.length === 0, connectedInputs: d.connected, missingInputs: d.missing, routingTested: true, liveTested: false,
+    finalCheck: "Not defined yet.",
+    ownerApprovalRequired: "Per master boundaries.",
+    version: "0.0.0-draft", lastReviewed: "2026-10-04", provenance: "Proposed 3 Oct 2026 for an actual room; parked by John's 4 Oct 2026 room-by-room scope correction. No instructions or permissions installed.",
+    instructionReady: false, toolConnected: false, connectedInputs: [], missingInputs: ["Full instructions parked until John authorises this room"], routingTested: false, liveTested: false,
   };
 }
 const ACTUAL_ROOM_SKILLS = ACTUAL_ROOM_DRAFTS.map(actualRoomSkill);
@@ -504,23 +520,23 @@ export const OFFICE_SKILLS: OfficeSkill[] = [...CORE, ...INSTALLED, ...ACTUAL_RO
 export const MASTER_NAMED_SKILLS = [...INSTALLED_ROWS.flatMap(([, , names]) => names), "Daily Office Review", "Skill Router", "Owner Decision Filter", "Subscription Review", "Source Check", "Incident Triage", "Project Health Review", "Defect Report Review", "Retrieve Decision History"];
 
 export const ROOM_SKILL_MAP: Record<string, { masterRooms: string[]; coverage: "mapped" | "draft-gap" | "reserved"; note: string }> = {
-  "/reception": { masterRooms: ["Reception & Intake", "Office Manager / Astra"], coverage: "mapped", note: "Installed intake and office-wide core instructions." },
+  "/reception": { masterRooms: ["Reception & Intake", "Office Manager / Astra"], coverage: "mapped", note: "Named room instructions remain parked; existing core instructions are unchanged." },
   "/owner-desk": { masterRooms: ["Office Manager / Astra", "Approvals"], coverage: "mapped", note: "Office-wide core instructions apply." },
   "/approvals": { masterRooms: ["Approvals"], coverage: "mapped", note: "" }, "/idea-garage": { masterRooms: ["Idea Garage / Bike Rack"], coverage: "mapped", note: "" },
-  "/office-team": { masterRooms: [], coverage: "draft-gap", note: "Actual-room instruction installed; roster remains device-only unless freshly supplied." },
-  "/records": { masterRooms: ["CanX Brain / Knowledge"], coverage: "mapped", note: "Brain and provenance instructions installed." },
-  "/blueprint": { masterRooms: [], coverage: "draft-gap", note: "Actual-room instruction installed; no automatic baseline comparison." },
+  "/office-team": { masterRooms: [], coverage: "draft-gap", note: "Actual-room draft remains parked." },
+  "/records": { masterRooms: ["CanX Brain / Knowledge"], coverage: "mapped", note: "Named room instructions remain parked; existing core instructions are unchanged." },
+  "/blueprint": { masterRooms: [], coverage: "draft-gap", note: "Actual-room draft remains parked." },
   "/systems": { masterRooms: ["Settings & Integrations", "Security"], coverage: "mapped", note: "" }, "/health": { masterRooms: ["Office Manager / Astra", "Security"], coverage: "mapped", note: "No background monitor." },
-  "/communications": { masterRooms: ["Outreach & Correspondence"], coverage: "mapped", note: "Correspondence and actual-room marketing instructions installed; no send tool." },
+  "/communications": { masterRooms: ["Outreach & Correspondence"], coverage: "mapped", note: "Named instructions and actual-room draft remain parked; no send tool." },
   "/legal": { masterRooms: ["Legal & Compliance"], coverage: "mapped", note: "" }, "/subscriptions": { masterRooms: ["Subscriptions & Tools", "Finance"], coverage: "mapped", note: "" },
   "/finance": { masterRooms: ["Finance"], coverage: "mapped", note: "" }, "/work-board": { masterRooms: ["Operations", "Foreman / Work"], coverage: "mapped", note: "" },
-  "/build-testing": { masterRooms: [], coverage: "draft-gap", note: "Actual-room check instruction installed; owner-run live verification remains separate." },
+  "/build-testing": { masterRooms: [], coverage: "draft-gap", note: "Actual-room draft remains parked; owner-run live verification remains separate." },
   "/safe-highways": { masterRooms: ["Safe Highways Oversight"], coverage: "mapped", note: "Advisory only; Safe Highways is never modified." }, "/research": { masterRooms: ["Research"], coverage: "mapped", note: "" },
   "/family-continuity": { masterRooms: ["Training"], coverage: "mapped", note: "Hosts the central Skills page." }, "/future": { masterRooms: [], coverage: "reserved", note: "Reserved; no worker or capability." },
 };
 export const UNMATCHED_MASTER_ENTRIES = [
-  { masterRoom: "Projects — Book / Trail Tales / Other", note: "Installed on the real /projects auxiliary page; Trail Tales is read-only unless John separately authorises changes." },
-  { masterRoom: "CanX Brain / Knowledge", note: "Installed on the real /brain auxiliary page and Records." },
+  { masterRoom: "Projects — Book / Trail Tales / Other", note: "Parked; /projects exists outside the numbered rooms and Trail Tales remains unchanged." },
+  { masterRoom: "CanX Brain / Knowledge", note: "Parked for /brain; the existing core decision-history skill remains unchanged." },
 ];
 export function skillsForRoute(route: string): OfficeSkill[] { return OFFICE_SKILLS.filter((s) => s.routes.includes(route)); }
 
