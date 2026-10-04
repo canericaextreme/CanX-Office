@@ -19,6 +19,7 @@ import {
 } from "./gmail-scan-window";
 import {
   buildGmailQuery,
+  classifyBillingContext,
   classifyDocument,
   matchService,
   mergeEvidence,
@@ -416,7 +417,8 @@ export async function runReceiptSyncWith(
   let sentToReview = 0;
   let notFiledPersonal = 0;
   for (const document of documents) {
-    const kind = classifyDocument(document.text, document.subject ?? "");
+    const classification = classifyBillingContext(document.text, document.subject ?? "", document.receivedAt);
+    const kind = classification.kind;
     const match = matchService(document.from ?? "", `${document.subject ?? ""}\n${document.text}`, subscriptions);
     const result = parseReceiptCandidate(document);
     if (kind === "unknown" && !result.ok) {
@@ -425,11 +427,11 @@ export async function runReceiptSyncWith(
     }
     // Alias-only mentions of a service with no verified sender are filed as
     // review evidence only when they look like billing; promotions are skipped.
-    if (match.status === "unverified-sender" && kind !== "unknown") evidence.push(toEvidence(document, kind, match, result.receipt));
-    else if (match.status === "matched" || kind === "renewal-notice" || kind === "price-change" || kind === "failed-payment" || match.status === "personal") {
-      evidence.push(toEvidence(document, kind, match, result.receipt));
+    if (match.status === "unverified-sender" && kind !== "unknown") evidence.push(toEvidence(document, classification, match, result.receipt));
+    else if (match.status === "matched" || kind === "renewal-notice" || kind === "deadline-notice" || kind === "price-change" || kind === "failed-payment" || match.status === "personal") {
+      evidence.push(toEvidence(document, classification, match, result.receipt));
     }
-    if (kind === "renewal-notice" || kind === "price-change" || kind === "failed-payment") continue; // notices are not receipts
+    if (kind === "renewal-notice" || kind === "deadline-notice" || kind === "promotion" || kind === "price-change" || kind === "failed-payment") continue; // notices are not receipts
     if (match.status === "personal") {
       notFiledPersonal += 1; // John marked this service personal: never filed as an office expense
       continue;
@@ -568,10 +570,11 @@ const CODED_AMOUNT = /\b(CAD|USD|EUR|GBP)\s?\$?\s?([0-9][0-9,]*(?:\.[0-9]{2})?)\
 
 function toEvidence(
   document: GmailFetchResult["documents"][number],
-  kind: EvidenceKind,
+  classification: ReturnType<typeof classifyBillingContext>,
   match: { status: MatchStatus; subscriptionId: string | null; candidateIds: string[] },
   receipt: IngestibleReceipt | undefined,
 ): SubscriptionEvidence {
+  const kind = classification.kind;
   const coded = CODED_AMOUNT.exec(document.text);
   const amount = kind === "price-change" && coded ? Number(coded[2]!.replace(/,/g, "")) : (receipt?.total ?? (coded ? Number(coded[2]!.replace(/,/g, "")) : null));
   const currency = receipt?.currency ?? (coded ? coded[1]! : null);
@@ -599,6 +602,11 @@ function toEvidence(
     ...(document.receivedAt ? { receivedAt: document.receivedAt } : {}),
     recordedAt: new Date().toISOString(),
     review: "needs-review",
+    classificationReason: classification.reason.slice(0, 300),
+    deadlineWhat: classification.deadlineWhat,
+    deadlineDate: classification.deadlineDate,
+    deadlineBasis: classification.deadlineBasis || undefined,
+    classificationAmbiguous: classification.ambiguous,
   };
 }
 

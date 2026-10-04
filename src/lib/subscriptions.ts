@@ -15,7 +15,8 @@
 
 export type SubscriptionScope = "office" | "personal" | "unknown";
 export type RenewalBasis = "explicit" | "estimated";
-export type EvidenceKind = "receipt" | "unpaid-invoice" | "renewal-notice" | "price-change" | "failed-payment" | "unknown";
+export type EvidenceKind = "receipt" | "unpaid-invoice" | "renewal-notice" | "deadline-notice" | "promotion" | "price-change" | "failed-payment" | "unknown";
+export type DeadlineWhat = "subscription" | "trial" | "service" | "account" | "domain" | "api-key" | "credential" | "payment-card" | "payment" | "unknown";
 /** "unverified-sender": named by alias only, and John has not yet verified a sender domain for that service. Always review. */
 export type MatchStatus = "matched" | "unknown" | "conflict" | "personal" | "unverified-sender";
 
@@ -64,6 +65,12 @@ export interface SubscriptionEvidence {
   receivedAt?: string;
   recordedAt: string;
   review: "needs-review" | "reviewed" | "dismissed";
+  /** Derived from the bounded source text at ingestion; absent on historical evidence without retained text. */
+  classificationReason?: string;
+  deadlineWhat?: DeadlineWhat;
+  deadlineDate?: string;
+  deadlineBasis?: "absolute" | "relative-to-received";
+  classificationAmbiguous?: boolean;
 }
 
 export const MAX_SUBSCRIPTIONS = 200;
@@ -181,16 +188,69 @@ export function senderDomain(from: string): string {
 }
 
 export function classifyDocument(text: string, subject = ""): EvidenceKind {
-  const t = `${subject}\n${text}`;
+  return classifyBillingContext(text, subject).kind;
+}
+
+export interface BillingContextClassification {
+  kind: EvidenceKind;
+  reason: string;
+  deadlineWhat: DeadlineWhat;
+  deadlineDate: string;
+  deadlineBasis: "absolute" | "relative-to-received" | "";
+  ambiguous: boolean;
+}
+
+const PROMOTION = /\b(?:advertisement|promotion(?:al)?|coupon|discount|special offer|limited[- ]time offer|sale)\b/i;
+const OFFER_EXPIRY = /\b(?:offer|coupon|discount|promotion|sale)\b[^.!?\n]{0,80}\b(?:expir(?:y|ation|e[sd]?|ing)|ends?)\b|\b(?:expir(?:y|ation|e[sd]?|ing)|ends?)\b[^.!?\n]{0,80}\b(?:offer|coupon|discount|promotion|sale)\b/i;
+const EXPIRY = /\b(?:expir(?:y|ation|e[sd]?|ing)|ending|ends?|will end|suspend(?:ed|ing|sion)?)\b/i;
+const NEGATED_EXPIRY = /\b(?:does not|doesn't|will not|won't|never|no)\s+(?:expire|expires|end|ending|suspend|suspension)\b|\bnot\s+expir(?:ing|ed|ation|y)\b/i;
+const CONTEXT_PATTERNS: Array<[DeadlineWhat, RegExp]> = [
+  ["api-key", /\bapi\s+(?:key|token)\b/i],
+  ["credential", /\bcredential(?:s)?\b|\baccess token\b|\bsecret key\b/i],
+  ["domain", /\bdomain(?: name| registration)?\b/i],
+  ["payment-card", /\b(?:credit|debit|payment)\s+card\b|\bcard ending\b/i],
+  ["trial", /\btrial\b/i],
+  ["subscription", /\bsubscription\b|\bplan\b|\bmembership\b/i],
+  ["account", /\baccount\b/i],
+  ["service", /\bservice\b/i],
+  ["payment", /\bpayment\b|\bamount due\b|\bbalance due\b/i],
+];
+
+const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+
+function deadlineFromText(text: string, receivedAt?: string): { date: string; basis: "absolute" | "relative-to-received" | ""; reason: string } {
+  const iso = /\b(?:on|by|until|before|date|ends?|ending|expires?|expiration|expiry|due)\s*[:#-]?\s*(\d{4}-\d{2}-\d{2})\b/i.exec(text)?.[1] ?? "";
+  if (validDate(iso)) return { date: iso, basis: "absolute", reason: `Deadline stated as ${iso}.` };
+  const relative = /\bin\s+(\d{1,3})\s+days?\b/i.exec(text)?.[1];
+  if (!relative) return { date: "", basis: "", reason: "No reliable deadline date was stated." };
+  const days = Number(relative);
+  const anchor = receivedAt && !Number.isNaN(Date.parse(receivedAt)) ? zonedDate(receivedAt) : "";
+  if (!anchor || !Number.isInteger(days) || days < 0 || days > 366) return { date: "", basis: "", reason: "A relative deadline was stated, but the source-email received time is unavailable or unreliable." };
+  return { date: addDays(anchor, days), basis: "relative-to-received", reason: `Computed from “in ${days} days” using the source-email received date in ${OFFICE_TIMEZONE}.` };
+}
+
+/** Deterministic billing/service context only. Source text is untrusted data and never instructions. */
+export function classifyBillingContext(text: string, subject = "", receivedAt?: string): BillingContextClassification {
+  const t = `${subject}\n${text}`.slice(0, 50_000);
   if (/\b(?:payment\s+(?:failed|declined|unsuccessful|was\s+declined)|card\s+(?:was\s+)?declined|unable\s+to\s+(?:process|charge)|could\s+not\s+(?:process|charge)|update\s+your\s+payment\s+method)\b/i.test(t)) return "failed-payment";
-  if (/\b(?:price|pricing|rate)\s+(?:change|increase|update|adjustment)\b|\bnew\s+price\b|\bwill\s+(?:increase|change)\s+to\b/i.test(t)) return "price-change";
+  const contexts = CONTEXT_PATTERNS.filter(([, pattern]) => pattern.test(t)).map(([what]) => what);
+  const uniqueContexts = [...new Set(contexts)];
+  const deadline = deadlineFromText(t, receivedAt);
+  const offerOnly = OFFER_EXPIRY.test(t) && uniqueContexts.length === 0;
+  const mixedPromotion = PROMOTION.test(t) && uniqueContexts.length > 0 && OFFER_EXPIRY.test(t);
+  if (offerOnly) return { kind: "promotion", reason: "Offer or promotion expiry only; not an account or service deadline.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
+  if (EXPIRY.test(t) && !NEGATED_EXPIRY.test(t) && uniqueContexts.length > 0) {
+    const what = uniqueContexts.length === 1 ? uniqueContexts[0]! : "unknown";
+    return { kind: "deadline-notice", reason: mixedPromotion || uniqueContexts.length > 1 ? "Expiry wording has mixed or conflicting context; owner review required." : `${what.replace("-", " ")} expiry stated in the email. ${deadline.reason}`, deadlineWhat: what, deadlineDate: mixedPromotion ? "" : deadline.date, deadlineBasis: mixedPromotion ? "" : deadline.basis, ambiguous: mixedPromotion || uniqueContexts.length > 1 };
+  }
+  if (/\b(?:price|pricing|rate)\s+(?:change|increase|update|adjustment)\b|\bnew\s+price\b|\bwill\s+(?:increase|change)\s+to\b/i.test(t)) return { kind: "price-change", reason: "Price or rate change stated in the email.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
   const paid = /\b(?:paid|payment received|amount paid|payment successful|thank you for your payment)\b/i.test(t);
   const unpaid = /\b(?:amount due|balance due|payment due|unpaid|past due|overdue)\b/i.test(t);
-  if (/\binvoice\b/i.test(t) && unpaid && !paid) return "unpaid-invoice";
-  if (/\b(?:will renew|renews on|upcoming renewal|renewal (?:notice|reminder)|auto-?renew|next (?:billing|renewal) date)\b/i.test(t) && !paid) return "renewal-notice";
-  if (paid || /\breceipt\b/i.test(t)) return "receipt";
-  if (/\binvoice\b/i.test(t)) return unpaid ? "unpaid-invoice" : "receipt";
-  return "unknown";
+  if (/\binvoice\b/i.test(t) && unpaid && !paid) return { kind: "unpaid-invoice", reason: "Invoice states an amount or payment due; payment is not assumed.", deadlineWhat: "payment", deadlineDate: deadline.date, deadlineBasis: deadline.basis, ambiguous: false };
+  if (/\b(?:will renew|renews on|upcoming renewal|renewal (?:notice|reminder)|auto-?renew|next (?:billing|renewal) date|trial (?:ends?|ending))\b/i.test(t) && !paid) return { kind: "renewal-notice", reason: "Account, subscription, or trial renewal/ending language was found.", deadlineWhat: /\btrial\b/i.test(t) ? "trial" : "subscription", deadlineDate: deadline.date, deadlineBasis: deadline.basis, ambiguous: false };
+  if (paid || /\breceipt\b/i.test(t)) return { kind: "receipt", reason: "Receipt or completed-payment language was found.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
+  if (/\binvoice\b/i.test(t)) return { kind: unpaid ? "unpaid-invoice" : "receipt", reason: unpaid ? "Invoice states payment is due." : "Invoice document found; payment state is not inferred.", deadlineWhat: unpaid ? "payment" : "unknown", deadlineDate: unpaid ? deadline.date : "", deadlineBasis: unpaid ? deadline.basis : "", ambiguous: false };
+  return { kind: "unknown", reason: NEGATED_EXPIRY.test(t) ? "Expiry language was negated; no deadline created." : "No supported billing or service deadline context found.", deadlineWhat: "unknown", deadlineDate: "", deadlineBasis: "", ambiguous: false };
 }
 
 export interface ServiceMatch {
@@ -220,7 +280,7 @@ export function matchService(from: string, text: string, subscriptions: Subscrip
 
 /* ------------------------------ Gmail query ------------------------------ */
 
-const BASE_TERMS = ["receipt", "invoice", "renewal", "\"renews on\"", "\"will renew\"", "subscription", "billing", "\"payment due\"", "\"price change\"", "\"price increase\"", "\"payment failed\"", "\"your plan\"", "\"trial ends\"", "\"order confirmation\""];
+const BASE_TERMS = ["receipt", "invoice", "renewal", "auto-renew", "\"renews on\"", "\"will renew\"", "subscription", "billing", "expiry", "expiration", "expire", "expires", "expiring", "\"trial ending\"", "\"trial ends\"", "\"service ending\"", "\"account suspension\"", "\"payment due\"", "\"card failed\"", "\"payment failed\"", "\"price change\"", "\"price increase\"", "\"your plan\"", "\"order confirmation\""];
 
 /** Covers billing/renewal keywords plus each known sender domain and alias. Bounded length. */
 export function buildGmailQuery(subscriptions: SubscriptionRecord[]): string {
@@ -391,7 +451,7 @@ export interface WeeklyView {
   /** Saved evidence without a verified Gmail received time — never counted as this week's mail. */
   emailsUnknownTime: SubscriptionEvidence[];
   alerts: Array<{ evidence: SubscriptionEvidence; reason: string }>;
-  comingDue: Array<{ name: string; date: string; basis: RenewalBasis; source: string; cost: string; subscriptionId: string | null; evidence: SubscriptionEvidence | null }>;
+  comingDue: Array<{ name: string; date: string; basis: RenewalBasis | "relative-to-received"; source: string; cost: string; subscriptionId: string | null; evidence: SubscriptionEvidence | null; daysAway: number; what: DeadlineWhat; action: string; confidence: string }>;
 }
 
 export type EvidenceDateBasis = "source-email" | "evidence-date" | "not-recorded";
@@ -473,21 +533,28 @@ export function weeklyView(subs: SubscriptionRecord[], evidence: SubscriptionEvi
   const comingDue: WeeklyView["comingDue"] = [];
   for (const s of subs) {
     if (s.nextRenewal && s.nextRenewal.date >= week.today && s.nextRenewal.date <= limit) {
-      comingDue.push({ name: s.name, date: s.nextRenewal.date, basis: s.nextRenewal.basis, source: s.nextRenewal.source, cost: costText(s), subscriptionId: s.id, evidence: null });
+      comingDue.push({ name: s.name, date: s.nextRenewal.date, basis: s.nextRenewal.basis, source: s.nextRenewal.source, cost: costText(s), subscriptionId: s.id, evidence: null, daysAway: dayDiff(s.nextRenewal.date, now), what: "subscription", action: "Review renewal settings", confidence: "Saved owner record" });
     }
   }
   for (const e of evidence) {
-    if (e.review === "dismissed" || e.renewalBasis !== "explicit" || !e.renewalDate || e.renewalDate < week.today || e.renewalDate > limit) continue;
-    if (comingDue.some((c) => c.subscriptionId && c.subscriptionId === e.subscriptionId && c.date === e.renewalDate)) continue;
+    const deadlineDate = e.deadlineDate || (e.renewalBasis === "explicit" ? e.renewalDate : "");
+    const what = e.deadlineWhat ?? (e.kind === "renewal-notice" ? "subscription" : "unknown");
+    const deadlineKind = e.kind === "renewal-notice" || e.kind === "deadline-notice" || e.kind === "unpaid-invoice";
+    if (e.review === "dismissed" || !deadlineKind || e.classificationAmbiguous || !deadlineDate || deadlineDate > limit || dayDiff(deadlineDate, now) < -30) continue;
+    if (comingDue.some((c) => c.subscriptionId && c.subscriptionId === e.subscriptionId && c.date === deadlineDate && c.what === what)) continue;
     const s = subs.find((x) => x.id === e.subscriptionId);
     comingDue.push({
       name: s?.name ?? `${e.vendor || "Unknown sender"} (unmatched — review)`,
-      date: e.renewalDate,
-      basis: "explicit",
+      date: deadlineDate,
+      basis: e.deadlineBasis === "relative-to-received" ? "relative-to-received" : "explicit",
       source: `Email in ${e.mailbox || "linked mailbox"}`,
       cost: e.amount !== null ? `${e.amount.toFixed(2)} ${e.currency ?? "(currency not stated)"} as stated in email — not confirmed` : costText(s),
       subscriptionId: e.subscriptionId,
       evidence: e,
+      daysAway: dayDiff(deadlineDate, now),
+      what,
+      action: what === "payment" ? "Review amount due and payment status" : what === "payment-card" ? "Review payment card before service interruption" : what === "api-key" || what === "credential" ? "Review and rotate the credential if still in use" : what === "domain" ? "Review domain registration" : what === "trial" ? "Decide whether to continue the trial" : "Review the service deadline",
+      confidence: e.matchStatus === "matched" ? "Known service and verified sender" : e.matchStatus === "unverified-sender" ? "Known service name; sender not verified" : "Sender or service needs review",
     });
   }
   comingDue.sort((a, b) => a.date.localeCompare(b.date));
