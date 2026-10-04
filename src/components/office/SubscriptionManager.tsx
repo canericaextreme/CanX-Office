@@ -148,7 +148,7 @@ export function SubscriptionManager() {
               <Detail label="Recurring schedule" value={`${focusedBilling.recurrenceLabel} · ${focusedBilling.recurrenceSource}`} />
               <Detail label="Auto-renew" value={`${focusedBilling.autoRenew === "enabled" ? "Enabled" : focusedBilling.autoRenew === "disabled" ? "Disabled" : "Not recorded"} · ${focusedBilling.autoRenewSource}`} />
               <Detail label="Rate source" value={focusedService.knownCost ? `${focusedService.knownCost.source}${focusedService.knownCost.asOf ? ` · ${focusedService.knownCost.asOf}` : " · date not recorded"}` : "Not recorded"} />
-              <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis} · ${focusedService.nextRenewal.source}` : "Unknown"} />
+              <Detail label="Next renewal" value={focusedService.nextRenewal ? `${focusedService.nextRenewal.date} · ${focusedService.nextRenewal.basis === "explicit" ? "Stated on a bill or notice" : "My estimate"}` : "Unknown"} />
               <Detail label="Usage and top-ups" value="Separate from the fixed rate and Finance paid totals" />
             </dl>
             {focusedService.websiteUrl && (
@@ -262,7 +262,7 @@ export function SubscriptionManager() {
         {state === "ready" && saved && !editing && suggestedStarters(subs).length > 0 && (
           <section aria-label="Suggested services" className="rounded-md border border-border/50 p-3">
             <h3 className="text-sm font-semibold">Suggested services not in your list</h3>
-            <p className="text-xs text-muted-foreground">Nothing is added unless you press Add. Cost, cadence and renewal stay unknown until you confirm them.</p>
+            <p className="text-xs text-muted-foreground">Nothing is added unless you press Add. Cost, cadence and renewal stay unknown until you enter them.</p>
             <ul className="mt-2 space-y-2">
               {suggestedStarters(subs).map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
