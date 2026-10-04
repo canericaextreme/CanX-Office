@@ -28,6 +28,12 @@ const doc = (over: Partial<CandidateDocument>): CandidateDocument => ({
   from: "OpenAI <billing@openai.com>", subject: "Your receipt", ...over,
 });
 const RECEIPT = "Vendor: OpenAI Receipt Invoice # OA-100 Date: 2026-09-01 Total: USD 20.00 Currency: USD Amount paid";
+const ev = (over: Partial<SubscriptionEvidence> = {}): SubscriptionEvidence => ({
+  id: "ev-fixture", kind: "renewal-notice", matchStatus: "matched", subscriptionId: "s-openai", candidateIds: ["s-openai"],
+  vendor: "OpenAI", amount: null, currency: null, documentDate: "", renewalDate: "", renewalBasis: "", mailbox: "canericaextreme@gmail.com",
+  messageId: "m-fixture", attachmentIdentity: "body", from: "billing@openai.com", subject: "Billing notice", fingerprint: "fixture-fingerprint",
+  recordedAt: "2026-10-01T12:00:00Z", review: "needs-review", ...over,
+});
 
 const owner = { ok: true as const, userId: "owner", email: "", aal: "aal2" as const };
 const settingsA = { lovableApiKey: "x", connectionApiKey: "a" };
