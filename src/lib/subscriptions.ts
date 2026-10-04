@@ -352,19 +352,49 @@ export interface WeeklyView {
   alerts: Array<{ evidence: SubscriptionEvidence; reason: string }>;
 }
 
-export function weeklyView(subscriptions: SubscriptionRecord[], evidence: SubscriptionEvidence[]): WeeklyView {
-  const now = new Date();
-  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr = now.toISOString().slice(0, 10);
-  const label = "Recent week";
-  const emails = evidence.filter((e) => e.receivedAt && e.receivedAt.slice(0, 10) >= startStr && e.receivedAt.slice(0, 10) <= endStr);
+export function officeWeek(now = new Date()) {
+  const today = zonedDate(now.toISOString());
+  const noon = new Date(`${today}T12:00:00Z`);
+  const mondayOffset = (noon.getUTCDay() + 6) % 7;
+  const start = addDays(today, -mondayOffset);
+  const end = addDays(start, 6);
+  return { start, end, today, label: `${start}–${end} (${OFFICE_TIMEZONE})` };
+}
+
+export function weeklyView(subscriptions: SubscriptionRecord[], evidence: SubscriptionEvidence[], now = new Date()): WeeklyView {
+  const week = officeWeek(now);
+  const emails = evidence.filter((e) => {
+    if (e.matchStatus === "personal") return false;
+    const d = evidenceDate(e).day;
+    return d >= week.start && d <= week.end;
+  }).sort((a, b) => evidenceDate(b).day.localeCompare(evidenceDate(a).day));
+  const alerts = emails.flatMap((e) => {
+    if (e.kind === "failed-payment") return [{ evidence: e, reason: "Payment failure needs attention." }];
+    if (e.matchStatus === "unknown" || e.matchStatus === "unverified-sender" || e.matchStatus === "conflict") return [{ evidence: e, reason: "Sender or service is not yet verified." }];
+    const s = subscriptions.find((x) => x.id === e.subscriptionId);
+    if (s?.knownCost && e.amount !== null && (s.knownCost.amount !== e.amount || s.knownCost.currency !== e.currency)) return [{ evidence: e, reason: "Email amount differs from the owner-confirmed cost." }];
+    return [];
+  });
+  const comingDue: WeeklyView["comingDue"] = [];
+  for (const s of subscriptions) if (s.nextRenewal) {
+    const daysAway = Math.round((Date.parse(`${s.nextRenewal.date}T12:00:00Z`) - Date.parse(`${week.today}T12:00:00Z`)) / 86_400_000);
+    if (daysAway >= 0 && daysAway <= 30) comingDue.push({ name: s.name, date: s.nextRenewal.date, daysAway, what: "subscription", basis: s.nextRenewal.basis, action: "Review renewal", confidence: s.nextRenewal.source, cost: s.knownCost ? `${s.knownCost.currency} ${s.knownCost.amount}` : "Cost unknown", evidence: null, source: s.nextRenewal.source });
+  }
+  for (const e of evidence) {
+    const date = e.kind === "deadline-notice" ? e.deadlineDate ?? "" : e.kind === "renewal-notice" ? e.renewalDate : "";
+    if (!date || e.kind === "promotion" || e.matchStatus === "personal") continue;
+    const daysAway = Math.round((Date.parse(`${date}T12:00:00Z`) - Date.parse(`${week.today}T12:00:00Z`)) / 86_400_000);
+    if (daysAway < 0 || daysAway > 30) continue;
+    const what = e.deadlineWhat ?? "subscription";
+    const action = what === "api-key" || what === "credential" ? "Review credential before expiry" : `Review ${what} before deadline`;
+    comingDue.push({ name: e.subscriptionId ? e.vendor : `${e.vendor || "Unknown service"} (unmatched)`, date, daysAway, what, basis: e.deadlineBasis || e.renewalBasis || "explicit", action, confidence: e.matchStatus, cost: e.amount !== null && e.currency ? `${e.currency} ${e.amount} — not confirmed` : "Cost unknown", evidence: e, source: "Email notice" });
+  }
   return {
-    week: { label, start: startStr, end: endStr },
-    emails: emails.sort((a, b) => (b.receivedAt || "").localeCompare(a.receivedAt || "")),
+    week: { label: week.label, start: week.start, end: week.end },
+    emails,
     emailsUnknownTime: evidence.filter((e) => !e.receivedAt),
-    comingDue: [],
-    alerts: [],
+    comingDue: comingDue.sort((a, b) => a.date.localeCompare(b.date)),
+    alerts,
   };
 }
 
@@ -373,4 +403,11 @@ export interface LastCheck {
   scope: string;
   complete: boolean;
   mailboxes: Array<{ mailbox: string; status: "read" | "authorization_required" | "failed"; documents: number; partial: boolean }>;
+}
+
+export function cleanLastCheck(input: unknown): LastCheck | null {
+  if (!input || typeof input !== "object") return null;
+  const r = input as Partial<LastCheck>;
+  if (!r.at || Number.isNaN(Date.parse(r.at)) || !Array.isArray(r.mailboxes)) return null;
+  return { at: r.at, scope: typeof r.scope === "string" ? r.scope.slice(0, 200) : "Scope not recorded", complete: r.complete === true, mailboxes: r.mailboxes.filter((m) => m && typeof m.mailbox === "string") };
 }
