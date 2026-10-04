@@ -5,7 +5,8 @@ import { skillsForRoute, ROOM_SKILL_MAP, type OfficeSkill } from "@/lib/office-s
 export function skillStatusLabel(s: OfficeSkill): string {
   if (s.instructionReady) return s.toolConnected ? "Installed instructions · inputs connected · awaiting live test" : "Installed instructions · partial connection · awaiting live test";
   if (s.kind === "reserved") return "Reserved";
-  return "Legacy entry";
+  if (s.kind === "legacy") return "Legacy entry";
+  return "Parked · instructions not installed";
 }
 
 /** Read-only list of skills linked to this room. Instructions live only on the Office Skills page. */
@@ -21,7 +22,7 @@ export function RoomSkillsLink({ route }: { route: string }) {
         </h2>
         <Link to="/skills" className="text-xs font-medium text-primary underline-offset-2 hover:underline">Open Office Skills</Link>
       </div>
-      {map?.coverage === "draft-gap" && <p className="mt-1 text-xs text-muted-foreground">This room has an installed app-owned instruction outside the original master map; connected inputs and live testing remain separate.</p>}
+      {map?.coverage === "draft-gap" && <p className="mt-1 text-xs text-muted-foreground">This room's proposed instruction remains parked until John authorises work here.</p>}
       {map?.coverage === "reserved" && <p className="mt-1 text-xs text-muted-foreground">Reserved room — no worker or skill is installed.</p>}
       {skills.length > 0 && (
         <ul className="mt-2 grid gap-1 sm:grid-cols-2">

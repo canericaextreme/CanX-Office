@@ -25,8 +25,8 @@ export const Route = createFileRoute("/_office/skills")({
 
 const GROUPS: Array<[SkillKind, string]> = [
   ["core", "Installed core skills (master build order)"],
-  ["outline", "Installed named room instructions from the master map"],
-  ["draft", "Installed actual-room instructions"],
+  ["outline", "Named room instructions (Subscriptions installed; other rooms parked)"],
+  ["draft", "Actual-room drafts (parked)"],
   ["reserved", "Reserved"],
   ["legacy", "Legacy entries (history only)"],
 ];
@@ -49,7 +49,7 @@ function SkillDetail({ s }: { s: OfficeSkill }) {
         <p><b className="text-foreground">Final check:</b> {s.finalCheck}</p>
         <p><b className="text-foreground">Owner approval:</b> {s.ownerApprovalRequired}</p>
         <p>
-          <b className="text-foreground">Status:</b> instructions {s.instructionReady ? "ready" : "not written"} · inputs {s.toolConnected ? "connected" : "not all connected"} · routing {s.routingTested ? "tested" : "not tested"} · live use not yet tested
+          <b className="text-foreground">Status:</b> instructions {s.instructionReady ? "installed" : "parked — not installed"} · inputs {s.instructionReady ? (s.toolConnected ? "connected" : "partially connected") : "not assessed for this phase"} · routing {s.routingTested ? "tested" : "not active"} · {s.instructionReady ? "owner live test pending" : "awaiting room authorization"}
         </p>
         {s.connectedInputs.length > 0 && <p><b className="text-foreground">Connected:</b> {s.connectedInputs.join("; ")}</p>}
         {s.missingInputs.length > 0 && <p><b className="text-foreground">Missing:</b> {s.missingInputs.join("; ")}</p>}
@@ -70,7 +70,7 @@ function Skills() {
       <section className="mb-4 space-y-1 rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
         <p><b className="text-foreground">Registry version:</b> {SKILLS_REGISTRY_VERSION} · <b className="text-foreground">Source:</b> {MASTER_SOURCE}</p>
         <p><b className="text-foreground">Storage:</b> {STORAGE_DECISION}</p>
-        <p>Part of <Link to="/family-continuity" className="text-primary hover:underline">Family Continuity, Skills &amp; Training</Link>. Elsie selects up to three matching task instructions per typed or spoken request; core safety instructions always apply. Installed instructions do not create connectors or live-test evidence. No skill runs on a schedule.</p>
+        <p>Part of <Link to="/family-continuity" className="text-primary hover:underline">Family Continuity, Skills &amp; Training</Link>. This phase installs Subscriptions and its linked Finance procedures only; every other room remains parked. Elsie selects up to three matching task instructions per typed or spoken request; core safety instructions always apply. Installed instructions do not create connectors or live-test evidence. No skill runs on a schedule.</p>
       </section>
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search skills" aria-label="Search skills" className="mb-4 max-w-sm" />
       {GROUPS.map(([kind, title]) => {
