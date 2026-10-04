@@ -1,22 +1,17 @@
-# Compact subscription service cards
+# Subscriptions: Elsie routine review pass
 
-## What will change
-- Keep the Subscriptions hub short by replacing the expanded service rows with a bounded set of clickable service cards and an overflow chooser when needed.
-- Show each service’s confirmed fixed rate prominently, with its currency and billing cycle; show “Cost unknown” when John has not confirmed one.
-- Keep ChatGPT subscriptions separate from OpenAI API usage and never infer a plan, tier, currency, or cost.
-- Open one focused service detail view at a time, with a clear Back to Subscriptions action. Details will show plan, confirmed cost source/date, renewal evidence, history, notes, and separate usage/top-up wording.
-- Improve the existing editor with an optional plan-name field and clearer “confirmed fixed rate” labels.
+## Build
+- Add a deterministic, conservative eligibility classifier for saved Subscriptions evidence. It will review only trustworthy, unambiguous routine items and retain source-specific reasons.
+- Keep failed payments, unresolved invoices, conflicts, unknown or unverified senders, missing required values, unreadable evidence, and ambiguous deadlines for John.
+- Extend the existing owner/MFA-protected, compare-and-swap save path with one verified batch operation. Preserve dismissed/reviewed/ignored decisions and add compatible review provenance without changing the database.
+- Add a compact **Elsie review** action to Subscriptions with a verified summary: newly reviewed, already reviewed, and left for John.
+- Route explicit typed and live-voice review commands through the same authenticated operation; questions, negations, and hypotheticals remain read-only.
 
-## Data safety
-- Add `planName` only as an optional field in the existing saved subscription record, including validation and round-trip preservation. Existing records remain valid and unchanged until John saves an edit.
-- Do not change schemas, migrations, email records, Finance totals, or owner data during development.
-- Annual records will display as annual billing, not as a made-up monthly equivalent.
-
-## Review-routing follow-up
-- Add a separate roadmap item: existing needs-review records must not be blanket-approved; future exception routing needs explicit source/confidence rules and its own state.
-- This follow-up will not alter review states in this UI task.
+## Technical details
+- Re-read after save and count only exact IDs carrying the deterministic review provenance; partial or failed verification will not claim completion.
+- Review state will explicitly not mean paid, filed in Finance, current, or owner-confirmed.
+- Cover a mixed 120-item fixture, idempotency, save/readback failure, conflicts/currency/missing history, preserved dismissed decisions, and command routing.
 
 ## Verification
-- Add record-cleaning tests for optional plan names and old records.
-- Add populated interaction tests proving the hub stays compact, rates are truthful, service cards open details, and Back restores the hub.
-- Run the relevant/full tests, TypeScript check, and preview build. Do not publish or call Gmail or paid services.
+- Run focused tests, the full test suite, TypeScript checking, and confirm the preview build status.
+- Do not run the review against John's data, call Gmail or paid services, migrate data, or publish.
