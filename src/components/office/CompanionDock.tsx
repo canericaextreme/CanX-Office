@@ -169,7 +169,7 @@ export function CompanionDock() {
       tabIndex={0}
       title="Drag to move"
       style={pos ? { left: pos.left, top: pos.top } : { left: 16, bottom: 16 }}
-      className={`fixed z-40 flex h-28 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-32 sm:w-32 ${
+      className={`fixed z-40 flex h-40 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-44 sm:w-32 ${
         dragging ? "opacity-90" : ""
       }`}
     >
@@ -224,6 +224,16 @@ export function CompanionDock() {
           Work
         </button>
       </div>
+      <a
+        href="https://chatgpt.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        onPointerDown={(event) => event.stopPropagation()}
+        aria-label="Open ChatGPT in a new tab"
+        className="flex min-h-9 w-full items-center justify-center rounded-md border border-border px-1 text-xs font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Open ChatGPT
+      </a>
     </section>
     </>
   );
