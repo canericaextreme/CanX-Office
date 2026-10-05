@@ -69,7 +69,7 @@ export function ClaudeBuildPanel() {
   if(buildInFlight.current) return;
   buildInFlight.current=true;setBusy(true);setHandoff(null);
   try {setHandoff(await askElsie({data:{accessToken:session.accessToken??'',messages:[{role:'user',content:request.trim()}],currentRoute:'/build-testing',buildId:currentBuildVersion()}}));}
-  catch {setHandoff({ok:false,code:'provider_error',provider:'none',state:'configured_unverified',model:null,text:'',detail:'The handoff could not be confirmed. Check the Work Board and Build & Testing before asking again.',toolCalls:[],actionResults:[]} as ManagerReply);}
+  catch {setHandoff({ok:false,code:'context_unavailable',provider:'none',state:'configured_unverified',model:null,text:'',detail:'The handoff could not be confirmed. Check the Work Board and Build & Testing before asking again.',toolCalls:[],actionResults:[]} as ManagerReply);}
   finally {buildInFlight.current=false;setBusy(false);}
  }
  const locked=busy||!session.stepUpComplete;
