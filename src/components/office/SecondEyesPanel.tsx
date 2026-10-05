@@ -264,7 +264,7 @@ export function SecondEyesPanel() {
           aria-expanded={open}
           aria-controls="claude-connection-dashboard"
           onClick={() => setOpen(value => !value)}
-          className="fixed right-3 top-20 z-[60] h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
+          className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
         >
           {open ? <Minus className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           <span
