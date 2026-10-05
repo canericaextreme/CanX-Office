@@ -89,8 +89,9 @@ describe("Elsie builder routing", () => {
 const id = "11111111-1111-4111-8111-111111111111";
 function taskSetup(evidence = "") {
   let task: ManagerTask = { id, owner_id: "owner", title: "Change the room label", detail: "Use a clearer label on the reception page.", project: "CanX Office", status: "open", risk: "green", worker: "", result: "", evidence, created_at: "x", updated_at: "x" };
-  const rest = vi.fn(async (_t: string, method: string, _p: string, body?: Record<string, unknown>) => {
+  const rest = vi.fn(async (_t: string, method: string, path: string, body?: Record<string, unknown>) => {
     if (method === "GET") return { ok: true, data: [{ ...task }] };
+    if (method === "PATCH" && !path.includes(`evidence=eq.${encodeURIComponent(task.evidence)}&`)) return { ok: true, data: [] };
     if (method === "PATCH") { task = { ...task, ...body } as ManagerTask; return { ok: true, data: [{ ...task }] }; }
     return { ok: true, data: [] };
   });
