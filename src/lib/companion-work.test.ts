@@ -27,10 +27,17 @@ const baseDeps = (over: Partial<WorkDeps> = {}): WorkDeps => ({
 });
 
 describe("ChatGPT Work panel belongs to the companion", () => {
-  it("opens from the companion's own Work button", () => {
+  it("keeps the companion panel identity and the owner-requested direct ChatGPT link", () => {
     expect(dockSource).toContain("CompanionWorkPanel");
     expect(dockSource).toContain("const toggleWork");
-    expect(dockSource).toContain('aria-label={workOpen ? "Close the Office Work assistant window"');
+    const links = [...dockSource.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/g)];
+    expect(links).toHaveLength(1);
+    const link = links[0]?.[0] ?? "";
+    expect(link).toContain('href="https://chatgpt.com/"');
+    expect(link).toContain('target="_blank"');
+    expect(link).toContain('rel="noopener noreferrer"');
+    expect(link).toContain('aria-label="Open ChatGPT in a new tab"');
+    expect(link).toContain("Open ChatGPT");
     expect(panelSource).toContain('aria-label="CanX Office companion (OpenAI)"');
     expect(panelSource).toContain("CanX Office companion (OpenAI)</h2>");
   });
@@ -45,12 +52,12 @@ describe("ChatGPT Work panel belongs to the companion", () => {
     }
   });
 
-  it("never opens an external window or an iframe", () => {
+  it("does not embed an iframe or open scripted windows; the written panel stays internal", () => {
     for (const source of [dockSource, panelSource]) {
       expect(source).not.toContain("window.open");
       expect(source).not.toContain("iframe");
-      expect(source).not.toContain("chatgpt.com");
     }
+    expect(panelSource).not.toContain("chatgpt.com");
   });
 
   it("stops Chat when Work opens and closes Work when Chat starts", () => {
