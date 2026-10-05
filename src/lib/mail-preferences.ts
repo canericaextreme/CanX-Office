@@ -281,7 +281,7 @@ export function parseMailRuleCommand(message: string): MailRuleCommand | null {
   const text = message.trim();
   if (text.length > 300 || /[\r\n]/.test(text)) return null;
   const lower = text.toLowerCase()
-    .replace(/^(?:elsie|astra|data)\s*[,:]?\s*/, "")
+    .replace(/^(?:elsie|astra|data|claude)\s*[,:]?\s*/, "")
     .replace(/^please\s+/, "")
     .replace(/[.!]+$/, "")
     .trim();

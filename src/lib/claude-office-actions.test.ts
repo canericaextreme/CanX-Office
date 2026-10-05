@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { computeManagerStatusWith, runManagerChatWith, type ManagerDeps } from './manager.functions';
+import { isExplicitReceiptSyncRequest } from './receipt-ingestion.functions';
+import { parseMailRuleCommand } from './mail-preferences';
+import { parseElsieReviewCommand } from './subscriptions-review';
 import { DENY_MESSAGES } from './canx-backend.server';
 
 const say = (content = 'Claude, fix the reception label') => ({accessToken:'owner-token',messages:[{role:'user' as const,content}],currentRoute:'/build-testing',buildId:'test-build'});
@@ -91,5 +94,18 @@ describe('Claude shares the trusted Office executor, not provider credentials',(
  it('checks the actual Claude model connection without charging a message',async()=>{
   const h=setup();const status=await computeManagerStatusWith(h.deps,'owner-token');
   expect(status).toMatchObject({provider:'anthropic',connected:true,verified:true});expect(h.fetchImpl).toHaveBeenCalledOnce();expect(h.reserve).not.toHaveBeenCalled();
+ });
+});
+
+describe('both Office colleagues use the same existing Gmail commands',()=>{
+ it.each(['Elsie','Claude','Astra','Data'])('recognizes exact owner mail commands addressed to %s', name=>{
+  expect(isExplicitReceiptSyncRequest(`${name}, check my emails`)).toBe(true);
+  expect(isExplicitReceiptSyncRequest(`${name}, retrieve receipts`)).toBe(true);
+  expect(isExplicitReceiptSyncRequest(`${name}, do not check my emails`)).toBe(false);
+  expect(parseMailRuleCommand(`${name}, ignore future emails from News@Shop.com`)).toEqual({kind:'set',sender:'news@shop.com',action:'ignore'});
+  expect(parseMailRuleCommand(`${name}, show my mail rules`)).toEqual({kind:'list'});
+  expect(parseMailRuleCommand(`${name}, ignore emails from promotions`)).toEqual({kind:'needs-address'});
+  expect(parseElsieReviewCommand(`${name}, review subscription emails`)).toBe('run');
+  expect(parseElsieReviewCommand(`${name}, do not review subscription emails`)).toBeNull();
  });
 });

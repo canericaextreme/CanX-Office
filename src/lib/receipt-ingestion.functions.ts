@@ -36,7 +36,7 @@ const NOUNS = String.raw`(?:receipts?|invoices?|subscriptions?|renewals?|billing
 const VERBS = String.raw`(?:review|retrieve|check|find|sync|file|import)`;
 const EXPLICIT_RECEIPT_SYNC_INTENT = new RegExp(String.raw`\b${VERBS}\b[^.\n]{0,80}\b${NOUNS}\b|\b${NOUNS}\b[^.\n]{0,80}\b${VERBS}\b`, "i");
 const RESCAN_INTENT = /\b(?:rescan|scan again|full scan|re-scan)\b/i;
-const NORMAL_EMAIL_CHECK = /^(?:(?:elsie|astra|data)[, :]*)?(?:please\s+)?(?:(?:can|would)\s+you\s+)?check\s+(?:(?:both|the)\s+mailboxes|(?:my|the)\s+emails?)\s*[?.!]*$/i;
+const NORMAL_EMAIL_CHECK = /^(?:(?:elsie|astra|data|claude)[, :]*)?(?:please\s+)?(?:(?:can|would)\s+you\s+)?check\s+(?:(?:both|the)\s+mailboxes|(?:my|the)\s+emails?)\s*[?.!]*$/i;
 
 export function isExplicitReceiptSyncRequest(message: string): boolean {
   // Only a short, dedicated command may bypass the general conversation.
@@ -45,7 +45,7 @@ export function isExplicitReceiptSyncRequest(message: string): boolean {
   if (command.length > 240 || /[\r\n]/.test(command)) return false;
   if (/\b(?:do not|don’t|don't|never|without)\b/i.test(command)) return false;
   if (NORMAL_EMAIL_CHECK.test(command)) return true;
-  return /^(?:(?:elsie|astra|data)[, :]*)?(?:please\s+)?(?:review|retrieve|check|find|sync|file|import|rescan)\b/i.test(command)
+  return /^(?:(?:elsie|astra|data|claude)[, :]*)?(?:please\s+)?(?:review|retrieve|check|find|sync|file|import|rescan)\b/i.test(command)
     && EXPLICIT_RECEIPT_SYNC_INTENT.test(command);
 }
 

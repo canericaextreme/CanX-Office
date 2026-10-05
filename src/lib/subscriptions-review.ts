@@ -66,5 +66,5 @@ export function parseElsieReviewCommand(text: string): ElsieReviewCommand {
   if (!compact || compact.length > 180) return null;
   if (/\b(?:do not|don't|dont|never|not now)\b/i.test(compact) || /\b(?:if|would|could)\b.*\b(?:review|mark)\b/i.test(compact)) return null;
   if (/\b(?:have|did|has)\b.*\b(?:reviewed|review)\b.*\bsubscription emails?\b/i.test(compact) || /\bwhat\b.*\b(?:reviewed|left for me)\b/i.test(compact)) return "status";
-  return /^(?:elsie[, ]+)?(?:please )?(?:review subscription emails?|mark routine subscription emails? reviewed)[.!?]?$/i.test(compact) ? "run" : null;
+  return /^(?:(?:elsie|astra|data|claude)[, ]+)?(?:please )?(?:review subscription emails?|mark routine subscription emails? reviewed)[.!?]?$/i.test(compact) ? "run" : null;
 }

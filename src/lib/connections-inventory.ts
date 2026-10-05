@@ -3,7 +3,7 @@
  *
  * Two groups that must never be confused:
  *  A) Accounts John verified in ChatGPT on 9 September 2026. These are NOT
- *     connections of this office. The embedded Office Manager cannot use them.
+ *     connections of this office. Neither Office assistant inherits these ChatGPT authorizations.
  *  B) Connections this office itself needs. Each shows as disconnected until it
  *     is actually configured and verified here.
  */
@@ -50,18 +50,18 @@ export const OFFICE_CONNECTIONS: OfficeConnection[] = [
   },
   {
     id: "claude",
-    name: "Claude — independent reviewer (Anthropic)",
+    name: "Claude — Office colleague and reviewer (Anthropic)",
     purpose:
-      "A second opinion on plans and security, clearly labelled as Claude review. Uses the same owner sign-in, two-step verification and spending limits as the Office Manager. Needs the Claude credential and a deliberately selected model on the server. Nothing in this office speaks as Claude.",
+      "Claude has a separate review and Office action path. Its Office requests share Elsie's tools, owner verification and budget controls. Requires its own server API key and an explicitly selected model; live access must be checked.",
     stage: "next",
   },
 
   {
     id: "gmail",
-    name: "Gmail (scoped)",
-    purpose: "Reading a narrow, agreed set of mail. Not switched on, and no mailbox monitoring exists.",
+    name: "Gmail — billing mail and receipts",
+    purpose: "Shared billing-mail and receipt retrieval for Elsie and Claude through the project-linked Gmail connection. General inbox reading and sending are not installed; no background mailbox monitor exists.",
     stage: "next",
-    staticStatus: "disconnected",
+    note: "Installed path; live mailbox authorization not verified here.",
   },
   {
     id: "calendar",
@@ -73,9 +73,9 @@ export const OFFICE_CONNECTIONS: OfficeConnection[] = [
   {
     id: "github",
     name: "GitHub (scoped)",
-    purpose: "Reading repository history for build and review work.",
+    purpose: "Shared Office-only Claude/Codex draft builders and read-only build status for both assistants. Existing private server connection; live status must be checked.",
     stage: "next",
-    staticStatus: "disconnected",
+    note: "Installed path; live dispatch authorization must be checked.",
   },
   {
     id: "drive",
