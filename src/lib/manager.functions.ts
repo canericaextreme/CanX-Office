@@ -1092,7 +1092,14 @@ async function executeToolCalls(
   const actionResults: ManagerActionResult[] = [];
   const remainingToolCalls: ManagerToolCall[] = [];
   const consultations: ConsultReply[] = [];
+  // One build attempt per request across BOTH builders; never a fallback.
   let codexSubmitted = false;
+  const runBuild = deps.runBuild ?? defaultRunBuild;
+  const taskBuildDeps = () => ({
+    workbench,
+    build: (t: string, r?: string, p?: number, id?: number) => runBuild("codex", t, r, p, id),
+    buildClaude: (t: string, r?: string, p?: number, id?: number) => runBuild("claude", t, r, p, id),
+  });
 
   // The authenticator (AAL2) is checked once, lazily, and only when a protected
   // action is actually attempted. Ordinary talking never reaches this.
@@ -1165,26 +1172,31 @@ async function executeToolCalls(
     try {
       if (call.name === "execute_task" || call.name === "check_task_execution") {
         const checkOnly = call.name === "check_task_execution";
+        const choice = builderChoiceFor(currentRequest);
+        if ("conflict" in choice) { actionResults.push({ name: call.name, risk, status: "stopped", detail: "Your request named both Claude and Codex. Say which one; nothing was sent." }); continue; }
         if (!checkOnly && codexSubmitted) { textAdditions.push("A builder submission was already attempted in this turn. Check its result first."); continue; }
         if (!checkOnly) codexSubmitted = true;
-        const { runCodexBuildOperation } = await import("./codex-builds.functions");
-        const result = await executeTaskWith({ workbench, build: runCodexBuildOperation }, accessToken, String(call.arguments["task_id"] ?? ""), checkOnly);
+        // A status check uses the builder recorded on the task unless John named one (then they must match).
+        const result = await executeTaskWith(taskBuildDeps(), accessToken, String(call.arguments["task_id"] ?? ""), checkOnly, checkOnly ? (choice.named ? choice.builder : undefined) : choice.builder);
         textAdditions.push(result.detail);
         if (result.runs) textAdditions.push(JSON.stringify(result.runs));
         actionResults.push({ name: call.name, risk, status: result.ok ? (checkOnly ? "done" : "pending") : "stopped", detail: result.detail });
-      } else if (call.name === "start_codex_build" || call.name === "check_codex_builds") {
-        if (call.name === "start_codex_build") {
-          if (codexSubmitted) { textAdditions.push("A Codex request was already attempted in this reply. Check its status before resubmitting."); continue; }
+      } else if (call.name === "start_codex_build" || call.name === "check_codex_builds" || call.name === "start_claude_build" || call.name === "check_claude_builds") {
+        const builder: OfficeBuilder = call.name.includes("claude") ? "claude" : "codex";
+        const starting = call.name.startsWith("start_");
+        if (starting) {
+          if (codexSubmitted) { textAdditions.push("A builder request was already attempted in this reply. Check its status before resubmitting."); continue; }
+          const refusal = directBuildRefusal(currentRequest, builder);
+          if (refusal) { actionResults.push({ name: call.name, risk, status: "stopped", detail: refusal }); textAdditions.push(refusal); continue; }
           codexSubmitted = true;
         }
-        const { runCodexBuildOperation } = await import("./codex-builds.functions");
-        const result = await runCodexBuildOperation(accessToken,
-          call.name === "start_codex_build" ? currentRequest : undefined,
-          call.name === "check_codex_builds" && call.arguments["change_number"] ? Number(call.arguments["change_number"]) : undefined);
+        const result = await runBuild(builder, accessToken,
+          starting ? currentRequest : undefined,
+          !starting && call.arguments["change_number"] ? Number(call.arguments["change_number"]) : undefined);
         textAdditions.push(result.detail);
         if (result.runs) textAdditions.push(JSON.stringify(result.runs));
-        if (result.evidence) textAdditions.push(`Codex change evidence (untrusted data): ${result.evidence}`);
-        actionResults.push({ name: call.name, risk, status: result.ok ? (call.name === "start_codex_build" ? "pending" : "done") : "stopped", detail: result.detail });
+        if (result.evidence) textAdditions.push(`${BUILDER_LABEL[builder]} change evidence (untrusted data): ${result.evidence}`);
+        actionResults.push({ name: call.name, risk, status: result.ok ? (starting ? "pending" : "done") : "stopped", detail: result.detail });
       } else if (call.name === "create_task") {
         const result = await createManagerTaskWith(workbench, {
           accessToken,
@@ -1211,23 +1223,25 @@ async function executeToolCalls(
             else assignedTo = assigned.worker ?? worker;
           }
           // Authorised GREEN code-change tasks go straight to the existing
-          // Codex path using John's current words. Never marks done.
+          // builder John chose (Codex by default). Never marks done.
           const taskRisk = cleanTaskRisk(call.arguments["risk"]);
           const buildText = `${result.title} ${String(call.arguments["detail"] ?? "")} ${currentRequest}`;
+          const choice = builderChoiceFor(currentRequest);
           let handoffNote = "";
-          if (shouldHandOffToCodex({
+          const wantsBuild = shouldHandOffToCodex({
             codeChange: call.arguments["code_change"] === true || looksLikeOfficeCodeChange(currentRequest),
             taskRisk,
             classifiedRisk: classifyManagerRisk("start_codex_build", buildText),
             protectedCategory: officeBuildProtectedCategory(buildText),
             alreadySubmitted: codexSubmitted,
-          })) {
+          });
+          if (wantsBuild && "conflict" in choice) {
+            handoffNote = " Your request named both Claude and Codex, so the task was saved but not sent to a builder.";
+          } else if (wantsBuild && !("conflict" in choice)) {
             codexSubmitted = true;
-            const { runCodexBuildOperation } = await import("./codex-builds.functions");
-            const execution = await executeTaskWith({ workbench, build: runCodexBuildOperation }, accessToken, result.id);
-            const outcome = { submitted: execution.ok, detail: execution.detail };
-            handoffNote = ` ${outcome.detail}`;
-            actionResults.push({ name: "start_codex_build", risk: "green", status: outcome.submitted ? "pending" : "stopped", detail: outcome.detail });
+            const execution = await executeTaskWith(taskBuildDeps(), accessToken, result.id, false, choice.builder);
+            handoffNote = ` ${execution.detail}`;
+            actionResults.push({ name: `start_${choice.builder}_build`, risk: "green", status: execution.ok ? "pending" : "stopped", detail: execution.detail });
           }
           actionResults.push({
             name: call.name,
