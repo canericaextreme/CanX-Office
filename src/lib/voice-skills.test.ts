@@ -17,7 +17,7 @@ describe("live voice receives canonical Office Skills guidance", () => {
     it(`${mode} session tools are unchanged by skill guidance (no extra permissions)`, () => {
       const names = managerRealtimeSessionBody("gpt-realtime", managerRealtimeInstructions("CTX", [], mode), mode)
         .session.tools.map((t) => t.name);
-      expect(names).toEqual(mode === "direct" ? ["submit_office_request", "check_codex_builds"] : ["submit_office_request"]);
+      expect(names).toEqual(mode === "direct" ? ["submit_office_request", "check_codex_builds", "check_claude_builds"] : ["submit_office_request"]);
     });
   }
 
