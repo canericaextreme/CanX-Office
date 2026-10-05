@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256";
 import {
   mergeReceipts,
   totalsByCurrency,
@@ -83,7 +83,7 @@ const isoDate = (value: string): string => {
 };
 
 export function fingerprintText(value: string): string {
-  return createHash("sha256").update(value.normalize("NFKC").replace(/\s+/g, " ").trim()).digest("hex");
+  return sha256Hex(value.normalize("NFKC").replace(/\s+/g, " ").trim());
 }
 
 export function parseReceiptCandidate(candidate: CandidateDocument): ParsedCandidate {
