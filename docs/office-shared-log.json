@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "2026-10-05-stage1-approved",
+      "at": "2026-10-05T16:05:10Z",
+      "actor": "John",
+      "kind": "decision",
+      "audience": "office-status",
+      "summary": "John approved Stage 1 only: a read-only Office status source and shared operational log. Stop and report before Stage 2. Private archive contents stay excluded.",
+      "evidence": "Owner instruction in the October 5 staged Claude access conversation."
+    },
+    {
+      "id": "2026-10-05-stage0-key-confirmation",
+      "at": "2026-10-05T16:04:42Z",
+      "actor": "John",
+      "kind": "observation",
+      "audience": "office-status",
+      "summary": "John confirmed the October 4 Anthropic key was stored in both GitHub and Lovable. Its recorded expiry is November 3, 2026. Current Lovable authentication has not been tested.",
+      "evidence": "Owner confirmation and Anthropic Console screenshot; no credential values recorded."
+    },
+    {
+      "id": "2026-10-05-stage0-github-switch",
+      "at": "2026-10-05T16:00:22Z",
+      "actor": "ChatGPT",
+      "kind": "observation",
+      "audience": "office-status",
+      "summary": "Owner-supplied GitHub screenshots show the repository Anthropic secret exists and both Claude and Codex build switches are true. These are dated observations, not a continuous connection check.",
+      "evidence": "Owner-supplied GitHub Actions settings screenshots."
+    },
+    {
+      "id": "2026-10-05-stage0-open-problems",
+      "at": "2026-10-05T15:45:48Z",
+      "actor": "ChatGPT",
+      "kind": "problem",
+      "audience": "office-status",
+      "summary": "The staged access review must still verify archive exclusion and file preservation for Claude builds. The existing build folder restriction alone does not guarantee either. No settings or access controls were changed.",
+      "evidence": "Read-only review of canx-claude.yml and scripts/claude/propose.mjs."
+    }
+  ]
+}

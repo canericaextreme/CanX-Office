@@ -15,6 +15,7 @@
 - Populated room components are exported (e.g. `SavedFileList`) and covered by fixture-render tests. Why: empty-state tests missed the Brain tooltip crash.
 
 ## Detailed rules
+- Shared operational status/log: read `docs/claude-access-stage1.md`. Append authorised evidence to `docs/office-shared-log.json`; preserve earlier entries and exclude credentials and private archive contents. Use the common status contract rather than treating configuration as verified live access. Stage 2–4 await John's separate approval.
 - Subscriptions/billing, Office builders, Office Skills, room snapshots, Brain/project register and Google Drive rules: see `src/lib/AGENTS.md`.
 - The office audit's checklist of record is `docs/office-audit.md`; keep it in step when room sources, skills or connections change. Why: no room may be silently dropped across staged work.
 

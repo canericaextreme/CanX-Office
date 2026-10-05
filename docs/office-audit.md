@@ -1,5 +1,7 @@
 # CanX Office — whole-office wiring checklist
 
+Stage 1 Claude access (5 Oct 2026): `getOfficeStatus` provides owner-verified GET-only project/task metadata and the portable `docs/office-shared-log.json` operational log. The Claude panel displays this source without calling an AI or dispatching a build. Private archive bodies and arbitrary saved notes are excluded. Server connection configuration is explicitly unverified until a live check. Later Claude adapters and automatic logging are not installed by this stage. See `docs/claude-access-stage1.md`; signed-in live acceptance remains pending.
+
 Baseline 4 Oct 2026 (UTC). Source of truth in code: `src/lib/office-map.ts`, `src/lib/room-snapshot.ts`, `src/lib/office-skills.ts`, `src/lib/office-audit.ts`.
 Elsie can produce the live version of this table on request ("check all the rooms"). That run reads each room fresh as the owner; nothing here is owner-verified.
 

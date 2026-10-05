@@ -7,6 +7,7 @@ import {invokeOfficeClaude,type ClaudeModel} from '@/lib/claude-chat';
 import {Button} from '@/components/ui/button';
 import {managerChat,claudeOfficeChat,getClaudeOfficeStatus,type ManagerReply} from '@/lib/manager.functions';
 import {currentBuildVersion} from '@/lib/office-health';
+import {OfficeStatusPanel} from '@/components/office/OfficeStatusPanel';
 
 /** Shows Elsie's verified action results from an explicit handoff. Not Claude tool use. */
 export function ElsieHandoffResult({reply}:{reply:ManagerReply}) {
@@ -104,6 +105,7 @@ export function ClaudeBuildPanel() {
  const locked=busy||!session.stepUpComplete;
  return <section aria-label="Claude builds" className="space-y-3 rounded-xl border bg-card p-5">
   <h2 className="text-lg font-semibold">Build with Claude</h2>
+  <OfficeStatusPanel />
   <p>Claude works on the same Office repository as Codex. A build prepares a draft change with typecheck, test and build evidence. Checked, completed changes follow the Office release process.</p>
   <label className="block" htmlFor="claude-build-request">What should Claude build or fix?</label>
   <textarea id="claude-build-request" className="min-h-28 w-full rounded border bg-background p-3" value={request} maxLength={6000} onChange={e=>setRequest(e.target.value)}/>
@@ -143,4 +145,3 @@ export function ClaudeBuildPanel() {
   </details>
  </section>;
 }
-
