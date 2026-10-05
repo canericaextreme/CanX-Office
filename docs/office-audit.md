@@ -65,3 +65,19 @@ Installed = instructions present · Connected = every input readable · Executab
 - The first US$2 Claude test (GitHub run 37246771315) completed its implementation step but failed candidate validation: two legacy companion Work assertions expected the removed Work-button label and prohibited the owner-requested direct ChatGPT link. The proposal job was skipped; actual API charge is unknown. Updated those assertions to require the exact ChatGPT destination, accessible label, new-tab target and noopener/noreferrer settings; retained the internal panel's no-iframe/no-scripted-window protections and existing auth/provider safety tests. No paid retry was dispatched.
 
 - Claude test run 37247896211 passed implementation and fixed-runner validation, and the trusted proposal job opened draft PR #61 with only docs/claude-builder-test.md; neither merged nor published, and actual API cost remains unverified. John also confirmed the Claude activity indicator and automatic terminal status update. Added the same queued/running indicator and 15-second read-only polling to Build with Elsie and Codex, with in-flight guards and Send disabled for known active runs. Polling stops on terminal results, session loss, error or unmount; it never dispatches or retries a build. After a refresh, Check connection and builds loads any existing active run. Elsie's Claude route remains outstanding.
+
+## Elsie ↔ Claude/Codex connection matrix (5 October 2026)
+| Capability | Status | Notes |
+|---|---|---|
+| Elsie typed/voice: send green Office code task to Codex (`start_codex_build`, Work Board auto-handoff, `execute_task`) | Executable (owner + AAL2) | Default builder when John names no builder. |
+| Elsie typed/voice: send green Office code task to Claude (`start_claude_build`, same task paths) | Executable (owner + AAL2) | Only when John's current words name Claude. Server re-checks request, risk and protected categories; model cannot switch builder. Both builders named = refused. |
+| Builder status (`check_codex_builds`, `check_claude_builds`, exact "Check Claude builds" / "Check builder connection") | Executable, read-only | Answered before any paid Elsie call; voice uses fixed commands. |
+| Saved-task status (`check_task_execution`) | Executable, read-only | Uses the builder recorded on the task (`office-task-v2`; legacy `codex-task-v1` = Codex). |
+| One attempt per request | Enforced | Compare-and-set claim before dispatch; never retried, never falls back to the other builder; conflicting builder after an attempt is refused. |
+| Claude panel "Hand to Elsie" | Executable via Elsie | Sends John's typed request through `managerChat` with `/build-testing` route and build id; shows Elsie's verified action results. Claude does not run Office tools itself. |
+| Claude coding advice (`claude-chat`) | Read-only advice | Text only; no tool calls. Separate from builder credentials. |
+| External ChatGPT session tools/connectors | Not transferable | ChatGPT's connectors cannot be moved into the Office automatically. |
+| External ChatGPT → Office conversational API/connector | Not connected | No registered connector; no public unauthenticated endpoint was added. |
+| Live verification | Pending | Code and unit tests only. Requires John signed in with two-step verification to run a real Claude handoff; no paid build was run by this change. |
+
+Remaining owner setup: none new. Existing settings (shared GitHub token, US$2 Claude cap, enablement flags, Actions `ANTHROPIC_API_KEY`) are unchanged.
