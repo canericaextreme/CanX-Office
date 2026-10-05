@@ -231,9 +231,8 @@ export async function readDriveFileWith(settings: DriveSettings, fileId: string,
   } else {
     return {
       ok: false,
-      file,
       detail: `"${file.name}" is a ${file.mimeType} file. This office implementation currently reads only plain-text files, Google Docs (as text) and Google Sheets (as CSV). Nothing was read.`,
-    } as DriveResult;
+    };
   }
   const content = await request(settings, url, { method: "GET" }, fetchImpl, MAX_READ_BYTES);
   if (content.kind === "too_large") return { ok: false, detail: `"${file.name}" is larger than ${MAX_READ_BYTES} bytes, the safe reading limit. Nothing was read.` };
@@ -303,7 +302,7 @@ export async function updateDriveFileWith(
   const meta = await fetchMeta(settings, fileId, fetchImpl);
   if (isResult(meta)) return meta.ok ? meta : { ...meta, detail: meta.detail.replace("Nothing was read or changed.", "Nothing was changed.") };
   if (expectedName !== undefined && meta.name !== expectedName.trim()) {
-    return { ok: false, file: meta, detail: `File ${fileId} is named "${meta.name}", not "${expectedName.trim()}". Nothing was changed.` } as DriveResult;
+    return { ok: false, detail: `File ${fileId} is named "${meta.name}", not "${expectedName.trim()}". Nothing was changed.` };
   }
   if (meta.mimeType !== "text/plain") {
     return {
