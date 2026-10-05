@@ -79,10 +79,11 @@ export const OFFICE_CONNECTIONS: OfficeConnection[] = [
   },
   {
     id: "drive",
-    name: "Google Drive (scoped)",
-    purpose: "Reading agreed folders of documents.",
+    name: "Google Drive (selected files only)",
+    purpose:
+      "Listing, reading, creating and updating Drive files visible to the office through the linked 'canerica's Google Drive' connection. Permission is selected-files only (drive.file): the office cannot browse the whole Drive. No delete action exists.",
     stage: "next",
-    staticStatus: "disconnected",
+    note: "Linked to this project; live signed-in verification not yet done.",
   },
   {
     id: "safe-highways",
