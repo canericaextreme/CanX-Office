@@ -13,7 +13,7 @@ import { protectedCategoryOf } from "./protected-actions";
  */
 export function officeBuildProtectedCategory(request: string): string | null {
   const scope = request.replace(
-    /(^|[.!?\n])([ \t]*)(?:send|submit) (?:it |this task |the task )?to (?:the )?(?:builder|codex)(?: (?:once(?: only)?|only once))?[ \t]*(?=[.!?\n]|$)/gi,
+    /(^|[.!?\n])([ \t]*)(?:send|submit) (?:it |this task |the task )?to (?:the )?(?:builder|codex|claude)(?: (?:once(?: only)?|only once))?[ \t]*(?=[.!?\n]|$)/gi,
     "$1$2",
   );
   return protectedCategoryOf(scope);
