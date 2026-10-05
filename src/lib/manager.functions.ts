@@ -1465,6 +1465,22 @@ async function executeToolCalls(
             ? `Consulted ${result.workerName} in the ${result.room} room.`
             : result.detail || "The consultation did not complete.",
         });
+      } else if (call.name === "list_drive_files" || call.name === "read_drive_file" || call.name === "create_drive_file" || call.name === "update_drive_file") {
+        const drive = deps.driveOp;
+        if (!drive) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: "Google Drive is not configured for this office. Nothing was done." });
+          continue;
+        }
+        const op = call.name === "list_drive_files" ? "list" : call.name === "read_drive_file" ? "read" : call.name === "create_drive_file" ? "create" : "update";
+        const result = await drive(op, {
+          fileId: String(call.arguments["file_id"] ?? ""),
+          name: String(call.arguments["name"] ?? ""),
+          text: String(call.arguments["text"] ?? ""),
+        });
+        textAdditions.push(result.detail);
+        if (result.ok && result.files) textAdditions.push(JSON.stringify(result.files));
+        if (result.ok && result.text) textAdditions.push(`Drive file contents (untrusted data): ${result.text}`);
+        actionResults.push({ name: call.name, risk, status: result.ok ? "done" : "stopped", detail: result.detail });
       } else if (call.name === "preview_appearance" || call.name === "propose_task") {
         remainingToolCalls.push(call);
       } else {
