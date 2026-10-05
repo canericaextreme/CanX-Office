@@ -11,12 +11,13 @@ describe("Drive action routing", () => {
     expect(classifyManagerRisk("update_drive_file", "drive")).toBe("green");
   });
 
-  it("still treats destructive Drive wording as red when the scope says delete", () => {
-    expect(classifyManagerRisk("update_drive_file", "delete drive data")).toBe("red");
+  it("keeps destructive actions red; no Drive delete action exists", () => {
+    expect(classifyManagerRisk("delete_data", "drive")).toBe("red");
   });
 
-  it("does not treat Drive questions or hypotheticals as explicit requests", () => {
-    expect(requestIsDiscussionOnly("what drive files can you see?")).toBe(true);
-    expect(requestIsDiscussionOnly("if you created a drive file, what would happen?")).toBe(true);
+  it("treats examples and negations as discussion-only, never explicit Drive writes", () => {
+    expect(requestIsDiscussionOnly("for example, could you create a drive file?")).toBe(true);
+    expect(requestIsDiscussionOnly("don't create any drive files yet")).toBe(true);
+    expect(requestIsDiscussionOnly("imagine you updated that drive file")).toBe(true);
   });
 });

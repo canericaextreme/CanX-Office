@@ -46,7 +46,7 @@ describe("listDriveFilesWith", () => {
     if (result.ok) {
       expect(result.files).toHaveLength(1);
       expect(result.detail).toContain("selected-files only");
-      expect(result.detail).not.toContain("whole Drive.");
+      expect(result.detail).toContain("not your whole Drive");
     }
   });
 
