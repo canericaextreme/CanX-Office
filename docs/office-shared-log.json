@@ -36,6 +36,15 @@
       "audience": "office-status",
       "summary": "The staged access review must still verify archive exclusion and file preservation for Claude builds. The existing build folder restriction alone does not guarantee either. No settings or access controls were changed.",
       "evidence": "Read-only review of canx-claude.yml and scripts/claude/propose.mjs."
+    },
+    {
+      "id": "2026-10-05-mobile-landscape-analytics",
+      "at": "2026-10-05T21:54:27.765571Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared owner-requested mobile-only landscape support and a compact Analytics Control Wall. Desktop styling stays unchanged. Build, typecheck and 50 related panel tests passed. Publication pending; signed-in device behavior not yet verified.",
+      "evidence": "src/hooks/use-mobile.tsx, src/components/office/Office3D.tsx and src/styles.css. ChatGPT link currently targets the home page; exact conversation address was not supplied."
     }
   ]
 }

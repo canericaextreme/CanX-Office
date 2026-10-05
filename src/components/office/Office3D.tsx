@@ -304,7 +304,7 @@ export function Office3D() {
   const brainDrag = useLabelDrag(movableLabels, brainPosition, position => setLabelPositions(current => ({...current,brain:position})));
 
   return (
-    <main className="min-h-[calc(100vh-4rem)] bg-[#020611] px-2 py-3 text-white sm:px-4">
+    <main className="canx-office-map min-h-[calc(100vh-4rem)] bg-[#020611] px-2 py-3 text-white sm:px-4">
       <header className="mx-auto mb-3 flex max-w-[1700px] items-center justify-between gap-3 rounded-lg border border-slate-700 bg-[#0a101c] px-4 py-2.5 shadow-lg">
         <div>
           <div className="flex items-center gap-3">
@@ -496,7 +496,7 @@ export function Office3D() {
 
         <Link
           to="/analytics"
-          className="group mt-2 flex min-h-[66px] w-full items-center gap-4 rounded-lg border-2 border-orange-400 bg-[linear-gradient(100deg,#4a1d08,#7c2d12,#111827)] px-5 py-2 shadow-[0_0_24px_rgba(249,115,22,.18)] transition hover:-translate-y-0.5 hover:border-orange-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
+          className="canx-analytics-wall group mt-2 flex min-h-[66px] w-full items-center gap-4 rounded-lg border-2 border-orange-400 bg-[linear-gradient(100deg,#4a1d08,#7c2d12,#111827)] px-5 py-2 shadow-[0_0_24px_rgba(249,115,22,.18)] transition hover:-translate-y-0.5 hover:border-orange-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-orange-300 bg-black/35 text-orange-200">
             <BarChart3 className="h-5 w-5" />

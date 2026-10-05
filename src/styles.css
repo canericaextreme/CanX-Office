@@ -4,6 +4,52 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Touch devices only: preserve every desktop map and analytics dimension. */
+@media (hover: none) and (pointer: coarse) and (max-width: 1366px) {
+  .canx-office-map .canx-analytics-wall {
+    min-height: 44px;
+    gap: 8px;
+    padding: 4px 8px;
+    border-width: 1px;
+  }
+  .canx-analytics-wall > span:first-child {
+    width: 28px;
+    height: 28px;
+  }
+  .canx-analytics-wall > span:first-child svg {
+    width: 16px;
+    height: 16px;
+  }
+  .canx-analytics-wall > div {
+    min-width: 0;
+  }
+  .canx-analytics-wall h2 {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .canx-analytics-wall p,
+  .canx-analytics-wall > span:last-child {
+    display: none;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (max-width: 1366px) and (orientation: landscape) and (max-height: 767px) {
+  .canx-office-map {
+    min-height: calc(100dvh - 4rem);
+    padding: 4px 8px;
+  }
+  .canx-office-map > header {
+    margin-bottom: 4px;
+    padding: 4px 8px;
+  }
+  .canx-office-map > header > p {
+    display: none;
+  }
+  .canx-office-map > section {
+    padding: 4px;
+  }
+}
+
 /*
  * CanX Office design system.
  * Bright Canadian workplace with controlled red branding and operational colours.
