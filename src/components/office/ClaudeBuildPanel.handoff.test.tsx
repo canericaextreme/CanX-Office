@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup } from "@testing-library/react";
 afterEach(cleanup);
 import { render, screen } from "@testing-library/react";
-import { ElsieHandoffResult } from "./ClaudeBuildPanel";
+import { ClaudeOfficeResult, ElsieHandoffResult } from "./ClaudeBuildPanel";
 import type { ManagerReply } from "@/lib/manager.functions";
 
 const base: ManagerReply = { ok: true, code: "ok", provider: "openai", state: "verified", model: "m", text: "Sent to Claude.", toolCalls: [], actionResults: [] } as ManagerReply;
@@ -20,3 +20,11 @@ describe("Elsie handoff result in the Claude panel", () => {
     expect(screen.getByText("No Office action was carried out.")).toBeTruthy();
   });
 });
+
+ it("renders Claude's actual server outcomes separately from an Elsie handoff", () => {
+  render(<ClaudeOfficeResult reply={{ ...base, provider: "anthropic", actionResults: [{ name: "start_claude_build", risk: "green", status: "stopped", detail: "Read-only request; no build started." }] }} />);
+  const result = screen.getByRole("region", { name: "Claude Office result" });
+  expect(result.textContent).toContain("Claude's Office result");
+  expect(result.textContent).toContain("stopped: Read-only request; no build started.");
+  expect(result.textContent).not.toContain("carried out by Elsie");
+ });

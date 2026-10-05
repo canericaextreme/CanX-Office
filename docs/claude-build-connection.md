@@ -24,3 +24,10 @@ Unit tests cover owner rejection, scoped dispatch, per-build limits, duplicate/u
 
 ## Elsie routing (5 October 2026)
 Elsie can now send a green Office code request to Claude when John names Claude in his current request (typed or spoken via `submit_office_request`), check Claude builds read-only, and check a saved task's build using the builder recorded on the task. Codex remains the default. The Build & Testing Claude panel has a "Hand to Elsie" control that delegates John's request to Elsie and shows her results; it is an Elsie handoff, not Claude tool use. See the capability matrix in `docs/office-audit.md`. Live signed-in verification is still required.
+
+## Claude's own Office actions (5 October 2026)
+The Build & Testing panel now also offers "Run an Office request with Claude". This calls `claudeOfficeChat`, sharing Elsie's deterministic mail/receipt/audit commands, tool registry, argument sanitizer, owner/MFA checks, risk approvals, task claims, builder selection and outcome readback. Claude reasons through Anthropic's native Messages API; the trusted Office server executes allowlisted actions. Incomplete/refused provider responses cannot execute tools. No retries or fallback to OpenAI credentials are added.
+
+This path reuses the Office server's existing `ANTHROPIC_API_KEY` and deliberately selected `ANTHROPIC_MODEL` settings used by Claude reviews. It does not read/copy the GitHub Actions or Vault key. The panel's "Check Claude Office connection" is an authenticated model check, without a paid message. Missing settings or refused credentials stop the connection honestly. Paid requests reserve a 15-cent estimate using the existing Office budget/rate controls; this does not change the US$2 builder cap or account billing controls. No settings, secrets or workflows were changed.
+
+Installed source and tests do not establish signed-in live connection health. External ChatGPT tools, Claude's external account permissions and service OAuth connections do not transfer to either Office assistant. Neither assistant gains permission to disable the other or bypass owner approvals.

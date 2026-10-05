@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  astraContinuityContext,
   checkAstraMemoryHealth,
   HEALTH_PROBE,
   rpcContext,
@@ -229,3 +230,9 @@ describe("get_astra_context, summary readback and health", () => {
     expect(h).toMatchObject({ state: "degraded", reason: "Core memory could not be read." });
   });
 });
+
+ it("preserves colleague attribution in shared recent Office history", () => {
+  const text = astraContinuityContext([], [], [{ role: "assistant", content: "[Claude Office] Verified task result.", created_at: "2026-10-05" }, { role: "assistant", content: "Existing Elsie answer.", created_at: "2026-10-04" }]);
+  expect(text).toContain("Claude [2026-10-05]");
+  expect(text).toContain("Elsie [2026-10-04]");
+ });

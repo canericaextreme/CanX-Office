@@ -51,7 +51,7 @@ export function astraContinuityContext(
     `Conversation summaries (${s.length}, most recent first):`,
     ...s.map(x => `- [updated ${clean(x["updated_at"] ?? x["created_at"], 40) || "date unknown"}] ${clean(x["summary"], 2000)}`),
     `Recent turns (${r.length}, oldest first; earlier turns are pruned):`,
-    ...r.map(x => `- ${x["role"] === "assistant" ? "Elsie" : "John"} [${clean(x["created_at"], 40)}]: ${clean(x["content"], 1200)}`),
+    ...r.map(x => `- ${x["role"] === "assistant" ? (typeof x["content"] === "string" && x["content"].startsWith("[Claude Office] ") ? "Claude" : "Elsie") : "John"} [${clean(x["created_at"], 40)}]: ${clean(x["content"], 1200)}`),
     "Old plans are not completed work; old requests are not new approvals.",
   ].join("\n");
 }
