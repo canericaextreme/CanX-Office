@@ -15,11 +15,10 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Eye, Loader2, Building2, MonitorSmartphone } from "lucide-react";
+import { Eye, Minus, Loader2, Building2, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOwnerSession } from "@/lib/owner-session";
 import {
@@ -253,43 +252,48 @@ export function SecondEyesPanel() {
   const working = busy !== null;
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
       <TooltipProvider delayDuration={250}>
       <Tooltip>
-      <SheetTrigger asChild>
         <TooltipTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Claude connection"
-          className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
+          type="button"
+          aria-label={open ? "Minimize Claude connection" : "Open Claude connection"}
+          aria-expanded={open}
+          aria-controls="claude-connection-dashboard"
+          onClick={() => setOpen(value => !value)}
+          className="fixed right-3 top-20 z-[60] h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
         >
-          <Eye className="h-5 w-5" />
+          {open ? <Minus className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           <span
             aria-hidden="true"
             className={`absolute bottom-1 right-1 h-2 w-2 rounded-full border ${TONE_CLASS[tone]}`}
           />
         </Button>
         </TooltipTrigger>
-      </SheetTrigger>
       <TooltipContent side="bottom" align="end" collisionPadding={12} className="w-48 max-w-[calc(100vw-2rem)] whitespace-normal break-words border border-slate-600 bg-slate-950 px-3 py-2 text-center text-sm leading-relaxed text-white">
         Claude connection
       </TooltipContent>
       </Tooltip>
       </TooltipProvider>
 
-      <SheetContent
-        side="right"
-        data-canx-no-capture="true"
-        className="flex w-full max-w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-lg"
+      <div id="claude-connection-dashboard" hidden={!open} data-canx-no-capture="true">
+      <section
+        role="region"
+        aria-labelledby="claude-connection-title"
+        onKeyDown={event => { if (event.key === "Escape") setOpen(false); }}
+        onPointerLeave={event => { if (event.pointerType === "mouse") setOpen(false); }}
+        className="fixed right-3 top-32 z-50 flex max-h-[calc(100dvh-9rem)] w-[min(25rem,calc(100vw-1.5rem))] min-w-0 flex-col gap-0 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-card p-0 text-card-foreground shadow-xl [&_button]:whitespace-normal [&_button]:break-words"
       >
-        <SheetHeader className="border-b border-border p-4 text-left">
-          <SheetTitle className="text-base">Claude connection</SheetTitle>
+        <header className="border-b border-border p-4 text-left">
+          <h2 id="claude-connection-title" className="text-base font-semibold">Claude connection</h2>
           <p className="text-xs text-muted-foreground">
             Open Claude or use its Office build entry below. Reviews in this panel are read-only;
             they do not edit or publish the office. John decides.
           </p>
-        </SheetHeader>
+        </header>
 
         <div className="space-y-4 p-4">
           <nav aria-label="Claude connections" className="flex flex-wrap gap-2">
@@ -339,7 +343,7 @@ export function SecondEyesPanel() {
           )}
 
           <div className="grid gap-2">
-            <Button size="lg" className="h-14 justify-start gap-3" disabled={!canReview || working} onClick={() => void reviewThisRoom()}>
+            <Button size="lg" className="h-auto min-h-14 justify-start gap-3 py-3" disabled={!canReview || working} onClick={() => void reviewThisRoom()}>
               {busy === "room" ? <Loader2 className="h-5 w-5 animate-spin" /> : <MonitorSmartphone className="h-5 w-5" />}
               <span className="text-left">
                 <span className="block font-semibold">Review this room</span>
@@ -352,7 +356,7 @@ export function SecondEyesPanel() {
             <Button
               size="lg"
               variant="secondary"
-              className="h-14 justify-start gap-3"
+              className="h-auto min-h-14 justify-start gap-3 py-3"
               disabled={!canReview || working}
               onClick={() => void reviewWholeOffice(false)}
             >
@@ -448,8 +452,9 @@ export function SecondEyesPanel() {
             </div>
           </details>
         </div>
-      </SheetContent>
-    </Sheet>
+      </section>
+      </div>
+    </>
   );
 }
 
