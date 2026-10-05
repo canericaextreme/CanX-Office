@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {useServerFn} from '@tanstack/react-start';
 import {useOwnerSession} from '@/lib/owner-session';
 import {claudeBuildOperation} from '@/lib/claude-builds.functions';
@@ -15,11 +15,33 @@ export function ClaudeBuildPanel() {
  const [model,setModel]=useState('');
  const [answer,setAnswer]=useState('');
  const [connection,setConnection]=useState('Connection has not been checked.');
+ const buildInFlight=useRef(false);
+ const activeBuild=result?.runs?.find(item=>['queued','in_progress','waiting','pending','requested'].includes(item.state));
+ const hasActiveBuild=!!activeBuild;
+ useEffect(()=>{
+  if(!hasActiveBuild||!session.stepUpComplete||!session.accessToken) return;
+  let cancelled=false;
+  const interval=setInterval(async()=>{
+   if(buildInFlight.current) return;
+   buildInFlight.current=true;
+   setBusy(true);
+   try {
+    // Status only: never include a request or retry a paid dispatch.
+    const next=await build({data:{accessToken:session.accessToken!}});
+    if(!cancelled) setResult(next);
+   } catch {
+    if(!cancelled) setResult({ok:false,detail:'Automatic status check failed. Use Check Claude builds to check the existing run; do not resend the build.'});
+   } finally {buildInFlight.current=false;setBusy(false);}
+  },15000);
+  return ()=>{cancelled=true;clearInterval(interval);};
+ },[hasActiveBuild,session.stepUpComplete,session.accessToken,build]);
  async function run(submit:boolean) {
+  if(buildInFlight.current||(submit&&hasActiveBuild)) return;
+  buildInFlight.current=true;
   setBusy(true);
   try {setResult(await build({data:{accessToken:session.accessToken??'',...(submit?{request}:{})}}));}
   catch {setResult({ok:false,detail:'Could not confirm the build service. Check status before resubmitting.'});}
-  finally {setBusy(false);}
+  finally {buildInFlight.current=false;setBusy(false);}
  }
  async function chat(check:boolean) {
   setBusy(true);setAnswer('');
@@ -36,11 +58,12 @@ export function ClaudeBuildPanel() {
   <label className="block" htmlFor="claude-build-request">What should Claude build or fix?</label>
   <textarea id="claude-build-request" className="min-h-28 w-full rounded border bg-background p-3" value={request} maxLength={6000} onChange={e=>setRequest(e.target.value)}/>
   <div className="flex flex-wrap gap-2">
-   <Button disabled={locked||request.trim().length<10} onClick={()=>void run(true)}>Send build to Claude</Button>
+   <Button disabled={locked||hasActiveBuild||request.trim().length<10} onClick={()=>void run(true)}>Send build to Claude</Button>
    <Button variant="outline" disabled={locked} onClick={()=>void run(false)}>Check Claude builds</Button>
   </div>
   {!session.stepUpComplete&&<p>Complete owner verification to use Claude.</p>}
   <p role="status">{busy?'Contacting Claude…':result?.detail??'Build connection has not been checked. A Pro subscription alone does not connect the build runner.'}</p>
+  {activeBuild&&<p role="status" className="flex items-center gap-2"><span aria-hidden="true" className="inline-block h-4 w-4 animate-spin motion-reduce:animate-none rounded-full border-2 border-current border-t-transparent"/>{activeBuild.state==='in_progress'?'Claude build is running.':'Claude build is queued or waiting.'} Status refreshes every 15 seconds while this panel is open.</p>}
   {result?.runs?.map(item=><p key={item.id}><a className="underline" href={item.url} target="_blank" rel="noreferrer">Claude build {item.id}</a> — {item.state}. {item.title}</p>)}
   <details><summary className="cursor-pointer font-medium">Ask Claude for coding advice</summary>
    <div className="mt-3 space-y-3">
@@ -54,3 +77,4 @@ export function ClaudeBuildPanel() {
   </details>
  </section>;
 }
+
