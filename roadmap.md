@@ -256,4 +256,4 @@
 - [x] Checklist saved at docs/office-audit.md; AGENTS scope rule replaced.
 - [ ] Shared roster / Idea Lab storage — blocked: needs John-approved schema change.
 - [ ] Codex build handoff live readiness — blocked: GitHub repo variable/secret not verifiable from here.
-- [ ] Drive: attach connection std_01m44yhvz6fn98jh6ww5s8zrsq (drive.file scope only), shared list/read/create/update tools for Elsie+Claude, no delete, honest selected-files status; tests/typecheck/build, commit, no publish.
+- [x] Drive: attach connection std_01m44yhvz6fn98jh6ww5s8zrsq (drive.file scope only), shared list/read/create/update tools for Elsie+Claude, no delete, honest selected-files status; tests/typecheck/build, commit, no publish.
