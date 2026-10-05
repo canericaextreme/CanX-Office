@@ -418,9 +418,11 @@ describe("live office context replaces anything the browser sends", () => {
     expect(parsed.input[0]?.content).toContain("LIVE OFFICE CONTEXT");
     expect(parsed.tools.map((tool) => tool.name)).toEqual([
       "start_codex_build",
+      "start_claude_build",
       "execute_task",
       "check_task_execution",
       "check_codex_builds",
+      "check_claude_builds",
       "preview_appearance",
       "propose_task",
       "create_task",
