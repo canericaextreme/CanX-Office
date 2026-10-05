@@ -43,3 +43,6 @@ John explicitly requested automatic publication after every completed CanX Offic
 
 ## Owner-only connection shutdown — 4 October 2026
 John explicitly requested that only he may turn off either Claude or ChatGPT/Codex once connected. Neither colleague may disable, revoke, remove, replace, or sever the other's Office access on its own initiative. Changes to either connection's enablement, credentials, routing, or removal require John's explicit instruction for that change; ordinary coding or standing publication authorisation does not authorise shutdown. Build candidates affecting these controls must remain proposals until that owner instruction is present. Do not claim the Office can disable the external ChatGPT or Claude account.
+
+## Office builders
+- Builder choice comes only from John's current words (`src/lib/builder-choice.ts`): Codex by default, Claude only when named, both named = refuse; direct build tools re-check the actual request, and task execution records `office-task-v2` builder identity (legacy `codex-task-v1` = Codex) with one attempt per request and no fallback. Why: a model tool call must never switch builders or cause duplicate paid builds.
