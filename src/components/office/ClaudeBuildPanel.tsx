@@ -7,6 +7,7 @@ import {invokeOfficeClaude,type ClaudeModel} from '@/lib/claude-chat';
 import {Button} from '@/components/ui/button';
 import {managerChat,claudeOfficeChat,getClaudeOfficeStatus,type ManagerReply} from '@/lib/manager.functions';
 import {currentBuildVersion} from '@/lib/office-health';
+import {CodeXml,Minus} from 'lucide-react';
 
 /** Shows Elsie's verified action results from an explicit handoff. Not Claude tool use. */
 export function ElsieHandoffResult({reply}:{reply:ManagerReply}) {
@@ -27,6 +28,7 @@ export function ClaudeOfficeResult({reply}:{reply:ManagerReply}) {
  </div>;
 }
 export function ClaudeBuildPanel() {
+ const [expanded,setExpanded]=useState(false);
  const session=useOwnerSession();
  const build=useServerFn(claudeBuildOperation);
  const askElsie=useServerFn(managerChat);
@@ -102,7 +104,21 @@ export function ClaudeBuildPanel() {
   } finally {buildInFlight.current=false;setBusy(false);}
  }
  const locked=busy||!session.stepUpComplete;
- return <section aria-label="Claude builds" className="space-y-3 rounded-xl border bg-card p-5">
+ return <>
+  <Button
+   type="button"
+   variant="outline"
+   aria-label={expanded?'Minimize Claude dashboard':'Open Claude dashboard'}
+   aria-expanded={expanded}
+   aria-controls="claude-build-dashboard"
+   onClick={()=>setExpanded(value=>!value)}
+   className="fixed right-3 top-20 z-50 h-10 gap-2 bg-card shadow-md"
+  >
+   {expanded?<Minus className="h-4 w-4"/>:<CodeXml className="h-4 w-4"/>}
+   Claude
+  </Button>
+  <div id="claude-build-dashboard" hidden={!expanded}>
+  <section aria-label="Claude builds" className="fixed right-3 top-32 z-40 max-h-[calc(100dvh-9rem)] w-[calc(100vw-1.5rem)] max-w-lg space-y-3 overflow-y-auto rounded-xl border bg-card p-5 shadow-xl">
   <h2 className="text-lg font-semibold">Build with Claude</h2>
   <p>Claude works on the same Office repository as Codex. A build prepares a draft change with typecheck, test and build evidence. Checked, completed changes follow the Office release process.</p>
   <label className="block" htmlFor="claude-build-request">What should Claude build or fix?</label>
@@ -141,6 +157,7 @@ export function ClaudeBuildPanel() {
     {answer&&<pre className="whitespace-pre-wrap rounded border p-3 text-sm">{answer}</pre>}
    </div>
   </details>
- </section>;
+ </section>
+ </div>
+ </>;
 }
-
