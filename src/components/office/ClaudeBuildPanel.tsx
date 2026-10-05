@@ -5,9 +5,23 @@ import {claudeBuildOperation} from '@/lib/claude-builds.functions';
 import type {ClaudeBuildResult} from '@/lib/claude-builds.server';
 import {invokeOfficeClaude,type ClaudeModel} from '@/lib/claude-chat';
 import {Button} from '@/components/ui/button';
+import {managerChat,type ManagerReply} from '@/lib/manager.functions';
+import {currentBuildVersion} from '@/lib/office-health';
+
+/** Shows Elsie's verified action results from an explicit handoff. Not Claude tool use. */
+export function ElsieHandoffResult({reply}:{reply:ManagerReply}) {
+ return <div role="region" aria-label="Elsie handoff result" className="space-y-2 rounded border p-3 text-sm">
+  <p className="font-medium">Elsie's result (Office actions are carried out by Elsie, not by Claude)</p>
+  {!reply.ok&&<p>{reply.detail??'Elsie could not complete this handoff.'}</p>}
+  {reply.text&&<p className="whitespace-pre-wrap">{reply.text}</p>}
+  {reply.actionResults.length>0?<ul className="list-disc pl-5">{reply.actionResults.map((a,i)=><li key={i}><span className="font-mono">{a.name}</span> — {a.status}: {a.detail}</li>)}</ul>:<p>No Office action was carried out.</p>}
+ </div>;
+}
 export function ClaudeBuildPanel() {
  const session=useOwnerSession();
  const build=useServerFn(claudeBuildOperation);
+ const askElsie=useServerFn(managerChat);
+ const [handoff,setHandoff]=useState<ManagerReply|null>(null);
  const [request,setRequest]=useState('');
  const [busy,setBusy]=useState(false);
  const [result,setResult]=useState<ClaudeBuildResult|null>(null);
@@ -51,6 +65,13 @@ export function ClaudeBuildPanel() {
    else setAnswer(reply.ok?`${reply.text??''}${reply.complete?'':'\n\nThis response is incomplete.'}`:reply.detail??'Claude did not answer.');
   } finally {setBusy(false);}
  }
+ async function handToElsie() {
+  if(buildInFlight.current) return;
+  buildInFlight.current=true;setBusy(true);setHandoff(null);
+  try {setHandoff(await askElsie({data:{accessToken:session.accessToken??'',messages:[{role:'user',content:request.trim()}],currentRoute:'/build-testing',buildId:currentBuildVersion()}}));}
+  catch {setHandoff({ok:false,code:'context_unavailable',provider:'none',state:'configured_unverified',model:null,text:'',detail:'The handoff could not be confirmed. Check the Work Board and Build & Testing before asking again.',toolCalls:[],actionResults:[]} as ManagerReply);}
+  finally {buildInFlight.current=false;setBusy(false);}
+ }
  const locked=busy||!session.stepUpComplete;
  return <section aria-label="Claude builds" className="space-y-3 rounded-xl border bg-card p-5">
   <h2 className="text-lg font-semibold">Build with Claude</h2>
@@ -65,6 +86,13 @@ export function ClaudeBuildPanel() {
   <p role="status">{busy?'Contacting Claude…':result?.detail??'Build connection has not been checked. A Pro subscription alone does not connect the build runner.'}</p>
   {activeBuild&&<p role="status" className="flex items-center gap-2"><span aria-hidden="true" className="inline-block h-4 w-4 animate-spin motion-reduce:animate-none rounded-full border-2 border-current border-t-transparent"/>{activeBuild.state==='in_progress'?'Claude build is running.':'Claude build is queued or waiting.'} Status refreshes every 15 seconds while this panel is open.</p>}
   {result?.runs?.map(item=><p key={item.id}><a className="underline" href={item.url} target="_blank" rel="noreferrer">Claude build {item.id}</a> — {item.state}. {item.title}</p>)}
+  <details><summary className="cursor-pointer font-medium">Hand this request to Elsie (Office actions)</summary>
+   <div className="mt-3 space-y-3">
+    <p className="text-sm">Elsie runs the request through her owner-verified Office actions (tasks, room reads, builder status, builds). Results come back here. This is an Elsie handoff — Claude does not run Office tools itself. A build goes to Claude only if your request names Claude; otherwise Codex. Uses Elsie's office AI budget unless it is a plain status check.</p>
+    <Button variant="outline" disabled={locked||request.trim().length<10} onClick={()=>void handToElsie()}>Hand to Elsie</Button>
+    {handoff&&<ElsieHandoffResult reply={handoff}/>}
+   </div>
+  </details>
   <details><summary className="cursor-pointer font-medium">Ask Claude for coding advice</summary>
    <div className="mt-3 space-y-3">
     <p className="text-sm">Advice uses the secure office API connection. It receives the text above; it has no file-editing tools. API charges are separate from Claude Pro.</p>

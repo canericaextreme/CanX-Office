@@ -70,7 +70,7 @@ export function parseVoiceMode(value: unknown): ManagerVoiceMode {
 }
 
 const DIRECT_MODE_RULES = [
-  "- For a builder connection check or latest build status, call check_codex_builds with empty arguments. This dedicated tool is read-only and cannot start a build. Use submit_office_request for other office work.",
+  "- For a builder connection check or latest build status, call check_codex_builds with empty arguments; for the Claude builder call check_claude_builds. Both are read-only. To send a build to Claude, John must name Claude; pass his words through submit_office_request. This dedicated tool is read-only and cannot start a build. Use submit_office_request for other office work.",
   "Live voice-session rules (direct speech-to-speech):",
   "- You hear John's actual voice. Answer ordinary conversation, advice, planning and general questions yourself, naturally and concisely, in warm spoken English. Notice tone and hesitation, but never guess at feelings aloud.",
   "- For ANYTHING about current office records, approvals, tasks, room contents, room inspection, saving, CanX Brain memory, or any change John asks for, call submit_office_request with John's words in `request`. Do not answer those from memory or from the startup snapshot. Wait for the tool result.",
@@ -203,7 +203,8 @@ export function managerRealtimeSessionBody(model: string, instructions: string, 
       output_modalities: ["audio"],
       audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "auto", create_response: true, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } },
       tools: [{ type: "function", name: "submit_office_request", description: "Send John's request about office records, approvals, tasks, rooms, saving, memory, or any change to the Office Manager's authenticated server controls. Required for every office fact or action except builder status, which uses check_codex_builds. Returns the authoritative written result.", parameters: { type: "object", properties: { request: { type: "string", description: "John's request in his own words." } }, required: ["request"], additionalProperties: false } },
-        { type: "function", name: "check_codex_builds", description: "Read the builder connection and latest GitHub build status. No build is started, no change number is needed, and nothing is changed. Use this for builder status questions instead of submit_office_request.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
+        { type: "function", name: "check_codex_builds", description: "Read the builder connection and latest GitHub build status. No build is started, no change number is needed, and nothing is changed. Use this for builder status questions instead of submit_office_request.", parameters: { type: "object", properties: {}, additionalProperties: false } },
+        { type: "function", name: "check_claude_builds", description: "Read the Claude builder connection and latest Claude GitHub build status. No build is started and nothing is changed.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
       tool_choice: "auto",
     } };
   }

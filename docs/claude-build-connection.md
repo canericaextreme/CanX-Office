@@ -21,3 +21,6 @@ Supabase `claude-chat` reads the existing Vault key using its server-only built-
 ## Verification status
 
 Unit tests cover owner rejection, scoped dispatch, per-build limits, duplicate/uncertain dispatch protection, Vault non-exposure, invalid prompts and conversation budget rejection. Deployment, a valid signed-in response, runner-secret presence and a real completed Claude build must be verified separately; installed code is not evidence that these succeeded.
+
+## Elsie routing (5 October 2026)
+Elsie can now send a green Office code request to Claude when John names Claude in his current request (typed or spoken via `submit_office_request`), check Claude builds read-only, and check a saved task's build using the builder recorded on the task. Codex remains the default. The Build & Testing Claude panel has a "Hand to Elsie" control that delegates John's request to Elsie and shows her results; it is an Elsie handoff, not Claude tool use. See the capability matrix in `docs/office-audit.md`. Live signed-in verification is still required.
