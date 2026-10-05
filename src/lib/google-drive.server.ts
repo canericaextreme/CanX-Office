@@ -172,7 +172,7 @@ function writeFailure(f: Exclude<Fetched, { kind: "ok" }>, action: string): Driv
   return {
     ok: false,
     uncertain: true,
-    providerStatus: f.kind === "http" ? f.status : undefined,
+    ...(f.kind === "http" ? { providerStatus: f.status } : {}),
     detail: `The ${action} outcome is uncertain: Google Drive ${f.kind === "http" ? `returned status ${f.status}` : f.kind === "too_large" ? "sent an unexpected reply" : "did not respond in time"}. Check Drive before trying again; it was not retried automatically.`,
   };
 }
