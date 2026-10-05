@@ -3,8 +3,8 @@ import type { OwnerVerification } from './canx-backend.server';
 import { newBuildGitHubTrace, traceBuildGitHubRequest, readBuildGitHubJson, buildGitHubFailure, buildGitHubHttpFailure, type BuildGitHubTrace } from './build-github-diagnostic';
 export const CLAUDE_REPO = 'canericaextreme/CanX-Office';
 export const CLAUDE_WORKFLOW = 'canx-claude.yml';
-/** John authorised US$10 per Claude build on 4 October 2026. */
-export const CLAUDE_BUILD_MAX_USD = 10;
+/** Lowered to US$2 for the owner-requested connection test on 4 October 2026. */
+export const CLAUDE_BUILD_MAX_USD = 2;
 const ROOT = `https://api.github.com/repos/${CLAUDE_REPO}`;
 export interface ClaudeBuildDeps {
   verify: (token: string) => Promise<OwnerVerification>;
@@ -82,7 +82,13 @@ export async function claudeBuildsWith(deps: ClaudeBuildDeps, token: string, req
     if (!Array.isArray(body.workflow_runs)) return denied('The Claude run list was not readable.');
     const runs = body.workflow_runs.map((r: Record<string, unknown>) => ({ id: Number(r["id"]), title: plain(r["display_title"]),
       state: r["status"] === 'completed' ? plain(r["conclusion"]) : plain(r["status"]), url: `https://github.com/${CLAUDE_REPO}/actions/runs/${Number(r["id"])}` }));
-    if (request === undefined) return { ok: true, detail: 'Live Claude run status. A successful run prepares a draft change; it does not publish it.', runs };
+    if (request === undefined) {
+      const budget = deps.maxBudgetUsd;
+      const budgetDetail = budget !== undefined && Number.isFinite(budget) && budget >= 0.1 && budget <= 10
+        ? ` Claude API budget limit: US$${budget.toFixed(2)} per build.`
+        : ' No valid Claude API budget limit is configured; build submission is blocked.';
+      return { ok: true, detail: 'Live Claude run status. A successful run prepares a draft change; it does not publish it.' + budgetDetail, runs };
+    }
     // Serialize paid jobs. Do not retry a timed-out dispatch: it may have reached GitHub.
     if (runs.some((r: {state: string}) => ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(r.state))) return denied('A Claude build is already queued or running. Check its result before starting another.');
     const sent = await api(deps, `/actions/workflows/${CLAUDE_WORKFLOW}/dispatches`, trace, { method: 'POST', body: JSON.stringify({ ref: 'main', inputs: { request: request.trim(), max_budget_usd: String(deps.maxBudgetUsd) } }) });
