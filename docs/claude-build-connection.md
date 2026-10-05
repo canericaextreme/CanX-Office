@@ -1,6 +1,6 @@
 # Claude's Office build connection
 
-John authorised Claude to work independently on CanX Office coding and builds on 4 October 2026, and authorised a US$10 cap per build. The Office's Build & Testing page now contains a separate Claude build entry beside Codex.
+John authorised Claude to work independently on CanX Office coding and builds on 4 October 2026, and initially authorised a US$10 cap per build; the current Office-dispatched cap was lowered to US$2 for the connection test. The Office's Build & Testing page now contains a separate Claude build entry beside Codex.
 
 The build uses the same repository, allowed source scope, candidate checks, isolated trusted draft publisher and release policy as the existing Codex setup. Claude Code is pinned to 2.1.289. It receives file tools only; the fixed runner runs tests afterward. No Office session, Finance credential, Supabase credential, or deployment token enters the coding job.
 
@@ -10,7 +10,7 @@ The shared private GitHub connection already used by the Office dispatches the f
 
 GitHub must have a repository Actions secret named `ANTHROPIC_API_KEY` containing a Claude Console API key, stored through GitHub's secure Secrets page. The Vault secret is not automatically replicated into GitHub Actions. Do not paste the key into chat, source, workflow inputs, committed environment files or screenshots. Set appropriate Anthropic Console account spending controls before enabling paid builds. Claude Pro and API charges are separate.
 
-The owner-approved per-run maximum is sent as `max_budget_usd=10`; the workflow validates 0.10–10.00 and passes it to Claude's CLI. Reaching the CLI budget, turn or runtime limit ends the candidate attempt. Failed attempts are reported as failed, never merged, retried with a larger budget or published automatically. The runner cap is distinct from the Office AI conversation budget; account-wide billing controls remain necessary for aggregate usage.
+The owner-approved per-run maximum is sent as `max_budget_usd=2`; the workflow validates 0.10–10.00 and passes it to Claude's CLI. Reaching the CLI budget, turn or runtime limit ends the candidate attempt. Failed attempts are reported as failed, never merged, retried with a larger budget or published automatically. The runner cap is distinct from the Office AI conversation budget; account-wide billing controls remain necessary for aggregate usage.
 
 The repository variable `CANX_CLAUDE_ENABLED=false` disables the workflow; the Office server setting of the same name disables submission. Routine source tasks must not disable either colleague or change authentication, permissions, budgets, workflows or credentials.
 

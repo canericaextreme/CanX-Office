@@ -52,7 +52,7 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   }
   if (task.status === 'done' || task.status === 'cancelled') return { ok: false, detail: 'That task is already finished; nothing was started.' };
   if (execution && builder && execution.builder !== builder) return { ok: false, detail: `A build attempt was already recorded with ${BUILDER_LABEL[execution.builder]}. It was not sent to ${BUILDER_LABEL[builder]}; check the existing attempt instead.` };
-  if (execution || /Codex handoff/i.test(task.evidence)) return { ok: false, detail: 'A build submission was already recorded for this task. Check its execution instead; it was not submitted again.' };
+  if (execution || /(?:Codex|Claude) handoff|"kind"\s*:\s*"(?:office-task-v2|codex-task-v1)"/i.test(task.evidence)) return { ok: false, detail: 'A build submission was already recorded for this task. Check its execution instead; it was not submitted again.' };
   const chosen: OfficeBuilder = builder ?? 'codex';
   const run = pick(chosen);
   if (!run) return { ok: false, detail: `${BUILDER_LABEL[chosen]} builds are not available on this server path; nothing was sent.` };

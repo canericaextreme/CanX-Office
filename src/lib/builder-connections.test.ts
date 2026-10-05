@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { runManagerChatWith, sanitizeToolArgs, type ManagerDeps } from "./manager.functions";
-import { builderChoiceFor, directBuildRefusal } from "./builder-choice";
+import { builderChoiceFor, directBuildRefusal, taskExecutionRefusal } from "./builder-choice";
 import { isClaudeStatusCommand } from "./codex-status-command";
 import { executeTaskWith, readExecution, type TaskExecutionDeps } from "./task-execution.server";
 import { taskExecutionEvidence } from "./task-execution-evidence";
@@ -11,12 +11,12 @@ const OWNER: OwnerVerification = { ok: true, userId: "u1", email: "owner@example
 const DENIED: OwnerVerification = { ok: false, reason: "mfa_required", message: DENY_MESSAGES["mfa_required"] };
 const noFetch = vi.fn(() => { throw new Error("no paid call expected"); }) as unknown as typeof fetch;
 
-function chatDeps(toolName: string | null, overrides: Partial<ManagerDeps> = {}) {
+function chatDeps(toolName: string | null, overrides: Partial<ManagerDeps> = {}, toolArgs: Record<string, unknown> = {}) {
   const runBuild = vi.fn().mockResolvedValue({ ok: true, detail: "Accepted", runs: [{ id: 7, state: "queued", title: "b", url: "u" }] });
   const fetchImpl = vi.fn(async (input: unknown) => {
     const url = String(input);
     if (url.includes("/v1/models/")) return Response.json({});
-    if (url.includes("/v1/responses")) return Response.json({ output: toolName ? [{ type: "function_call", name: toolName, arguments: "{}" }] : [] });
+    if (url.includes("/v1/responses")) return Response.json({ output: toolName ? [{ type: "function_call", name: toolName, arguments: JSON.stringify(toolArgs) }] : [] });
     return Response.json({});
   }) as unknown as typeof fetch;
   const deps: ManagerDeps = {
@@ -47,6 +47,16 @@ describe("builder choice is John's, never the model's", () => {
     expect(sanitizeToolArgs("check_claude_builds", '{"change_number":5}')).toEqual({ change_number: 5 });
     expect(isClaudeStatusCommand("Check Claude builds")).toBe(true);
     expect(isClaudeStatusCommand("Explain check_claude_builds")).toBe(false);
+  });
+  it.each(["The Claude build failed.", "Check Claude build status", "Tell me whether Claude can fix the page", "Read-only: fix the reception label", "Do not execute the task", "How would you fix the reception label?"])("does not treat a build mention or discussion as permission: %s", text => {
+    const choice = builderChoiceFor(text);
+    expect(directBuildRefusal(text, "conflict" in choice ? "codex" : choice.builder)).not.toBeNull();
+  });
+  it("accepts an explicit polite change and a saved-task instruction", () => {
+    expect(directBuildRefusal("Can you fix the reception label?", "codex")).toBeNull();
+    expect(taskExecutionRefusal("Claude, execute the saved task 123")).toBeNull();
+    expect(taskExecutionRefusal("How would you execute the saved task 123?")).not.toBeNull();
+    expect(taskExecutionRefusal("Check the task execution status")).not.toBeNull();
   });
 });
 
@@ -84,6 +94,30 @@ describe("Elsie builder routing", () => {
     await runManagerChatWith(h.deps, say("For example, you could fix the reception label"));
     expect(h.runBuild).not.toHaveBeenCalled();
   });
+  it.each(["Check Claude build status", "Please check Claude build status. Do not start a build."])("routes natural status read-only before a paid call: %s", async content => {
+    const checkClaudeStatus = vi.fn().mockResolvedValue({ ok: true, detail: "Status only", runs: [] });
+    const h = chatDeps("start_claude_build", { checkClaudeStatus });
+    await runManagerChatWith(h.deps, say(content));
+    expect(checkClaudeStatus).toHaveBeenCalledOnce();
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+    expect(h.runBuild).not.toHaveBeenCalled();
+  });
+  it.each(["execute_task", "create_task"])("blocks a model's %s action during read-only or hypothetical discussion", async name => {
+    const args = name === "execute_task" ? { task_id: id } : { title: "Fix the reception label", detail: "Change the room label", code_change: true, risk: "green" };
+    for (const content of ["Read-only: tell me how to fix the reception label", "How would you execute the saved task?"]) {
+      const h = chatDeps(name, {}, args);
+      const reply = await runManagerChatWith(h.deps, say(content));
+      expect(h.runBuild).not.toHaveBeenCalled();
+      expect(reply.actionResults[0]).toMatchObject({ name, status: "stopped" });
+      expect(vi.mocked(h.fetchImpl).mock.calls.some(([url]) => String(url).includes("/rest/v1/"))).toBe(false);
+    }
+  });
+  it("allows only one build attempt even when the provider calls both builders", async () => {
+    const h = chatDeps(null);
+    vi.mocked(h.fetchImpl).mockImplementation(async input => String(input).includes("/v1/models/") ? Response.json({}) : Response.json({output:[{type:"function_call",name:"start_claude_build",arguments:"{}"},{type:"function_call",name:"start_codex_build",arguments:"{}"}]}));
+    await runManagerChatWith(h.deps, say("Claude, fix the reception label"));
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("claude", "t", "Claude, fix the reception label", undefined);
+  });
 });
 
 const id = "11111111-1111-4111-8111-111111111111";
@@ -102,6 +136,12 @@ function taskSetup(evidence = "") {
 }
 
 describe("task execution with recorded builder", () => {
+  it("does not treat an unreadable prior builder receipt as permission to retry", async () => {
+    const h = taskSetup(JSON.stringify({kind:"office-task-v2",builder:"unknown",attempt:"a",state:"submission_unconfirmed"}));
+    expect((await executeTaskWith(h.deps, "t", id)).ok).toBe(false);
+    expect(h.build).not.toHaveBeenCalled();
+    expect(h.buildClaude).not.toHaveBeenCalled();
+  });
   it("persists Claude identity and checks status with Claude only", async () => {
     const h = taskSetup();
     await executeTaskWith(h.deps, "t", id, false, "claude");

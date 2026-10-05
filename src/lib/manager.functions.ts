@@ -54,7 +54,7 @@ import {
 } from "@/lib/manager-work.functions";
 import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from "@/lib/codex-task-handoff";
 import { isCodexStatusCommand, isClaudeStatusCommand } from "./codex-status-command";
-import { builderChoiceFor, directBuildRefusal, BUILDER_LABEL, type OfficeBuilder } from "./builder-choice";
+import { builderChoiceFor, directBuildRefusal, taskExecutionRefusal, requestIsDiscussionOnly, BUILDER_LABEL, type OfficeBuilder } from "./builder-choice";
 import { normalizeWorkerId } from "./manager-workers";
 import { executeTaskWith } from "./task-execution.server";
 import { roomTargetForRoute, snapshotForModel, snapshotRef, type RoomSnapshot } from "./room-snapshot";
@@ -1120,6 +1120,12 @@ async function executeToolCalls(
   };
 
   for (const call of toolCalls) {
+    // An action suggested by the provider cannot override John's read-only or
+    // hypothetical request, including task writes and status-evidence updates.
+    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "request_approval", "log_change", "preview_appearance", "check_task_execution"].includes(call.name)) {
+      actionResults.push({ name: call.name, risk: "green", status: "stopped", detail: "This was discussion or a read-only request. No Office action was carried out." });
+      continue;
+    }
     const scope = typeof call.arguments["scope"] === "string" ? call.arguments["scope"] : "";
     const risk = classifyManagerRisk(call.name, scope);
     const protectedCategory = protectedCategoryOf(`${call.name} ${scope}`);
@@ -1182,6 +1188,8 @@ async function executeToolCalls(
     try {
       if (call.name === "execute_task" || call.name === "check_task_execution") {
         const checkOnly = call.name === "check_task_execution";
+        const refusal = checkOnly ? null : taskExecutionRefusal(currentRequest);
+        if (refusal) { actionResults.push({ name: call.name, risk, status: "stopped", detail: refusal }); continue; }
         const choice = builderChoiceFor(currentRequest);
         if ("conflict" in choice) { actionResults.push({ name: call.name, risk, status: "stopped", detail: "Your request named both Claude and Codex. Say which one; nothing was sent." }); continue; }
         if (!checkOnly && codexSubmitted) { textAdditions.push("A builder submission was already attempted in this turn. Check its result first."); continue; }
@@ -1247,7 +1255,7 @@ async function executeToolCalls(
           });
           if (wantsBuild && "conflict" in choice) {
             handoffNote = " Your request named both Claude and Codex, so the task was saved but not sent to a builder.";
-          } else if (wantsBuild && !("conflict" in choice)) {
+          } else if (wantsBuild && !("conflict" in choice) && directBuildRefusal(currentRequest, choice.builder) === null) {
             codexSubmitted = true;
             const execution = await executeTaskWith(taskBuildDeps(), accessToken, result.id, false, choice.builder);
             handoffNote = ` ${execution.detail}`;

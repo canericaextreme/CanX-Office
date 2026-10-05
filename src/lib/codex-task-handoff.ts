@@ -37,12 +37,13 @@ export interface CodexHandoffGate {
  * search box at the top of the page") is a code-change request even when the
  * model forgets to set the flag. Risk and protected checks still apply.
  */
-const CHANGE_VERBS = /\b(remove|hide|add|change|move|rename|replace|fix|resize|recolou?r|make|put|show|update)\b/i;
+const CHANGE_VERBS = /\b(remove|hide|add|change|move|rename|replace|fix|resize|recolou?r|make|put|show|update|create|write|build|implement|code)\b/i;
 const UI_TARGETS = /\b(page|screen|button|box|search|header|footer|banner|menu|nav(igation)?|layout|panel|card|icon|logo|text|label|title|colou?r|font|link|field|form|room|reception|sidebar|toolbar|tab)\b/i;
+const SOURCE_TARGETS = /\b(file|component|function|test)\b|\b(?:src|docs|public)\//i;
 export function looksLikeOfficeCodeChange(text: string): boolean {
   const t = text.trim();
   if (t.length < 10 || /\?\s*$/.test(t)) return false;
-  return CHANGE_VERBS.test(t) && UI_TARGETS.test(t);
+  return CHANGE_VERBS.test(t) && (UI_TARGETS.test(t) || SOURCE_TARGETS.test(t));
 }
 
 export function shouldHandOffToCodex(g: CodexHandoffGate): boolean {

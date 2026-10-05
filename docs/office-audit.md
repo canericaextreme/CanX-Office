@@ -72,12 +72,14 @@ Installed = instructions present · Connected = every input readable · Executab
 | Elsie typed/voice: send green Office code task to Codex (`start_codex_build`, Work Board auto-handoff, `execute_task`) | Executable (owner + AAL2) | Default builder when John names no builder. |
 | Elsie typed/voice: send green Office code task to Claude (`start_claude_build`, same task paths) | Executable (owner + AAL2) | Only when John's current words name Claude. Server re-checks request, risk and protected categories; model cannot switch builder. Both builders named = refused. |
 | Builder status (`check_codex_builds`, `check_claude_builds`, exact "Check Claude builds" / "Check builder connection") | Executable, read-only | Answered before any paid Elsie call; voice uses fixed commands. |
-| Saved-task status (`check_task_execution`) | Executable, read-only | Uses the builder recorded on the task (`office-task-v2`; legacy `codex-task-v1` = Codex). |
+| Saved-task status (`check_task_execution`) | Executable; reads build status and refreshes task evidence | Uses the builder recorded on the task (`office-task-v2`; legacy `codex-task-v1` = Codex). |
 | One attempt per request | Enforced | Compare-and-set claim before dispatch; never retried, never falls back to the other builder; conflicting builder after an attempt is refused. |
-| Claude panel "Hand to Elsie" | Executable via Elsie | Sends John's typed request through `managerChat` with `/build-testing` route and build id; shows Elsie's verified action results. Claude does not run Office tools itself. |
+| Claude panel "Hand to Elsie" | Executable via Elsie | Sends John's typed request through `managerChat` with `/build-testing` route and build id; shows the actual server-returned outcomes; signed-in functional verification is separate. Claude does not run Office tools itself. |
 | Claude coding advice (`claude-chat`) | Read-only advice | Text only; no tool calls. Separate from builder credentials. |
 | External ChatGPT session tools/connectors | Not transferable | ChatGPT's connectors cannot be moved into the Office automatically. |
 | External ChatGPT → Office conversational API/connector | Not connected | No registered connector; no public unauthenticated endpoint was added. |
 | Live verification | Pending | Code and unit tests only. Requires John signed in with two-step verification to run a real Claude handoff; no paid build was run by this change. |
 
-Remaining owner setup: none new. Existing settings (shared GitHub token, US$2 Claude cap, enablement flags, Actions `ANTHROPIC_API_KEY`) are unchanged.
+No new credentials are needed for these Office routes. Direct external ChatGPT-to-Office communication and additional service tools still require separately authorized integrations. Existing settings (shared GitHub token, US$2 Claude cap, enablement flags, Actions `ANTHROPIC_API_KEY`) are unchanged.
+
+- Independent review: all build entry points now check current owner intent; model-generated task/build actions cannot override read-only or hypothetical instructions. Status sentences mentioning a build never authorize dispatch. Exact Claude/Codex status commands bypass paid Elsie reasoning. Original root rules and their scope were preserved.
