@@ -578,6 +578,10 @@ const TOOL_ARG_RULES: Record<
     question: { type: "string", maxLen: 1200 },
     task_id: { type: "string", maxLen: 100 },
   },
+  list_drive_files: {},
+  read_drive_file: { file_id: { type: "string", maxLen: 200 } },
+  create_drive_file: { name: { type: "string", maxLen: 200 }, text: { type: "string", maxLen: 100_001 } },
+  update_drive_file: { file_id: { type: "string", maxLen: 200 }, file_name: { type: "string", maxLen: 200 }, text: { type: "string", maxLen: 100_001 } },
 };
 
 export function sanitizeToolArgs(name: string, raw: string | undefined): ManagerToolArgs | null {
