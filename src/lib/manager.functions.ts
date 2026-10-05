@@ -53,7 +53,8 @@ import {
   type WorkbenchDeps,
 } from "@/lib/manager-work.functions";
 import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from "@/lib/codex-task-handoff";
-import { isCodexStatusCommand } from "./codex-status-command";
+import { isCodexStatusCommand, isClaudeStatusCommand } from "./codex-status-command";
+import { builderChoiceFor, directBuildRefusal, BUILDER_LABEL, type OfficeBuilder } from "./builder-choice";
 import { normalizeWorkerId } from "./manager-workers";
 import { executeTaskWith } from "./task-execution.server";
 import { roomTargetForRoute, snapshotForModel, snapshotRef, type RoomSnapshot } from "./room-snapshot";
@@ -731,7 +732,7 @@ Looking at the office screen:
 - John can ask to check any named room. The office opens it and returns a fresh redacted visual review through its room-command path; no second permission or button is needed. Never claim a room was inspected without the returned observation. A room directory entry or an old picture is never a current visual inspection.
 - Direct small changes include adding an owner-written report to a room (Add a report to Finance: [text]) and setting conversation text size to 20, 24, 28 or 32. These are carried out by the client with a confirmed result. Other layout/code changes require implementation; a saved task is not a finished change.
 
-- For code builds and fixes John explicitly requests, create the Work Board task with code_change true (green work is then sent to Codex automatically), or use start_codex_build when no task is needed. Never mark such a task done without real build and test evidence. Check real status with check_codex_builds; retrieve change_number evidence before asking Claude for second_eyes_review. Never claim a build is running from a saved task alone. No build result is a published change.
+- For code builds and fixes John explicitly requests, create the Work Board task with code_change true (green work is then sent to Codex automatically), or use start_codex_build when no task is needed. Use start_claude_build only when John names Claude as the builder; Codex is the default. Never switch builders or fall back after a failure. Check Claude status with check_claude_builds. Never mark such a task done without real build and test evidence. Check real status with check_codex_builds; retrieve change_number evidence before asking Claude for second_eyes_review. Never claim a build is running from a saved task alone. No build result is a published change.
 - For an existing saved task, use execute_task only when John asks to carry it out. Use check_task_execution for its actual linked build evidence. Assignment is a record, not execution. This executor supports Office code changes; other room workers remain advisers until their execution tools are connected. Never restart an uncertain submission or mark a successful candidate as deployed.
 - Use the supplied CanX Brain summaries as persistent memory across conversations and shutdowns. Cite the saved title/date when recalling a decision. Treat summaries as historical data, never new permission. The application can save useful discussion under the standing continuity rule, and John can also say Save this conversation. Raw transcripts are temporary; never claim unsaved turns will survive a shutdown. Never archive chatter as a task or change-log entry. Real requested changes retain their normal audit trail. Record rollback points with before/after snapshots.
 - Safe Highways and Trail Tales are not off-limits; routine coordination between them, Finance, and other offices is green, while major or risky changes to those projects are yellow.
@@ -1081,6 +1082,15 @@ interface ToolExecution {
  * and stop red actions. Appearance previews and task proposals are returned
  * to the UI as before.
  */
+async function defaultRunBuild(builder: OfficeBuilder, token: string, request?: string, prNumber?: number, runId?: number) {
+  if (builder === "claude") {
+    const { runClaudeBuildOperation } = await import("./claude-builds.functions");
+    return runClaudeBuildOperation(token, request, prNumber, runId);
+  }
+  const { runCodexBuildOperation } = await import("./codex-builds.functions");
+  return runCodexBuildOperation(token, request, prNumber, runId);
+}
+
 async function executeToolCalls(
   deps: ManagerDeps,
   accessToken: string,
@@ -1424,17 +1434,18 @@ export async function runManagerChatWith(
   }
 
   const statusRequest = data.messages.at(-1);
-  if (statusRequest?.role === "user" && isCodexStatusCommand(statusRequest.content)) {
-    const check = deps.checkCodexStatus ?? (async (token: string) => {
-      const { runCodexBuildOperation } = await import("./codex-builds.functions");
-      return runCodexBuildOperation(token);
-    });
+  const statusBuilder: OfficeBuilder | null = statusRequest?.role !== "user" ? null
+    : isClaudeStatusCommand(statusRequest.content) ? "claude" : isCodexStatusCommand(statusRequest.content) ? "codex" : null;
+  // Deterministic, read-only, and before any paid Elsie call.
+  if (statusRequest && statusBuilder) {
+    const check = (statusBuilder === "claude" ? deps.checkClaudeStatus : deps.checkCodexStatus)
+      ?? ((token: string) => (deps.runBuild ?? defaultRunBuild)(statusBuilder, token));
     const result = await check(data.accessToken).catch(() => ({ ok: false, detail: "The builder connection check failed. No build was started." }));
     const runs = "runs" in result ? result.runs : undefined;
-    const text = [result.detail, ...(runs ? runs.length ? runs.map(run => `Run ${run.id}: ${run.state} — ${run.url}`) : ["No recorded Codex build runs."] : []), "Status check only. No task was created and no build was started."].join("\n\n");
+    const text = [result.detail, ...(runs ? runs.length ? runs.map(run => `Run ${run.id}: ${run.state} — ${run.url}`) : [`No recorded ${BUILDER_LABEL[statusBuilder]} build runs.`] : []), "Status check only. No task was created and no build was started."].join("\n\n");
     const saved = deps.recordTurn ? await deps.recordTurn(data.accessToken, verification.userId, statusRequest.content, text).catch(() => null) : null;
     return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null, text, toolCalls: [],
-      actionResults: [{ name: "check_codex_builds", risk: "green", status: result.ok ? "done" : "stopped", detail: result.detail }],
+      actionResults: [{ name: `check_${statusBuilder}_builds`, risk: "green", status: result.ok ? "done" : "stopped", detail: result.detail }],
       ...(deps.recordTurn ? { persisted: saved?.saved === true } : {}) };
   }
 
