@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
 import { useOwnerSession } from '@/lib/owner-session';
 import { codexBuildOperation } from '@/lib/codex-builds.functions';
@@ -10,12 +10,33 @@ export function CodexBuildPanel() {
   const [request, setRequest] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<CodexBuildResult | null>(null);
+  const buildInFlight = useRef(false);
+  const activeBuild = result?.runs?.find(item => ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(item.state));
+  const hasActiveBuild = !!activeBuild;
+  useEffect(() => {
+    if (!hasActiveBuild || !session.stepUpComplete || !session.accessToken) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      if (buildInFlight.current) return;
+      buildInFlight.current = true;
+      setBusy(true);
+      try {
+        // Read status only; never include a request or retry a build dispatch.
+        const next = await run({ data: { accessToken: session.accessToken! } });
+        if (!cancelled) setResult(next);
+      } catch {
+        if (!cancelled) setResult({ ok: false, detail: 'Automatic status check failed. Use Check connection and builds to check the existing run; do not resend the build.' });
+      } finally { buildInFlight.current = false; setBusy(false); }
+    }, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [hasActiveBuild, session.stepUpComplete, session.accessToken, run]);
   const act = async (submit: boolean) => {
-    if (busy || !session.accessToken) return;
+    if (buildInFlight.current || busy || !session.stepUpComplete || !session.accessToken || (submit && hasActiveBuild)) return;
+    buildInFlight.current = true;
     setBusy(true);
     try { setResult(await run({ data: { accessToken: session.accessToken, ...(submit ? { request } : {}) } })); }
     catch { setResult({ ok: false, detail: 'Could not confirm the connection. Check status before resending a build.' }); }
-    finally { setBusy(false); }
+    finally { buildInFlight.current = false; setBusy(false); }
   };
   return <section className="space-y-3 rounded-xl border bg-card p-5" aria-label="Codex builds">
     <h2 className="text-lg font-semibold">Build with Elsie and Codex</h2>
@@ -24,11 +45,12 @@ export function CodexBuildPanel() {
     <textarea id="codex-build-request" className="min-h-28 w-full rounded border bg-background p-3" value={request} maxLength={6000} onChange={e => setRequest(e.target.value)} />
     <p className="text-sm text-muted-foreground">Describe the change you want made to CanX Office.</p>
     <div className="flex flex-wrap gap-2">
-      <Button disabled={busy || !session.stepUpComplete || request.trim().length < 10} onClick={() => void act(true)}>Send build to Codex</Button>
+      <Button disabled={busy || hasActiveBuild || !session.stepUpComplete || request.trim().length < 10} onClick={() => void act(true)}>Send build to Codex</Button>
       <Button variant="outline" disabled={busy || !session.stepUpComplete} onClick={() => void act(false)}>Check connection and builds</Button>
     </div>
     {!session.stepUpComplete && <p>Complete owner verification to use Codex builds.</p>}
     <p role="status">{busy ? 'Contacting the build service…' : result?.detail ?? 'Connection has not been checked.'}</p>
+    {activeBuild && <p role="status" className="flex items-center gap-2"><span aria-hidden="true" className="inline-block h-4 w-4 animate-spin motion-reduce:animate-none rounded-full border-2 border-current border-t-transparent" />{activeBuild.state === 'in_progress' ? 'Codex build is running.' : 'Codex build is queued or waiting.'} Status refreshes every 15 seconds while this panel is open.</p>}
     {result?.runs?.map(item => <p key={item.id}><a className="underline" href={item.url} target="_blank" rel="noreferrer">Build {item.id}</a> — {item.state}. {item.title}</p>)}
   </section>;
 }
