@@ -313,6 +313,17 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
       return astra.recordAstraTurn((path, init) => backend.restRequest(config, token, path, init), ownerId, user, provider === "anthropic" ? `[Claude Office] ${answer}` : answer);
     },
     fetchImpl: (input, init) => fetch(input, init),
+    driveOp: async (op, input) => {
+      const drive = await import("./google-drive.server");
+      const settings = drive.readDriveSettings();
+      if (!settings) {
+        return { ok: false, detail: "Google Drive is not configured for this office (connection key missing). Nothing was done." };
+      }
+      if (op === "list") return drive.listDriveFilesWith(settings, fetch);
+      if (op === "read") return drive.readDriveFileWith(settings, String(input.fileId ?? ""), fetch);
+      if (op === "create") return drive.createDriveFileWith(settings, String(input.name ?? ""), String(input.text ?? ""), fetch);
+      return drive.updateDriveFileWith(settings, String(input.fileId ?? ""), String(input.text ?? ""), fetch);
+    },
     provider,
     anthropicKey: readSetting(process.env["ANTHROPIC_API_KEY"]),
     openaiKey: readSetting(process.env["OPENAI_API_KEY"]),
@@ -1179,7 +1190,7 @@ async function executeToolCalls(
   for (const call of toolCalls) {
     // An action suggested by the provider cannot override John's read-only or
     // hypothetical request, including task writes and status-evidence updates.
-    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "request_approval", "log_change", "preview_appearance", "check_task_execution"].includes(call.name)) {
+    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "request_approval", "log_change", "preview_appearance", "check_task_execution", "create_drive_file", "update_drive_file"].includes(call.name)) {
       actionResults.push({ name: call.name, risk: "green", status: "stopped", detail: "This was discussion or a read-only request. No Office action was carried out." });
       continue;
     }
