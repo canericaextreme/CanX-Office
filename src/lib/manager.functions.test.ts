@@ -474,6 +474,7 @@ describe("live office context replaces anything the browser sends", () => {
       "verify_task",
       "request_approval",
       "log_change",
+      "save_brain_note",
       "handoff_to_chatgpt_text",
       "second_eyes_review",
       // Read-only room-worker consultation; still an exact, closed list.

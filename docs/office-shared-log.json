@@ -81,6 +81,15 @@
       "audience": "office-status",
       "summary": "John asked to repair cooperation one choke point at a time. Added an explicit Elsie-to-ChatGPT writing handoff using the existing OpenAI API configuration and Office budget. It reads one owned unfinished green task, appends the reply and provider receipt with a conditional save, verifies readback and leaves task status unchanged. No code build or native ChatGPT connector is implied. Signed-in live verification remains pending.",
       "evidence": "CANX-TEAM-TEST-001 stopped because existing Codex routes start code builds. Source: src/lib/text-colleague-handoff.ts and manager.functions.ts; targeted 62 tests passed. No credentials, access policies or database schema changed."
+    },
+    {
+      "id": "2026-10-07-brain-note-action",
+      "at": "2026-10-07T22:30:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Implemented explicit owner-requested Brain note saving with exact readback, append-only storage and duplicate protection. Live deployment acceptance pending.",
+      "evidence": "manager-brain-save.ts and manager-brain-save.test.ts; existing owner verification and office_notes storage."
     }
   ]
 }
