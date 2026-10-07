@@ -135,6 +135,15 @@ describe("spending and rate limits", () => {
 });
 
 describe("health check and provider errors", () => {
+  it("reports transport failures without exposing the thrown message or enabling the manager", async () => {
+    const fetchImpl = vi.fn(async () => { throw new TypeError("sk-private-detail", { cause: { code: "ECONNRESET" } }); }) as unknown as typeof fetch;
+    const status = await computeManagerStatusWith(deps({ verifyOwner: async () => OWNER, fetchImpl }), "t");
+    expect(status.connected).toBe(false);
+    expect(status.state).toBe("configured_unverified");
+    expect(status.detail).toContain("ECONNRESET");
+    expect(JSON.stringify(status)).not.toContain("sk-private-detail");
+  });
+
   it("stays disconnected when the live health check fails, and releases the reservation", async () => {
     const settle = vi.fn(async () => undefined);
     const fetchImpl = vi.fn(async () => new Response("nope", { status: 401 })) as unknown as typeof fetch;

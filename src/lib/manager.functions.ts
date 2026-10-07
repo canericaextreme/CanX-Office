@@ -64,6 +64,7 @@ import { registerForModel } from "./project-register";
 import { locatorsForModel } from "./project-locator";
 import { sanitizeDeviceSnapshot } from "./room-device-snapshot";
 import { routeSkillsForRoom } from "./office-skills";
+import { managerConnectionFailure } from "./manager-connection-errors";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
 const cleanTaskRisk = (value: unknown): RiskLevel =>
@@ -706,10 +707,10 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
     );
     if (response.ok) return { ok: true, detail: "" };
     return { ok: false, status: response.status, detail: sanitizedProviderDetail(response.status, "provider_check") };
-  } catch {
+  } catch (error) {
     return {
       ok: false,
-      detail: "The AI connection check did not complete, so the manager stays disconnected.",
+      detail: managerConnectionFailure(error, controller.signal.aborted),
     };
   } finally {
     clearTimeout(timer);
