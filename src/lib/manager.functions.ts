@@ -699,7 +699,8 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
       `https://${deps.provider === "anthropic" ? "api.anthropic.com" : "api.openai.com"}/v1/models/${encodeURIComponent(deps.model!)}`,
       {
         signal: controller.signal,
-        redirect: "error",
+        // Do not follow redirects or forward credentials; retain the refusal status.
+        redirect: "manual",
         headers: deps.provider === "anthropic"
           ? { "x-api-key": deps.anthropicKey!, "anthropic-version": "2023-06-01" }
           : { Authorization: `Bearer ${deps.openaiKey}` },
@@ -923,6 +924,8 @@ function liveContextMessage(context: string) {
 
 /** Never echo an upstream body, header, or key material back to the client. */
 function sanitizedProviderDetail(status?: number, stage: "provider_check" | "assistant_provider" = "assistant_provider"): string {
+  if (status && status >= 300 && status < 400)
+    return `The AI provider returned a redirect (HTTP ${status}). The office refused to follow it or forward credentials.`;
   if (status === 401 || status === 403) return "The AI provider connection needs attention.";
   if (status === 429)
     return stage === "provider_check"
@@ -991,7 +994,7 @@ async function callOfficeProvider(
     const response = await deps.fetchImpl(claude ? "https://api.anthropic.com/v1/messages" : "https://api.openai.com/v1/responses", {
       method: "POST",
       signal: controller.signal,
-      redirect: "error",
+      redirect: "manual",
       headers: claude
         ? { "Content-Type": "application/json", "x-api-key": deps.anthropicKey!, "anthropic-version": "2023-06-01" }
         : { "Content-Type": "application/json", Authorization: `Bearer ${deps.openaiKey}` },

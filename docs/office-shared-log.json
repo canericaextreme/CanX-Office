@@ -63,6 +63,15 @@
       "audience": "office-status",
       "summary": "Prepared static provider connection diagnostics distinguishing timed aborts, known network failures and runtime request rejection. No upstream error messages are returned. Existing owner verification, provider selection and spending controls remain in force. Publication and live diagnostic readback pending.",
       "evidence": "76 related tests passed; typecheck and production build validation recorded separately. Files: manager-connection-errors.ts and manager.functions.ts."
+    },
+    {
+      "id": "2026-10-07-provider-redirect-refusal",
+      "at": "2026-10-07T15:40:53.362598+00:00",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared explicit manual redirect handling for provider checks and answers. Redirects are refused without following Location or exposing upstream content; a returned redirect status is distinguishable from a thrown transport error. Live behavior remains unverified.",
+      "evidence": "81 related tests passed; typecheck and production build passed. Files: manager.functions.ts and redirect-refusal integration tests. Publication pending."
     }
   ]
 }

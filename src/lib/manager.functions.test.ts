@@ -135,6 +135,36 @@ describe("spending and rate limits", () => {
 });
 
 describe("health check and provider errors", () => {
+  it.each([301, 302, 307, 308])("refuses a health redirect (%s) before requesting an answer", async (status) => {
+    const settle = vi.fn(async () => undefined);
+    const fetchImpl = vi.fn(async (_input: unknown, _init?: RequestInit) => new Response("private upstream body", {
+      status, headers: { Location: "https://example.com/private-destination" },
+    }));
+    const reply = await runManagerChatWith(deps({ verifyOwner: async () => OWNER, settle, fetchImpl }), CHAT);
+    expect(reply.code).toBe("health_check_failed");
+    expect(reply.detail).toContain(`HTTP ${status}`);
+    expect(reply.detail).toContain("refused to follow");
+    expect(JSON.stringify(reply)).not.toMatch(/private|example\.com/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]?.[1]?.redirect).toBe("manual");
+    expect(settle).toHaveBeenCalledWith("t", "r1", "failed");
+  });
+
+  it("refuses an answer redirect without exposing its destination or body", async () => {
+    const fetchImpl = vi.fn(async (input: unknown, _init?: RequestInit) => {
+      if (String(input).includes("/v1/models/")) return new Response("{}", { status: 200 });
+      return new Response("private upstream body", { status: 307, headers: { Location: "https://example.com/private" } });
+    });
+    const reply = await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl }), CHAT);
+    expect(reply.code).toBe("provider_error");
+    expect(reply.providerStatus).toBe(307);
+    expect(reply.text).toBe("");
+    expect(reply.detail).toContain("refused to follow");
+    expect(JSON.stringify(reply)).not.toMatch(/private|example\.com/);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.redirect === "manual")).toBe(true);
+  });
+
   it("reports transport failures without exposing the thrown message or enabling the manager", async () => {
     const fetchImpl = vi.fn(async () => { throw new TypeError("sk-private-detail", { cause: { code: "ECONNRESET" } }); }) as unknown as typeof fetch;
     const status = await computeManagerStatusWith(deps({ verifyOwner: async () => OWNER, fetchImpl }), "t");
