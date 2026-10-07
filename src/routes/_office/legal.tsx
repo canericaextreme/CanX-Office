@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { LegalRoom } from "@/components/office/LegalRoom";
 
 export const Route = createFileRoute("/_office/legal")({
   head: () => ({
@@ -19,34 +18,13 @@ export const Route = createFileRoute("/_office/legal")({
 
 function Legal() {
   return (
-    <RoomShell>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-base">Contracts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Signed agreements, drafts under review, and expiry alerts. No documents stored in
-              Phase 1.
-            </p>
-            <Button className="mt-4" disabled>
-              Upload contract
-            </Button>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-base">Terms &amp; privacy</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Public terms, privacy policy, and cookie notices. Content will be drafted with legal
-              review before Phase 2.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+    <RoomShell
+      title="Legal & Compliance"
+      purpose="Agreements, policies, ownership and deadlines in one place."
+      showSample={false}
+      showFiles={false}
+    >
+      <LegalRoom />
     </RoomShell>
   );
 }

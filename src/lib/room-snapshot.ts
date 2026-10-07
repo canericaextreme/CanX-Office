@@ -20,7 +20,7 @@ export const SNAPSHOT_CONTRACT = "canx-room-snapshot/1";
 
 export type SourceKind = "live" | "device" | "static";
 export type LiveSourceKey =
-  | "files" | "reports" | "tasks" | "approvals" | "changes" | "notes" | "decisions"
+  | "legal-filings" | "files" | "reports" | "tasks" | "approvals" | "changes" | "notes" | "decisions"
   | "brain-memory" | "brain-index" | "project-register" | "round-tables" | "finance-receipts" | "subscriptions" | "mail-evidence" | "mail-preferences";
 
 export interface SourceDef {
@@ -64,7 +64,7 @@ const ROOM_SOURCES: Record<string, SourceDef[]> = {
   "/finance": [live("finance-receipts", "Filed receipts (counts and totals by currency)", FIN)],
   "/subscriptions": [live("subscriptions", "Saved subscriptions", FIN), live("mail-evidence", "Saved billing-email evidence", FIN), live("mail-preferences", "Your Keep/Ignore mail rules", FIN)],
   "/communications": [live("mail-evidence", "Saved billing-email evidence", FIN), stat("mailboxes", "Gmail mailbox identities", "Checked live only by the Mailbox access panel on request; not read by this snapshot.")],
-  "/legal": [],
+  "/legal": [live("legal-filings", "Legal topics, statuses, dates and lawyer questions", FIN)],
   "/records": [live("notes", "Shared office notes"), live("decisions", "Saved decisions")],
   "/skills": [stat("skills-registry", "Office Skills registry", "Written into the app (versioned).")],
   "/systems": [live("changes", "Recent change log"), stat("connections", "Connection inventory", "App configuration; live checks happen in their own panels.")],
