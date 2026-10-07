@@ -474,6 +474,7 @@ describe("live office context replaces anything the browser sends", () => {
       "verify_task",
       "request_approval",
       "log_change",
+      "handoff_to_chatgpt_text",
       "second_eyes_review",
       // Read-only room-worker consultation; still an exact, closed list.
       "consult_room_worker",
@@ -629,5 +630,41 @@ describe("direct read-only builder connection check", () => {
     const result = await runManagerChatWith(deps({ checkCodexStatus }), { accessToken: "bad", messages: [{ role: "user", content: "Check builder connection" }] });
     expect(result.ok).toBe(false);
     expect(checkCodexStatus).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("ChatGPT writing action dispatch", () => {
+  it("saves one writing reply on the same task, never dispatches a build, and refuses duplicate tool attempts", async () => {
+    vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("CANX_SUPABASE_PUBLISHABLE_KEY", "test-key");
+    let row = { id: "task-1", owner_id: "u1", title: "Welcome note", detail: "Write a welcome note", result: "", evidence: "Claude review: clarify untested connections", status: "open", risk: "green", updated_at: "2026-10-07T00:00:00Z" };
+    let writingCalls = 0;
+    const tool = { type: "function_call", name: "handoff_to_chatgpt_text", arguments: JSON.stringify({ task_id: "task-1", instruction: "Revise the note using Claude's review." }) };
+    const build = vi.fn();
+    const fetchImpl = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).includes("/v1/models/")) return Response.json({});
+      if (String(url).includes("/v1/responses")) {
+        const body = JSON.parse(String(init?.body));
+        if (body.tools) return Response.json({ output: [tool, tool] });
+        writingCalls++;
+        return Response.json({ id: "resp-integration", status: "completed", output_text: "Welcome. Office teamwork is being tested." });
+      }
+      if (String(url).includes("/manager_tasks?")) {
+        if (init?.method === "PATCH") row = { ...row, ...JSON.parse(String(init.body)) };
+        return Response.json([row]);
+      }
+      if (String(url).includes("/rpc/ensure_manager_ai_budget")) return Response.json({});
+      throw new Error("Unexpected request");
+    }) as typeof fetch;
+    try {
+      const reply = await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, runBuild: build }), {
+        accessToken: "t", messages: [{ role: "user", content: "Hand writing task task-1 to ChatGPT. Revise the welcome note. No builds." }],
+      });
+      expect(reply.actionResults.map(a => a.status)).toEqual(["done", "stopped"]);
+      expect(reply.text).toContain("saved and read back");
+      expect(row.status).toBe("open"); expect(row.evidence).toContain("resp-integration");
+      expect(writingCalls).toBe(1); expect(build).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
   });
 });

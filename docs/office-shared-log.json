@@ -72,6 +72,15 @@
       "audience": "office-status",
       "summary": "Prepared explicit manual redirect handling for provider checks and answers. Redirects are refused without following Location or exposing upstream content; a returned redirect status is distinguishable from a thrown transport error. Live behavior remains unverified.",
       "evidence": "81 related tests passed; typecheck and production build passed. Files: manager.functions.ts and redirect-refusal integration tests. Publication pending."
+    },
+    {
+      "id": "2026-10-07-chatgpt-text-handoff-repair",
+      "at": "2026-10-07T16:36:54.242616Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "John asked to repair cooperation one choke point at a time. Added an explicit Elsie-to-ChatGPT writing handoff using the existing OpenAI API configuration and Office budget. It reads one owned unfinished green task, appends the reply and provider receipt with a conditional save, verifies readback and leaves task status unchanged. No code build or native ChatGPT connector is implied. Signed-in live verification remains pending.",
+      "evidence": "CANX-TEAM-TEST-001 stopped because existing Codex routes start code builds. Source: src/lib/text-colleague-handoff.ts and manager.functions.ts; targeted 62 tests passed. No credentials, access policies or database schema changed."
     }
   ]
 }

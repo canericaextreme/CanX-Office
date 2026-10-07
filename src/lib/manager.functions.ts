@@ -64,6 +64,7 @@ import { registerForModel } from "./project-register";
 import { locatorsForModel } from "./project-locator";
 import { sanitizeDeviceSnapshot } from "./room-device-snapshot";
 import { routeSkillsForRoom } from "./office-skills";
+import { handoffTextWith } from "./text-colleague-handoff";
 import { managerConnectionFailure } from "./manager-connection-errors";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
@@ -197,6 +198,8 @@ export interface ManagerDeps {
   fetchImpl: typeof fetch;
   openaiKey: string | undefined;
   model: string | undefined;
+  /** Independent OpenAI writing model when Elsie uses Anthropic. */
+  textModel?: string | undefined;
   /**
    * Bounded room-worker consultation. Defaults to the real worker path built
    * from these same dependencies; tests inject their own.
@@ -328,6 +331,7 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
     provider,
     anthropicKey: readSetting(process.env["ANTHROPIC_API_KEY"]),
     openaiKey: readSetting(process.env["OPENAI_API_KEY"]),
+    textModel: readSetting(process.env["OPENAI_MODEL"]),
     // Explicit configuration only. The office never asserts a model is "the
     // latest" and never guesses one on John's behalf.
     model,
@@ -470,6 +474,12 @@ const TOOLS = [
   },
   {
     type: "function" as const,
+    name: "handoff_to_chatgpt_text",
+    description: "Send one existing unfinished task to the ChatGPT Office writing colleague (OpenAI API, separate from native ChatGPT). Only when John explicitly asks to send/ask/hand writing to ChatGPT. Reads the owned task, returns text, appends the reply and provider receipt to that SAME task, verifies readback and leaves its status unchanged. No code build, publication or room visits. Include Claude feedback in instruction when available.",
+    parameters: { type: "object", additionalProperties: false, required: ["task_id", "instruction"], properties: { task_id: { type: "string" }, instruction: { type: "string" } } },
+  },
+  {
+    type: "function" as const,
     name: "second_eyes_review",
     description:
       "Send a recommendation to Claude for independent second-eyes review. Green within the AI budget; the Manager does not need separate approval each time.",
@@ -567,6 +577,7 @@ const TOOL_ARG_RULES: Record<
     entity: { type: "string", maxLen: 120 },
     entity_id: { type: "string", maxLen: 120 },
   },
+  handoff_to_chatgpt_text: { task_id: { type: "string", maxLen: 100 }, instruction: { type: "string", maxLen: 4000 } },
   second_eyes_review: {
     subject: { type: "string", maxLen: 300 },
     primary_recommendation: { type: "string", maxLen: 6000 },
@@ -770,6 +781,7 @@ Looking at the office screen:
 - John can ask to check any named room. The office opens it and returns a fresh redacted visual review through its room-command path; no second permission or button is needed. Never claim a room was inspected without the returned observation. A room directory entry or an old picture is never a current visual inspection.
 - Direct small changes include adding an owner-written report to a room (Add a report to Finance: [text]) and setting conversation text size to 20, 24, 28 or 32. These are carried out by the client with a confirmed result. Other layout/code changes require implementation; a saved task is not a finished change.
 
+- For writing handoffs John explicitly asks to send/ask/hand to ChatGPT, use handoff_to_chatgpt_text on the exact existing task ID. It uses the separate OpenAI writing colleague, saves and reads back the reply on the same unfinished task, and starts no build. Include available Claude feedback in instruction. Never describe it as the native ChatGPT chat or as proof of whole-office cooperation.
 - For code builds and fixes John explicitly requests, create the Work Board task with code_change true (green work is then sent to Codex automatically), or use start_codex_build when no task is needed. Use start_claude_build only when John names Claude as the builder; Codex is the default. Never switch builders or fall back after a failure. Check Claude status with check_claude_builds. Never mark such a task done without real build and test evidence. Check real status with check_codex_builds; retrieve change_number evidence before asking Claude for second_eyes_review. Never claim a build is running from a saved task alone. No build result is a published change.
 - Google Drive: list_drive_files and read_drive_file are read-only; create_drive_file and update_drive_file only when John explicitly asks in his current request. The connection sees selected files only — never claim to have browsed John's whole Drive. There is no delete action.
 - For an existing saved task, use execute_task only when John asks to carry it out. Use check_task_execution for its actual linked build evidence. Assignment is a record, not execution. This executor supports Office code changes; other room workers remain advisers until their execution tools are connected. Never restart an uncertain submission or mark a successful candidate as deployed.
@@ -1181,6 +1193,7 @@ async function executeToolCalls(
   const consultations: ConsultReply[] = [];
   // One build attempt per request across BOTH builders; never a fallback.
   let codexSubmitted = false;
+  let textHandoffAttempted = false;
   const runBuild = deps.runBuild ?? defaultRunBuild;
   const taskBuildDeps = () => ({
     workbench,
@@ -1415,6 +1428,21 @@ async function executeToolCalls(
         } else {
           actionResults.push({ name: call.name, risk, status: "done", detail: "Change logged." });
         }
+      } else if (call.name === "handoff_to_chatgpt_text") {
+        if (textHandoffAttempted) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: "A writing handoff was already attempted in this reply. Check its saved receipt before another request." });
+          continue;
+        }
+        textHandoffAttempted = true;
+        const result = await handoffTextWith({
+          workbench, fetchImpl: deps.fetchImpl, openaiKey: deps.openaiKey,
+          model: deps.textModel ?? (deps.provider === "anthropic" ? undefined : deps.model),
+          now: deps.now,
+        }, { accessToken, taskId: String(call.arguments["task_id"] ?? ""), instruction: String(call.arguments["instruction"] ?? ""), currentRequest });
+        textAdditions.push(result.detail);
+        if (result.text) textAdditions.push(`ChatGPT Office writing reply:\n${result.text}`);
+        if (result.receipt) textAdditions.push(result.receipt);
+        actionResults.push({ name: call.name, risk, status: result.ok ? "done" : "stopped", detail: result.detail });
       } else if (call.name === "second_eyes_review") {
         const result = await runManagerSecondEyesWith(workbench, {
           accessToken,
