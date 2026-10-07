@@ -115,6 +115,16 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       const capped = files.length >= 100 || links.length >= 100;
       return result(def, { count: merged.length, capped, items: merged.slice(0, MAX_ITEMS).map((m) => `${m.t} (${m.at.slice(0, 10)})`), latestAt: merged[0]?.at || null, detail: (capped ? "showing up to 100 files and 100 links; more may exist; names and dates only, file contents not read. " : "names and dates only; file contents not read. ") + (all ? (req.aal === "aal2" ? "all rooms (Brain shows every saved file)" : "all rooms except Finance (needs two-step verification)") : "") });
     }
+    case "legal-filings": {
+      const { LEGAL_SOURCE, parseLegalFiling, LEGAL_TOPICS } = await import("./legal-room");
+      const saved = await rows(req, `office_notes?select=title,detail,created_at&source=eq.${encodeURIComponent(LEGAL_SOURCE)}&order=created_at.desc&limit=200`);
+      if (!saved) return failed(def);
+      if (saved.some(r => !parseLegalFiling(r["detail"]))) return failed(def, "A saved filing label needs repair.");
+      return fromRows(def, saved, r => {
+        const f = parseLegalFiling(r["detail"])!;
+        return `${text(r["title"])}: ${LEGAL_TOPICS.find(t => t.id === f.topic)?.label ?? "Not classified"}; ${f.status}; date ${f.dueDate || "not set"}; lawyer question ${text(f.question, 300) || "none"}`;
+      }, "created_at", 200);
+    }
     case "reports":
       return fromRows(def, await rows(req, `office_notes?select=id,title,created_at&source=eq.${encodeURIComponent(roomReportSource(req.target.id))}&order=created_at.desc&limit=100`), (r) => `${text(r["title"])} (${text(r["created_at"], 10)})`, "created_at", 100);
     case "tasks":

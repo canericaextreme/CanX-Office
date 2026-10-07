@@ -111,7 +111,7 @@ export function noteDefaultCategory(source: string, kind: string, provenance: st
   if (source === "CanX Brain: explicitly saved conversation" || source === "CanX Brain: conversation summary") return "discussions";
   if (source === "CanX Brain: continuity") return "memory";
   if (source.startsWith("CanX Brain:")) return "unsorted";
-  if (source === CATEGORY_NOTE_SOURCE || source.startsWith("Data room report:") || source === "Lovable project import" || source === "Project register: category" || source === "Project register: plan") return null; // labels and room reports are not Brain items
+  if (source === "Legal room: document filing" || source === CATEGORY_NOTE_SOURCE || source.startsWith("Data room report:") || source === "Lovable project import" || source === "Project register: category" || source === "Project register: plan") return null; // labels and room reports are not Brain items
   if (provenance === "sample") return null;
   if (kind === "decision" && provenance === "john") return "memory";
   return null; // tasks and AI proposals belong to the Work Board / Records
