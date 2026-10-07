@@ -54,6 +54,15 @@
       "audience": "office-status",
       "summary": "Mobile layout source commit b8c9abef7fa1cce135a665e19e82ce891fa6c3bb is synced to Lovable and served at the existing office URL. Signed-in phone rotation and room checks remain unverified.",
       "evidence": "Deployment 40024adc-9d03-4bd6-a3c7-93fbfd87bbce; browser reload at https://canx-office.lovable.app/ loaded styles-8UQ7KHf6.css containing touch-only 44px analytics rules. The office was signed out."
+    },
+    {
+      "id": "2026-10-07-provider-transport-diagnostics",
+      "at": "2026-10-07T15:29:43.177347+00:00",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared static provider connection diagnostics distinguishing timed aborts, known network failures and runtime request rejection. No upstream error messages are returned. Existing owner verification, provider selection and spending controls remain in force. Publication and live diagnostic readback pending.",
+      "evidence": "76 related tests passed; typecheck and production build validation recorded separately. Files: manager-connection-errors.ts and manager.functions.ts."
     }
   ]
 }
