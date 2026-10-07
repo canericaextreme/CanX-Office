@@ -30,7 +30,7 @@ describe('Claude shares the trusted Office executor, not provider credentials',(
   const init=calls[1]![1]!;
   expect(init.headers).toMatchObject({'x-api-key':'claude-test-key','anthropic-version':'2023-06-01'});
   expect(JSON.stringify(calls)).not.toContain('openai-test-key');
-  expect(init.redirect).toBe('error');
+  expect(init.redirect).toBe('manual');
   const body=JSON.parse(String(init.body));
   expect(body.system).toContain('You are Claude');
   expect(body.system).not.toContain('Your name is Elsie');
