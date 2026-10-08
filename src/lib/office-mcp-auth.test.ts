@@ -73,3 +73,19 @@ describe('Safe authorization failure stages',()=>{
   expect(f).not.toHaveBeenCalled();
  });
 });
+
+import { describe as d2, it as i2, expect as e2 } from 'vitest';
+import { checkOfficeMcpAuthorization as check2 } from './office-mcp-auth';
+d2('runtime without redirect-error support', () => {
+  const tok = ['x', btoa(JSON.stringify({})).replace(/=/g,''), 'y'].join('.');
+  i2('never sends redirect "error" and treats a redirect reply as refusal', async () => {
+    const calls: RequestInit[] = [];
+    const f = (async (_u: string, init: RequestInit) => {
+      calls.push(init);
+      if (init.redirect === 'error') throw new TypeError('Invalid redirect value');
+      return new Response(null, { status: 302, headers: { Location: 'https://elsewhere.example/' } });
+    }) as unknown as typeof fetch;
+    e2(await check2({ url: 'https://office.example', publishableKey: 'pk' }, tok, f)).toEqual({ ok: false, code: 'CANX_AUTH_HTTP_REJECTED' });
+    e2(calls.every(c => c.redirect === 'manual')).toBe(true);
+  });
+});
