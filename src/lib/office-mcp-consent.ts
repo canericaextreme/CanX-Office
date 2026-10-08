@@ -9,7 +9,7 @@ export interface ConsentDetails {
 }
 export interface ConsentDeps {
   verify: (token: string) => Promise<OwnerVerification>;
-  auth: (path: string, token: string, body?: unknown) => Promise<{ ok: boolean; body: unknown; status?: number }>;
+  auth: (path: string, token: string, body?: unknown) => Promise<{ ok: boolean; body: unknown; status?: number; transportFailure?: string }>;
   register: (token: string, authorizationId: string, identity: "chatgpt" | "claude") => Promise<boolean>;
 }
 export function validateConsentDetails(value: unknown, ownerId: string): ConsentDetails | null {
@@ -41,7 +41,7 @@ export async function readConsentWith(deps: ConsentDeps, token: string, authoriz
   const response = await deps.auth(`/oauth/authorizations/${encodeURIComponent(authorizationId)}`,token).catch(() => null);
   if (!response?.ok) {
     const status = response?.status;
-    const cause = !response ? "request unavailable" : status === 401 ? "Office session rejected" : status === 404 || status === 410 ? "request missing or expired" : status === 403 ? "request refused" : "authorization service unavailable";
+    const cause = response?.transportFailure === "timeout" ? "request timed out" : response?.transportFailure ? "network or runtime failure" : !response ? "request unavailable" : status === 401 ? "Office session rejected" : status === 404 || status === 410 ? "request missing or expired" : status === 403 ? "request refused" : "authorization service unavailable";
     return { ok: false as const, message: `Connection details could not be read: ${cause}${typeof status === "number" ? ` (HTTP ${status})` : ""}. Office access remains blocked.` };
   }
   const details = validateConsentDetails(response.body,owner.userId);

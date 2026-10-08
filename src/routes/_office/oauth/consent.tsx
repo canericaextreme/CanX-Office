@@ -47,6 +47,7 @@ function OfficeConsent() {
     finally{setBusy(false);}
   }
   return <div className="mx-auto max-w-xl p-6"><Card><CardHeader><CardTitle>Authorize Office connection</CardTitle></CardHeader><CardContent className="space-y-4">
+    <p>Approve only the assistant you are connecting.</p>
     {!authorization_id?<p>Start this connection from ChatGPT or Claude to open a valid authorization request.</p>:!session.stepUpComplete?<form className="space-y-3" onSubmit={e=>{e.preventDefault();void confirmAuthenticator();}}>
       <p>Confirm your authenticator once to authorize this connection.</p>
       <Input aria-label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e=>setCode(e.target.value)} />

@@ -1,3 +1,4 @@
+import { requestConsentDetails } from "./office-mcp-consent-http";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { readConsentWith, decideConsentWith, type ConsentDeps } from "./office-mcp-consent";
@@ -9,12 +10,7 @@ async function dependencies(): Promise<ConsentDeps> {
     verify: backend.verifyOwner,
     auth: async (path,token,body) => {
       if (!config) return { ok:false,body:null };
-      const response = await fetch(`${config.url}/auth/v1${path}`,{
-        method:body===undefined ? "GET" : "POST",redirect:"error",signal:AbortSignal.timeout(10000),
-        headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`,"Content-Type":"application/json","X-Supabase-Api-Version":"2024-01-01"},
-        ...(body===undefined ? {} : {body:JSON.stringify(body)}),
-      });
-      return {ok:response.ok,status:response.status,body:await response.json().catch(()=>null)};
+      return requestConsentDetails(config,path,token,body);
     },
     register: async (token,id,identity) => {
       if (!config) return false;
