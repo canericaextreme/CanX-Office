@@ -10,7 +10,7 @@
 
 
 ## Office builders
-- Builder choice comes only from John's current words (`src/lib/builder-choice.ts`): Codex by default, Claude only when named, both named = refuse; direct build tools re-check the actual request, and task execution records `office-task-v2` builder identity (legacy `codex-task-v1` = Codex) with one attempt per request and no fallback. Why: a model tool call must never switch builders or cause duplicate paid builds.
+- Under John's 8 October instruction, assistants choose one builder for an explicit build request without requiring John to name it (`src/lib/builder-choice.ts`). Explicit owner builder choices take precedence, both named = clarify; Codex remains the omitted-selection default. direct build tools re-check the actual request, and task execution records `office-task-v2` builder identity (legacy `codex-task-v1` = Codex) with one attempt per request and no fallback. Why: a model tool call must never switch builders or cause duplicate paid builds.
 
 ## Office Skills
 - Canonical skill instructions and the registry live in `src/lib/office-skills.ts` (versioned, with provenance from John's skills map); never fetched from a ChatGPT Skill Library at runtime. Why: Elsie must stay independent of ChatGPT and Lovable.

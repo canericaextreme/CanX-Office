@@ -28,7 +28,7 @@ function chatDeps(toolName: string | null, overrides: Partial<ManagerDeps> = {},
 }
 const say = (content: string) => ({ accessToken: "t", messages: [{ role: "user" as const, content }] });
 
-describe("builder choice is John's, never the model's", () => {
+describe("explicit owner builder choice takes precedence", () => {
   it("defaults to Codex, honours a named builder and refuses both", () => {
     expect(builderChoiceFor("Fix the reception label")).toEqual({ builder: "codex", named: false });
     expect(builderChoiceFor("Have Claude fix the reception label")).toEqual({ builder: "claude", named: true });
@@ -40,7 +40,8 @@ describe("builder choice is John's, never the model's", () => {
     expect(directBuildRefusal("For example, Claude could fix the reception label", "claude")).toMatch(/example/);
     expect(directBuildRefusal("Claude, fix the reception label and email a customer", "claude")).toMatch(/protected/);
     expect(directBuildRefusal("Claude, fix the reception label", "claude")).toBeNull();
-    expect(directBuildRefusal("Fix the reception label", "claude")).toMatch(/chose Codex/);
+    expect(directBuildRefusal("Fix the reception label", "claude")).toBeNull();
+    expect(directBuildRefusal("Codex, fix the reception label", "claude")).toMatch(/chose Codex/);
   });
   it("validates the new tool arguments strictly", () => {
     expect(sanitizeToolArgs("start_claude_build", '{"request":"injected"}')).toEqual({});
@@ -80,11 +81,11 @@ describe("Elsie builder routing", () => {
     await runManagerChatWith(h.deps, say("Claude, fix the reception label"));
     expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("claude", "t", "Claude, fix the reception label", undefined);
   });
-  it("keeps Codex the default and rejects a silent model switch to Claude", async () => {
+  it("allows assistant selection when no builder is named", async () => {
     const h = chatDeps("start_claude_build");
     const reply = await runManagerChatWith(h.deps, say("Fix the reception label"));
-    expect(h.runBuild).not.toHaveBeenCalled();
-    expect(reply.actionResults[0]).toMatchObject({ name: "start_claude_build", status: "stopped" });
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("claude", "t", "Fix the reception label", undefined);
+    expect(reply.actionResults[0]).toMatchObject({ name: "start_claude_build", status: "pending" });
     const c = chatDeps("start_codex_build");
     await runManagerChatWith(c.deps, say("Fix the reception label"));
     expect(c.runBuild).toHaveBeenCalledExactlyOnceWith("codex", "t", "Fix the reception label", undefined);
