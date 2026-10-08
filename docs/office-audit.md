@@ -101,3 +101,5 @@ Elsie and the shared Office request adapter can append a short explicitly reques
 ### 8 October 2026 — delegated build handoff diagnosis
 
 Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403 from `/api/office-work`. The connector's session and working-grant checks passed in live logs; this does not verify the application-side check or GitHub dispatch. Added fixed allowlisted failure stages, withheld all raw errors, and reused portable claims decoding after verification. No access controls, provider selection, spending caps or duplicate-request rules were widened. Paid submission remains blocked pending a successful read-only status check. Claude build access remains unverified.
+
+- Authorization follow-up: the published ChatGPT status check returns `CANX_CLIENT_AUTHORIZATION_FAILED`. John reported a Claude status HTTP 403; its exact stage is not yet confirmed. Prepared fixed Auth transport/HTTP, response, issuer/claims and session-permission diagnostics without exposing upstream text or changing allow decisions. Publication and live acceptance pending.

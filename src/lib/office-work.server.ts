@@ -29,7 +29,7 @@ export async function officeWorkBuildWith(deps:OfficeWorkBuildDeps,token:string,
 }
 export async function liveOfficeWorkBuild(token:string,value:unknown){
  const backend=await import('./canx-backend.server');
- const {authorizeOfficeMcp}=await import('./office-mcp-auth');
+ const {checkOfficeMcpAuthorization}=await import('./office-mcp-auth');
  const config=backend.readBackendConfig();if(!config)throw Error('CANX_BACKEND_NOT_CONFIGURED');
  const boundFetch:typeof fetch=(url,init)=>fetch(url,init);
  const rpc=async(t:string,name:string,args:Record<string,unknown>)=>{
@@ -37,7 +37,8 @@ export async function liveOfficeWorkBuild(token:string,value:unknown){
   if(!r.ok)throw Error('CANX_WORK_RPC_UNAVAILABLE');return r.body;
  };
  const verify=async(t:string):Promise<OwnerVerification>=>{
-  if(!await authorizeOfficeMcp(config,t,boundFetch))throw Error('CANX_CLIENT_AUTHORIZATION_FAILED');
+  const authorization=await checkOfficeMcpAuthorization(config,t,boundFetch);
+  if(!authorization.ok)throw Error(authorization.code);
   if(await rpc(t,'canx_mcp_work_active',{})!==true)throw Error('CANX_WORK_GRANT_REQUIRED');
   // Decode only after signature + live owner/session/client/grant verification.
   const claims=backend.decodeClaims(t);

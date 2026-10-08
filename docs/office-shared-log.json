@@ -99,6 +99,15 @@
       "audience": "office-status",
       "summary": "Owner requested the dog build test and instructed investigation of its shared bridge failure. Connector session and working-grant checks passed; app build bridge returned HTTP 403. Added allowlisted stage diagnostics and portable verified-claims decoding. Build access is still unverified; no paid build retry.",
       "evidence": "Live connector status request, Supabase request logs for 20:46:34 UTC, Edge Function diagnostic version 8, and source checks."
+    },
+    {
+      "id": "2026-10-08-build-auth-stage-diagnostic",
+      "at": "2026-10-08T21:08:00Z",
+      "actor": "ChatGPT",
+      "kind": "problem",
+      "audience": "office-status",
+      "summary": "Live published build check reports application-side client authorization failure. Prepared fixed diagnostic stages for Auth transport, Auth response, issuer/claims and live session permission; 47 targeted tests, typecheck and production build passed; publication pending. No permission widening or paid submission.",
+      "evidence": "ChatGPT connector status returned CANX_CLIENT_AUTHORIZATION_FAILED; John reports Claude status HTTP 403. Exact Claude failure stage remains unverified."
     }
   ]
 }
