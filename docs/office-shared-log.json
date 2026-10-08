@@ -108,6 +108,15 @@
       "audience": "office-status",
       "summary": "Published fixed Auth-stage diagnostics. Both ChatGPT and Claude builder status checks fail at the app Auth request before an HTTP response. No paid build was submitted. Prepared fixed runtime failure categories; publication pending.",
       "evidence": "PR 68 merged as 6eb71b4d468a231455cb4fd1d84741167b0b83e8, synced to Lovable; deployment 3cc855e5-f31d-47de-8d7d-dda443b42eac served new Auth codes; Office MCP version 10. Both live checks returned CANX_AUTH_REQUEST_FAILED. Runtime diagnostic targeted tests: 59 passed."
+    },
+    {
+      "id": "2026-10-08-build-preview-publish-gate",
+      "at": "2026-10-08T22:44:01.393Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared owner-requested draft-build publication filter: preview deploy/fetch wording is allowed, only whole-word affirmative publish matches publish_deploy, and explicit negative publish instructions are ignored for that category. Actual operation authentication and other protected categories remain unchanged. Not merged or published.",
+      "evidence": "protected-actions.ts, codex-task-handoff.ts, publication-build-gate.test.ts. 19 targeted assertions passed under Node native tests using the same test bodies with a local Vitest-compatible assertion adapter; full repository suite and live preview remain unverified."
     }
   ]
 }
