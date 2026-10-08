@@ -117,6 +117,15 @@
       "audience": "office-status",
       "summary": "Prepared owner-requested draft-build publication filter: preview deploy/fetch wording is allowed, only whole-word affirmative publish matches publish_deploy, and explicit negative publish instructions are ignored for that category. Actual operation authentication and other protected categories remain unchanged. Not merged or published.",
       "evidence": "protected-actions.ts, codex-task-handoff.ts, publication-build-gate.test.ts. 19 targeted assertions passed under Node native tests using the same test bodies with a local Vitest-compatible assertion adapter; full repository suite and live preview remain unverified."
+    },
+    {
+      "id": "2026-10-08-build-preview-publish-gate-published",
+      "at": "2026-10-08T22:46:50.444Z",
+      "actor": "ChatGPT",
+      "kind": "observation",
+      "audience": "office-status",
+      "summary": "John approved merging and publishing change 73. GitHub merge commit synced to Lovable and the live Office serves the matching deployment ID. Both builder status routes returned ok. Preview publication filter behavior passed 19 local targeted checks; no paid build or signed-in room health check was started.",
+      "evidence": "PR 73 merged as 80dde4629338a73070a924bbfb4a012b6cdb043e. Lovable latest_commit_sha matched; production x-deployment-id matched 217e333f-2e2e-4ab6-b720-11051ce43c5b at 22:46 UTC. Local assertions cover whole-word publish, negative publish instructions and preview wording."
     }
   ]
 }
