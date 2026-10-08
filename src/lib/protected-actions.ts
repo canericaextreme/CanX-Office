@@ -37,6 +37,25 @@ const CATEGORY_WORDS: Record<ProtectedActionCategory, string[]> = {
   protected_records: ["finance_write", "receipt_write", "personal_record", "legacy_release", "legacy_policy"],
 };
 
+/** Build requests prepare drafts; publication is a separate protected operation.
+ * Ignore only explicit negative publish instructions, never the rest of a clause.
+ * Other protected categories still examine the original request.
+ */
+export function protectedBuildCategoryOf(request: string): ProtectedActionCategory | null {
+  const text = request.toLowerCase();
+  const publishText = text.replace(
+    /\b(?:do\s+not|don['’]t|never|must\s+not|not\s+to|no)\s+(?:(?:auto(?:matically)?|automatically)[ -]?)?publish\b/g,
+    "",
+  );
+  for (const category of PROTECTED_ACTION_CATEGORIES) {
+    const matches = category === "publish_deploy"
+      ? /\bpublish\b/.test(publishText)
+      : CATEGORY_WORDS[category].some((word) => text.includes(word));
+    if (matches) return category;
+  }
+  return null;
+}
+
 /** The protected category an operation falls in, or null for ordinary work. */
 export function protectedCategoryOf(action: string, scope?: string): ProtectedActionCategory | null {
   const text = `${action} ${scope ?? ""}`.toLowerCase();
