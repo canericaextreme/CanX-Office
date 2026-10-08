@@ -10,7 +10,7 @@ export interface CodexBuildDeps {
   enabled: boolean;
   fetch: typeof fetch;
 }
-export interface CodexBuildResult { ok: boolean; detail: string; runs?: { id: number; title: string; state: string; url: string }[]; evidence?: string; }
+export interface CodexBuildResult { ok: boolean; detail: string; previewUrl?: string | null; runs?: { id: number; title: string; state: string; url: string }[]; evidence?: string; }
 const missing = 'Codex builds are not connected yet. Configure the private GitHub connection and enable the build workflow after its OpenAI key and spending limit are set.';
 const plain = (x: unknown, max = 1000) => typeof x === 'string' ? x.slice(0, max) : '';
 async function api(deps: CodexBuildDeps, path: string, trace: BuildGitHubTrace, init: RequestInit = {}) {
@@ -22,8 +22,11 @@ async function api(deps: CodexBuildDeps, path: string, trace: BuildGitHubTrace, 
     'X-GitHub-Api-Version': '2026-03-10', 'Content-Type': 'application/json',
   } });
 }
-const denied = (detail: string): CodexBuildResult => ({ ok: false, detail });
-export async function codexBuildsWith(deps: CodexBuildDeps, token: string, request?: string, prNumber?: number, runId?: number): Promise<CodexBuildResult> {
+// No build-specific preview provider is connected. Do not substitute a run, PR or live-site URL.
+// The shared result type is also used by local failures and Claude; Codex responses always include this field.
+type CodexBuildResponse = CodexBuildResult & { previewUrl: string | null };
+const denied = (detail: string): CodexBuildResponse => ({ ok: false, detail, previewUrl: null });
+export async function codexBuildsWith(deps: CodexBuildDeps, token: string, request?: string, prNumber?: number, runId?: number): Promise<CodexBuildResponse> {
   const owner = await deps.verify(token);
   if (!owner.ok) return denied(owner.message);
   if (!deps.githubToken || !deps.enabled) {
@@ -55,7 +58,7 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
           if (pr && Number.isSafeInteger(pr.number)) detail += ` Draft change #${pr.number}: https://github.com/${CODEX_REPO}/pull/${pr.number}.`;
         }
       }
-      return { ok: true, detail, runs: [{ id: runId, title: plain(run.display_title), state, url }] };
+      return { ok: true, previewUrl: null, detail, runs: [{ id: runId, title: plain(run.display_title), state, url }] };
     }
     if (prNumber !== undefined) {
       const response = await api(deps, `/pulls/${prNumber}`, trace);
@@ -70,7 +73,7 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
         body: plain(pr.body, 4000), merged: pr.merged === true,
         scope: 'First 30 files, patch excerpts only; not a complete security audit.',
         files: files.map((f: Record<string, unknown>) => ({ path: plain(f["filename"]), status: plain(f["status"]), patch: plain(f["patch"], 2000) })) });
-      return { ok: true, detail: `Retrieved Codex change #${prNumber}. It is ${pr.merged ? 'merged; deployment is unverified' : 'not merged or published'}.`, evidence: evidence.slice(0, 16000) };
+      return { ok: true, previewUrl: null, detail: `Retrieved Codex change #${prNumber}. It is ${pr.merged ? 'merged; deployment is unverified' : 'not merged or published'}.`, evidence: evidence.slice(0, 16000) };
     }
     const response = await api(deps, `/actions/workflows/${CODEX_WORKFLOW}/runs?per_page=30&event=workflow_dispatch`, trace);
     if (!response.ok) return denied('The Codex build workflow could not be read. Check the GitHub connection and workflow installation.' + buildGitHubHttpFailure(response, trace));
@@ -78,7 +81,7 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
     if (!Array.isArray(body.workflow_runs)) return denied('The Codex run list was not readable.');
     const runs = body.workflow_runs.map((r: Record<string, unknown>) => ({ id: Number(r["id"]), title: plain(r["display_title"]),
       state: r["status"] === 'completed' ? plain(r["conclusion"]) : plain(r["status"]), url: `https://github.com/${CODEX_REPO}/actions/runs/${Number(r["id"])}` }));
-    if (request === undefined) return { ok: true, detail: 'Live Codex run status. A successful run prepares a draft change; it does not publish it.', runs };
+    if (request === undefined) return { ok: true, previewUrl: null, detail: 'Live Codex run status. A successful run prepares a draft change; it does not publish it.', runs };
     // Serialize paid jobs. Do not retry a timed-out dispatch: it may have reached GitHub.
     if (runs.some((r: {state: string}) => ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(r.state))) return denied('A Codex build is already queued or running. Check its result before starting another.');
     const sent = await api(deps, `/actions/workflows/${CODEX_WORKFLOW}/dispatches`, trace, { method: 'POST', body: JSON.stringify({ ref: 'main', inputs: { request: request.trim() } }) });
@@ -90,10 +93,10 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
       const body = await readBuildGitHubJson(sent, trace);
       if (Number.isSafeInteger(body.workflow_run_id) && body.workflow_run_id > 0) {
         const id = body.workflow_run_id;
-        return { ok: true, detail: accepted, runs: [{ id, title: 'Task build', state: 'queued', url: `https://github.com/${CODEX_REPO}/actions/runs/${id}` }] };
+        return { ok: true, previewUrl: null, detail: accepted, runs: [{ id, title: 'Task build', state: 'queued', url: `https://github.com/${CODEX_REPO}/actions/runs/${id}` }] };
       }
     } catch { /* Older API responses may be empty. Submission still accepted. */ }
-    return { ok: true, detail: accepted + ' No run identifier was returned; check Build & Testing manually before any further submission.' };
+    return { ok: true, previewUrl: null, detail: accepted + ' No run identifier was returned; check Build & Testing manually before any further submission.' };
   } catch (error) {
     const reason = buildGitHubFailure(error, trace);
     return denied(request === undefined
