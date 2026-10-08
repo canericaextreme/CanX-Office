@@ -7,6 +7,21 @@ const deps = (authorize = async () => true): OfficeMcpDeps => ({ resource, issue
 const request = (body: unknown, headers = {}) => new Request(resource, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer token", ...headers }, body: JSON.stringify(body) });
 const rpc = (method: string, params = {}) => ({ jsonrpc: "2.0", id: 1, method, params });
 describe("Office MCP access boundary", () => {
+  it("reads scoped metadata with the authenticated token and reports failed reads", async () => {
+    const status = vi.fn(async () => ({projects:[{id:"project-id",name:"Saved project"}],tasks:[]}));
+    const d = {...deps(),status};
+    const call = rpc("tools/call",{name:"get_office_status",arguments:{}});
+    const r = await handleOfficeMcp(request(call),d);
+    expect(JSON.parse((await r.json()).result.content[0].text).projects[0].name).toBe("Saved project");
+    expect(status).toHaveBeenCalledWith("token");
+    status.mockRejectedValueOnce(Error("private failure"));
+    const failed = await (await handleOfficeMcp(request(call),d)).json();
+    expect(failed.result.isError).toBe(true);
+    expect(JSON.stringify(failed)).not.toContain("private failure");
+    const blocked = await handleOfficeMcp(request(call),{...d,authorize:async()=>false});
+    expect(blocked.status).toBe(401);
+    expect(status).toHaveBeenCalledTimes(2);
+  });
   it("publishes only OAuth discovery without owner access", async () => {
     const authorize = vi.fn(async () => false);
     const r = await handleOfficeMcp(new Request(`${resource}/.well-known/oauth-protected-resource`), deps(authorize));

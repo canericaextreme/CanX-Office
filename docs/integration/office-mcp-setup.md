@@ -1,7 +1,7 @@
 # Office connection setup
 
-The read-only setup checklist and locked MCP transport are implemented. Persistent access is not active.
+The target is persistent shared Brain, skills, files and build access for ChatGPT, Claude and Elsie. This increment provides renewable authorization and read-only operational metadata, not the full target.
 
-Before connecting ChatGPT or external Claude, finish scoped record permissions, owner consent, active-session and current-grant checks, and enable the authorization service. Authorize each external client separately. Verify a saved-record read, renewal, signed-out denial and revoked-access denial before marking it connected. Build and mailbox permissions are separate.
+OAuth discovery now advertises authorization, registration and refresh-token endpoints. Database controls deny external OAuth clients direct record access. The scoped bridge checks the current owner, active session, approved client and unrevoked grant on every call. The owner consent route is `/oauth/consent`; each external client requires separate approval.
 
-The first MCP increment exposes only the dated setup checklist. It does not expose private records, record editing, builds or mailbox tools. Unauthenticated calls are refused. The default empty client allowlist and missing active-session check deny all tool access.
+Isolated authorization, consent and SQL revocation tests pass. Publication, real client consent, saved-record reads and token renewal must pass before any external assistant is marked connected. Elsie uses the internal shared tool registry; signed-in handoff verification remains pending. No build or mailbox tool is exposed by this MCP increment.

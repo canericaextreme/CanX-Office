@@ -36,6 +36,7 @@ import { Route as OfficeSubscriptionsRouteImport } from './routes/_office/subscr
 import { Route as OfficeSystemsRouteImport } from './routes/_office/systems'
 import { Route as OfficeWorkBoardRouteImport } from './routes/_office/work-board'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
+import { Route as OfficeOauthConsentRouteImport } from './routes/_office/oauth/consent'
 
 const OfficeRoute = OfficeRouteImport.update({
   id: '/_office',
@@ -171,6 +172,11 @@ const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
   path: '/auth/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OfficeOauthConsentRoute = OfficeOauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => OfficeRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof OfficeIndexRoute
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/systems': typeof OfficeSystemsRoute
   '/work-board': typeof OfficeWorkBoardRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/oauth/consent': typeof OfficeOauthConsentRoute
 }
 export interface FileRoutesByTo {
   '/analytics': typeof OfficeAnalyticsRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/work-board': typeof OfficeWorkBoardRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/': typeof OfficeIndexRoute
+  '/oauth/consent': typeof OfficeOauthConsentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -257,6 +265,7 @@ export interface FileRoutesById {
   '/_office/work-board': typeof OfficeWorkBoardRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/_office/': typeof OfficeIndexRoute
+  '/_office/oauth/consent': typeof OfficeOauthConsentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/systems'
     | '/work-board'
     | '/auth/reset-password'
+    | '/oauth/consent'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/analytics'
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/work-board'
     | '/auth/reset-password'
     | '/'
+    | '/oauth/consent'
   id:
     | '__root__'
     | '/_office'
@@ -344,6 +355,7 @@ export interface FileRouteTypes {
     | '/_office/work-board'
     | '/auth/reset-password'
     | '/_office/'
+    | '/_office/oauth/consent'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -542,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_office/oauth/consent': {
+      id: '/_office/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OfficeOauthConsentRouteImport
+      parentRoute: typeof OfficeRoute
+    }
   }
 }
 
@@ -571,6 +590,7 @@ interface OfficeRouteChildren {
   OfficeSystemsRoute: typeof OfficeSystemsRoute
   OfficeWorkBoardRoute: typeof OfficeWorkBoardRoute
   OfficeIndexRoute: typeof OfficeIndexRoute
+  OfficeOauthConsentRoute: typeof OfficeOauthConsentRoute
 }
 
 const OfficeRouteChildren: OfficeRouteChildren = {
@@ -599,6 +619,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeSystemsRoute: OfficeSystemsRoute,
   OfficeWorkBoardRoute: OfficeWorkBoardRoute,
   OfficeIndexRoute: OfficeIndexRoute,
+  OfficeOauthConsentRoute: OfficeOauthConsentRoute,
 }
 
 const OfficeRouteWithChildren =

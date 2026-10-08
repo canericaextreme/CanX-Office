@@ -1,9 +1,9 @@
 {
   "version": 1,
   "title": "Connect the Office",
-  "reviewedAt": "2026-10-08T17:54:00Z",
+  "reviewedAt": "2026-10-08T18:44:12.709274Z",
   "source": "Versioned setup checklist; dated evidence, not a live health check",
-  "nextStep": "Finish scoped authorization and active-session checks before enabling the Office OAuth server.",
+  "nextStep": "Publish the consent screen and scoped connector, then authorize ChatGPT and Claude separately and test renewal.",
   "steps": [
     {
       "id": "installation",
@@ -14,8 +14,8 @@
     {
       "id": "authorization",
       "label": "Renewable Office authorization",
-      "status": "blocked",
-      "evidence": "Authorization is disabled. Limited record access, consent and session checks are not finished."
+      "status": "pending",
+      "evidence": "OAuth discovery is enabled and advertises refresh tokens and registration. Consent, current-grant checks and restrictive record permissions are implemented; publication and native-client tests remain pending."
     },
     {
       "id": "chatgpt",
@@ -34,6 +34,12 @@
       "label": "Elsie reads the shared checklist",
       "status": "pending",
       "evidence": "The shared read-only checklist tool is installed in source. Signed-in use has not been verified."
+    },
+    {
+      "id": "brain",
+      "label": "Shared Brain, files and skills for all three assistants",
+      "status": "pending",
+      "evidence": "Owner requested direct shared working access. Current MCP tools cover checklist and operational metadata only; full Brain and editing tools are not implemented."
     },
     {
       "id": "building",
