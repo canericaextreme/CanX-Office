@@ -22,6 +22,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
 import { routeSkills } from "@/lib/office-skills";
+import { readOfficeConnectionPlan } from "./office-connection-plan";
 import { isExplicitReceiptSyncRequest, receiptSyncOutcome, runReceiptSync } from "@/lib/receipt-ingestion.functions";
 import { parseMailRuleCommand, type MailRuleCommand } from "@/lib/mail-preferences";
 import { parseElsieReviewCommand } from "@/lib/subscriptions-review";
@@ -342,6 +343,7 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
 /* --------------------------------- tools --------------------------------- */
 
 const TOOLS = [
+  { type: "function" as const, name: "get_office_connection_plan", description: "Read the same dated Connect the Office checklist shown in Reception. Reports completed setup steps, blockers and the next step; does not test live connections, change authorization or mark anything complete.", parameters: { type: "object", additionalProperties: false, properties: {} } },
   { type: "function" as const, name: "start_codex_build", description: "Send John's explicit current request for an office code build or fix to Codex (the default builder). Use only when John asks to build or change code and has not named Claude, never for discussion or examples. Creates a draft change, never publishes. Do not resubmit an uncertain result.", parameters: { type: "object", additionalProperties: false, properties: {} } },
   { type: "function" as const, name: "start_claude_build", description: "Send John's explicit current request for an office code build or fix to the Claude builder. Use only when John names Claude as the builder in his current request. The server re-checks his words; it never switches builders and never falls back to Codex. Creates a draft change, never publishes.", parameters: { type: "object", additionalProperties: false, properties: {} } },
   { type: "function" as const, name: "execute_task", description: "When John explicitly asks to carry out a saved task, submit its stored scope to the fixed CanX Office builder (Codex unless John names Claude in his current request). Only green Office code changes are supported. Do not use for status questions, examples, research, email or external projects. Already attempted tasks are never retried or sent to the other builder.", parameters: { type: "object", additionalProperties: false, required: ["task_id"], properties: { task_id: { type: "string" } } } },
@@ -535,6 +537,7 @@ const TOOL_ARG_RULES: Record<
     }
   >
 > = {
+  get_office_connection_plan: {},
   start_codex_build: {},
   start_claude_build: {},
   check_codex_builds: { change_number: { type: "number", min: 1, max: Number.MAX_SAFE_INTEGER } },
@@ -1285,7 +1288,10 @@ async function executeToolCalls(
 
     // Green actions: execute directly.
     try {
-      if (call.name === "execute_task" || call.name === "check_task_execution") {
+      if (call.name === "get_office_connection_plan") {
+        textAdditions.push(JSON.stringify(readOfficeConnectionPlan()));
+        actionResults.push({ name: call.name, risk, status: "done", detail: "Read Reception's dated connection checklist. This is not a live connection test." });
+      } else if (call.name === "execute_task" || call.name === "check_task_execution") {
         const checkOnly = call.name === "check_task_execution";
         const refusal = checkOnly ? null : taskExecutionRefusal(currentRequest);
         if (refusal) { actionResults.push({ name: call.name, risk, status: "stopped", detail: refusal }); continue; }

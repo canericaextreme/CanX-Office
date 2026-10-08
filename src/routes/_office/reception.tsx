@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OfficeConnectionPlanCard } from "@/components/office/OfficeConnectionPlanCard";
 
 export const Route = createFileRoute("/_office/reception")({
   component: ReceptionRoom,
@@ -29,6 +30,7 @@ function ReceptionRoom() {
           </div>
         </CardContent>
       </Card>
+      <OfficeConnectionPlanCard />
     </RoomShell>
   );
 }

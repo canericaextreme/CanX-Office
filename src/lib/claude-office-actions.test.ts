@@ -16,6 +16,15 @@ function setup(content:unknown[]=[tool()], overrides:Partial<ManagerDeps>={}, st
  return {deps,fetchImpl,reserve,settle,runBuild};
 }
 describe('Claude shares the trusted Office executor, not provider credentials',()=>{
+ it.each(['anthropic','openai'] as const)('reads the Reception checklist through %s without modifying records',async provider=>{
+  const h=setup([tool('get_office_connection_plan')],{provider});
+  if(provider==='openai') h.fetchImpl.mockImplementation(async url=>String(url).includes('/v1/models/')?Response.json({}):Response.json({output:[{type:'function_call',name:'get_office_connection_plan',arguments:'{}'}]}));
+  const reply=await runManagerChatWith(h.deps,say('Read-only: show the office connection checklist'));
+  expect(reply.ok).toBe(true);
+  expect(reply.text).toContain('Finish scoped authorization');
+  expect(reply.actionResults).toEqual(expect.arrayContaining([expect.objectContaining({name:'get_office_connection_plan',status:'done'})]));
+  expect(h.runBuild).not.toHaveBeenCalled();
+ });
  it('sends native tools to Anthropic and executes only the owner-selected builder',async()=>{
   const h=setup([tool('start_claude_build',{request:'injected override'}),tool('start_codex_build')]);
   const reply=await runManagerChatWith(h.deps,say());

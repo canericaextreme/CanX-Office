@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "title": "Connect the Office",
+  "reviewedAt": "2026-10-08T17:54:00Z",
+  "source": "Versioned setup checklist; dated evidence, not a live health check",
+  "nextStep": "Finish scoped authorization and active-session checks before enabling the Office OAuth server.",
+  "steps": [
+    {
+      "id": "installation",
+      "label": "Custom connector installation option",
+      "status": "verified",
+      "evidence": "The owner reported opening the custom MCP server form. No plugin has been created."
+    },
+    {
+      "id": "authorization",
+      "label": "Renewable Office authorization",
+      "status": "blocked",
+      "evidence": "Authorization is disabled. Limited record access, consent and session checks are not finished."
+    },
+    {
+      "id": "chatgpt",
+      "label": "Connect and test ChatGPT",
+      "status": "pending",
+      "evidence": "No authenticated saved-record read or renewal test has passed."
+    },
+    {
+      "id": "claude",
+      "label": "Connect and test external Claude",
+      "status": "pending",
+      "evidence": "This client needs its own authorization and acceptance tests."
+    },
+    {
+      "id": "elsie",
+      "label": "Elsie reads the shared checklist",
+      "status": "pending",
+      "evidence": "The shared read-only checklist tool is installed in source. Signed-in use has not been verified."
+    },
+    {
+      "id": "building",
+      "label": "Verify build permissions separately",
+      "status": "pending",
+      "evidence": "Reading Office records and submitting builds are separate permissions. The MCP endpoint has no build tool."
+    },
+    {
+      "id": "mailboxes",
+      "label": "Verify mailbox permissions separately",
+      "status": "pending",
+      "evidence": "An Office connection does not establish mailbox authorization."
+    },
+    {
+      "id": "acceptance",
+      "label": "Verify records, renewal and revocation",
+      "status": "pending",
+      "evidence": "Each external client must pass saved-record, renewal, signed-out and revoked-access checks."
+    }
+  ]
+}
