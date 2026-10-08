@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect,useState } from "react";
 import { useOwnerSession } from "@/lib/owner-session";
-import { getOfficeConsent,decideOfficeConsent } from "@/lib/office-mcp-consent.functions";
+import { verifyOfficeConsentOwner,registerOfficeConsentClient } from "@/lib/office-mcp-consent.functions";
+import { loadCanxSupabase } from "@/lib/canx-supabase";
+import { browserConsentDeps } from "@/lib/office-mcp-consent-browser";
+import { readConsentWith,decideConsentWith } from "@/lib/office-mcp-consent";
+async function consentDependencies() {
+  const client=await loadCanxSupabase();
+  if(!client)throw Error("Office sign-in unavailable");
+  return browserConsentDeps(client.auth.oauth,
+    token=>verifyOfficeConsentOwner({data:{accessToken:token}}),
+    (token,authorizationId,identity)=>registerOfficeConsentClient({data:{accessToken:token,authorizationId,identity}}));
+}
 import type { ConsentDetails } from "@/lib/office-mcp-consent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +33,7 @@ function OfficeConsent() {
     setDetails(null);
     if(!authorization_id || !session.accessToken || !session.stepUpComplete)return;
     let current=true;
-    getOfficeConsent({data:{accessToken:session.accessToken,authorizationId:authorization_id}}).then(r=>{
+    consentDependencies().then(deps=>readConsentWith(deps,session.accessToken!,authorization_id)).then(r=>{
       if(current){if(r.ok){setDetails(r.details);setMessage("");}else setMessage(r.message);}
     }).catch(()=>{if(current)setMessage("The Office could not load connection details (request error). Office access remains blocked.");});
     return()=>{current=false;};
@@ -32,7 +42,7 @@ function OfficeConsent() {
     if(!session.accessToken || !details || busy)return;
     setBusy(true);setMessage("");
     try {
-      const r=await decideOfficeConsent({data:{accessToken:session.accessToken,authorizationId:authorization_id,identity,approve}});
+      const r=await decideConsentWith(await consentDependencies(),{token:session.accessToken,authorizationId:authorization_id,identity,approve});
       if(r.ok)window.location.assign(r.redirect);else setMessage(r.message);
     }catch{setMessage("Authorization could not be completed. Try the connection again.");}
     finally{setBusy(false);}
