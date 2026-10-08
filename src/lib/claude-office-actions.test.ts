@@ -21,7 +21,8 @@ describe('Claude shares the trusted Office executor, not provider credentials',(
   if(provider==='openai') h.fetchImpl.mockImplementation(async url=>String(url).includes('/v1/models/')?Response.json({}):Response.json({output:[{type:'function_call',name:'get_office_connection_plan',arguments:'{}'}]}));
   const reply=await runManagerChatWith(h.deps,say('Read-only: show the office connection checklist'));
   expect(reply.ok).toBe(true);
-  expect(reply.text).toContain('Publish the consent screen');
+  expect(reply.text).toContain('Persistent Office working access');
+  expect(reply.text).toContain('Native acceptance is pending');
   expect(reply.actionResults).toEqual(expect.arrayContaining([expect.objectContaining({name:'get_office_connection_plan',status:'done'})]));
   expect(h.runBuild).not.toHaveBeenCalled();
  });

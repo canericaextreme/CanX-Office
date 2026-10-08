@@ -25,10 +25,11 @@ try {
  create table public.user_roles(user_id uuid,role public.app_role);
  create function public.has_role(_user_id uuid,_role public.app_role) returns boolean language sql security definer set search_path=public as $$ select exists(select 1 from public.user_roles where user_id=_user_id and role=_role) $$;
  create function public.session_aal() returns text language sql stable as $$ select auth.jwt()->>'aal' $$;
- create table public.office_notes(id text primary key,owner_id uuid,title text,detail text,source text,updated_at timestamptz default now());
- create table public.manager_tasks(id uuid primary key,owner_id uuid,title text,detail text,status text,project text,updated_at timestamptz default now());
+ create table public.office_notes(id text primary key,owner_id uuid,title text,detail text,source text,kind text,provenance text,updated_at timestamptz default now());
+ create table public.manager_tasks(id uuid primary key,owner_id uuid,title text,detail text,status text,project text,risk text,worker text,waiting_reason text,updated_at timestamptz default now());
  create table public.ai_usage(owner_id uuid,estimated_cents int,at timestamptz);
  create table public.office_audit(owner_id uuid,action text,entity text,entity_id text,detail jsonb);
+ create table public.finance_receipts(owner_id uuid primary key,doc jsonb,updated_at timestamptz default now());
  create table storage.objects(id uuid primary key);
  alter table public.office_notes enable row level security;
  alter table public.manager_tasks enable row level security;
@@ -37,6 +38,7 @@ try {
  grant select on public.office_notes,public.manager_tasks to authenticated;
  `);
  await db.exec(await readFile(new URL("../../supabase/migrations/20261008180144_office_mcp_scoped_access.sql",import.meta.url),"utf8"));
+ await db.exec(await readFile(new URL("../../supabase/migrations/20261008200158_office_mcp_work_access.sql",import.meta.url),"utf8"));
  await db.exec(`
  insert into auth.users values('${uid}');
  insert into public.user_roles values('${uid}','owner');
@@ -77,6 +79,33 @@ try {
   ["update auth.oauth_clients set deleted_at=now()","update auth.oauth_clients set deleted_at=null"],
   ["delete from public.user_roles",`insert into public.user_roles values('${uid}','owner')`],
  ]) {await db.exec(deny);assert.equal(await active(),false);await assert.rejects(db.query("select public.canx_mcp_office_status()"));await db.exec(restore);assert.equal(await active(),true);}
+
+ await assert.rejects(db.query("select public.canx_office_records('office_notes')"));
+ await claims({...base,client_id:undefined,aal:"aal2"});
+ assert.equal((await db.query("select public.canx_approve_office_work('fixture-request','chatgpt') as id")).rows[0].id,cid);
+ await claims(base);
+ const work=async()=> (await db.query("select public.canx_mcp_work_active() as active")).rows[0].active;
+ assert.equal(await work(),true);
+ await claims({...base,client_id:"bad"});assert.equal(await work(),false);await claims(base);
+ await db.exec(`insert into public.office_notes(id,owner_id,title,detail) values('other','${other}','NOT MINE','FOREIGN'); insert into public.finance_receipts values('${uid}','{"subscriptions":[1],"receipts":[2]}',now());`);
+ const rows=(await db.query("select public.canx_office_records('office_notes') as r")).rows[0].r;
+ assert.equal(rows.records.length,2);assert.equal(JSON.stringify(rows).includes('PRIVATE DETAIL'),true);assert.equal(JSON.stringify(rows).includes('FOREIGN'),false);
+ await assert.rejects(db.query("select public.canx_office_records('user_roles')"));
+ await assert.rejects(db.query("select public.canx_office_records('office_notes',null,null,null)"));
+ const priv=rows.records.find(r=>r.data.id==='private');
+ await assert.rejects(db.query("select public.canx_write_office_record('office_notes','private','{\"detail\":\"changed\"}','stale')"));
+ const updated=(await db.query("select public.canx_write_office_record('office_notes','private',$1::jsonb,$2) as r",[JSON.stringify({detail:'changed'}),priv.version])).rows[0].r;
+ assert.equal(updated.data.detail,'changed');
+ await assert.rejects(db.query("select public.canx_write_office_record('office_notes','private',$1::jsonb,$2)",[JSON.stringify({owner_id:other}),updated.version]));
+ const fin=(await db.query("select public.canx_office_records('finance_receipts') as r")).rows[0].r.records[0];
+ const saved=(await db.query("select public.canx_write_office_record('finance_receipts',$1,$2::jsonb,$3) as r",[uid,JSON.stringify({doc:{receipts:[3]}}),fin.version])).rows[0].r;
+ assert.deepEqual(saved.data.doc,{subscriptions:[1],receipts:[3]});
+ const bid='00000000-0000-4000-8000-000000000008';
+ const claim=async()=> (await db.query("select public.canx_mcp_claim_build($1,'codex','Build a test interface') as r",[bid])).rows[0].r;
+ assert.equal((await claim()).dispatch,true);assert.equal((await claim()).dispatch,false);
+ await assert.rejects(db.query("select public.canx_mcp_claim_build($1,'claude','Build a test interface')",[bid]));
+ await db.query("select public.canx_mcp_finish_build($1,'{\"ok\":true}'::jsonb)",[bid]);assert.deepEqual((await claim()).result,{ok:true});
+ await db.exec("update auth.oauth_consents set revoked_at=now()");assert.equal(await work(),false);await assert.rejects(db.query("select public.canx_office_records('office_notes')"));await db.exec("update auth.oauth_consents set revoked_at=null");
  await db.exec("delete from auth.sessions");assert.equal(await active(),false);
  console.log("Isolated SQL fixtures passed: owner consent, current session/grant, narrow saved metadata, direct-record denial, unchanged normal-owner access, expiry, revocation, removed owner and sign-out denial. No live records touched.");
 } finally {await db.close();}

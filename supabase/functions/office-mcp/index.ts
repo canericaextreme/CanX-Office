@@ -1,3 +1,4 @@
+import { officeMcpWorkWith } from "../../../src/lib/office-mcp-work-service.ts";
 import { handleOfficeMcp } from "../../../src/lib/office-mcp.ts";
 import { authorizeOfficeMcp } from "../../../src/lib/office-mcp-auth.ts";
 import { statusText } from "../../../src/lib/office-status.ts";
@@ -17,6 +18,7 @@ Deno.serve(request => {
     resource: `${url}/functions/v1/office-mcp`,
     issuer: `${url}/auth/v1`,
     authorize: token => authorizeOfficeMcp({url,publishableKey:key},token),
+    work: (token,name,args)=>officeMcpWorkWith({url,key,serviceKey:Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),fetch:(input,init)=>fetch(input,init)},token,name,args),
     plan: () => structuredClone(plan),
     status: async token => {
       const r=await fetch(`${url}/rest/v1/rpc/canx_mcp_office_status`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:"{}",redirect:"error",signal:AbortSignal.timeout(8000)});

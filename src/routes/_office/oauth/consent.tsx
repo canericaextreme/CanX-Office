@@ -10,7 +10,7 @@ async function consentDependencies() {
   if(!client)throw Error("Office sign-in unavailable");
   return browserConsentDeps(client.auth.oauth,
     token=>verifyOfficeConsentOwner({data:{accessToken:token}}),
-    (token,authorizationId,identity)=>registerOfficeConsentClient({data:{accessToken:token,authorizationId,identity}}));
+    (token,authorizationId,identity)=>registerOfficeConsentClient({data:{permission:'office-work-v1',accessToken:token,authorizationId,identity}}));
 }
 import type { ConsentDetails } from "@/lib/office-mcp-consent";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ function OfficeConsent() {
     </form>:!details?<p>Verifying the connection request…</p>:<>
       <p><strong>{details.client.name}</strong> is requesting renewable Office access.</p>
       <p className="text-sm text-muted-foreground break-all">Registered return address: {details.redirect_uri}</p>
-      <p>Permission: read saved operational project and task metadata, plus the shared setup checklist. Private records and build submission are excluded from this first connection.</p>
+      <p>Permission: persistent Office working access — read your private Office records, Brain, memory, files and shared skills; create and update notes, tasks and setup records; submit app and Office code builds through your existing builders. Existing spending and deletion controls remain in effect.</p>
       <p className="text-sm text-muted-foreground">Identity information requested: {details.scope || "none"}. These identity scopes do not expand Office permissions.</p>
       <label className="block text-sm">Which assistant are you connecting?
         <select className="mt-2 block w-full rounded border bg-background p-2" value={identity} onChange={e=>setIdentity(e.target.value as "chatgpt"|"claude")}>

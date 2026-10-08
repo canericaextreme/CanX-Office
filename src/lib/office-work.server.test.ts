@@ -1,0 +1,12 @@
+import { describe,it,expect,vi } from 'vitest';
+import { officeWorkBuildWith, type OfficeWorkBuildDeps } from './office-work.server';
+const id='00000000-0000-4000-8000-000000000001';
+const deps=():OfficeWorkBuildDeps=>({verify:vi.fn(async()=>({ok:true as const,userId:id,email:'',aal:'aal1'})),rpc:vi.fn(async(_t,n)=>n==='canx_mcp_claim_build'?{dispatch:true}:true),build:vi.fn(async()=>({ok:true,detail:'queued'}))});
+describe('Delegated Office builds',()=>{
+ it('checks working authorization before any dispatch',async()=>{const d=deps();d.verify=vi.fn(async()=>({ok:false as const,reason:'backend_error' as const,message:'denied'}));await expect(officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Build a blue button'})).rejects.toThrow();expect(d.build).not.toHaveBeenCalled();});
+ it('selects Claude from current owner words and claims before one attempt',async()=>{const d=deps();await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Claude, build a blue button'});expect(d.build).toHaveBeenCalledWith('claude','token','Claude, build a blue button');expect(d.rpc).toHaveBeenCalledWith('token','canx_mcp_claim_build',{_request_id:id,_builder:'claude',_request:'Claude, build a blue button'});expect(d.rpc).toHaveBeenLastCalledWith('token','canx_mcp_finish_build',{_request_id:id,_result:{ok:true,detail:'queued'}});});
+ it('never dispatches again for an uncertain attempted request',async()=>{const d=deps();d.rpc=vi.fn(async()=>({dispatch:false,result:null}));await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Build a blue button'});expect(d.build).not.toHaveBeenCalled();});
+ it('does not turn a status question into paid work',async()=>{const d=deps();await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'How would Claude build this?'});expect(d.rpc).not.toHaveBeenCalled();expect(d.build).not.toHaveBeenCalled();});
+ it('status cannot include a hidden build request',async()=>{const d=deps();await expect(officeWorkBuildWith(d,'token',{action:'status',builder:'claude',request:'Build a button'})).rejects.toThrow();expect(d.build).not.toHaveBeenCalled();});
+ it('an exception is saved as uncertain and not retried',async()=>{const d=deps();d.build=vi.fn(async()=>{throw Error('timeout');});const r=await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Build a blue button'});expect(r).toMatchObject({ok:false});expect(d.build).toHaveBeenCalledTimes(1);expect(d.rpc).toHaveBeenCalledTimes(2);});
+});

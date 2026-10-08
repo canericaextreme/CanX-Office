@@ -1,21 +1,21 @@
 {
   "version": 1,
   "title": "Connect the Office",
-  "reviewedAt": "2026-10-08T18:44:12.709274Z",
+  "reviewedAt": "2026-10-08T20:02:34.340720+00:00",
   "source": "Versioned setup checklist; dated evidence, not a live health check",
-  "nextStep": "Publish the consent screen and scoped connector, then authorize ChatGPT and Claude separately and test renewal.",
+  "nextStep": "Publish and verify the full working connector, then approve ChatGPT and test a saved-record read, write and build status before repeating for Claude and Elsie.",
   "steps": [
     {
       "id": "installation",
       "label": "Custom connector installation option",
       "status": "verified",
-      "evidence": "The owner reported opening the custom MCP server form. No plugin has been created."
+      "evidence": "Owner created the ChatGPT plugin and reached the Office approval screen."
     },
     {
       "id": "authorization",
       "label": "Renewable Office authorization",
       "status": "pending",
-      "evidence": "OAuth discovery is enabled and advertises refresh tokens and registration. Consent, current-grant checks and restrictive record permissions are implemented; publication and native-client tests remain pending."
+      "evidence": "OAuth is enabled. The browser consent screen has been reached in a real ChatGPT attempt. No approved external client has yet been saved."
     },
     {
       "id": "chatgpt",
@@ -39,13 +39,13 @@
       "id": "brain",
       "label": "Shared Brain, files and skills for all three assistants",
       "status": "pending",
-      "evidence": "Owner requested direct shared working access. Current MCP tools cover checklist and operational metadata only; full Brain and editing tools are not implemented."
+      "evidence": "Working tools for private owner records, Brain notes and memory, knowledge content, saved files, canonical skills and version-checked edits are implemented and pass isolated tests. Native acceptance is pending."
     },
     {
       "id": "building",
       "label": "Verify build permissions separately",
       "status": "pending",
-      "evidence": "Reading Office records and submitting builds are separate permissions. The MCP endpoint has no build tool."
+      "evidence": "Working connector exposes the existing Office builders with current-request selection, configured spending controls and duplicate-request protection. Native build status and submission acceptance are pending."
     },
     {
       "id": "mailboxes",
@@ -59,5 +59,6 @@
       "status": "pending",
       "evidence": "Each external client must pass saved-record, renewal, signed-out and revoked-access checks."
     }
-  ]
+  ],
+  "goal": "Persistent Office working access for ChatGPT and Claude: private owner records, shared Brain, files, skills, setup changes and app builds. Elsie coordinates the same records and handoffs. Do not reduce this to a status/checklist connection."
 }
