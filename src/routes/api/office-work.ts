@@ -1,3 +1,4 @@
+import { officeWorkFailureCode } from '../../lib/office-work-diagnostic';
 import { createFileRoute } from '@tanstack/react-router';
 export const Route=createFileRoute('/api/office-work')({server:{handlers:{POST:async({request})=>{
  const reply=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
@@ -10,5 +11,5 @@ export const Route=createFileRoute('/api/office-work')({server:{handlers:{POST:a
  try{while(true){const p=await reader.read();if(p.done)break;size+=p.value.byteLength;if(size>16384){await reader.cancel();return reply({error:'Request too large'},413);}parts.push(p.value);}}finally{reader.releaseLock();}
  const bytes=new Uint8Array(size);let at=0;for(const p of parts){bytes.set(p,at);at+=p.length;}
  try{const data=JSON.parse(new TextDecoder().decode(bytes));const {liveOfficeWorkBuild}=await import('../../lib/office-work.server');return reply(await liveOfficeWorkBuild(match[1]!,data));}
- catch{return reply({error:'Office work not confirmed. Check existing builds before retrying; a current working grant is required.'},403);}
+ catch(error){return reply({code:officeWorkFailureCode(error),error:'Office work not confirmed. Check existing builds before retrying; a current working grant is required.'},403);}
 }}}});

@@ -30,17 +30,19 @@ export async function officeWorkBuildWith(deps:OfficeWorkBuildDeps,token:string,
 export async function liveOfficeWorkBuild(token:string,value:unknown){
  const backend=await import('./canx-backend.server');
  const {authorizeOfficeMcp}=await import('./office-mcp-auth');
- const config=backend.readBackendConfig();if(!config)throw Error('Office unavailable');
+ const config=backend.readBackendConfig();if(!config)throw Error('CANX_BACKEND_NOT_CONFIGURED');
  const boundFetch:typeof fetch=(url,init)=>fetch(url,init);
  const rpc=async(t:string,name:string,args:Record<string,unknown>)=>{
   const r=await backend.restRequest(config,t,`rpc/${name}`,{method:'POST',body:JSON.stringify(args)},boundFetch);
-  if(!r.ok)throw Error('Office working permission or operation unavailable');return r.body;
+  if(!r.ok)throw Error('CANX_WORK_RPC_UNAVAILABLE');return r.body;
  };
  const verify=async(t:string):Promise<OwnerVerification>=>{
-  if(!await authorizeOfficeMcp(config,t,boundFetch)||await rpc(t,'canx_mcp_work_active',{})!==true)return {ok:false,reason:'backend_error',message:'Current Office working grant required'};
+  if(!await authorizeOfficeMcp(config,t,boundFetch))throw Error('CANX_CLIENT_AUTHORIZATION_FAILED');
+  if(await rpc(t,'canx_mcp_work_active',{})!==true)throw Error('CANX_WORK_GRANT_REQUIRED');
   // Decode only after signature + live owner/session/client/grant verification.
-  const claims=JSON.parse(Buffer.from(t.split('.')[1]!,'base64url').toString('utf8'));
-  return {ok:true,userId:claims.sub,email:'',aal:claims.aal??'aal1'};
+  const claims=backend.decodeClaims(t);
+  if(!claims || typeof claims['sub']!=='string')throw Error('CANX_CLAIMS_INVALID');
+  return {ok:true,userId:claims['sub'],email:'',aal:typeof claims['aal']==='string'?claims['aal']:'aal1'};
  };
  return officeWorkBuildWith({verify,rpc,build:(builder,t,request,prNumber,runId)=>{
   const common={verify,githubToken:process.env['CANX_CODEX_GITHUB_TOKEN']?.trim(),fetch:boundFetch};

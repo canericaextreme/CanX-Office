@@ -25,7 +25,8 @@ export async function officeMcpWorkWith(deps:OfficeWorkServiceDeps,token:string,
  case 'submit_office_build':case 'check_office_builds':{
   const data=name==='submit_office_build'?{action:'submit',...args}:{action:'status',...args};
   const response=await deps.fetch('https://canx-office.lovable.app/api/office-work',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(data),redirect:'error',signal:AbortSignal.timeout(55000)});
-  if(!response.ok)throw Error('Build result unavailable; check status before retry');return response.json();
+  if(!response.ok){ const body=await response.json().catch(()=>null); const known=['Server connection required','Authorization required','Office work not confirmed. Check existing builds before retrying; a current working grant is required.']; const reason=known.includes(body?.error)?body.error:'Unclassified bridge response'; return {ok:false,bridgeReason:reason,bridgeCode:['CANX_BACKEND_NOT_CONFIGURED','CANX_WORK_RPC_UNAVAILABLE','CANX_CLIENT_AUTHORIZATION_FAILED','CANX_WORK_GRANT_REQUIRED','CANX_CLAIMS_INVALID','CANX_WORK_UNCONFIRMED'].includes(body?.code)?body.code:undefined,detail:`Office build bridge returned HTTP ${response.status}. Nothing was retried; no build result is confirmed.`,code:'office_build_bridge_http',status:response.status}; }
+  if(!response.headers.get('Content-Type')?.includes('application/json'))return {ok:false,detail:'Office build bridge returned a non-JSON response. Nothing was retried.',code:'office_build_bridge_content_type'};return response.json();
  }
  default:throw Error('Unknown Office tool');
  }

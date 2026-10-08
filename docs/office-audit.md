@@ -96,3 +96,8 @@ Builder credentials remain unchanged. The Claude Office action path reuses the s
 
 ## Owner-requested Brain save action (7 October 2026)
 Elsie and the shared Office request adapter can append a short explicitly requested Brain note through `save_brain_note`. The existing owner/MFA and row-security path is reused; exact owner-scoped readback is required and existing notes are never overwritten. Repeated identical content resolves to the same record. No schema, credentials, spending controls or background worker changes. Live acceptance remains pending until the deployed action saves and re-reads a real receipt.
+
+
+### 8 October 2026 — delegated build handoff diagnosis
+
+Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403 from `/api/office-work`. The connector's session and working-grant checks passed in live logs; this does not verify the application-side check or GitHub dispatch. Added fixed allowlisted failure stages, withheld all raw errors, and reused portable claims decoding after verification. No access controls, provider selection, spending caps or duplicate-request rules were widened. Paid submission remains blocked pending a successful read-only status check. Claude build access remains unverified.
