@@ -21,7 +21,7 @@ export async function checkOfficeMcpAuthorization(config:McpAuthConfig,token:str
   let failure:typeof MCP_AUTH_FAILURE_CODES[number]='CANX_AUTH_REQUEST_FAILED';
   try {
     const headers={apikey:config.publishableKey,Authorization:`Bearer ${token}`,"Content-Type":"application/json"};
-    const userResponse=await fetchImpl(`${config.url}/auth/v1/user`,{headers,redirect:"error",signal:AbortSignal.timeout(8000)});
+    const userResponse=await fetchImpl(`${config.url}/auth/v1/user`,{headers,redirect:"manual",signal:AbortSignal.timeout(8000)});
     if(!userResponse.ok)return {ok:false,code:'CANX_AUTH_HTTP_REJECTED'};
     failure='CANX_AUTH_RESPONSE_INVALID';
     const user=await userResponse.json();
@@ -34,7 +34,7 @@ export async function checkOfficeMcpAuthorization(config:McpAuthConfig,token:str
        typeof user?.id!=="string" || claims.sub!==user.id || !uuid.test(claims.client_id??"") ||
        !uuid.test(claims.session_id??"") || typeof claims.exp!=="number" || claims.exp*1000<=Date.now())return {ok:false,code:'CANX_AUTH_CLAIMS_INVALID'};
     failure='CANX_AUTH_SESSION_REQUEST_FAILED';
-    const active=await fetchImpl(`${config.url}/rest/v1/rpc/canx_mcp_session_active`,{method:"POST",headers,body:"{}",redirect:"error",signal:AbortSignal.timeout(8000)});
+    const active=await fetchImpl(`${config.url}/rest/v1/rpc/canx_mcp_session_active`,{method:"POST",headers,body:"{}",redirect:"manual",signal:AbortSignal.timeout(8000)});
     if(!active.ok)return {ok:false,code:'CANX_AUTH_SESSION_HTTP_REJECTED'};
     failure='CANX_AUTH_SESSION_RESPONSE_INVALID';
     return await active.json()===true?{ok:true}:{ok:false,code:'CANX_AUTH_SESSION_INACTIVE'};

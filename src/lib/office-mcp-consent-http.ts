@@ -5,7 +5,7 @@ export async function requestConsentDetails(config:{url:string;publishableKey:st
   const timer=setTimeout(()=>controller.abort(),10000);
   try {
     const response=await fetchImpl(`${config.url}/auth/v1${path}`,{
-      method:body===undefined?"GET":"POST",redirect:"error",signal:controller.signal,
+      method:body===undefined?"GET":"POST",redirect:"manual",signal:controller.signal,
       headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`,"Content-Type":"application/json","X-Supabase-Api-Version":"2024-01-01"},
       ...(body===undefined?{}:{body:JSON.stringify(body)}),
     });
