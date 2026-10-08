@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { BrainMap } from "@/components/office/BrainMap";
 import { BrainMemory } from "@/components/office/BrainMemory";
+import { BrainShelves } from "@/components/office/BrainShelves";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_office/brain")({
@@ -24,6 +25,7 @@ function Brain() {
   return (
     <RoomShell>
       <div className="space-y-6">
+        <BrainShelves />
         <BrainHub />
         <BrainDocuments />
         <BrainMemory />
