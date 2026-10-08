@@ -28,6 +28,22 @@ describe("Office MCP token and current-grant validation",()=>{
 });
 describe('Safe authorization failure stages',()=>{
  it.each([
+  ['Illegal invocation','CANX_AUTH_FETCH_INVOCATION_FAILED'],
+  ['Invalid receiver','CANX_AUTH_FETCH_INVOCATION_FAILED'],
+  ['Header contains invalid character','CANX_AUTH_HEADER_INVALID'],
+  ['Invalid URL','CANX_AUTH_URL_INVALID'],
+  ['Failed to parse URL','CANX_AUTH_URL_INVALID'],
+  ['fetch failed','CANX_AUTH_NETWORK_FAILED'],
+ ] as const)('classifies %s without leaking runtime text',async(message,code)=>{
+  expect(await checkOfficeMcpAuthorization(config,token(),async()=>{throw Error(message+' private detail');})).toEqual({ok:false,code});
+ });
+ it('recognizes timeout and network cause without returning their content',async()=>{
+  const timed=Error('private');timed.name='TimeoutError';
+  for(const [error,code] of [[timed,'CANX_AUTH_REQUEST_TIMEOUT'],[Error('private',{cause:{code:'ENOTFOUND',secret:'private'}}),'CANX_AUTH_NETWORK_FAILED']] as const){
+   expect(await checkOfficeMcpAuthorization(config,token(),async()=>{throw error;})).toEqual({ok:false,code});
+  }
+ });
+ it.each([
   ['CANX_AUTH_REQUEST_FAILED',async()=>{throw Error('Bearer secret upstream detail');}],
   ['CANX_AUTH_HTTP_REJECTED',async()=>new Response('private upstream body',{status:401})],
   ['CANX_AUTH_RESPONSE_INVALID',async()=>new Response('invalid JSON')],
