@@ -5,7 +5,7 @@
  */
 import type { CodexBuildResult } from "./codex-builds.server";
 import type { RiskLevel } from "./manager-work.functions";
-import { protectedCategoryOf } from "./protected-actions";
+import { protectedBuildCategoryOf } from "./protected-actions";
 
 /** Ignore only standalone routing instructions to our fixed internal builder.
  * Keep the original request intact for execution, and retain every other
@@ -16,7 +16,7 @@ export function officeBuildProtectedCategory(request: string): string | null {
     /(^|[.!?\n])([ \t]*)(?:send|submit) (?:it |this task |the task )?to (?:the )?(?:builder|codex|claude)(?: (?:once(?: only)?|only once))?[ \t]*(?=[.!?\n]|$)/gi,
     "$1$2",
   );
-  return protectedCategoryOf(scope);
+  return protectedBuildCategoryOf(scope);
 }
 
 export interface CodexHandoffGate {
