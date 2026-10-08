@@ -126,6 +126,15 @@
       "audience": "office-status",
       "summary": "John approved merging and publishing change 73. GitHub merge commit synced to Lovable and the live Office serves the matching deployment ID. Both builder status routes returned ok. Preview publication filter behavior passed 19 local targeted checks; no paid build or signed-in room health check was started.",
       "evidence": "PR 73 merged as 80dde4629338a73070a924bbfb4a012b6cdb043e. Lovable latest_commit_sha matched; production x-deployment-id matched 217e333f-2e2e-4ab6-b720-11051ce43c5b at 22:46 UTC. Local assertions cover whole-word publish, negative publish instructions and preview wording."
+    },
+    {
+      "id": "2026-10-08-assistant-builder-selection-draft",
+      "at": "2026-10-08T22:55:40.973Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "John requested the same natural build flow with ChatGPT and Claude: assistants select one builder unless the owner explicitly chooses. Prepared shared optional builder selection, natural let's-build commands, manager instructions and regression checks. Draft only; full application checks and MCP connector deployment remain pending. No paid build submitted.",
+      "evidence": "13 focused native Node test cases passed using the repository test bodies and a local assertion adapter; tests include explicit owner precedence, protected actions and shared schema validation. Full Vitest suite and server integration tests not run locally because repository dependencies are unavailable."
     }
   ]
 }

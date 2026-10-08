@@ -10,3 +10,7 @@ describe('Delegated Office builds',()=>{
  it('status cannot include a hidden build request',async()=>{const d=deps();await expect(officeWorkBuildWith(d,'token',{action:'status',builder:'claude',request:'Build a button'})).rejects.toThrow();expect(d.build).not.toHaveBeenCalled();});
  it('an exception is saved as uncertain and not retried',async()=>{const d=deps();d.build=vi.fn(async()=>{throw Error('timeout');});const r=await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Build a blue button'});expect(r).toMatchObject({ok:false});expect(d.build).toHaveBeenCalledTimes(1);expect(d.rpc).toHaveBeenCalledTimes(2);});
 });
+
+it('accepts assistant-selected Claude without changing the owner request',async()=>{const d=deps();await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:"Okay, let's build a blue button",builder:'claude'});expect(d.build).toHaveBeenCalledExactlyOnceWith('claude','token',"Okay, let's build a blue button");});
+it('honours explicit Codex despite an assistant Claude preference',async()=>{const d=deps();await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Codex, build a blue button',builder:'claude'});expect(d.build).toHaveBeenCalledExactlyOnceWith('codex','token','Codex, build a blue button');});
+it('rejects unknown assistant builder values',async()=>{const d=deps();await expect(officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Build a blue button',builder:'other'})).rejects.toThrow();expect(d.build).not.toHaveBeenCalled();});

@@ -5,7 +5,7 @@ import { codexBuildsWith } from './codex-builds.server';
 import { claudeBuildsWith, CLAUDE_BUILD_MAX_USD } from './claude-builds.server';
 import type { OwnerVerification } from './canx-backend.server';
 const input=z.discriminatedUnion('action',[
- z.object({action:z.literal('submit'),requestId:z.string().uuid(),request:z.string().min(10).max(6000)}).strict(),
+ z.object({action:z.literal('submit'),requestId:z.string().uuid(),request:z.string().min(10).max(6000),builder:z.enum(['codex','claude']).optional()}).strict(),
  z.object({action:z.literal('status'),builder:z.enum(['codex','claude']),runId:z.number().int().positive().optional(),prNumber:z.number().int().positive().optional()}).strict(),
 ]);
 export interface OfficeWorkBuildDeps {
@@ -18,7 +18,7 @@ export async function officeWorkBuildWith(deps:OfficeWorkBuildDeps,token:string,
  if(!(await deps.verify(token)).ok)throw Error('Current working permission required');
  const data=parsed.data;
  if(data.action==='status')return deps.build(data.builder,token,undefined,data.prNumber,data.runId);
- const choice=builderChoiceFor(data.request);if('conflict' in choice)return {ok:false,detail:'Choose one builder; nothing submitted.'};
+ const choice=builderChoiceFor(data.request,data.builder);if('conflict' in choice)return {ok:false,detail:'Choose one builder; nothing submitted.'};
  const refusal=directBuildRefusal(data.request,choice.builder);if(refusal)return {ok:false,detail:refusal};
  const claim=await deps.rpc(token,'canx_mcp_claim_build',{_request_id:data.requestId,_builder:choice.builder,_request:data.request}) as {dispatch?:boolean;result?:unknown};
  if(claim.dispatch!==true)return claim.result??{ok:false,detail:'This request was already attempted. Check existing builds; nothing was resubmitted.'};
