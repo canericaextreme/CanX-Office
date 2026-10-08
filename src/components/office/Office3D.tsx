@@ -27,6 +27,8 @@ import type { LucideIcon } from "lucide-react";
 
 import { OFFICE_MAP_ROOMS as rooms, type RoomTone, type RoomShape, type OfficeRoom } from '@/lib/office-map';
 
+import { OfficeDogs } from "./OfficeDogs";
+
 const toneClasses: Record<RoomTone, string> = {
   red: "border-rose-300/80 bg-rose-950/85 shadow-rose-500/30 group-hover:bg-rose-600",
   blue: "border-sky-300/80 bg-sky-950/85 shadow-sky-500/30 group-hover:bg-sky-600",
@@ -137,76 +139,6 @@ function WalkingPeople() {
           <span className="sr-only">Person {index + 1}</span>
         </span>
       ))}
-    </div>
-  );
-}
-
-function DraggableOfficeDog() {
-  const [position, setPosition] = useState({ x: 54, y: 63 });
-  const [positionLoaded, setPositionLoaded] = useState(false);
-  const dragging = useRef(false);
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("canx-office-dog-position-v1");
-      if (saved) {
-        const parsed = JSON.parse(saved) as { x: number; y: number };
-        if (Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) setPosition(parsed);
-      }
-    } catch {
-      // Keep the safe default position when stored data is unavailable.
-    }
-    setPositionLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (!positionLoaded) return;
-    window.localStorage.setItem("canx-office-dog-position-v1", JSON.stringify(position));
-  }, [position, positionLoaded]);
-
-  const moveDog = (clientX: number, clientY: number, container: HTMLElement) => {
-    const bounds = container.getBoundingClientRect();
-    const x = Math.min(96, Math.max(4, ((clientX - bounds.left) / bounds.width) * 100));
-    const y = Math.min(93, Math.max(7, ((clientY - bounds.top) / bounds.height) * 100));
-    setPosition({ x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) });
-  };
-
-  return (
-    <div className="pointer-events-none absolute inset-0 z-[8] overflow-hidden">
-      <span
-        role="button"
-        tabIndex={0}
-        aria-label="Move the office pit bull"
-        title="Drag to place the dog"
-        className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 active:cursor-grabbing"
-        style={{ left: `${position.x}%`, top: `${position.y}%` }}
-        onPointerDown={(event) => {
-          event.preventDefault();
-          dragging.current = true;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          const container = event.currentTarget.parentElement;
-          if (container) moveDog(event.clientX, event.clientY, container);
-        }}
-        onPointerMove={(event) => {
-          if (!dragging.current) return;
-          const container = event.currentTarget.parentElement;
-          if (container) moveDog(event.clientX, event.clientY, container);
-        }}
-        onPointerUp={(event) => {
-          dragging.current = false;
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }}
-        onPointerCancel={() => {
-          dragging.current = false;
-        }}
-      >
-        <img
-          src="/canx-office-pitbull-copper-v2.png"
-          alt=""
-          draggable={false}
-          className="h-8 w-10 select-none object-contain drop-shadow-[0_2px_2px_rgba(0,0,0,.75)] sm:h-10 sm:w-12"
-        />
-      </span>
     </div>
   );
 }
@@ -333,7 +265,7 @@ export function Office3D() {
 
           <div className="absolute inset-0">
           <WalkingPeople />
-          <DraggableOfficeDog />
+          <OfficeDogs />
           <AmbientOfficeMotion />
 
           <Link
