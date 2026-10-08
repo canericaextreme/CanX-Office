@@ -25,7 +25,7 @@ function OfficeConsent() {
     let current=true;
     getOfficeConsent({data:{accessToken:session.accessToken,authorizationId:authorization_id}}).then(r=>{
       if(current){if(r.ok){setDetails(r.details);setMessage("");}else setMessage(r.message);}
-    }).catch(()=>{if(current)setMessage("The Office could not verify this request. Try the connection again.");});
+    }).catch(()=>{if(current)setMessage("The Office could not load connection details (request error). Office access remains blocked.");});
     return()=>{current=false;};
   },[authorization_id,session.accessToken,session.stepUpComplete]);
   async function decide(approve:boolean) {
@@ -46,7 +46,7 @@ function OfficeConsent() {
     }catch{setMessage("The authenticator could not be checked. Try again.");}
     finally{setBusy(false);}
   }
-  return <div className="mx-auto max-w-xl p-6"><Card><CardHeader><CardTitle>Authorize Office access</CardTitle></CardHeader><CardContent className="space-y-4">
+  return <div className="mx-auto max-w-xl p-6"><Card><CardHeader><CardTitle>Authorize Office connection</CardTitle></CardHeader><CardContent className="space-y-4">
     {!authorization_id?<p>Start this connection from ChatGPT or Claude to open a valid authorization request.</p>:!session.stepUpComplete?<form className="space-y-3" onSubmit={e=>{e.preventDefault();void confirmAuthenticator();}}>
       <p>Confirm your authenticator once to authorize this connection.</p>
       <Input aria-label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e=>setCode(e.target.value)} />
