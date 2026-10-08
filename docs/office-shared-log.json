@@ -90,6 +90,15 @@
       "audience": "office-status",
       "summary": "Implemented explicit owner-requested Brain note saving with exact readback, append-only storage and duplicate protection. Live deployment acceptance pending.",
       "evidence": "manager-brain-save.ts and manager-brain-save.test.ts; existing owner verification and office_notes storage."
+    },
+    {
+      "id": "2026-10-08-build-bridge-diagnostic",
+      "at": "2026-10-08T20:54:23Z",
+      "actor": "ChatGPT",
+      "kind": "problem",
+      "audience": "office-status",
+      "summary": "Owner requested the dog build test and instructed investigation of its shared bridge failure. Connector session and working-grant checks passed; app build bridge returned HTTP 403. Added allowlisted stage diagnostics and portable verified-claims decoding. Build access is still unverified; no paid build retry.",
+      "evidence": "Live connector status request, Supabase request logs for 20:46:34 UTC, Edge Function diagnostic version 8, and source checks."
     }
   ]
 }
