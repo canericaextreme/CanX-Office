@@ -11,10 +11,10 @@ async function dependencies(): Promise<ConsentDeps> {
       if (!config) return { ok:false,body:null };
       const response = await fetch(`${config.url}/auth/v1${path}`,{
         method:body===undefined ? "GET" : "POST",redirect:"error",signal:AbortSignal.timeout(10000),
-        headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
+        headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`,"Content-Type":"application/json","X-Supabase-Api-Version":"2024-01-01"},
         ...(body===undefined ? {} : {body:JSON.stringify(body)}),
       });
-      return {ok:response.ok,body:await response.json().catch(()=>null)};
+      return {ok:response.ok,status:response.status,body:await response.json().catch(()=>null)};
     },
     register: async (token,id,identity) => {
       if (!config) return false;

@@ -9,7 +9,7 @@ export interface ConsentDetails {
 }
 export interface ConsentDeps {
   verify: (token: string) => Promise<OwnerVerification>;
-  auth: (path: string, token: string, body?: unknown) => Promise<{ ok: boolean; body: unknown }>;
+  auth: (path: string, token: string, body?: unknown) => Promise<{ ok: boolean; body: unknown; status?: number }>;
   register: (token: string, authorizationId: string, identity: "chatgpt" | "claude") => Promise<boolean>;
 }
 export function validateConsentDetails(value: unknown, ownerId: string): ConsentDetails | null {
@@ -39,8 +39,13 @@ export async function readConsentWith(deps: ConsentDeps, token: string, authoriz
   const owner = await deps.verify(token).catch(() => null);
   if (!owner?.ok || owner.aal !== "aal2") return { ok: false as const, message: "Confirm your owner authenticator to authorize an Office connection." };
   const response = await deps.auth(`/oauth/authorizations/${encodeURIComponent(authorizationId)}`,token).catch(() => null);
-  const details = response?.ok ? validateConsentDetails(response.body,owner.userId) : null;
-  if (!details || details.authorization_id !== authorizationId) return { ok: false as const, message: "This authorization request could not be verified. Start the connection again from your assistant." };
+  if (!response?.ok) {
+    const status = response?.status;
+    const cause = !response ? "request unavailable" : status === 401 ? "Office session rejected" : status === 404 || status === 410 ? "request missing or expired" : status === 403 ? "request refused" : "authorization service unavailable";
+    return { ok: false as const, message: `Connection details could not be read: ${cause}${typeof status === "number" ? ` (HTTP ${status})` : ""}. Office access remains blocked.` };
+  }
+  const details = validateConsentDetails(response.body,owner.userId);
+  if (!details || details.authorization_id !== authorizationId) return { ok: false as const, message: "Connection details were received but did not match the expected owner, request, callback or permissions. Office access remains blocked." };
   return { ok: true as const, details };
 }
 export async function decideConsentWith(deps: ConsentDeps, input: { token: string; authorizationId: string; identity: "chatgpt" | "claude"; approve: boolean }) {
