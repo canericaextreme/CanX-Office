@@ -89,7 +89,7 @@ export async function handleOfficeMcp(request: Request, deps: OfficeMcpDeps): Pr
         const args=params?.["arguments"]??{};
         if(!args||typeof args!=='object'||Array.isArray(args)||!validWorkArguments(workName,args as Record<string,unknown>))return error(id,-32602,'Invalid working tool arguments');
         try { const value=await deps.work(match![1]!,workName,args as Record<string,unknown>);return result({content:[{type:'text',text:JSON.stringify(value)}],isError:false}); }
-        catch {return result({content:[{type:'text',text:'Office work was not confirmed. Read the latest record or check the existing build before retrying. A current working grant is required.'}],isError:true});}
+        catch (e) {const reason=e instanceof Error&&e.name==='Error'&&/^(Office working grant required|Invalid record|Field is not editable|Record changed|Record missing|Use the established|Imported project originals|Finance document patch|Owner Finance record|Initialize Finance|Office record service refused the request \(HTTP \d{3}\))/.test(e.message)?e.message:'';if(reason)return result({content:[{type:'text',text:`Office work was not saved: ${reason}.${reason==='Invalid record'?' Records must have an id and data under 12,000 bytes.':''} Nothing was retried.`}],isError:true});return result({content:[{type:'text',text:'Office work was not confirmed. Read the latest record or check the existing build before retrying. A current working grant is required.'}],isError:true});}
       }
       const isStatus=params?.["name"]===STATUS_TOOL.name && !!deps.status;
       if (params?.["name"] !== TOOL.name && !isStatus) return error(id, -32602, "Unknown tool");

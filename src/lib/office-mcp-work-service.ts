@@ -1,4 +1,7 @@
 import { OFFICE_SKILLS, SKILLS_REGISTRY_VERSION } from './office-skills.ts';
+// Safe, fixed database messages from the Office record functions; anything else stays generic.
+export const KNOWN_RECORD_ERRORS=['Office working grant required','Invalid record','Field is not editable through this tool','Record changed; read it again before updating','Record missing; nothing replaced','Use the established import, approval or build workflow for this collection','Imported project originals are preserved; use separate project plan records','Finance document patch required','Owner Finance record required','Initialize Finance inside the Office before editing'];
+export class OfficeWorkError extends Error {}
 export interface OfficeWorkServiceDeps {
  url:string;key:string;serviceKey?:string;fetch:typeof fetch;
 }
@@ -6,9 +9,9 @@ export async function officeMcpWorkWith(deps:OfficeWorkServiceDeps,token:string,
  const headers={apikey:deps.key,Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
  const rpc=async(name:string,args:unknown)=>{
   const response=await deps.fetch(`${deps.url}/rest/v1/rpc/${name}`,{method:'POST',headers,body:JSON.stringify(args),redirect:'manual',signal:AbortSignal.timeout(10000)});
-  if(!response.ok)throw Error('Office work unavailable');return response.json();
+  if(!response.ok){const body=await response.json().catch(()=>null) as {message?:unknown}|null;const m=typeof body?.message==='string'?body.message:'';throw new OfficeWorkError(KNOWN_RECORD_ERRORS.includes(m)?m:`Office record service refused the request (HTTP ${response.status})`);}return response.json();
  };
- if(await rpc('canx_mcp_work_active',{})!==true)throw Error('Office working grant required');
+ if(await rpc('canx_mcp_work_active',{})!==true)throw new OfficeWorkError('Office working grant required');
  switch(name){
  case 'read_office_records':return rpc('canx_office_records',{_collection:args['collection'],_id:args['id']??null,_offset:args['offset']??0,_limit:args['limit']??50});
  case 'write_office_record':return rpc('canx_write_office_record',{_collection:args['collection'],_id:args['id'],_data:args['data'],_expected_version:args['expectedVersion']??null});
