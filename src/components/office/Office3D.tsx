@@ -58,9 +58,16 @@ const walkingPeople = [
   { x: 23, y: 53 },
   { x: 63, y: 32 },
   { x: 77, y: 54 },
+  { x: 32, y: 34 },
+  { x: 45, y: 20 },
+  { x: 66, y: 24 },
+  { x: 74, y: 35 },
+  { x: 72, y: 57 },
+  { x: 59, y: 69 },
+  { x: 40, y: 55 },
 ] as const;
 
-function WalkingPeople() {
+export function WalkingPeople() {
   const [positions, setPositions] = useState<Array<{ x: number; y: number }>>(() => walkingPeople.map((person) => ({ ...person })));
   const [positionsLoaded, setPositionsLoaded] = useState(false);
   const activeDrag = useRef<number | null>(null);
@@ -75,7 +82,7 @@ function WalkingPeople() {
           parsed.every((position) => Number.isFinite(position.x) && Number.isFinite(position.y))
         ) {
           // Keep the positions John already chose; new figures start in
-          // their default places when an older seven-person layout is read.
+          // their default places when an older layout is read.
           setPositions(walkingPeople.map((person, index) => parsed[index] ?? { ...person }));
         }
       }
