@@ -29,3 +29,6 @@
 - The linked "canerica's Google Drive" connection (drive.file selected-files scope only) is exposed to Elsie and Claude through the shared tool registry in manager.functions.ts, backed by src/lib/google-drive.server.ts (list/read/create/update; no delete by design). Why: one owner-verified path for both assistants, honest selected-files limits, and no destructive Drive action without a future explicit owner instruction.
 - Drive writes run only when John's current request explicitly asks for a Drive save/create/update (`drive-intent.ts`); updates must name the exact file and only replace text/plain. Why: the model must not write Drive files from unrelated requests or corrupt binary/native files.
 - Browser-shared modules never import `node:crypto`; use `sha256.ts`. Why: it crashed the office on "Opening CanX Office…".
+
+## Colleague relay
+- Text-only colleague messages go through `src/lib/colleague-relay.ts` on one owned green `manager_tasks` row: one UUID request id claimed in task evidence before the single provider call, replies appended to result with receipt, CAS save and readback; exposed to native chats only via MCP `relay_to_colleague` / `read_colleague_replies` through `/api/office-work`. Why: no prompt carrying, no duplicate paid sends, and Office API colleagues are never presented as John's native external chats.
