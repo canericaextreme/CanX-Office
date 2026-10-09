@@ -105,3 +105,7 @@ Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403
 - Authorization follow-up: the published ChatGPT status check returns `CANX_CLIENT_AUTHORIZATION_FAILED`. John reported a Claude status HTTP 403; its exact stage is not yet confirmed. Prepared fixed Auth transport/HTTP, response, issuer/claims and session-permission diagnostics without exposing upstream text or changing allow decisions. Publication and live acceptance pending.
 
 - Live authorization evidence: PR 68 is merged and its diagnostic code is served at the existing Office URL. Both builder status checks return `CANX_AUTH_REQUEST_FAILED`: app Auth fetch throws before an HTTP response. Runtime network/header/URL/invocation classification prepared; exact transport cause and build access still unverified.
+
+## Colleague relay (9 Oct 2026, unpublished)
+- Installed and unit-tested: MCP `relay_to_colleague` (claude|chatgpt Office API colleague, one task, one request id, owner direction note `canx-communication-20261008` labelled) and `read_colleague_replies`.
+- Not live tested: no signed-in owner round trip yet. Does not wake native external Claude/ChatGPT chats.
