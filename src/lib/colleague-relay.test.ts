@@ -10,7 +10,7 @@ const note = { id: 'canx-communication-20261008', title: 'Communication', detail
 
 function fixture(provider: 'claude' | 'chatgpt' = 'claude') {
   let row = { ...base }; let t = 0;
-  const rest = vi.fn(async (_tk: string, method: string, path: string, body?: Record<string, unknown>) => {
+  const rest = vi.fn(async (_tk: string, method: string, path: string, body?: Record<string, unknown>): Promise<{ ok: boolean; data: unknown[] }> => {
     if (path.startsWith('office_notes')) return { ok: true, data: [note] };
     if (method === 'PATCH') {
       const m = /updated_at=eq\.([^&]+)/.exec(path); if (m && decodeURIComponent(m[1]!) !== row.updated_at) return { ok: true, data: [] };
