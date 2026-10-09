@@ -18,7 +18,7 @@ describe("owner_approval: descriptive context vs requested approval", () => {
   });
 
   it("lets the descriptive feature request reach the builder gate", () => {
-    expect(directBuildRefusal(FEATURE, "codex")).not.toMatch(/owner_approval/);
+    expect(directBuildRefusal(FEATURE, "codex")).toBeNull();
   });
 
   it("keeps actual approve/authorise operations gated", () => {
