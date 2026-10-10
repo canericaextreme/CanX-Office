@@ -325,3 +325,76 @@
   );
   backdrop-filter: blur(calc(var(--canx-panel-alpha, 0.35) * 10px));
 }
+
+/* Brain only: a stationary anchor keeps the synopsis steady as the face advances. */
+.brain-shelf {
+  perspective: 900px;
+  isolation: isolate;
+}
+.brain-shelf::before {
+  content: "";
+  position: absolute;
+  inset: 8px -6px -12px 6px;
+  z-index: -1;
+  border: 1px solid var(--brain-wood-dark);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--brain-wood), var(--brain-wood-dark));
+  box-shadow: 0 9px 14px -5px #17294366;
+}
+.brain-shelf-face {
+  transform: rotateX(3deg);
+  transform-origin: center bottom;
+  box-shadow: 0 3px 0 var(--brain-wood), 0 7px 0 var(--brain-wood-dark);
+}
+.brain-shelf-face, .brain-shelf-info {
+  transition: transform 260ms ease-out, box-shadow 260ms ease-out;
+}
+.brain-shelf:focus-within .brain-shelf-face {
+  transform: translateZ(28px) translateY(-6px) rotateX(0deg);
+  box-shadow: 0 5px 0 var(--brain-wood), 0 10px 0 var(--brain-wood-dark), 0 18px 22px -8px #17294366;
+}
+.brain-shelf:focus-within .brain-shelf-info {
+  transform: translateZ(28px) translateY(-6px);
+}
+@media (hover: hover) {
+  .brain-shelf:hover .brain-shelf-face {
+    transform: translateZ(28px) translateY(-6px) rotateX(0deg);
+    box-shadow: 0 5px 0 var(--brain-wood), 0 10px 0 var(--brain-wood-dark), 0 18px 22px -8px #17294366;
+  }
+  .brain-shelf:hover .brain-shelf-info {
+    transform: translateZ(28px) translateY(-6px);
+  }
+}
+.brain-shelf-bubble[data-state] {
+  animation: none;
+  transition: none;
+}
+/* Opt-in dialog theme also reaches controls inside the portalled upload panel. */
+.brain-upload-panel {
+  color-scheme: light;
+  --background: #fffdf7;
+  --foreground: #172943;
+  --card: #ffffff;
+  --card-foreground: #172943;
+  --muted: #f1eadc;
+  --muted-foreground: #475569;
+  --border: #b6a88c;
+  --input: #b6a88c;
+  --primary: #172943;
+  --primary-foreground: #ffffff;
+  --accent: #eee5d3;
+  --accent-foreground: #172943;
+  --ring: #1d4ed8;
+  background: var(--background);
+  color: var(--foreground);
+}
+.brain-upload-panel [role="status"].border-green-500 {
+  background: #f0fdf4;
+  color: #166534;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brain-shelf .brain-shelf-face, .brain-shelf .brain-shelf-info {
+    transform: none;
+    transition: none;
+  }
+}

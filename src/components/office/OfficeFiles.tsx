@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-export function OfficeFiles({room='brain',compact=false,collapseList=false,onSaved}:{room?:string;compact?:boolean;collapseList?:boolean;onSaved?:(file:OfficeFile)=>void}) {
+export function OfficeFiles({room='brain',compact=false,collapseList=false,brainAppearance=false,onSaved}:{room?:string;compact?:boolean;collapseList?:boolean;brainAppearance?:boolean;onSaved?:(file:OfficeFile)=>void}) {
  const session=useOwnerSession(); const prepare=useServerFn(prepareOfficeUpload); const finish=useServerFn(finishOfficeUpload); const list=useServerFn(listOfficeFiles); const openFile=useServerFn(openOfficeFile); const connection=useServerFn(officeUploadConnection); const saveLink=useServerFn(saveOfficeLink); const deleteFile=useServerFn(deleteOfficeFile);
  const [deleteTarget,setDeleteTarget]=useState<OfficeFile|null>(null); const [deleting,setDeleting]=useState(false); const [deleteError,setDeleteError]=useState('');
  const [previewFile,setPreviewFile]=useState<OfficeFile|null>(null); const [savedMessage,setSavedMessage]=useState('');
@@ -32,7 +32,7 @@ export function OfficeFiles({room='brain',compact=false,collapseList=false,onSav
  const savedList=<SavedFileList files={files} room={room} sessionKey={`${session.ownerId}:${session.aal}:${session.signedIn}`} accessToken={session.accessToken} disabled={busy||deleting} onOpen={f=>{setShow(false);setPreviewFile(f);}} onDelete={f=>{setDeleteError('');setShow(false);setDeleteTarget(f);}}/>;
  return <div className={compact?'':'mb-5 space-y-3'}>
   <Dialog open={show} onOpenChange={setShow}><DialogTrigger asChild><Button variant="outline" size="sm"><Plus className="h-4 w-4"/> Add files or photos</Button></DialogTrigger>
-   <DialogContent className="max-h-[85dvh] overflow-y-auto"><DialogHeader><DialogTitle>Add files, photos or videos</DialogTitle></DialogHeader>
+   <DialogContent className={`max-h-[85dvh] overflow-y-auto${brainAppearance ? ' brain-upload-panel' : ''}`}><DialogHeader><DialogTitle>Add files, photos or videos</DialogTitle></DialogHeader>
     {savedMessage&&<p role="status" className="rounded border border-green-500 bg-green-950/20 p-3 font-medium text-green-600 dark:text-green-300">{savedMessage}</p>}
     <label className="text-sm">File in room<select className="mt-1 w-full rounded border bg-background p-2" disabled={busy} value={destination} onChange={e=>setDestination(e.target.value)}>{FILE_ROOMS.map(r=><option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
     <label className="text-sm">Folder<select className="mt-1 w-full rounded border bg-background p-2" disabled={busy} value={folder} onChange={e=>setFolder(e.target.value)}>{FILE_FOLDERS.map(f=><option key={f}>{f}</option>)}</select></label>
