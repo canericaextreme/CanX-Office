@@ -378,6 +378,15 @@ export async function storeFromRunner(deps: BrokerDeps, oidcToken: string, polic
   }
 }
 
+/** Called by the runner immediately before it takes the picture: is this session still allowed? */
+export async function precheckForRunner(deps: BrokerDeps, oidcToken: string, policy: OidcPolicy, jwks: () => Promise<{ keys: Jwk[] }>, sessionId: string): Promise<void> {
+  const oidc = await verifyGithubOidc(oidcToken, policy, { jwks, now: deps.now });
+  if (!oidc.ok) throw new BrokerError("oidc_invalid");
+  if (!UUID.test(sessionId)) throw new BrokerError("bad_request");
+  const active = await guarded(() => deps.callService("canx_view_session_active", { _session: sessionId }));
+  if (active !== true) throw new BrokerError("grant_not_active");
+}
+
 export async function failFromRunner(deps: BrokerDeps, oidcToken: string, policy: OidcPolicy, jwks: () => Promise<{ keys: Jwk[] }>, requestId: string, detail: string, accessToken?: string): Promise<void> {
   const oidc = await verifyGithubOidc(oidcToken, policy, { jwks, now: deps.now });
   if (!oidc.ok) throw new BrokerError("oidc_invalid");

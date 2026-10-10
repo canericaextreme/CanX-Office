@@ -7,6 +7,7 @@ import {
   claimForRunner,
   codeFromDatabaseMessage,
   failFromRunner,
+  precheckForRunner,
   fetchCapture,
   readRoomInformation,
   redactForLog,
@@ -153,6 +154,7 @@ function world(over: Partial<World["state"]> = {}): World {
       }
       if (fn === "canx_view_request_fail") { state.status = "failed"; state.detail = String(args["_detail"]); return null; }
       if (fn === "canx_view_session_close") return null;
+      if (fn === "canx_view_session_active") return !state.revoked;
       throw new Error("unexpected");
     },
     async viewerEmail() { return "viewer-claude@example.invalid"; },
@@ -262,6 +264,19 @@ describe("the runner", () => {
     const s = await signer();
     expect(await errorCode(claimForRunner(w.deps, await s.sign(goodClaims()), POLICY, s.jwks, REQ))).toBe("unavailable");
     expect(w.ended.length).toBe(1);
+  });
+});
+
+describe("checking just before capture", () => {
+  it("passes while access is on and refuses once it is revoked or the runner is not proven", async () => {
+    const w = world();
+    const s = await signer();
+    const ok = await s.sign(goodClaims());
+    await precheckForRunner(w.deps, ok, POLICY, s.jwks, SESSION);
+    w.state.revoked = true;
+    expect(await errorCode(precheckForRunner(w.deps, ok, POLICY, s.jwks, SESSION))).toBe("grant_not_active");
+    expect(await errorCode(precheckForRunner(w.deps, await s.sign(goodClaims({ ref: "refs/heads/x" })), POLICY, s.jwks, SESSION))).toBe("oidc_invalid");
+    expect(await errorCode(precheckForRunner(w.deps, ok, POLICY, s.jwks, "nope"))).toBe("bad_request");
   });
 });
 

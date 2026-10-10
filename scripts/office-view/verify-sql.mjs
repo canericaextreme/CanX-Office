@@ -247,6 +247,9 @@ try {
   await db.exec(`update canx_private.office_view_grants set enabled=true, revoked_at=null where assistant='chatgpt'`);
   pass("a request can be claimed once; expiry and revocation between request and claim refuse it; other assistants cannot see it");
 
+  await svc();
+  assert.equal((await db.query("select public.canx_view_session_active($1) a", [sess])).rows[0].a, true, "a fresh session is active");
+  await assert.rejects(db.query("select public.canx_view_session_active($1)", [sess]).then(async () => { await as("authenticated", ownerJwt("aal2")); return db.query("select public.canx_view_session_active($1)", [sess]); }));
   await as("authenticated", viewerJwt(vClaude, authClaude));
   assert.equal(await count("public.office_notes"), 0, "claimed but not bound reads nothing");
   await svc();

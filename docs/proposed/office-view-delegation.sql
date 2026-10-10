@@ -254,6 +254,15 @@ returns table(owner_id uuid, assistant text, route text)
 language sql security definer set search_path = public, canx_private as $$
   select s.owner_id, s.assistant, s.route from canx_private.office_view_sessions s where s.id = _session $$;
 
+-- Is this capture session still allowed to run? The runner asks immediately before it takes the picture.
+create or replace function public.canx_view_session_active(_session uuid)
+returns boolean language sql stable security definer set search_path = public, canx_private as $$
+  select exists(
+    select 1 from canx_private.office_view_sessions s
+    join canx_private.office_view_grants g on g.owner_id = s.owner_id and g.assistant = s.assistant
+    where s.id = _session and s.revoked_at is null and s.closed_at is null and s.expires_at > now()
+      and g.enabled and g.revoked_at is null and g.expires_at > now() and s.route = any(g.rooms)) $$;
+
 create or replace function public.canx_view_session_close(_session uuid)
 returns void language sql security definer set search_path = public, canx_private as $$
   update canx_private.office_view_sessions set closed_at = now() where id = _session and closed_at is null $$;
@@ -445,9 +454,9 @@ grant execute on function public.canx_view_request_claim(uuid), public.canx_view
 revoke all on function public.canx_view_grant_set(text, uuid, text[], integer, text[]), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) from public, anon;
 grant execute on function public.canx_view_grant_set(text, uuid, text[], integer, text[]), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) to authenticated;
 -- Server-only.
-revoke all on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_owner(uuid), public.canx_view_session_close(uuid),
+revoke all on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_owner(uuid), public.canx_view_session_active(uuid), public.canx_view_session_close(uuid),
   public.canx_view_capture_record(uuid, jsonb, text), public.canx_view_capture_fetch(uuid, text, uuid), public.canx_view_capture_purge() from public, anon, authenticated;
-grant execute on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_owner(uuid), public.canx_view_session_close(uuid),
+grant execute on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_owner(uuid), public.canx_view_session_active(uuid), public.canx_view_session_close(uuid),
   public.canx_view_capture_record(uuid, jsonb, text), public.canx_view_capture_fetch(uuid, text, uuid), public.canx_view_capture_purge() to service_role;
 
 -- Private bucket for capture images. No policy for authenticated users: only the server (service role) touches it.
