@@ -218,9 +218,9 @@ end $$;
 
 -- Owner-facing status for the management panel. Never returns credentials.
 create or replace function public.canx_view_grants_status()
-returns table(assistant text, enabled boolean, rooms text[], scopes text[], expires_at timestamptz, delegated_at timestamptz, revoked_at timestamptz, captures_last_day bigint, last_used_at timestamptz)
+returns table(assistant text, viewer_user_id uuid, enabled boolean, rooms text[], scopes text[], expires_at timestamptz, delegated_at timestamptz, revoked_at timestamptz, captures_last_day bigint, last_used_at timestamptz)
 language sql stable security definer set search_path = public, canx_private as $$
-  select g.assistant, (g.enabled and g.revoked_at is null and g.expires_at > now()), g.rooms, g.scopes, g.expires_at, g.delegated_at, g.revoked_at,
+  select g.assistant, g.viewer_user_id, (g.enabled and g.revoked_at is null and g.expires_at > now()), g.rooms, g.scopes, g.expires_at, g.delegated_at, g.revoked_at,
     (select count(*) from canx_private.office_view_sessions s where s.owner_id = g.owner_id and s.assistant = g.assistant and s.issued_at > now() - interval '1 day'),
     (select max(s.issued_at) from canx_private.office_view_sessions s where s.owner_id = g.owner_id and s.assistant = g.assistant)
   from canx_private.office_view_grants g
