@@ -1,0 +1,14 @@
+import React from 'react';
+const read = async () => [];
+export const useServerFn = () => read;
+export const useOwnerSession = () => ({ accessToken: null, stepUpComplete: false });
+export const Link = ({children, to, ...props}: any) => <a href={to} {...props}>{children}</a>;
+export const getBrainIndex = {};
+export const setBrainShelf = {};
+export const prepareOfficeUpload = {};
+export const finishOfficeUpload = {};
+export const listOfficeFiles = {};
+export const openOfficeFile = {};
+export const officeUploadConnection = {};
+export const saveOfficeLink = {};
+export const deleteOfficeFile = {};

@@ -361,7 +361,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        {cat === null && <OfficeFiles room="brain" compact onSaved={onUploaded} />}
+        {cat === null && <OfficeFiles brainAppearance room="brain" compact onSaved={onUploaded} />}
         {index && (
           <p className="text-xs text-[var(--brain-room-muted)]">
             Counts show indexed items from readable sources.
@@ -413,7 +413,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
         <>
           <nav
             aria-label="Brain categories"
-            className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3"
+            className="mt-4 grid grid-cols-1 gap-x-5 gap-y-7 min-[420px]:grid-cols-2 lg:grid-cols-3"
           >
             {buckets.map((b, shelfNumber) => {
               const active = cat === b;
@@ -453,7 +453,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                     aria-pressed={active}
                     aria-describedby={synId}
                     aria-label={`Open ${CATEGORY_LABELS[b]}: ${shelvesReadable ? counts[b] : "unknown"} items`}
-                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition-[transform,box-shadow] duration-200 ease-out group-hover/shelf:-translate-y-0.5 group-hover/shelf:shadow-md group-focus-within/shelf:-translate-y-0.5 group-data-[open=true]/shelf:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-2"
+                    className="brain-shelf-face flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left focus-visible:outline-2"
                     style={{
                       borderColor: tone(b),
                       boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined,
@@ -569,7 +569,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
             <>
               <p className="text-sm text-[var(--brain-room-muted)]">{CATEGORY_HELP[cat]}</p>
               <div className="flex flex-wrap items-center gap-3">
-                <OfficeFiles room="brain" compact onSaved={onUploaded} />
+                <OfficeFiles brainAppearance room="brain" compact onSaved={onUploaded} />
                 {cat === "library" && (
                   <a href="#brain-documents" className="text-sm underline">
                     Import document text for Elsie
