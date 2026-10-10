@@ -110,3 +110,83 @@ it("shelf cards show number badge, colour name, guide wording, Who's who strip a
   fireEvent.click(info);
   expect(info.getAttribute("aria-expanded")).toBe("true");
 });
+
+it("shows actual shelf contents in a portalled bubble and keeps existing controls", () => {
+  render(<BrainHub fixture={index} />);
+  fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
+  const bubble = screen.getByRole("dialog", { name: "The Library contents" });
+  expect(within(bubble).getByText("Item in Library")).toBeTruthy();
+  expect(within(bubble).queryByText("Item in Compass")).toBeNull();
+  expect(within(bubble).getByLabelText("Category for Item in Library")).toBeTruthy();
+  expect(within(bubble).getByRole("link", { name: "Open Legal" })).toBeTruthy();
+  expect(bubble.closest('nav')).toBeNull();
+  expect(bubble.className).toContain("overflow-y-auto");
+});
+
+it("keeps the bubble open across the pointer gap, then closes after leaving both", async () => {
+  vi.useFakeTimers();
+  try {
+    render(<BrainHub fixture={index} />);
+    const shelf = cardFor("library").parentElement!;
+    fireEvent.pointerEnter(shelf, { pointerType: "mouse" });
+    const bubble = screen.getByRole("dialog", { name: "The Library contents" });
+    fireEvent.pointerLeave(shelf, { pointerType: "mouse" });
+    fireEvent.pointerEnter(bubble, { pointerType: "mouse" });
+    await act(async () => { vi.advanceTimersByTime(150); });
+    expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+    fireEvent.pointerLeave(bubble, { pointerType: "mouse" });
+    await act(async () => { vi.advanceTimersByTime(150); });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  } finally { vi.useRealTimers(); }
+});
+
+it("opens on keyboard focus and dismisses with Escape without navigating", async () => {
+  render(<BrainHub fixture={index} />);
+  await act(async () => { cardFor("library").focus(); });
+  expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+  fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(window.location.hash).toBe("");
+  expect(document.activeElement).toBe(cardFor("library"));
+});
+
+it("lets touch users toggle contents without opening the shelf view", () => {
+  render(<BrainHub fixture={index} />);
+  const toggle = screen.getByRole("button", { name: "About The Library" });
+  fireEvent.pointerEnter(toggle, { pointerType: "touch" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.pointerDown(toggle, { pointerType: "touch" });
+  fireEvent.focus(toggle);
+  fireEvent.pointerUp(toggle, { pointerType: "touch" });
+  fireEvent.click(toggle);
+  expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+  fireEvent.click(toggle);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(window.location.hash).toBe("");
+});
+
+it("shows empty and unreadable shelf states without presenting unavailable records", () => {
+  const { unmount } = render(<BrainHub fixture={index} />);
+  fireEvent.pointerEnter(cardFor("diary"), { pointerType: "mouse" });
+  expect(within(screen.getByRole("dialog")).getByText(/Nothing is filed here yet/)).toBeTruthy();
+  unmount();
+  render(<BrainHub fixture={{ ...index, sources: [{ key: "shelves", label: "Shelf labels", status: "failed", count: 0, detail: "Unavailable" }] }} />);
+  fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
+  const bubble = screen.getByRole("dialog");
+  expect(within(bubble).getByText(/count is unknown/)).toBeTruthy();
+  expect(within(bubble).queryByText("Item in Library")).toBeNull();
+});
+
+it("keeps the bubble usable when focus moves to its controls and opens the full shelf", async () => {
+  vi.useFakeTimers();
+  try {
+    render(<BrainHub fixture={index} />);
+    await act(async () => { cardFor("library").focus(); });
+    const bubble = screen.getByRole("dialog", { name: "The Library contents" });
+    await act(async () => { within(bubble).getByLabelText("Category for Item in Library").focus(); vi.advanceTimersByTime(150); });
+    expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+    fireEvent.click(within(bubble).getByRole("button", { name: "Open Library" }));
+    expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  } finally { vi.useRealTimers(); }
+});
