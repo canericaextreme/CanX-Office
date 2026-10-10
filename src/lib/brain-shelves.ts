@@ -68,7 +68,7 @@ export function shelfSynopsis(items: BrainItem[], shelf: BrainShelf, readable: b
   const { name, guide } = SHELF_DISPLAY[shelf];
   if (!readable) return `${name}: ${guide} The count is unknown because shelf labels could not be read.`;
   const here = items.filter((i) => itemShelf(i) === shelf);
-  if (here.length === 0) return `${name}: ${guide} Nothing is filed here yet.`;
+  if (here.length === 0) return `${name}: ${guide} 0 items. Nothing is filed here yet.`;
   const kinds = new Map<string, number>();
   for (const i of here) kinds.set(i.kind, (kinds.get(i.kind) ?? 0) + 1);
   const KIND_WORD: Record<string, string> = { file: "file", link: "link", doc: "document", note: "note", project: "project", skill: "skill", memory: "memory" };
