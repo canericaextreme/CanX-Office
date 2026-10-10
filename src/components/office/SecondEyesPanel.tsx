@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Eye, Minus, Loader2, Building2, MonitorSmartphone } from "lucide-react";
+import { Eye, Minus, Loader2, Building2, MonitorSmartphone, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +38,13 @@ import {
   sixAreaFindings,
   subscribeSecondEyes,
 } from "@/lib/second-eyes";
+
+/**
+ * John's external Claude account, opened like the companion's "Open ChatGPT"
+ * link: a plain external link in a new tab. It carries no Office token, starts
+ * no review, and is not the Office Claude API or the Claude builder.
+ */
+export const CLAUDE_WEB_URL = "https://claude.ai/";
 
 /** Plain wording for the reservation shown beside each review button. */
 function reservationLabel(scope: "manual" | "room" | "office"): string {
@@ -254,6 +261,39 @@ export function SecondEyesPanel() {
   return (
     <>
       <TooltipProvider delayDuration={250}>
+      {/*
+        The header Claude button, in its existing place: a normal external link
+        to claude.ai in a new tab, exactly like the companion's Open ChatGPT
+        link. No click handler, no scripted window, no Office data sent.
+      */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          className="h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
+        >
+          <a
+            href={CLAUDE_WEB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open Claude in a new tab"
+            data-testid="canx-open-claude-web"
+          >
+            <Eye className="h-5 w-5" aria-hidden="true" />
+          </a>
+        </Button>
+        </TooltipTrigger>
+      <TooltipContent side="bottom" align="end" collisionPadding={12} className="w-48 max-w-[calc(100vw-2rem)] whitespace-normal break-words border border-slate-600 bg-slate-950 px-3 py-2 text-center text-sm leading-relaxed text-white">
+        Open Claude (claude.ai, new tab)
+      </TooltipContent>
+      </Tooltip>
+      {/*
+        Separate Office Claude controls (reviews through the Office Claude API,
+        connection check, and the Claude builds entry). Unchanged behaviour,
+        now on their own button beside the external link.
+      */}
       <Tooltip>
         <TooltipTrigger asChild>
         <Button
@@ -266,7 +306,7 @@ export function SecondEyesPanel() {
           onClick={() => setOpen(value => !value)}
           className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
         >
-          {open ? <Minus className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          {open ? <Minus className="h-5 w-5" /> : <SlidersHorizontal className="h-5 w-5" />}
           <span
             aria-hidden="true"
             className={`absolute bottom-1 right-1 h-2 w-2 rounded-full border ${TONE_CLASS[tone]}`}
@@ -274,7 +314,7 @@ export function SecondEyesPanel() {
         </Button>
         </TooltipTrigger>
       <TooltipContent side="bottom" align="end" collisionPadding={12} className="w-48 max-w-[calc(100vw-2rem)] whitespace-normal break-words border border-slate-600 bg-slate-950 px-3 py-2 text-center text-sm leading-relaxed text-white">
-        Claude connection
+        Claude connection — Office reviews and builds
       </TooltipContent>
       </Tooltip>
       </TooltipProvider>
@@ -298,7 +338,7 @@ export function SecondEyesPanel() {
         <div className="space-y-4 p-4">
           <nav aria-label="Claude connections" className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
-              <a href="https://claude.ai/" target="_blank" rel="noreferrer">Open Claude</a>
+              <a href={CLAUDE_WEB_URL} target="_blank" rel="noopener noreferrer">Open Claude</a>
             </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to="/build-testing" onClick={() => setOpen(false)}>Claude builds in Office</Link>

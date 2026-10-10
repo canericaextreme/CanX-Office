@@ -72,6 +72,56 @@ describe("reachable from every room without adding a destination", () => {
   });
 });
 
+describe("header Claude button opens claude.ai like the external ChatGPT button", () => {
+  const companion = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
+  const linkStart = panel.indexOf('data-testid="canx-open-claude-web"');
+  const anchorStart = panel.lastIndexOf("<a", linkStart);
+  const anchor = panel.slice(anchorStart, panel.indexOf("</a>", linkStart));
+
+  it("targets exactly https://claude.ai/", () => {
+    expect(panel).toContain('export const CLAUDE_WEB_URL = "https://claude.ai/";');
+    expect(anchor).toContain("href={CLAUDE_WEB_URL}");
+  });
+
+  it("is a normal external link opening a new tab, with the ChatGPT link's settings", () => {
+    expect(anchorStart).toBeGreaterThan(-1);
+    expect(anchor).toContain('target="_blank"');
+    expect(anchor).toContain('rel="noopener noreferrer"');
+    expect(anchor).toContain('aria-label="Open Claude in a new tab"');
+    // Same pattern as the companion's Open ChatGPT link.
+    expect(companion).toContain('href="https://chatgpt.com/"');
+    expect(companion).toContain('rel="noopener noreferrer"');
+  });
+
+  it("uses no click handler or scripted window", () => {
+    expect(anchor).not.toContain("onClick");
+    expect(panel).not.toContain("window.open");
+  });
+
+  it("stays first in the header Claude slot, ahead of the Office controls", () => {
+    const toggle = panel.indexOf('aria-controls="claude-connection-dashboard"');
+    expect(linkStart).toBeGreaterThan(-1);
+    expect(toggle).toBeGreaterThan(linkStart);
+    // OfficeNav position unchanged: after Synopsis dialog, before Account menu.
+    const navPanel = nav.indexOf("<SecondEyesPanel />");
+    expect(navPanel).toBeGreaterThan(nav.indexOf("</Dialog>"));
+    expect(navPanel).toBeLessThan(nav.indexOf("<AccountMenu />"));
+  });
+
+  it("keeps the separate Office Claude API and builder controls reachable", () => {
+    expect(panel).toContain('aria-label={open ? "Minimize Claude connection" : "Open Claude connection"}');
+    expect(panel).toContain("onClick={() => setOpen(value => !value)}");
+    expect(panel).toContain('<Link to="/build-testing"');
+    expect(panel).toContain("requestClaudeReview");
+    expect(panel).toContain("getClaudeStatus");
+  });
+
+  it("the in-panel Open Claude link uses the same destination and settings", () => {
+    expect(panel).toContain('<a href={CLAUDE_WEB_URL} target="_blank" rel="noopener noreferrer">Open Claude</a>');
+    expect(panel).not.toContain('rel="noreferrer">');
+  });
+});
+
 describe("one-shot picture of the office page only", () => {
   it("uses the shared office capture and never a camera or screen share", () => {
     expect(panel).toContain("captureOfficeView");
