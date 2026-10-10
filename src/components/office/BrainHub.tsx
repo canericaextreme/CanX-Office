@@ -434,6 +434,12 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                     <>
                       <h3 className="font-serif text-lg font-semibold">{display.name}</h3>
                       <p className="mt-2 text-sm leading-relaxed">{synopsis}</p>
+                      <p className="mt-2 text-xs text-[var(--brain-room-muted)]">
+                        Counts cover readable indexed contents only.
+                        {index?.sources.some((source) => source.status !== "read")
+                          ? " Some sources are unavailable; this summary is partial."
+                          : " Source read limits are listed below."}
+                      </p>
                       <Button
                         size="sm"
                         className="mt-3"
@@ -453,7 +459,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                     aria-pressed={active}
                     aria-describedby={synId}
                     aria-label={`Open ${CATEGORY_LABELS[b]}: ${shelvesReadable ? counts[b] : "unknown"} items`}
-                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition-[transform,box-shadow] duration-200 ease-out group-hover/shelf:-translate-y-0.5 group-hover/shelf:shadow-md group-focus-within/shelf:-translate-y-0.5 group-data-[open=true]/shelf:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-2"
+                    className="brain-shelf-face flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-14 text-left focus-visible:outline-2 focus-visible:outline-offset-4"
                     style={{
                       borderColor: tone(b),
                       boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined,

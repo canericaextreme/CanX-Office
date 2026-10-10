@@ -162,6 +162,15 @@
       "audience": "office-status",
       "summary": "Owner authorized completing the Brain hover bubbles. Reviewed PR82 and merged the candidate; exact merge commit synced to Lovable. Publication requested; signed-in desktop/mobile behavior remains unverified.",
       "evidence": "PR82 merge 99af76fab6e757763376d3dc4b0527c99315e610; CI run 38067856222 passed typecheck, 1475 tests and production build. Lovable deployment request baedda24-27eb-4d3e-b8a8-4b4d31f0e80a returned pending."
+    },
+    {
+      "id": "2026-10-10-brain-shelf-depth-local-draft",
+      "at": "2026-10-10T23:39:00Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared local Brain shelf depth and light upload candidate at owner request. Saved data and filing preserved; separate from PR81 room capture. No push, PR creation, production calls or publication. Device and signed-in visual verification pending.",
+      "evidence": "docs/brain-shelf-depth-draft-pr.md; 48 focused tests, typecheck and production build passed. Fixture checks are not live health verification."
     }
   ]
 }

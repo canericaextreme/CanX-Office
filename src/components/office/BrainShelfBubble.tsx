@@ -54,7 +54,7 @@ export function BrainShelfBubble({
       <PopoverAnchor asChild>
         <div
           ref={anchor}
-          className="group/shelf relative"
+          className="brain-shelf-anchor group/shelf relative"
           data-open={open}
           data-shelf={number}
           onPointerEnter={(e) => {
@@ -83,7 +83,7 @@ export function BrainShelfBubble({
               type="button"
               aria-label={`About ${name}`}
               aria-controls={open ? id : undefined}
-              className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--brain-line)] bg-[var(--brain-card)] text-sm font-bold focus-visible:outline-2"
+              className="brain-shelf-info absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--brain-line)] bg-[var(--brain-card)] text-sm font-bold focus-visible:outline-2"
             >
               i
             </button>
@@ -97,7 +97,7 @@ export function BrainShelfBubble({
         side="top"
         sideOffset={4}
         collisionPadding={12}
-        className="w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] duration-200 ease-out data-[state=open]:[animation-delay:75ms] motion-reduce:animate-none"
+        className="w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] data-[state=open]:animate-none data-[state=closed]:animate-none"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onPointerEnter={(e) => {

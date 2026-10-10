@@ -198,3 +198,23 @@ it("keeps the bubble usable when focus moves to its open button and opens the fu
     expect(screen.queryByRole("dialog")).toBeNull();
   } finally { vi.useRealTimers(); }
 });
+
+
+it("a shelf click remains available while its synopsis is open", async () => {
+  render(<BrainHub fixture={index} />);
+  const card = cardFor("library");
+  fireEvent.pointerEnter(card, { pointerType: "mouse" });
+  expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
+  fireEvent.pointerDown(card, { pointerType: "mouse" });
+  fireEvent.pointerUp(card, { pointerType: "mouse" });
+  fireEvent.click(card);
+  await act(async () => {});
+  expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("discloses partial readable-source counts inside the synopsis", () => {
+  render(<BrainHub fixture={{ ...index, sources: [{ key: "files", label: "Files", status: "failed", count: 0, detail: "Unavailable" }] }} />);
+  fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
+  expect(within(screen.getByRole("dialog")).getByText(/this summary is partial/)).toBeTruthy();
+});
