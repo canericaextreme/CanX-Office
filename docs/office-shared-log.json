@@ -153,6 +153,15 @@
       "audience": "office-status",
       "summary": "Reviewed build 12 against the saved Brain Remodel. Original candidate retained six categories; corrected to eight named shelves with separate compare-and-save filing, shared owner-scoped counts and Elsie context, original upload readback and preservation. Saved label failure is unavailable, not guessed. Installation and actual Elsie acknowledgment remain unverified.",
       "evidence": "docs/brain-remodel-candidate-20261010.md; corrected candidate in PR77. Existing data, legacy filing, authentication and provider controls preserved. No production installation claimed."
+    },
+    {
+      "id": "2026-10-10-brain-shelf-bubbles-release",
+      "at": "2026-10-10T17:40:08.634Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Owner authorized completing the Brain hover bubbles. Reviewed PR82 and merged the candidate; exact merge commit synced to Lovable. Publication requested; signed-in desktop/mobile behavior remains unverified.",
+      "evidence": "PR82 merge 99af76fab6e757763376d3dc4b0527c99315e610; CI run 38067856222 passed typecheck, 1475 tests and production build. Lovable deployment request baedda24-27eb-4d3e-b8a8-4b4d31f0e80a returned pending."
     }
   ]
 }
