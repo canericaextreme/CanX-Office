@@ -153,6 +153,15 @@
       "audience": "office-status",
       "summary": "Reviewed build 12 against the saved Brain Remodel. Original candidate retained six categories; corrected to eight named shelves with separate compare-and-save filing, shared owner-scoped counts and Elsie context, original upload readback and preservation. Saved label failure is unavailable, not guessed. Installation and actual Elsie acknowledgment remain unverified.",
       "evidence": "docs/brain-remodel-candidate-20261010.md; corrected candidate in PR77. Existing data, legacy filing, authentication and provider controls preserved. No production installation claimed."
+    },
+    {
+      "id": "2026-10-10-header-claude-external-link",
+      "at": "2026-10-10T12:00:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Proposed draft for John's request: the header Claude button now opens https://claude.ai/ in a new tab as a plain external link, like Open ChatGPT. The Office Claude API review panel and builder link moved to an adjacent separate button. Not pushed or published; desktop device check pending.",
+      "evidence": "src/components/office/SecondEyesPanel.tsx; regression assertions in src/lib/second-eyes.test.ts. Typecheck, tests and build are run by the fixed runner, not by this builder. No credentials, builders or budgets changed."
     }
   ]
 }

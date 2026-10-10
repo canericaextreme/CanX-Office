@@ -106,6 +106,11 @@ Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403
 
 - Live authorization evidence: PR 68 is merged and its diagnostic code is served at the existing Office URL. Both builder status checks return `CANX_AUTH_REQUEST_FAILED`: app Auth fetch throws before an HTTP response. Runtime network/header/URL/invocation classification prepared; exact transport cause and build access still unverified.
 
+## Header Claude button → claude.ai (10 Oct 2026, draft, unpublished)
+- John asked for the desktop header Claude button to open `https://claude.ai/` in a new tab, like the companion's Open ChatGPT link. The Eye button in `SecondEyesPanel` (same header position, between Synopsis and the account menu) is now a plain `<a target="_blank" rel="noopener noreferrer">` with no click handler or scripted window.
+- The Office Claude panel (Office Claude API reviews, connection check, "Claude builds in Office" link) is unchanged and opens from a separate adjacent button, which keeps the previous "Open Claude connection" label and the status dot. No builder, credential, routing or budget setting changed.
+- Validation: source-level regression tests only. Desktop new-tab behaviour and the header layout on narrow screens still need a check on a real device.
+
 ## Colleague relay (9 Oct 2026, unpublished)
 - Installed and unit-tested: MCP `relay_to_colleague` (claude|chatgpt Office API colleague, one task, one request id, owner direction note `canx-communication-20261008` labelled) and `read_colleague_replies`.
 - Not live tested: no signed-in owner round trip yet. Does not wake native external Claude/ChatGPT chats.
