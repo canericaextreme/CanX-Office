@@ -1,19 +1,21 @@
-# Draft: Brain shelf synopsis bubbles
+# Draft: Brain shelf forward motion and narrative bubbles
 
-Brain hover/focus bubbles previously rendered full indexed record lists and filing controls. They now show only a brief shelf synopsis with its current indexed count and an Open button. Clicking the shelf opens its full contents without truncation. Empty shelves report 0 items; unreadable shelf labels retain the unknown-count warning.
+Brain shelves now enlarge to 110% with the shared Office map's 300ms transition, inspected alongside LegalRoom and RoomHotspot. Legal and the shared map remain unchanged. A stationary outer boundary, raised active stacking, wider grid spacing and a 200ms pointer-gap grace period keep the interaction stable.
 
-LegalRoom was inspected: its topic cards present descriptions and counts before selection reveals papers. This checkout has no separate Legal synopsis hover implementation. Brain follows that synopsis-first interaction while retaining its existing Radix portal, viewport collision handling, Escape dismissal, keyboard focus and touch information-button toggle.
+The small portalled bubble reveals over 200ms after a 100ms delay, so forward motion starts first. Explicit opacity states and animation fill in both directions hide the opening delay and preserve a smooth exit. Reduced motion disables shelf transforms and bubble animation while keeping the bubble visible.
 
-Shelves move forward visually by two pixels with a gentle transition. The compact bubble fades/zooms over 200 ms after a 75 ms opening animation delay. A 200 ms close delay bridges the pointer gap; focus within the shelf or bubble prevents pointer-leave dismissal. Reduced-motion and existing Office movement settings remain supported.
+All eight summaries begin “On this shelf you will find...” and distinguish intended use from confirmed indexed titles (at most three bounded examples), with counts secondary. Rulebook covers working instructions, agreed rules, saved team guidance and canonical Office Skills. Unreadable filing reveals no titles; empty and partial readable-index states disclose their limits. Summaries do not inspect originals or infer filing from titles.
 
-## Checks
+Clicking the shelf or bubble's Open button retains the complete indexed list and existing filing controls. Keyboard focus, Escape, focus transfer into the portal and touch information-button toggling remain supported.
 
-Targeted Brain interaction, populated Brain, LegalRoom and shelf-registry tests pass (41 tests), including 25/82-item counts and complete shelf lists, pointer crossing, keyboard/Escape, focus retention, touch toggling and empty/unreadable states. TypeScript checking passes. Fixture checks do not verify signed-in saved-data behavior.
+## Validation
 
-## Device verification still needed
+45 targeted tests pass: shelf summary/registry, Brain interaction, populated Brain and saved-file tooltip fixtures. Coverage includes all eight purposes, unavailable metadata, partial sources, motion classes and ordering, initial reveal fill, stationary boundary, pointer crossing, keyboard/Escape, touch toggling and complete 25/82-record lists with filing controls. Typecheck and production build pass. These are fixture and compile checks, not signed-in verification.
 
-Check the animation and pointer crossing in a desktop browser, collision positioning near viewport edges, keyboard and screen-reader announcement, reduced-motion behavior, and tap toggling/direct shelf opening on iOS and Android. No production systems were called.
+## Device testing required
+
+Check desktop animation timing and absence of a flash, smooth exit, rapid pointer movement, enlarged-card spacing, long-card/viewport-edge collision placement, keyboard and screen-reader use, reduced motion, and iOS/Android tap toggling and direct opening.
 
 ## Draft status
 
-Changes remain local and uncommitted for review. No push, merge, publication or external contact was performed. No protected configuration or saved-data behavior was changed.
+Local, uncommitted changes only. No production calls, push, merge, publication or external contact. No protected configuration, credentials, access controls, dependencies or saved-data behavior changed.

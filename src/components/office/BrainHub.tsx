@@ -413,12 +413,12 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
         <>
           <nav
             aria-label="Brain categories"
-            className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3"
+            className="mt-4 grid grid-cols-1 gap-6 p-3 min-[420px]:grid-cols-2 lg:grid-cols-3"
           >
             {buckets.map((b, shelfNumber) => {
               const active = cat === b;
               const display = SHELF_DISPLAY[b];
-              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable);
+              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable, index?.sources.some((source) => source.status !== "read" || /limit|cap|truncat/i.test(source.detail)));
               const synId = `shelf-synopsis-${b}`;
               return (
                 <BrainShelfBubble
@@ -453,7 +453,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                     aria-pressed={active}
                     aria-describedby={synId}
                     aria-label={`Open ${CATEGORY_LABELS[b]}: ${shelvesReadable ? counts[b] : "unknown"} items`}
-                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition-[transform,box-shadow] duration-200 ease-out group-hover/shelf:-translate-y-0.5 group-hover/shelf:shadow-md group-focus-within/shelf:-translate-y-0.5 group-data-[open=true]/shelf:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-2"
+                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition duration-300 group-hover/shelf:scale-110 group-hover/shelf:shadow-xl focus-visible:scale-110 group-focus-within/shelf:scale-110 group-data-[open=true]/shelf:scale-110 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-2"
                     style={{
                       borderColor: tone(b),
                       boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined,
