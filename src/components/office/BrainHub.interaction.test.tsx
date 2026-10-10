@@ -104,7 +104,7 @@ it("shelf cards show number badge, colour name, guide wording, Who's who strip a
   expect(document.querySelectorAll("[data-cast]").length).toBe(5);
   // synopsis exists for keyboard and screen-reader users, is built from the shelf's records, and the touch button toggles it
   const tip = document.getElementById("shelf-synopsis-workshop") as HTMLElement;
-  expect(tip.textContent).toMatch(/The Workshop: Projects and apps\. 1 item \(1 file\)/);
+  expect(tip.textContent).toContain("Currently indexed here: “Item in Workshop”");
   const info = screen.getByRole("button", { name: "About The Workshop" });
   expect(info.getAttribute("aria-expanded")).toBe("false");
   fireEvent.click(info);
@@ -116,7 +116,7 @@ it.each([25, 82])("shows a brief synopsis for %i items and opens every item on s
   render(<BrainHub fixture={{ ...index, items: library }} />);
   fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
   const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
-  expect(within(bubble).getByText(new RegExp(`${count} items`))).toBeTruthy();
+  expect(within(bubble).getByText(new RegExp(`${count} indexed items`))).toBeTruthy();
   expect(within(bubble).queryByRole("list")).toBeNull();
   expect(within(bubble).queryByText("Library record 0")).toBeNull();
   expect(within(bubble).queryByRole("combobox")).toBeNull();
@@ -197,4 +197,25 @@ it("keeps the bubble usable when focus moves to its open button and opens the fu
     expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
   } finally { vi.useRealTimers(); }
+});
+
+it("starts forward motion on a stationary boundary before the hidden bubble reveal", () => {
+  render(<BrainHub fixture={index} />);
+  const card = cardFor("library");
+  const boundary = card.parentElement!;
+  expect(boundary.className).not.toMatch(/scale-|translate-/);
+  expect(boundary.className).toContain("hover:z-20");
+  expect(card.className).toContain("group-hover/shelf:scale-110");
+  expect(card.className).toContain("focus-visible:scale-110");
+  expect(card.className).toContain("duration-300");
+  expect(card.className).toContain("motion-reduce:transform-none");
+  expect(card.className).not.toContain("translate-y");
+  fireEvent.pointerEnter(boundary, { pointerType: "mouse" });
+  const bubble = screen.getByRole("dialog");
+  expect(bubble.className).toContain("opacity-0");
+  expect(bubble.className).toContain("[animation-fill-mode:both]");
+  expect(bubble.className).toContain("data-[state=open]:[animation-delay:100ms]");
+  expect(bubble.className).toContain("data-[state=closed]:fade-out-0");
+  expect(bubble.className).toContain("motion-reduce:opacity-100");
+  expect(bubble.className).toContain("motion-reduce:animate-none");
 });

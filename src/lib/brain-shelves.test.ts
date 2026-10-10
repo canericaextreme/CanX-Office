@@ -199,7 +199,7 @@ describe("hover synopsis comes only from live records", () => {
     ({ key, kind, title: `T ${key}`, room: null, folder: null, at, provenance: "x", version: null,
       access: "metadata only", defaultCategory: "unsorted", category: "unsorted", manual: false,
       route: null, shelf }) as unknown as BrainItem;
-  it("counts items by type and shows the newest saved date, without listing titles", () => {
+  it("describes intended use and confirmed indexed subjects, keeping counts secondary", () => {
     const items = [
       mk("file:1", "file", "2026-10-01T00:00:00Z", "library"),
       mk("file:2", "file", "2026-10-03T00:00:00Z", "library"),
@@ -207,12 +207,15 @@ describe("hover synopsis comes only from live records", () => {
       mk("file:3", "file", "2026-10-09T00:00:00Z", "diary"),
     ];
     const text = shelfSynopsis(items, "library", true);
-    expect(text).toContain("3 items (2 files, 1 document)");
-    expect(text).toContain("Newest saved 2026-10-03");
-    expect(text).not.toContain("T file:1");
+    expect(text).toContain("3 indexed items");
+    expect(text).toMatch(/^On this shelf you will find/);
+    expect(text).toContain("intended for documents, original files");
+    expect(text).not.toContain("Newest saved");
+    expect(text).toContain("T file:1");
+    expect(text).not.toContain("T file:3");
   });
   it("says nothing is filed when empty, and unknown when shelf labels are unreadable", () => {
-    expect(shelfSynopsis([], "diary", true)).toContain("Nothing is filed here yet.");
+    expect(shelfSynopsis([], "diary", true)).toContain("Nothing is filed here yet in the readable index.");
     const unread = shelfSynopsis([mk("file:1", "file", null, "diary")], "diary", false);
     expect(unread).toContain("count is unknown");
     expect(unread).not.toMatch(/\d+ items?/);
@@ -229,4 +232,22 @@ describe("Elsie receives the same authoritative shelf definitions", () => {
     expect(text).toContain("Elsie is Front-Desk Manager");
     expect(text).toContain("Claude is the Second Pair of Eyes");
   });
+});
+
+
+it("gives every shelf its intended purpose without claiming unavailable contents", () => {
+  for (const shelf of BRAIN_SHELVES) {
+    const text = shelfSynopsis([], shelf, false);
+    expect(text).toMatch(/^On this shelf you will find\.\.\. This shelf is intended for/);
+    expect(text).toContain("contents are unknown");
+    expect(text).not.toContain("Currently indexed");
+  }
+  expect(shelfSynopsis([], "rulebook", true)).toContain("working instructions, agreed rules and saved guidance used by the Office team");
+});
+
+it("discloses partial coverage and excludes unreadable record metadata", () => {
+  const hidden = { kind: "file", shelf: "library", title: "Unavailable title", shelfReadable: false } as BrainItem;
+  const text = shelfSynopsis([hidden], "library", true, true);
+  expect(text).not.toContain("Unavailable title");
+  expect(text).toContain("Some sources are unavailable or limited");
 });

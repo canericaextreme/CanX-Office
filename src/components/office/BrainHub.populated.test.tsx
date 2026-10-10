@@ -24,8 +24,8 @@ it("home shows category shelves and only last-3-day activity, not a full item li
   expect(html).toContain("Recent activity");
   expect(html).toContain("New lease.pdf");
   expect(html).toContain("Budget decision");
-  expect(html).not.toContain("Old archive.pdf"); // older items live in their category / search
-  expect(html.indexOf("New lease.pdf")).toBeLessThan(html.indexOf("Budget decision")); // newest first
+  expect(html.replace(/<span id="shelf-synopsis-[^"]*" class="sr-only">.*?<\/span>/g, "")).not.toContain("Old archive.pdf"); // older items live in their category / search
+  expect(html.lastIndexOf("New lease.pdf")).toBeLessThan(html.lastIndexOf("Budget decision")); // newest first
 });
 
 it("clear empty state when nothing in the last three days; unsorted shelf kept when present", () => {
@@ -34,5 +34,5 @@ it("clear empty state when nothing in the last three days; unsorted shelf kept w
   ]) }));
   expect(html).toContain("Nothing saved in the last three days");
   expect(html).toContain("Lost-and-Found");
-  expect(html).not.toContain("Undated thing");
+  expect(html.replace(/<span id="shelf-synopsis-[^"]*" class="sr-only">.*?<\/span>/g, "")).not.toContain("Undated thing");
 });

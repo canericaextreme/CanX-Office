@@ -63,21 +63,37 @@ export const BRAIN_CAST: readonly { who: string; role: string }[] = [
   { who: "Brain", role: "the Memory Keeper" },
   { who: "Codex and Claude builders", role: "the Workshop Crew" },
 ];
-/** Hover synopsis, built only from the live index: never typed in by hand, never guessed. */
-export function shelfSynopsis(items: BrainItem[], shelf: BrainShelf, readable: boolean): string {
-  const { name, guide } = SHELF_DISPLAY[shelf];
-  if (!readable) return `${name}: ${guide} The count is unknown because shelf labels could not be read.`;
-  const here = items.filter((i) => itemShelf(i) === shelf);
-  if (here.length === 0) return `${name}: ${guide} 0 items. Nothing is filed here yet.`;
-  const kinds = new Map<string, number>();
-  for (const i of here) kinds.set(i.kind, (kinds.get(i.kind) ?? 0) + 1);
-  const KIND_WORD: Record<string, string> = { file: "file", link: "link", doc: "document", note: "note", project: "project", skill: "skill", memory: "memory" };
-  const parts = [...kinds.entries()].map(([k, n]) => `${n} ${KIND_WORD[k] ?? k}${n === 1 ? "" : "s"}`);
-  const times = here
-    .map((i) => (i.at ? new Date(i.at).getTime() : NaN))
-    .filter((t) => !Number.isNaN(t));
-  const newest = times.length ? ` Newest saved ${new Date(Math.max(...times)).toISOString().slice(0, 10)}.` : "";
-  return `${name}: ${guide} ${here.length} item${here.length === 1 ? "" : "s"} (${parts.join(", ")}).${newest}`;
+/** Intended uses are distinct from metadata confirmed in the readable index. */
+const SHELF_PURPOSE: Record<BrainShelf, string> = {
+  compass: "goals, direction and working preferences to help the Office team plan in John's style",
+  rulebook: "working instructions, agreed rules and saved guidance used by the Office team, including canonical Office Skills",
+  workshop: "projects, apps and their work to support planning and building",
+  "piggy-bank": "costs, receipts and subscriptions to support financial review under existing Finance permissions",
+  library: "documents, original files, links and imported text to consult and reuse",
+  diary: "saved conversations and summaries to revisit decisions and context",
+  logbook: "build and connection history to trace changes and follow up on outcomes",
+  "lost-and-found": "unfiled records, open problems and duplicates to review and file without changing originals",
+};
+
+export function shelfSynopsis(
+  items: BrainItem[], shelf: BrainShelf, readable: boolean, incomplete = false,
+): string {
+  const purpose = `On this shelf you will find... This shelf is intended for ${SHELF_PURPOSE[shelf]}.`;
+  if (!readable)
+    return `${purpose} Current contents are unknown and the count is unknown because shelf labels could not be read.`;
+  const here = items.filter((i) => itemShelf(i) === shelf && i.shelfReadable !== false);
+  const coverage = incomplete
+    ? " Some sources are unavailable or limited; this is only the readable index."
+    : " This describes indexed metadata, not a review of the originals.";
+  if (here.length === 0)
+    return `${purpose} Nothing is filed here yet in the readable index.${coverage}`;
+  // Titles are evidence of subjects, not a basis for classification or claims about file contents.
+  const titles = [...new Set(here.map((i) => i.title.replace(/\s+/g, " ").trim()).filter(Boolean))]
+    .slice(0, 3).map((title) => `“${title.length > 80 ? title.slice(0, 77) + "…" : title}”`);
+  const confirmed = titles.length
+    ? ` Currently indexed here: ${titles.join("; ")}${here.length > titles.length ? "; and other records" : ""}.`
+    : " Records are indexed here, but their subjects are not available in the metadata.";
+  return `${purpose}${confirmed} ${here.length} indexed item${here.length === 1 ? "" : "s"}.${coverage}`;
 }
 export const SHELF_SOURCE = "Brain shelf: filing";
 export const shelfNoteId = (key: string) => `bshelf-${sha256Hex(key)}`;

@@ -54,7 +54,7 @@ export function BrainShelfBubble({
       <PopoverAnchor asChild>
         <div
           ref={anchor}
-          className="group/shelf relative"
+          className="group/shelf relative hover:z-20 focus-within:z-20 data-[open=true]:z-20"
           data-open={open}
           data-shelf={number}
           onPointerEnter={(e) => {
@@ -95,9 +95,9 @@ export function BrainShelfBubble({
         id={id}
         aria-label={`${name} synopsis`}
         side="top"
-        sideOffset={4}
+        sideOffset={12}
         collisionPadding={12}
-        className="w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] duration-200 ease-out data-[state=open]:[animation-delay:75ms] motion-reduce:animate-none"
+        className="w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] opacity-0 data-[state=open]:opacity-100 data-[state=closed]:opacity-100 duration-200 ease-out [animation-fill-mode:both] data-[state=open]:[animation-delay:100ms] motion-reduce:animate-none motion-reduce:opacity-100"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onPointerEnter={(e) => {
