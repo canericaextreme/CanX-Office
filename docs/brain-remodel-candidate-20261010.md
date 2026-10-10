@@ -21,3 +21,19 @@ Build12 source: `2fac9ecb1ed2b1ebac277eb5944e962a42fda586`. Initial candidate co
 ## Installation acceptance pending
 
 This candidate is not installed or published. On an authorized signed-in owner preview, test a real upload, independently reload its original and shelf filing, compare actual counts/filtering, open each shelf, exercise app/browser Back and test responsive layout. Confirm source failures/denied reads and Finance/MFA boundaries remain visible. Ask Elsie in her real chat to read and describe the installed shelf names, functions, source limits and actual saved test receipt. Saving her briefing is not an acknowledgment or comprehension test. The Office connector supports saved records and Claude/ChatGPT colleague relays, but does not expose Elsie's live chat. Signed-in browser access is needed for this acceptance work; no permission bypass or substitute colleague response will be used.
+
+## Reconciliation with the agreed design (Claude builder, 9 October 2026)
+
+Compared PR70 (`a8b47c0`), saved records `brain-shelves-plan-20261009` and `brain-map-20261008` parts 1–4, and candidate PR77 (`93257f2`). The eight-shelf data layer, colours (hex values), filing, counts and upload behaviour already matched. Four display differences were found and aligned to the agreed design, with no change to the data layer:
+
+1. Shelf cards now show the number badge, the agreed name ("The Compass" … "The Lost-and-Found"), the colour name ("Yellow shelf" …) and the PR70 guide wording, with a full-colour border. Text carries every signal, so colour is never the only cue.
+2. The cast is a "Who's who" strip of five cards, named as in the saved map (Elsie, ChatGPT, Claude, Brain, Codex and Claude builders).
+3. Hover/focus/touch summary per shelf, built only from the live index (count by type and newest saved date, no titles, "unknown" when labels are unreadable, "nothing filed" when empty). An info button toggles it on touch screens.
+4. Elsie's per-request Brain context now uses the same registry: shelf number, name, colour, guide, cast.
+
+Unchanged: separate "ChatGPT / Codex" and "Claude" builder cards, Legal-style header, filing, readback, upload and permission code. No migration, credential, spending or publication change.
+
+### Verification (this commit)
+- Typecheck passed. Full suite: 144 files / 1,469 tests passed (baseline candidate: 1,463; six new tests cover the display registry, cast, synopsis and Elsie context). Production build passed. `git diff --check` passed.
+- Dependencies were installed with npm because the bun lockfile points at a private package cache this environment cannot reach (HTTP 403); versions may differ slightly from `bun.lock`.
+- NOT yet done: signed-in owner preview, real upload and reload check, responsive check, and Elsie's live chat test (needs owner sign-in and two-step verification). Not installed or published.

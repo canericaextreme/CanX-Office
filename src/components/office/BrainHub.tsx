@@ -34,6 +34,9 @@ import {
   SHELF_LABELS as CATEGORY_LABELS,
   SHELF_HELP as CATEGORY_HELP,
   SHELF_COLORS,
+  SHELF_DISPLAY,
+  BRAIN_CAST,
+  shelfSynopsis,
   countByShelf as countByCategory,
   itemShelf,
   defaultShelf,
@@ -79,6 +82,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [infoOpen, setInfoOpen] = useState<BrainBucket | null>(null);
 
   useEffect(() => {
     if (fixture) return;
@@ -411,49 +415,68 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
             className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3"
           >
             {buckets.map((b, shelfNumber) => {
-              const Icon = ICONS[b];
               const active = cat === b;
+              const display = SHELF_DISPLAY[b];
+              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable);
+              const synId = `shelf-synopsis-${b}`;
               return (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() => open(b)}
-                  aria-pressed={active}
-                  aria-label={`Open ${CATEGORY_LABELS[b]}: ${shelvesReadable ? counts[b] : "unknown"} items`}
-                  className="group flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border bg-[var(--brain-card)] p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2"
-                  style={{
-                    borderColor: active ? tone(b) : "var(--brain-line)",
-                    borderTop: `5px solid ${tone(b)}`,
-                    boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined,
-                  }}
-                >
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                <div key={b} className="group relative" data-shelf={shelfNumber + 1}>
+                  <button
+                    type="button"
+                    onClick={() => open(b)}
+                    aria-pressed={active}
+                    aria-describedby={synId}
+                    aria-label={`Open ${CATEGORY_LABELS[b]}: ${shelvesReadable ? counts[b] : "unknown"} items`}
+                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2"
                     style={{
-                      background: `color-mix(in oklab, ${tone(b)} 14%, transparent)`,
-                      color: tone(b),
+                      borderColor: tone(b),
+                      boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined,
                     }}
                   >
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider">
-                      Shelf {String(shelfNumber + 1).padStart(2, "0")}
-                    </span>
-                    <span className="block font-serif text-xl font-semibold">
-                      {CATEGORY_LABELS[b]}
-                    </span>
                     <span
-                      className="block text-sm font-medium"
-                      style={{ color: "var(--brain-room-ink)" }}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-lg font-extrabold"
+                      style={{ backgroundColor: tone(b), color: display.ink }}
+                      aria-hidden
                     >
-                      {shelvesReadable ? `${counts[b]} item${counts[b] === 1 ? "" : "s"}` : "–"}
+                      {shelfNumber + 1}
                     </span>
-                    <span className="mt-1 line-clamp-2 block text-xs text-[var(--brain-room-muted)]">
-                      {CATEGORY_HELP[b]}
+                    <span className="min-w-0">
+                      <span className="block break-words font-serif text-xl font-semibold uppercase leading-tight">
+                        {display.name}
+                      </span>
+                      <span className="block text-xs font-semibold uppercase tracking-wide">
+                        {display.colourName} shelf
+                      </span>
+                      <span
+                        className="block text-sm font-medium"
+                        style={{ color: "var(--brain-room-ink)" }}
+                      >
+                        {shelvesReadable ? `${counts[b]} item${counts[b] === 1 ? "" : "s"}` : "–"}
+                      </span>
+                      <span className="mt-1 block text-sm leading-snug text-[var(--brain-room-muted)]">
+                        {display.guide}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`About ${display.name}`}
+                    aria-expanded={infoOpen === b}
+                    onClick={() => setInfoOpen(infoOpen === b ? null : b)}
+                    className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--brain-line)] bg-[var(--brain-card)] text-sm font-bold focus-visible:outline-2"
+                  >
+                    i
+                  </button>
+                  <p
+                    id={synId}
+                    role="tooltip"
+                    className={`absolute inset-x-2 top-full z-20 mt-1 rounded-lg border border-[var(--brain-line)] bg-[var(--brain-card)] p-3 text-xs leading-snug shadow-lg ${
+                      infoOpen === b ? "block" : "hidden group-hover:block group-focus-within:block"
+                    }`}
+                  >
+                    {synopsis}
+                  </p>
+                </div>
               );
             })}
           </nav>
@@ -645,10 +668,23 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
       )}
 
       {cat === null && (
-        <p className="mt-4 text-sm">
-          Elsie — Front-Desk Manager · ChatGPT — Drafter · Claude — Second Pair of Eyes · Brain —
-          Memory Keeper · Codex and Claude builders — Workshop Crew
-        </p>
+        <div className="mt-4 space-y-2">
+          <h3 id="brain-cast-heading" className="text-base font-bold">
+            Who's who
+          </h3>
+          <ul aria-labelledby="brain-cast-heading" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {BRAIN_CAST.map((m) => (
+              <li
+                key={m.who}
+                data-cast={m.who}
+                className="rounded-lg border border-[var(--brain-line)] bg-[var(--brain-card)] p-3"
+              >
+                <p className="text-sm font-bold">{m.who}</p>
+                <p className="text-sm">{m.role}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {cat === null && (
         <div aria-label="Office builders" className="mt-5 grid gap-3 sm:grid-cols-2">

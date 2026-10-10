@@ -163,3 +163,70 @@ describe("eight-shelf storage foundation", () => {
     expect(db.writes).toHaveLength(0);
   });
 });
+
+import {
+  BRAIN_SHELVES,
+  SHELF_COLORS,
+  SHELF_DISPLAY,
+  BRAIN_CAST,
+  shelfSynopsis,
+} from "./brain-shelves";
+import type { BrainItem } from "./brain-index";
+
+describe("agreed shelf display design (PR70 + brain map)", () => {
+  it("has all eight shelves with the agreed names, colour names and colours", () => {
+    expect(BRAIN_SHELVES.map((s) => SHELF_DISPLAY[s].name)).toEqual([
+      "The Compass", "The Rulebook", "The Workshop", "The Piggy Bank",
+      "The Library", "The Diary", "The Logbook", "The Lost-and-Found",
+    ]);
+    expect(BRAIN_SHELVES.map((s) => SHELF_DISPLAY[s].colourName)).toEqual([
+      "Yellow", "Red", "Green", "Orange", "Blue", "Purple", "Light grey", "Dark grey",
+    ]);
+    expect(BRAIN_SHELVES.map((s) => SHELF_COLORS[s])).toEqual([
+      "#FACC15", "#B91C1C", "#15803D", "#F97316", "#1D4ED8", "#7E22CE", "#D1D5DB", "#374151",
+    ]);
+  });
+  it("names the cast as in the saved map", () => {
+    expect(BRAIN_CAST.map((c) => `${c.who}: ${c.role}`)).toEqual([
+      "Elsie: Front-Desk Manager", "ChatGPT: the Drafter", "Claude: the Second Pair of Eyes",
+      "Brain: the Memory Keeper", "Codex and Claude builders: the Workshop Crew",
+    ]);
+  });
+});
+
+describe("hover synopsis comes only from live records", () => {
+  const mk = (key: string, kind: BrainItem["kind"], at: string | null, shelf?: BrainItem["shelf"]) =>
+    ({ key, kind, title: `T ${key}`, room: null, folder: null, at, provenance: "x", version: null,
+      access: "metadata only", defaultCategory: "unsorted", category: "unsorted", manual: false,
+      route: null, shelf }) as unknown as BrainItem;
+  it("counts items by type and shows the newest saved date, without listing titles", () => {
+    const items = [
+      mk("file:1", "file", "2026-10-01T00:00:00Z", "library"),
+      mk("file:2", "file", "2026-10-03T00:00:00Z", "library"),
+      mk("doc:1", "doc", null, "library"),
+      mk("file:3", "file", "2026-10-09T00:00:00Z", "diary"),
+    ];
+    const text = shelfSynopsis(items, "library", true);
+    expect(text).toContain("3 items (2 files, 1 document)");
+    expect(text).toContain("Newest saved 2026-10-03");
+    expect(text).not.toContain("T file:1");
+  });
+  it("says nothing is filed when empty, and unknown when shelf labels are unreadable", () => {
+    expect(shelfSynopsis([], "diary", true)).toContain("Nothing is filed here yet.");
+    const unread = shelfSynopsis([mk("file:1", "file", null, "diary")], "diary", false);
+    expect(unread).toContain("count is unknown");
+    expect(unread).not.toMatch(/\d+ items?/);
+  });
+});
+
+describe("Elsie receives the same authoritative shelf definitions", () => {
+  it("lists every shelf with its number, agreed name, colour and the cast", () => {
+    const idx = { checkedAt: "2026-10-03T22:00:00Z", items: [], sources: [], orphanLabels: 0 } as unknown as Parameters<typeof shelvesForModel>[0];
+    const text = shelvesForModel(idx).join("\n");
+    BRAIN_SHELVES.forEach((s, n) => {
+      expect(text).toContain(`Shelf ${n + 1}, ${SHELF_DISPLAY[s].name} (${SHELF_DISPLAY[s].colourName}, ${SHELF_COLORS[s]})`);
+    });
+    expect(text).toContain("Elsie is Front-Desk Manager");
+    expect(text).toContain("Claude is the Second Pair of Eyes");
+  });
+});

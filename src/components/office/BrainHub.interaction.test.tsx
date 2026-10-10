@@ -93,3 +93,20 @@ it("provides two provider navigation cards without submitting a build", () => {
   expect(screen.getByRole("link", { name: "Open ChatGPT / Codex builder" }).getAttribute("href")).toBe("/build-testing#codex-builder");
   expect(screen.getByRole("link", { name: "Open Claude builder" }).getAttribute("href")).toBe("/build-testing#claude-builder");
 });
+
+it("shelf cards show number badge, colour name, guide wording, Who's who strip and a live hover summary", () => {
+  render(<BrainHub fixture={{ checkedAt: "2026-10-03T22:00:00Z", items, sources: [], orphanLabels: 0 }} />);
+  const card = document.querySelector('[data-shelf="3"]') as HTMLElement;
+  expect(card.textContent).toContain("The Workshop");
+  expect(card.textContent).toContain("Green shelf");
+  expect(card.textContent).toContain("Projects and apps.");
+  expect(screen.getByRole("heading", { name: "Who's who" })).toBeTruthy();
+  expect(document.querySelectorAll("[data-cast]").length).toBe(5);
+  // synopsis exists for keyboard and screen-reader users, is built from the shelf's records, and the touch button toggles it
+  const tip = document.getElementById("shelf-synopsis-workshop") as HTMLElement;
+  expect(tip.textContent).toMatch(/The Workshop: Projects and apps\. 1 item \(1 file\)/);
+  const info = screen.getByRole("button", { name: "About The Workshop" });
+  expect(info.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(info);
+  expect(info.getAttribute("aria-expanded")).toBe("true");
+});
