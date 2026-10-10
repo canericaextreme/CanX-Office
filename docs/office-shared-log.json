@@ -2,6 +2,15 @@
   "version": 1,
   "entries": [
     {
+      "id": "2026-10-10-room-capture-phase1-proposed",
+      "at": "2026-10-10T16:40:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "PROPOSED, not merged or deployed: draft PR adds a real-browser room capture script, capture rules with tests, and a design document. No assistant has yet retrieved or described a captured image; live-Office capture, retrieval and signed-out refusal are untested.",
+      "evidence": "Fixture-based Chromium runs and unit tests in a scratch install; see docs/room-capture-design.md. No credentials recorded."
+    },
+    {
       "id": "2026-10-05-stage1-approved",
       "at": "2026-10-05T16:05:10Z",
       "actor": "John",
