@@ -32,8 +32,8 @@ function BuildTesting() {
   return (
     <RoomShell>
       <div className="space-y-6">
-        <CodexBuildPanel />
-        <ClaudeBuildPanel />
+        <div id="codex-builder"><CodexBuildPanel /></div>
+        <div id="claude-builder"><ClaudeBuildPanel /></div>
         <OfficeHealthPanel />
         <RoomConnectionCheck />
         <Card className="border-border bg-card">

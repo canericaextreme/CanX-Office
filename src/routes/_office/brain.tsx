@@ -22,11 +22,11 @@ export const Route = createFileRoute("/_office/brain")({
 
 function Brain() {
   return (
-    <RoomShell>
+    <RoomShell showFiles={false} showSample={false}>
       <div className="space-y-6">
         <BrainHub />
-        <BrainDocuments />
-        <BrainMemory />
+        <div id="brain-documents"><BrainDocuments /></div>
+        <div id="brain-memory"><BrainMemory /></div>
         <BrainMap />
         <Card className="border-border bg-card">
           <CardHeader>

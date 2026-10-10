@@ -6,6 +6,7 @@ vi.mock("@tanstack/react-start", () => ({ useServerFn: () => vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children: React.ReactNode }) => React.createElement("a", null, children) }));
 vi.mock("@/lib/brain-index.functions", () => ({ getBrainIndex: {}, setBrainCategory: {} }));
 vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => ({ accessToken: "fixture", stepUpComplete: true }) }));
+vi.mock("./OfficeFiles", () => ({ OfficeFiles: ({ onSaved }: { onSaved?: () => void }) => React.createElement("button", { onClick: onSaved }, "Upload from computer") }));
 import { BrainHub } from "./BrainHub";
 import type { BrainIndex, BrainItem } from "@/lib/brain-index";
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readBrainIndexWith, type BrainRest } from "./brain-index.server";
 import {
-  CATEGORY_NOTE_SOURCE, brainIndexForModel, categoryNoteId, countByCategory, isItemKey, noteDefaultCategory, requestNeedsBrain, searchBrain,
+  BRAIN_CATEGORIES, CATEGORY_HELP, brainShelfRoute, brainShelfFromHash, CATEGORY_NOTE_SOURCE, brainIndexForModel, categoryNoteId, countByCategory, isItemKey, noteDefaultCategory, requestNeedsBrain, searchBrain,
 } from "./brain-index";
 import { OFFICE_SKILLS } from "./office-skills";
 import { readRoomSnapshotWith } from "./room-snapshot.server";
@@ -193,4 +193,19 @@ describe("Brain recent activity", () => {
     ];
     expect(recentBrainItems(items, new Date("2026-10-03T22:00:00Z")).map((i) => i.key)).toEqual(["b", "a"]);
   });
+});
+
+
+it("shares every shelf description and working route with Elsie without implying a live verification", () => {
+  const context = brainIndexForModel({ checkedAt: "2026-10-10T00:00:00Z", items: [], sources: [], orphanLabels: 0 }, "Brain remodel");
+  for (const shelf of [...BRAIN_CATEGORIES, "unsorted" as const]) {
+    expect(context).toContain(CATEGORY_HELP[shelf]);
+    expect(context).toContain(brainShelfRoute(shelf));
+    expect(brainShelfFromHash(`#shelf-${shelf}`)).toBe(shelf);
+  }
+  expect(brainShelfFromHash("#unknown")).toBeNull();
+  expect(context).toContain("/build-testing#codex-builder");
+  expect(context).toContain("/build-testing#claude-builder");
+  expect(context).toContain("initially files under Downloads");
+  expect(context).toContain("METADATA INDEX ONLY");
 });

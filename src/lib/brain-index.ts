@@ -44,6 +44,16 @@ export const CATEGORY_HELP: Record<BrainBucket, string> = {
   unsorted: "Saved items whose origin isn't recognised. Choose a category; nothing is lost meanwhile.",
 };
 
+/** Stable shelf links shared by the UI and Elsie's metadata context. */
+export const brainShelfRoute = (bucket: BrainBucket) => `/brain#shelf-${bucket}`;
+export function brainShelfFromHash(hash: string): BrainBucket | null {
+  return [...BRAIN_CATEGORIES, "unsorted" as const].find((b) => hash === `#shelf-${b}`) ?? null;
+}
+export const BRAIN_PROVIDER_CARDS = [
+  { label: "ChatGPT / Codex", route: "/build-testing#codex-builder", description: "Default Office code builder. Open the existing build controls to check status or prepare John's request." },
+  { label: "Claude", route: "/build-testing#claude-builder", description: "Office code builder when John names Claude. Open the existing Claude controls; no automatic fallback between providers." },
+] as const;
+
 /** Only these item kinds can be re-filed by John; derived views cannot. */
 export type BrainItemKind = "file" | "link" | "doc" | "note" | "project" | "skill";
 export const REFILEABLE: BrainItemKind[] = ["file", "link", "doc", "note"];
@@ -155,6 +165,9 @@ export function brainIndexForModel(index: BrainIndex, request: string, limit = 1
   const lines = [
     `CanX Brain index [checked ${index.checkedAt}; owner-scoped database + app registry]. METADATA INDEX ONLY — titles, rooms, folders and versions. It is NOT the content of files; never claim to have read a file from this list. Document text is available only through the document knowledge source with its coverage line.`,
     `Category counts: ${(Object.keys(CATEGORY_LABELS) as BrainBucket[]).map((k) => `${CATEGORY_LABELS[k]} ${counts[k]}`).join(", ")}.`,
+    ...[...BRAIN_CATEGORIES, "unsorted" as const].map((b) => `Shelf ${CATEGORY_LABELS[b]}: ${brainShelfRoute(b)} — ${CATEGORY_HELP[b]}`),
+    "Shelf controls: search, room/folder filters, Back, original-source Open and eligible manual category labels. Upload from computer uses existing saved-file controls and initially files under Downloads; Knowledge also has document text import. Counts reflect readable indexed sources; denied/failed/capped sources are disclosed, not complete totals.",
+    ...BRAIN_PROVIDER_CARDS.map((p) => `Provider card ${p.label}: ${p.route} — ${p.description}`),
     ...index.sources.map((s) => `- source ${s.label}: ${s.status}${s.count !== null ? `, ${s.count}` : ""}${s.detail ? ` (${s.detail})` : ""}`),
     `Discussions are explicitly saved summaries; Memory is saved continuity and John's decisions. Temporary chat history is neither.`,
   ];

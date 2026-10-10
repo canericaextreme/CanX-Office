@@ -7,6 +7,7 @@ vi.mock("@tanstack/react-start", () => ({ useServerFn: () => vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children: React.ReactNode }) => React.createElement("a", { href: "#" }, children) }));
 vi.mock("@/lib/brain-index.functions", () => ({ getBrainIndex: {}, setBrainCategory: {} }));
 vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => ({ accessToken: "fixture", stepUpComplete: true }) }));
+vi.mock("./OfficeFiles", () => ({ OfficeFiles: ({ onSaved }: { onSaved?: () => void }) => React.createElement("button", { onClick: onSaved }, "Upload from computer") }));
 import { BrainHub } from "./BrainHub";
 import { BRAIN_CATEGORIES, CATEGORY_LABELS, type BrainIndex, type BrainItem, type BrainBucket } from "@/lib/brain-index";
 
@@ -20,7 +21,7 @@ const items: BrainItem[] = [
   mk("note:m", "Item in Memory", "memory"), mk("project:p", "Item in Projects", "projects"), mk("skill:s", "Item in Rules & Skills", "rules-skills"),
 ];
 const index: BrainIndex = { checkedAt: "2026-10-03T22:00:00Z", items, sources: [], orphanLabels: 0 };
-afterEach(cleanup);
+afterEach(() => { cleanup(); window.history.replaceState(null, "", "/brain"); });
 
 const cardFor = (c: BrainBucket) => screen.getByRole("button", { name: new RegExp(`^Open ${CATEGORY_LABELS[c].replace("&", "\\&")}:`) });
 
@@ -68,4 +69,30 @@ describe("Brain category cards open a category view", () => {
     const sel = screen.getByLabelText("Category for Item in Downloads") as HTMLSelectElement;
     expect(sel.disabled).toBe(false);
   });
+});
+
+
+it("opens a direct shelf route, filters its own items, and supports browser navigation", async () => {
+  window.history.replaceState(null, "", "/brain#shelf-downloads");
+  render(<BrainHub fixture={{ ...index, items: [...items, { ...mk("file:two", "Other download", "downloads"), room: "research", folder: "Earlier" }] }} />);
+  await act(async () => {});
+  expect(screen.getByRole("heading", { level: 3, name: /Downloads/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Upload from computer" })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Room"), { target: { value: "research" } });
+  const list = screen.getByRole("list", { name: "Downloads items" });
+  expect(within(list).queryByText("Item in Downloads")).toBeNull();
+  expect(within(list).getByText("Other download")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Search the Brain"), { target: { value: "absent" } });
+  expect(screen.getByText("0 matching items")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Back to all categories" }));
+  expect(window.location.hash).toBe("");
+  expect(screen.getByRole("navigation", { name: "Brain categories" })).toBeTruthy();
+  await act(async () => { window.history.replaceState(null, "", "/brain#shelf-memory"); window.dispatchEvent(new PopStateEvent("popstate")); });
+  expect(screen.getByRole("heading", { level: 3, name: /Memory/ })).toBeTruthy();
+});
+
+it("provides two provider navigation cards without submitting a build", () => {
+  render(<BrainHub fixture={index} />);
+  expect(screen.getByRole("link", { name: "Open ChatGPT / Codex builder" }).getAttribute("href")).toBe("/build-testing#codex-builder");
+  expect(screen.getByRole("link", { name: "Open Claude builder" }).getAttribute("href")).toBe("/build-testing#claude-builder");
 });

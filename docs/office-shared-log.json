@@ -135,6 +135,15 @@
       "audience": "office-status",
       "summary": "Owner-requested relay repair replaces blocked raw OAuth reads/writes with owner working-grant RPCs. Dedicated claim/reply saves preserve earlier text, CAS and request idempotency. Budget reservations use existing limits without initializing or increasing them. Database migration applied; application publication and real Claude acceptance pending.",
       "evidence": "40 targeted tests, typecheck, production build and isolated SQL authorization/claim/save/budget fixtures passed. Migration office_colleague_relay_work_grant applied; live anonymous execute grants denied."
+    },
+    {
+      "id": "2026-10-10-brain-remodel-local-candidate",
+      "at": "2026-10-10T03:20:00Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared local Brain shelf candidate from existing checkout shelf implementation and current owner request. Stable shelf routes, existing computer upload controls, Legal-style header, two provider navigation cards and shared Elsie descriptions added. No records changed, production calls, push or publication. Exact saved-plan/PR comparison and signed-in device acceptance remain pending.",
+      "evidence": "docs/brain-remodel-candidate-20261010.md records source revision, local tests/build and unavailable inputs. Fixture success is not live Office health verification."
     }
   ]
 }
