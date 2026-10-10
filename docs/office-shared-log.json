@@ -2,6 +2,15 @@
   "version": 1,
   "entries": [
     {
+      "id": "2026-10-10-office-access-build-record",
+      "at": "2026-10-10T17:30:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "PROPOSED, not merged or deployed: draft PR #81 now covers all 24 rooms, access rules, room briefs and a build record. Verified only in unit tests and fixture Chromium runs. No assistant has retrieved or described a live room image; Claude, ChatGPT and Elsie are all untested; 0 of 24 rooms verified live.",
+      "evidence": "docs/office-access-build.md; 39 unit tests passing in a scratch install; refusal runs in real Chromium on fixtures. No credentials recorded."
+    },
+    {
       "id": "2026-10-10-room-capture-phase1-proposed",
       "at": "2026-10-10T16:40:00Z",
       "actor": "Claude",

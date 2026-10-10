@@ -41,7 +41,7 @@ The hard part is step 1. The Office is behind owner sign-in. A server browser ha
 ## Recommended build (needs John's approval, step by step)
 
 1. **Capture script** — included in this PR (`scripts/capture/capture-room.mjs`). Real Chromium, desktop and mobile, full page, hover bubble held open, form fields and no-capture areas hidden, JSON record with room, route, time, viewport, build version, state and checksum.
-2. **Rules file** — included (`src/lib/room-capture.ts`) with tests. Allowed rooms, withheld rooms, viewport sizes, record validation, freshness.
+2. **Rules file** — included (`src/lib/room-capture.ts`) with tests. All 24 rooms, two-step tiers, viewport sizes, record validation, freshness.
 3. **Not built yet — each needs a decision:**
    - A GitHub Actions workflow to run the script (workflows are a protected area).
    - A way to open the room as owner. Candidate: the Office's edge function (which already holds the server key) issues a **5-minute, single-use, AAL1** session to the running job, proved by GitHub's OIDC token. Rooms that need the authenticator (AAL2) stay closed to it. This is my suggestion and needs a security review.
@@ -57,9 +57,9 @@ The hard part is step 1. The Office is behind owner sign-in. A server browser ha
 - **Public-repo warning:** workflow logs and artifacts of a public repository can be read by other people. Captures must **never** be stored as workflow artifacts or printed in logs. They must go straight to the private bucket.
 - Approvals needed from John: workflow file, GitHub secrets, the session-issuing function, the migration, the connector tools, deployment. Spending approval is a separate decision.
 
-## Withheld rooms
+## Two-step rooms (updated 10 Oct)
 
-Finance, Subscriptions, Communications and Records are withheld by default because they hold money, mail and file contents. Each needs John's approval by name before it can be captured. Every other room (including Brain and Legal) is allowed.
+Communications, Legal, Subscriptions, Finance and Projects are the Office's own two-step rooms. They can be captured only inside a window John opens with his authenticator. The other 19 rooms (including Brain) use the standard tier. Earlier drafts of this document listed a different withheld set and 20 rooms; that was wrong. See docs/office-access-build.md.
 
 ## Evidence in this PR
 
@@ -68,7 +68,7 @@ All pictures below were made from **fixture pages**, not the live Office, becaus
 - Real Chromium vs HTML redraw on the same fixture: real kept the dark background, tilted shelves, frosted panel text and a hover bubble beside its button; the redraw changed the shelves, lost the panel text and cannot show hover.
 - Five script runs against local fixtures at `http://localhost`: Brain desktop, Brain mobile, Brain desktop with the bubble open, Legal desktop, Legal mobile. Each wrote a PNG and a JSON record; all five records pass `validateCaptureMeta` and their checksums match the images.
 - Masking: the password field and a no-capture panel were absent from every masked capture.
-- Refusals: Finance (withheld), an unknown route and a plain-http remote address all stopped with exit code 2 before opening a browser.
+- Refusals: Finance (two-step), an unknown route and a plain-http remote address all stopped with exit code 2 before opening a browser.
 - Unit tests: `src/lib/room-capture.test.ts` (9 tests) pass in a scratch install.
 
 ## Acceptance status

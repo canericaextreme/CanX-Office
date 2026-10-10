@@ -5,15 +5,16 @@
  * What it does: opens the room in a real Chromium, hides form fields and
  * no-capture areas, takes a full-page PNG (not an HTML redraw) and writes a
  * JSON sidecar (room, route, time, viewport, build version, state, checksum).
+ * It refuses to save a picture that is really a sign-in page, a different
+ * route, an error page or a blank page (see classifyCapture).
  *
  * What it deliberately does NOT do:
  * - It never signs in. Signed-in rooms need a storage-state file supplied by an
  *   owner-approved mechanism that does not exist yet (see
- *   docs/room-capture-design.md). Without one, the room's sign-in screen is
- *   what gets captured — which is itself the "signed-out is refused" proof.
+ *   docs/room-capture-design.md and docs/office-access-build.md).
  * - It accepts no passwords or tokens on the command line.
- * - It captures only rooms on the allowlist, and withholds Finance,
- *   Subscriptions, Communications and Records.
+ * - It captures only Office rooms, and refuses the two-step rooms (Communications,
+ *   Legal, Subscriptions, Finance, Projects), which need the owner's authenticator window.
  * - It uploads nothing and calls no Office service.
  *
  * Usage:
@@ -30,41 +31,47 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
-/* Keep these three blocks identical to src/lib/room-capture.ts; the tests check. */
+/* Keep these blocks identical to src/lib/room-capture.ts; the tests check. */
 export const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
 };
-export const WITHHELD_ROUTES = ["/finance", "/subscriptions", "/communications", "/records"];
+export const TWO_STEP_ROUTES = ["/communications", "/legal", "/subscriptions", "/finance", "/projects"];
 export const MASK_CSS =
   "input,textarea,select,[contenteditable],[data-canx-no-capture]{visibility:hidden !important}";
-
 export const ROOM_LABELS = {
-  "/reception": "Reception / Office Manager",
+  "/reception": "Reception",
   "/owner-desk": "Owner's Desk",
-  "/brain": "Goal & Analytics / CanX Brain",
-  "/idea-garage": "Idea Garage / Income & Decision Room",
-  "/projects": "Project Rooms",
-  "/safe-highways": "Safe Highways Room",
-  "/work-board": "Work Board",
-  "/office-team": "Office Team",
-  "/build-testing": "Build & Testing",
-  "/finance": "Finance Office",
-  "/subscriptions": "Subscription Watch",
-  "/communications": "Communications & Marketing",
-  "/legal": "Legal & Compliance",
-  "/records": "Records & Rules",
-  "/skills": "Skills / SOP Library",
-  "/systems": "Systems & Connections",
-  "/health": "Office Health / Backup & Recovery",
   "/approvals": "Approvals",
-  "/blueprint": "Office Blueprint",
-  "/future": "Future Department",
+  "/idea-garage": "Idea Garage",
+  "/office-team": "Office Team",
+  "/records": "Records",
+  "/blueprint": "Blueprint",
+  "/systems": "Systems",
+  "/health": "Office Health",
+  "/communications": "Communications & Marketing",
+  "/legal": "Legal",
+  "/subscriptions": "Subscriptions",
+  "/finance": "Finance",
+  "/work-board": "Work Board",
+  "/build-testing": "Build & Testing",
+  "/safe-highways": "Safe Highways",
+  "/research": "Research",
+  "/family-continuity": "Family Continuity, Skills & Training",
+  "/future": "Future",
+  "/brain": "Goal & Analytics / CanX Brain",
+  "/projects": "Project Rooms",
+  "/skills": "Skills / SOP Library",
+  "/round-table": "Round Table",
+  "/analytics": "Analytics",
 };
-
 export const ALLOWED_ROUTES = Object.keys(ROOM_LABELS);
 
-function fail(message, code = 2) {
+/** Exit codes: 2 = refused before opening a browser, 3 = page was not the room, 1 = unexpected failure. */
+export const EXIT_REFUSED = 2;
+export const EXIT_NOT_THE_ROOM = 3;
+
+function fail(message, code = EXIT_REFUSED) {
   console.error(`capture refused: ${message}`);
   process.exit(code);
 }
@@ -76,8 +83,22 @@ export function checkTarget(baseUrl, route) {
   if (url.protocol !== "https:" && !(local && url.protocol === "http:")) return "base URL must be https (or localhost)";
   if (url.username || url.password || url.search || url.hash) return "base URL must not contain credentials, query or fragment";
   if (!ALLOWED_ROUTES.includes(route)) return "route is not an Office room";
-  if (WITHHELD_ROUTES.includes(route)) return "this room is withheld from capture until the owner approves it";
+  if (TWO_STEP_ROUTES.includes(route)) return "this room needs the owner's two-step window; this script never opens one";
   return null;
+}
+
+/**
+ * Decides whether what the browser loaded is really the requested room.
+ * Order matters: a missing page or wrong address is reported before anything
+ * the page itself says. Returns "ok" or the reason a picture must not be kept.
+ */
+export function classifyCapture({ route, finalPath, httpStatus, hasOfficeView, hasSignIn, textLength }) {
+  if (!Number.isInteger(httpStatus) || httpStatus >= 400) return "unavailable";
+  if (finalPath !== route) return "wrong_route";
+  if (hasSignIn) return "sign_in_page";
+  if (!hasOfficeView) return "not_a_room";
+  if (!(textLength >= 20)) return "blank";
+  return "ok";
 }
 
 async function main() {
@@ -112,26 +133,47 @@ async function main() {
       ...(values["storage-state"] ? { storageState: values["storage-state"] } : {}),
     });
     const page = await context.newPage();
-    await page.goto(new URL(route, baseUrl).toString(), { waitUntil: "networkidle", timeout: 45_000 });
+    const response = await page.goto(new URL(route, baseUrl).toString(), { waitUntil: "networkidle", timeout: 45_000 }).catch(() => null);
+    const signals = await page.evaluate(() => {
+      const scripts = Array.from(document.querySelectorAll("script[src]"));
+      const entry = scripts.map((s) => s.getAttribute("src") ?? "").find((s) => /\/assets\/.+\.js$/.test(s));
+      const root = document.querySelector("[data-canx-office-view]");
+      return {
+        build: entry ? entry.split("/").pop() : "unknown",
+        height: document.documentElement.scrollHeight,
+        finalPath: location.pathname.replace(/\/+$/, "") || "/",
+        hasOfficeView: Boolean(root),
+        hasSignIn: Boolean(document.querySelector('[aria-label="CanX Office entrance"]')),
+        textLength: (root?.textContent ?? "").trim().length,
+      };
+    });
+    const outcome = classifyCapture({
+      route,
+      finalPath: signals.finalPath,
+      httpStatus: response ? response.status() : NaN,
+      hasOfficeView: signals.hasOfficeView,
+      hasSignIn: signals.hasSignIn,
+      textLength: signals.textLength,
+    });
+    if (outcome !== "ok") {
+      console.error(`capture not saved: ${outcome}`);
+      process.exitCode = EXIT_NOT_THE_ROOM;
+      return;
+    }
     await page.addStyleTag({ content: MASK_CSS });
     if (state === "synopsis_open") {
       await page.hover(values["hover-selector"], { timeout: 10_000 });
       await page.waitForTimeout(300);
     }
     const image = await page.screenshot({ fullPage: true, type: "png" });
-    const meta = await page.evaluate(() => {
-      const scripts = Array.from(document.querySelectorAll("script[src]"));
-      const entry = scripts.map((s) => s.getAttribute("src") ?? "").find((s) => /\/assets\/.+\.js$/.test(s));
-      return { build: entry ? entry.split("/").pop() : "unknown", height: document.documentElement.scrollHeight };
-    });
     const sidecar = {
       room: ROOM_LABELS[route],
       route,
       capturedAt: new Date().toISOString(),
       viewport: { name: viewportName, ...VIEWPORTS[viewportName] },
-      buildVersion: values["build-version"] ?? meta.build,
+      buildVersion: values["build-version"] ?? signals.build,
       state,
-      pageHeight: meta.height,
+      pageHeight: signals.height,
       imageSha256: createHash("sha256").update(image).digest("hex"),
     };
     await mkdir(values.out, { recursive: true, mode: 0o700 });

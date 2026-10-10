@@ -1,14 +1,19 @@
 /**
  * Room capture contract — what a real-browser picture of an Office room must
- * carry, and which rooms may be captured at all.
+ * carry, and which rooms need what before they may be captured.
  *
  * This file is the rulebook only. It takes no pictures, stores nothing and
  * calls no service. The capture script (`scripts/capture/capture-room.mjs`)
  * and any future retrieval endpoint must follow it; tests keep the two copies
  * in step.
+ *
+ * Room list and protection come from the Office's own sources — the canonical
+ * room identities and the per-room data sources in `room-snapshot.ts` — not a
+ * second list kept here.
  */
 
-import { ROOMS } from "@/lib/office-data";
+import { OFFICE_ROOM_IDENTITIES } from "@/lib/office-room-identity";
+import { ROOM_TARGETS } from "@/lib/room-snapshot";
 
 /** Matching desktop and phone sizes, so any two rooms are compared fairly. */
 export const CAPTURE_VIEWPORTS = {
@@ -24,33 +29,53 @@ export type CaptureState = (typeof CAPTURE_STATES)[number];
 /** A picture older than this is "stale" and must not be described as current. */
 export const CAPTURE_MAX_AGE_MS = 10 * 60 * 1000;
 
-/**
- * Rooms that hold private money, mail or file contents. They are withheld from
- * capture until John approves each one by name. Listing a room here is the
- * safe default; removing one is an owner decision.
- */
-export const CAPTURE_WITHHELD_ROUTES: readonly string[] = [
-  "/finance",
-  "/subscriptions",
-  "/communications",
-  "/records",
-];
-
 /** Hides form fields and anything marked no-capture before the picture is taken. */
 export const CAPTURE_MASK_CSS =
   "input,textarea,select,[contenteditable],[data-canx-no-capture]{visibility:hidden !important}";
 
+export interface OfficeRoomEntry {
+  route: string;
+  label: string;
+}
+
+/** Every Office room page, in the Office's own canonical identity list. */
+export function officeRoomCatalogue(): OfficeRoomEntry[] {
+  return OFFICE_ROOM_IDENTITIES.map((room) => ({ route: room.route, label: room.label }));
+}
+
+export function roomLabelFor(route: string): string | undefined {
+  return officeRoomCatalogue().find((room) => room.route === route)?.label;
+}
+
 export function allOfficeRoutes(): string[] {
-  return ROOMS.map((room) => room.route);
+  return officeRoomCatalogue().map((room) => room.route);
 }
 
-/** Every room route that may be captured today. */
-export function capturableRoutes(): string[] {
-  return allOfficeRoutes().filter((route) => !CAPTURE_WITHHELD_ROUTES.includes(route));
+/**
+ * Rooms whose saved data the Office itself protects with the owner's two-step
+ * check (authenticator). Today: Communications, Legal, Subscriptions, Finance
+ * and Projects. An assistant's capture of these needs a window John opens
+ * with his authenticator; nothing here weakens that.
+ */
+export function twoStepRoutes(): string[] {
+  return ROOM_TARGETS.filter((target) => target.sources.some((source) => source.needsTwoStep)).map((target) => target.route);
 }
 
-export function isCapturableRoute(route: unknown): route is string {
-  return typeof route === "string" && capturableRoutes().includes(route);
+export type RoomTier = "standard" | "two_step";
+
+export function captureTier(route: unknown): RoomTier | null {
+  if (typeof route !== "string" || !allOfficeRoutes().includes(route)) return null;
+  return twoStepRoutes().includes(route) ? "two_step" : "standard";
+}
+
+/**
+ * May this room be captured right now? Standard rooms yes. Two-step rooms only
+ * while the owner's authenticator-approved window is open.
+ */
+export function isCapturableRoute(route: unknown, opts: { twoStepWindowOpen?: boolean } = {}): route is string {
+  const tier = captureTier(route);
+  if (tier === "standard") return true;
+  return tier === "two_step" && opts.twoStepWindowOpen === true;
 }
 
 export interface RoomCaptureMeta {
@@ -79,9 +104,9 @@ export function validateCaptureMeta(value: unknown): CaptureMetaCheck {
   if (!value || typeof value !== "object") return { ok: false, reason: "Capture record is missing." };
   const v = value as Record<string, unknown>;
   const route = v["route"];
-  if (!isCapturableRoute(route)) return { ok: false, reason: "That room is not available for capture." };
-  const room = ROOMS.find((r) => r.route === route)!;
-  if (v["room"] !== room.label) return { ok: false, reason: "Room name does not match its route." };
+  if (captureTier(route) === null || typeof route !== "string") return { ok: false, reason: "That is not an Office room." };
+  const label = roomLabelFor(route);
+  if (v["room"] !== label) return { ok: false, reason: "Room name does not match its route." };
 
   const at = typeof v["capturedAt"] === "string" ? Date.parse(v["capturedAt"]) : NaN;
   if (!Number.isFinite(at)) return { ok: false, reason: "Capture time is missing or invalid." };
@@ -111,7 +136,7 @@ export function validateCaptureMeta(value: unknown): CaptureMetaCheck {
   return {
     ok: true,
     meta: {
-      room: room.label,
+      room: label!,
       route,
       capturedAt: new Date(at).toISOString(),
       viewport: { name: name as CaptureViewportName, width: expected.width, height: expected.height },
