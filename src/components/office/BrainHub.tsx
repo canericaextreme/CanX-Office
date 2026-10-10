@@ -425,7 +425,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                   key={b}
                   number={shelfNumber + 1}
                   name={display.name}
-                  id={`shelf-contents-${b}`}
+                  id={`shelf-bubble-${b}`}
                   open={infoOpen === b}
                   onOpenChange={(expanded) =>
                     setInfoOpen((current) => (expanded ? b : current === b ? null : current))
@@ -433,15 +433,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                   contents={
                     <>
                       <h3 className="font-serif text-lg font-semibold">{display.name}</h3>
-                      <p className="mb-3 text-xs">{synopsis}</p>
-                      {shelvesReadable && (
-                        <ul
-                          aria-label={`${CATEGORY_LABELS[b]} shelf contents`}
-                          className="space-y-2"
-                        >
-                          {(index?.items ?? []).filter((item) => itemShelf(item) === b).map(row)}
-                        </ul>
-                      )}
+                      <p className="mt-2 text-sm leading-relaxed">{synopsis}</p>
                       <Button
                         size="sm"
                         className="mt-3"
@@ -461,7 +453,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                     aria-pressed={active}
                     aria-describedby={synId}
                     aria-label={`Open ${CATEGORY_LABELS[b]}: ${shelvesReadable ? counts[b] : "unknown"} items`}
-                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2"
+                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition-[transform,box-shadow] duration-200 ease-out group-hover/shelf:-translate-y-0.5 group-hover/shelf:shadow-md group-focus-within/shelf:-translate-y-0.5 group-data-[open=true]/shelf:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-2"
                     style={{
                       borderColor: tone(b),
                       boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined,
@@ -691,7 +683,10 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
           <h3 id="brain-cast-heading" className="text-base font-bold">
             Who's who
           </h3>
-          <ul aria-labelledby="brain-cast-heading" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <ul
+            aria-labelledby="brain-cast-heading"
+            className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+          >
             {BRAIN_CAST.map((m) => (
               <li
                 key={m.who}

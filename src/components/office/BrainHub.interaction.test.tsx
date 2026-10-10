@@ -111,16 +111,21 @@ it("shelf cards show number badge, colour name, guide wording, Who's who strip a
   expect(info.getAttribute("aria-expanded")).toBe("true");
 });
 
-it("shows actual shelf contents in a portalled bubble and keeps existing controls", () => {
-  render(<BrainHub fixture={index} />);
+it.each([25, 82])("shows a brief synopsis for %i items and opens every item on selection", async (count) => {
+  const library = Array.from({ length: count }, (_, i) => mk(`file:library-${i}`, `Library record ${i}`, "library"));
+  render(<BrainHub fixture={{ ...index, items: library }} />);
   fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
-  const bubble = screen.getByRole("dialog", { name: "The Library contents" });
-  expect(within(bubble).getByText("Item in Library")).toBeTruthy();
-  expect(within(bubble).queryByText("Item in Compass")).toBeNull();
-  expect(within(bubble).getByLabelText("Category for Item in Library")).toBeTruthy();
-  expect(within(bubble).getByRole("link", { name: "Open Legal" })).toBeTruthy();
-  expect(bubble.closest('nav')).toBeNull();
-  expect(bubble.className).toContain("overflow-y-auto");
+  const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
+  expect(within(bubble).getByText(new RegExp(`${count} items`))).toBeTruthy();
+  expect(within(bubble).queryByRole("list")).toBeNull();
+  expect(within(bubble).queryByText("Library record 0")).toBeNull();
+  expect(within(bubble).queryByRole("combobox")).toBeNull();
+  expect(bubble.closest("nav")).toBeNull();
+  fireEvent.click(cardFor("library"));
+  await act(async () => {});
+  const list = screen.getByRole("list", { name: "Library items" });
+  expect(within(list).getAllByRole("listitem")).toHaveLength(count);
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 it("keeps the bubble open across the pointer gap, then closes after leaving both", async () => {
@@ -129,13 +134,13 @@ it("keeps the bubble open across the pointer gap, then closes after leaving both
     render(<BrainHub fixture={index} />);
     const shelf = cardFor("library").parentElement!;
     fireEvent.pointerEnter(shelf, { pointerType: "mouse" });
-    const bubble = screen.getByRole("dialog", { name: "The Library contents" });
+    const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
     fireEvent.pointerLeave(shelf, { pointerType: "mouse" });
     fireEvent.pointerEnter(bubble, { pointerType: "mouse" });
-    await act(async () => { vi.advanceTimersByTime(150); });
-    expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+    await act(async () => { vi.advanceTimersByTime(250); });
+    expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
     fireEvent.pointerLeave(bubble, { pointerType: "mouse" });
-    await act(async () => { vi.advanceTimersByTime(150); });
+    await act(async () => { vi.advanceTimersByTime(250); });
     expect(screen.queryByRole("dialog")).toBeNull();
   } finally { vi.useRealTimers(); }
 });
@@ -143,14 +148,14 @@ it("keeps the bubble open across the pointer gap, then closes after leaving both
 it("opens on keyboard focus and dismisses with Escape without navigating", async () => {
   render(<BrainHub fixture={index} />);
   await act(async () => { cardFor("library").focus(); });
-  expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
   fireEvent.keyDown(document.activeElement!, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(window.location.hash).toBe("");
   expect(document.activeElement).toBe(cardFor("library"));
 });
 
-it("lets touch users toggle contents without opening the shelf view", () => {
+it("lets touch users toggle the synopsis without opening the shelf view", () => {
   render(<BrainHub fixture={index} />);
   const toggle = screen.getByRole("button", { name: "About The Library" });
   fireEvent.pointerEnter(toggle, { pointerType: "touch" });
@@ -159,7 +164,7 @@ it("lets touch users toggle contents without opening the shelf view", () => {
   fireEvent.focus(toggle);
   fireEvent.pointerUp(toggle, { pointerType: "touch" });
   fireEvent.click(toggle);
-  expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
   fireEvent.click(toggle);
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(window.location.hash).toBe("");
@@ -177,14 +182,17 @@ it("shows empty and unreadable shelf states without presenting unavailable recor
   expect(within(bubble).queryByText("Item in Library")).toBeNull();
 });
 
-it("keeps the bubble usable when focus moves to its controls and opens the full shelf", async () => {
+it("keeps the bubble usable when focus moves to its open button and opens the full shelf", async () => {
   vi.useFakeTimers();
   try {
     render(<BrainHub fixture={index} />);
     await act(async () => { cardFor("library").focus(); });
-    const bubble = screen.getByRole("dialog", { name: "The Library contents" });
-    await act(async () => { within(bubble).getByLabelText("Category for Item in Library").focus(); vi.advanceTimersByTime(150); });
-    expect(screen.getByRole("dialog", { name: "The Library contents" })).toBeTruthy();
+    const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
+    await act(async () => { within(bubble).getByRole("button", { name: "Open Library" }).focus(); vi.advanceTimersByTime(250); });
+    expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
+    fireEvent.pointerLeave(bubble, { pointerType: "mouse" });
+    await act(async () => { vi.advanceTimersByTime(250); });
+    expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
     fireEvent.click(within(bubble).getByRole("button", { name: "Open Library" }));
     expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();

@@ -35,7 +35,11 @@ export function BrainShelfBubble({
   // Allow the pointer to cross the small gap between the anchor and portal.
   const leave = () => {
     cancelClose();
-    closeTimer.current = setTimeout(() => onOpenChange(false), 120);
+    closeTimer.current = setTimeout(() => {
+      const focused = document.activeElement;
+      if (anchor.current?.contains(focused) || bubble.current?.contains(focused)) return;
+      onOpenChange(false);
+    }, 200);
   };
   const blur = (target: EventTarget | null) => {
     if (
@@ -50,7 +54,8 @@ export function BrainShelfBubble({
       <PopoverAnchor asChild>
         <div
           ref={anchor}
-          className="relative"
+          className="group/shelf relative"
+          data-open={open}
           data-shelf={number}
           onPointerEnter={(e) => {
             if (e.pointerType !== "touch") enter();
@@ -88,11 +93,11 @@ export function BrainShelfBubble({
       <PopoverContent
         ref={bubble}
         id={id}
-        aria-label={`${name} contents`}
+        aria-label={`${name} synopsis`}
         side="top"
         sideOffset={4}
         collisionPadding={12}
-        className="w-[min(36rem,calc(100vw-24px))] max-h-[min(28rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)]"
+        className="w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] duration-200 ease-out data-[state=open]:[animation-delay:75ms] motion-reduce:animate-none"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onPointerEnter={(e) => {

@@ -1,16 +1,19 @@
-# Draft PR: Show Brain shelf contents in anchored bubbles
+# Draft: Brain shelf synopsis bubbles
 
-## Change
-Hovering or keyboard-focusing a Brain shelf opens an anchored, non-modal bubble containing that shelf's indexed records and existing open/filing controls. The former visible synopsis box underneath the shelf is replaced; its screen-reader description remains. The existing information button toggles the bubble for touch users.
+Brain hover/focus bubbles previously rendered full indexed record lists and filing controls. They now show only a brief shelf synopsis with its current indexed count and an Open button. Clicking the shelf opens its full contents without truncation. Empty shelves report 0 items; unreadable shelf labels retain the unknown-count warning.
 
-The existing Radix popover provides portal rendering, viewport collision handling and Escape dismissal. A short delayed close bridges the pointer gap between shelf and bubble. Width and height are bounded, and long contents scroll. The shelf grid, index reads, saving logic, access checks, source warnings and full shelf view are preserved.
+LegalRoom was inspected: its topic cards present descriptions and counts before selection reveals papers. This checkout has no separate Legal synopsis hover implementation. Brain follows that synopsis-first interaction while retaining its existing Radix portal, viewport collision handling, Escape dismissal, keyboard focus and touch information-button toggle.
 
-## Validation
-Targeted fixture tests cover shelf navigation, populated rendering, actual contents and controls, pointer transitions, Escape, keyboard focus, touch toggling, empty/unreadable states and opening the full shelf from the bubble. TypeScript checking and focused component linting are run locally. Fixtures do not verify signed-in production behavior.
+Shelves move forward visually by two pixels with a gentle transition. The compact bubble fades/zooms over 200 ms after a 75 ms opening animation delay. A 200 ms close delay bridges the pointer gap; focus within the shelf or bubble prevents pointer-leave dismissal. Reduced-motion and existing Office movement settings remain supported.
 
-## Device checks still needed
-Desktop pointer crossing, collision positioning at viewport edges and during resize, long-content scrolling, keyboard traversal through bubble controls, screen-reader announcement, and tap toggling on iOS/Android need real browser/device verification. No screenshots or live production checks were performed; screenshot delivery and Brain-saving repair remain separate work.
+## Checks
 
-## Branch and PR status
-Intended branch: `codex/brain-shelf-bubbles` from source commit `414891a`.
-Branch creation was attempted but blocked because this environment cannot write `.git/refs`. Changes remain uncommitted in the supplied checkout. This file is a local draft PR description, not a GitHub PR. No push, remote PR creation, merge or publication was performed under the owner's no-external-systems instruction.
+Targeted Brain interaction, populated Brain, LegalRoom and shelf-registry tests pass (41 tests), including 25/82-item counts and complete shelf lists, pointer crossing, keyboard/Escape, focus retention, touch toggling and empty/unreadable states. TypeScript checking passes. Fixture checks do not verify signed-in saved-data behavior.
+
+## Device verification still needed
+
+Check the animation and pointer crossing in a desktop browser, collision positioning near viewport edges, keyboard and screen-reader announcement, reduced-motion behavior, and tap toggling/direct shelf opening on iOS and Android. No production systems were called.
+
+## Draft status
+
+Changes remain local and uncommitted for review. No push, merge, publication or external contact was performed. No protected configuration or saved-data behavior was changed.
