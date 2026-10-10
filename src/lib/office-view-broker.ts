@@ -20,7 +20,7 @@
  *  - Errors reach callers as short stable codes. Logs hold codes and ids, never tokens or images.
  */
 
-import { validateCaptureMeta, type RoomCaptureMeta } from "@/lib/room-capture";
+import { validateCaptureMeta, type RoomCaptureMeta } from "./room-capture-meta.ts";
 
 export type BrokerCode =
   | "no_grant" | "revoked" | "grant_expired" | "wrong_permission" | "unknown_room" | "room_not_granted"

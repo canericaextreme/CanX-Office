@@ -146,3 +146,10 @@ describe("freshness", () => {
     expect(captureMatchesBuild({ buildVersion: "index-1.js" }, "index-2.js")).toBe(false);
   });
 });
+
+import { CAPTURE_ROOM_LABELS } from "@/lib/room-capture-meta";
+describe("the pure room list (used by the edge function) cannot drift from the Office", () => {
+  it("has exactly the Office's own routes and labels", () => {
+    expect(CAPTURE_ROOM_LABELS).toEqual(Object.fromEntries(officeRoomCatalogue().map((r) => [r.route, r.label])));
+  });
+});

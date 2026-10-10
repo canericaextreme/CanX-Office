@@ -1,0 +1,45 @@
+# PROPOSED workflow. NOT installed. Copy to .github/workflows/office-view-capture.yml ONLY after John approves.
+# It holds NO stored secret. Its only credential is GitHub's own short-lived identity token, which the broker
+# accepts only from this exact file on main. No artifacts are uploaded; the picture goes straight to private storage.
+name: CanX Office view capture
+run-name: CanX Office view capture ${{ github.run_number }}
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Capture request id (UUID)
+        required: true
+        type: string
+permissions: {}
+concurrency:
+  group: canx-office-view
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      CANX_VIEW_BROKER_URL: ${{ vars.CANX_VIEW_BROKER_URL }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/capture
+          sparse-checkout-cache: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install the browser (pinned, no project dependencies)
+        run: |
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - name: Capture
+        env:
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: node scripts/capture/run-capture.mjs --request-id "$REQUEST_ID"
