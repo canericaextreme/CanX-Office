@@ -36,7 +36,7 @@ export const DENY_MESSAGES: Record<OwnerDenyReason, string> = {
 };
 
 export type OwnerVerification =
-  | { ok: true; userId: string; email: string; aal: string }
+  | { ok: true; userId: string; email: string; aal: string; viewer?: { assistant: string; rooms: string[] } }
   | { ok: false; reason: OwnerDenyReason; message: string };
 
 function deny(reason: OwnerDenyReason): OwnerVerification {

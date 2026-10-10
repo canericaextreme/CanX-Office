@@ -248,6 +248,12 @@ begin
   if n = 0 then raise exception 'session_not_bindable' using errcode = '42501'; end if;
 end $$;
 
+-- The owner and assistant behind a session, so the broker builds storage paths from the database, not from the caller.
+create or replace function public.canx_view_session_owner(_session uuid)
+returns table(owner_id uuid, assistant text, route text)
+language sql security definer set search_path = public, canx_private as $$
+  select s.owner_id, s.assistant, s.route from canx_private.office_view_sessions s where s.id = _session $$;
+
 create or replace function public.canx_view_session_close(_session uuid)
 returns void language sql security definer set search_path = public, canx_private as $$
   update canx_private.office_view_sessions set closed_at = now() where id = _session and closed_at is null $$;
@@ -347,6 +353,40 @@ begin
   return canx_private.view_request_make(auth.uid(), 'elsie', _route, _viewport, _state, _purpose);
 end $$;
 
+-- Who is asking? Same two entries as above, used by the broker to learn the owner and the assistant name
+-- from the database (the connector approval), never from anything the caller says.
+create or replace function public.canx_view_whoami(_as_elsie boolean default false)
+returns table(owner_id uuid, assistant text)
+language plpgsql security definer set search_path = public, canx_private as $$
+#variable_conflict use_column
+declare who text;
+begin
+  if _as_elsie then
+    if auth.uid() is null or auth.jwt()->>'client_id' is not null or not public.has_role(auth.uid(), 'owner') then
+      raise exception 'Owner sign-in required' using errcode = '42501'; end if;
+    return query select auth.uid(), 'elsie'::text;
+    return;
+  end if;
+  if not canx_private.mcp_session_active() then raise exception 'connector_inactive' using errcode = '42501'; end if;
+  select c.identity into who from canx_private.office_mcp_clients c
+   where c.owner_id = auth.uid() and c.client_id = (auth.jwt()->>'client_id')::uuid and c.enabled;
+  if who is null then raise exception 'connector_inactive' using errcode = '42501'; end if;
+  return query select auth.uid(), who;
+end $$;
+revoke all on function public.canx_view_whoami(boolean) from public, anon;
+grant execute on function public.canx_view_whoami(boolean) to authenticated;
+
+-- Lets a viewer session confirm itself (used by the server before it serves a read).
+-- Returns nothing unless this exact auth session is bound to an open capture session under an active grant.
+create or replace function public.canx_view_self()
+returns table(owner_id uuid, assistant text, rooms text[], scopes text[])
+language sql stable security definer set search_path = public, canx_private as $$
+  select g.owner_id, g.assistant, g.rooms, g.scopes
+  from canx_private.office_view_grants g
+  where g.owner_id = (select public.canx_view_owner()) and g.viewer_user_id = auth.uid() $$;
+revoke all on function public.canx_view_self() from public, anon;
+grant execute on function public.canx_view_self() to authenticated;
+
 -- What happened to a request. A caller sees only requests made under its own assistant name.
 create or replace function public.canx_view_request_status(_request uuid, _as_elsie boolean default false)
 returns table(status text, capture_id uuid, detail text, route text, expires_at timestamptz)
@@ -405,9 +445,9 @@ grant execute on function public.canx_view_request_claim(uuid), public.canx_view
 revoke all on function public.canx_view_grant_set(text, uuid, text[], integer, text[]), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) from public, anon;
 grant execute on function public.canx_view_grant_set(text, uuid, text[], integer, text[]), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) to authenticated;
 -- Server-only.
-revoke all on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_close(uuid),
+revoke all on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_owner(uuid), public.canx_view_session_close(uuid),
   public.canx_view_capture_record(uuid, jsonb, text), public.canx_view_capture_fetch(uuid, text, uuid), public.canx_view_capture_purge() from public, anon, authenticated;
-grant execute on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_close(uuid),
+grant execute on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_owner(uuid), public.canx_view_session_close(uuid),
   public.canx_view_capture_record(uuid, jsonb, text), public.canx_view_capture_fetch(uuid, text, uuid), public.canx_view_capture_purge() to service_role;
 
 -- Private bucket for capture images. No policy for authenticated users: only the server (service role) touches it.

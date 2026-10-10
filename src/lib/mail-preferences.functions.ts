@@ -14,6 +14,8 @@ export interface MailPreferencesResult {
 
 export interface MailPreferenceDeps {
   verifyOwner: (token: string) => Promise<OwnerVerification>;
+  /** Read-only check that also accepts a confirmed viewer session. Falls back to verifyOwner when absent. */
+  verifyRead?: (token: string) => Promise<OwnerVerification>;
   read: (token: string) => Promise<MailPreferences | null>;
   change: (token: string, ownerId: string, change: PreferenceChange, by: PreferenceSource) => Promise<{ ok: boolean; preferences?: MailPreferences }>;
 }
@@ -23,13 +25,14 @@ async function realDeps(): Promise<MailPreferenceDeps> {
   const store = await import("./subscriptions-store.server");
   return {
     verifyOwner: backend.verifyOwner,
+    verifyRead: (await import("./canx-viewer.server")).verifyOwnerOrViewerRead,
     read: store.readMailPreferences,
     change: store.changeMailPreference,
   };
 }
 
 export async function readPreferencesWith(deps: MailPreferenceDeps, token: string): Promise<MailPreferencesResult> {
-  const owner = await deps.verifyOwner(token);
+  const owner = await (deps.verifyRead ?? deps.verifyOwner)(token);
   if (!owner.ok) return { ok: false, message: owner.message, data: null };
   const prefs = await deps.read(token);
   return prefs ? { ok: true, message: "", data: prefs } : { ok: false, message: "Mail preferences could not be read.", data: null };

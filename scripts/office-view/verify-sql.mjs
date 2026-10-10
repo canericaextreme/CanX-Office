@@ -206,6 +206,20 @@ try {
   await denied("OAuth client asks as Elsie", "select public.canx_view_request_create_elsie('/brain','desktop','default')");
   pass("requests: only the approved connector or Elsie can ask; ungranted/unknown rooms, bad views, dead or foreign tokens refused; the assistant name cannot be supplied");
 
+  // Who am I: the name comes from the owner's approval.
+  await as("authenticated", connectorJwt(cClaude, oauthClaude));
+  assert.equal((await db.query("select assistant from public.canx_view_whoami()")).rows[0].assistant, "claude");
+  await as("authenticated", connectorJwt(cChat, oauthChat));
+  assert.equal((await db.query("select assistant from public.canx_view_whoami()")).rows[0].assistant, "chatgpt");
+  await as("authenticated", ownerJwt("aal1"));
+  assert.equal((await db.query("select assistant from public.canx_view_whoami(true)")).rows[0].assistant, "elsie");
+  await denied("owner is not a connector", "select * from public.canx_view_whoami()");
+  await as("authenticated", viewerJwt(vClaude, authClaude));
+  await denied("viewer is not a connector", "select * from public.canx_view_whoami()");
+  await denied("viewer is not Elsie", "select * from public.canx_view_whoami(true)");
+  await as("authenticated", connectorJwt(cClaude, oauthClaude));
+  await denied("connector cannot claim to be Elsie", "select * from public.canx_view_whoami(true)");
+
   // Claim: once only, and the grant is re-checked at claim time.
   const rid = await ask("claude", "/brain");
   await as("authenticated", connectorJwt(cClaude, oauthClaude));
@@ -255,6 +269,15 @@ try {
   await denied("viewer reads private sessions", "select * from canx_private.office_view_sessions");
   await denied("viewer reads private captures", "select * from canx_private.office_view_captures");
   pass("viewer reads only granted rooms; roles, audit and private tables stay hidden");
+
+  // A viewer session can confirm itself; nobody else gets an answer.
+  const selfRow = (await db.query("select * from public.canx_view_self()")).rows;
+  assert.equal(selfRow.length, 1); assert.equal(selfRow[0].assistant, "claude"); assert.equal(selfRow[0].owner_id, owner);
+  await as("authenticated", viewerJwt(vClaude, U(99)));
+  assert.equal((await db.query("select * from public.canx_view_self()")).rows.length, 0, "a wrong session confirms nothing");
+  await as("authenticated", ownerJwt("aal2"));
+  assert.equal((await db.query("select * from public.canx_view_self()")).rows.length, 0, "the owner is not a viewer");
+  await as("authenticated", viewerJwt(vClaude, authClaude));
 
   // ---- 5. Read-only: every write is refused.
   const writes = [
