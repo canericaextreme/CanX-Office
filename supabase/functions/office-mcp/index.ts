@@ -4,6 +4,7 @@ import { authorizeOfficeMcp } from "../../../src/lib/office-mcp-auth.ts";
 import { httpViewBackend, runViewTool } from "../../../src/lib/office-mcp-view.ts";
 import { statusText } from "../../../src/lib/office-status.ts";
 import plan from "../../../docs/office-connection-plan.json" with { type: "json" };
+import briefs from "../../../docs/office-room-briefs.json" with { type: "json" };
 
 const url = Deno.env.get("SUPABASE_URL") ?? "";
 const key = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -24,7 +25,7 @@ Deno.serve(request => {
     authorize: token => authorizeOfficeMcp({url,publishableKey:key},token),
     work: (token,name,args)=>officeMcpWorkWith({url,key,serviceKey:Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),fetch:(input,init)=>fetch(input,init)},token,name,args),
     plan: () => structuredClone(plan),
-    ...(viewBackend ? { view: (token: string, name: string, args: Record<string, unknown>) => runViewTool(viewBackend, token, name, args) } : {}),
+    ...(viewBackend ? { view: (token: string, name: string, args: Record<string, unknown>) => runViewTool(viewBackend, token, name, args, Date.now(), briefs) } : {}),
     status: async token => {
       const r=await fetch(`${url}/rest/v1/rpc/canx_mcp_office_status`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:"{}",redirect:"error",signal:AbortSignal.timeout(8000)});
       if(!r.ok)throw Error("Office read unavailable");

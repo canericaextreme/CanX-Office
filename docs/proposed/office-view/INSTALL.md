@@ -7,7 +7,7 @@ Nothing here is installed. Order matters; each step lists how to undo it.
 3. **One authenticator check by John** — signed in as owner at AAL2, call `canx_view_grant_set` once per assistant with the rooms and scopes John chooses. Undo: `canx_view_grant_revoke` (works at AAL1).
 4. **Edge function** — copy `office-view/index.ts` to `supabase/functions/office-view/index.ts`; secrets: `CANX_VIEW_DISPATCH_TOKEN` (fine-grained GitHub token, **Actions: write on this one repo only**, 90-day expiry). Undo: delete the function and the token.
 5. **Workflow** — copy `office-view-capture.yml` to `.github/workflows/`; repository variable `CANX_VIEW_BROKER_URL` = `https://<project>.supabase.co/functions/v1/office-view`. Must reach `main`; the broker refuses any other branch or file. Undo: delete the file.
-6. **Connector tools** (separate change) — MCP tools call the function with the assistant's own token.
+6. **Connector tools** — already in the code (`office-mcp-view.ts`), off by default. Turn on by setting the connector function's secret `CANX_VIEW_SERVICE_URL` to the `office-view` function address. Unset = the tools do not exist. Regenerate the tour/brief snapshot with `CANX_UPDATE_BRIEFS=1 bunx vitest run src/lib/room-briefs-snapshot.test.ts` when rooms or skills change.
 7. **Retention** — schedule `canx_view_capture_purge()` (24 h retention).
 
 ## Cost

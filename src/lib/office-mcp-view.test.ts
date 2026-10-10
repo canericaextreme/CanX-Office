@@ -14,7 +14,7 @@ const backend = (over: Partial<ViewBackend> = {}): ViewBackend => ({
 describe("view tools are read-only and strict", () => {
   it("are all marked read-only and take only a room, size and state", () => {
     for (const t of OFFICE_VIEW_TOOLS) { expect(t.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false }); expect(t.inputSchema.additionalProperties).toBe(false); }
-    expect(OFFICE_VIEW_TOOLS.map((t) => t.name)).toEqual(["list_office_rooms", "view_room", "read_room_information"]);
+    expect(OFFICE_VIEW_TOOLS.map((t) => t.name)).toEqual(["list_office_rooms", "office_tour", "read_room_brief", "view_room", "read_room_information"]);
     expect(JSON.stringify(OFFICE_VIEW_TOOLS.map((t) => t.inputSchema))).not.toMatch(/assistant|token|password|permission/i);
   });
   it("reject unknown rooms, extra fields (including a claimed assistant name) and bad values", () => {
@@ -109,5 +109,55 @@ describe("through the connector", () => {
     expect(bad.error.code).toBe(-32602);
     const denied = await call({ ...deps, authorize: async () => false }, { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "view_room", arguments: { route: "/brain" } } });
     expect(denied.status).toBe(401);
+  });
+});
+
+import snapshot from "../../docs/office-room-briefs.json";
+import type { ViewContent } from "@/lib/office-mcp-view";
+const content = snapshot as unknown as ViewContent;
+const text = (r: { content: { type: string; text?: string }[] }) => JSON.parse(r.content[0]!.text!);
+
+describe("tour and briefs", () => {
+  it("summary lists every stop in the established order with Elsie's role first", async () => {
+    const out = text(await runViewTool(backend(), "t", "office_tour", { mode: "summary" }, NOW, content));
+    expect(out.stops[0]).toMatchObject({ order: 1, key: "elsie" });
+    expect(out.stops[0].purpose).toMatch(/Office Manager/);
+    expect(out.stops[1]).toMatchObject({ key: "/reception" });
+    expect(out.stops).toHaveLength(content.tour.length);
+  });
+  it("detailed gives one stop at a time and a resume pointer, and walks the whole tour", async () => {
+    let after: string | undefined; const seen: string[] = [];
+    for (let i = 0; i < 40; i++) {
+      const out = text(await runViewTool(backend(), "t", "office_tour", after ? { mode: "detailed", after } : { mode: "detailed" }, NOW, content));
+      if (out.finished) break;
+      seen.push(out.stop.key); after = out.stop.key;
+      if (out.next) expect(out.resume).toContain(`after=${out.stop.key}`);
+    }
+    expect(seen).toEqual(content.tour.map((t) => t.key));
+  });
+  it("resumes at the correct room after a pause", async () => {
+    const out = text(await runViewTool(backend(), "t", "office_tour", { mode: "detailed", after: "/reception" }, NOW, content));
+    expect(out.stop.key).toBe(content.tour[2]!.key);
+    expect(out.brief.route).toBe(content.tour[2]!.route);
+  });
+  it("refuses a stop that is not on the tour, and says plainly when there is no tour data", async () => {
+    expect((await runViewTool(backend(), "t", "office_tour", { mode: "detailed", after: "/nowhere" }, NOW, content)).isError).toBe(true);
+    expect((await runViewTool(backend(), "t", "office_tour", { mode: "summary" }, NOW)).isError).toBe(true);
+  });
+  it("reads a room brief including limits and how far each skill is proven", async () => {
+    const out = text(await runViewTool(backend(), "t", "read_room_brief", { route: "/brain" }, NOW, content));
+    expect(out.brief).toMatchObject({ route: "/brain" });
+    expect(Array.isArray(out.brief.limits)).toBe(true);
+    expect(out.note).toMatch(/not proof/);
+  });
+  it("list_office_rooms follows the tour order, not the file order", async () => {
+    const out = text(await runViewTool(backend(), "t", "list_office_rooms", {}, NOW, content));
+    expect(out.rooms.map((r: { route: string }) => r.route)).toEqual(content.tour.filter((t) => t.route).map((t) => t.route));
+  });
+  it("validates tour arguments", () => {
+    expect(validViewArguments("office_tour", { mode: "detailed", after: "elsie" })).toBe(true);
+    expect(validViewArguments("office_tour", { mode: "everything" })).toBe(false);
+    expect(validViewArguments("office_tour", { mode: "summary", after: "/x" })).toBe(false);
+    expect(validViewArguments("read_room_brief", { route: "/brain" })).toBe(true);
   });
 });

@@ -175,7 +175,7 @@ export function roomBrief(route: string, positions: LabelPositions = {}): RoomBr
 
   const limits: string[] = [];
   if (identity.reserved) limits.push("Reserved room: no worker, skill or capability is installed.");
-  if (tier === "two_step") limits.push("Saved data in this room needs the owner's two-step (authenticator) check; assistants see it only inside a window John opens.");
+  if (tier === "two_step") limits.push("Saved data in this room needs the owner's two-step (authenticator) check; assistants see it only through the read-only viewing access John authorises once with his authenticator (revocable at any time), or inside a window he opens.");
   for (const source of target.sources) {
     if (source.kind === "device") limits.push(`${source.label}: kept on John's device only, so it cannot be retrieved from the server. ${source.note ?? ""}`.trim());
     if (source.kind === "static" && source.note) limits.push(`${source.label}: ${source.note}`);
