@@ -198,3 +198,45 @@ it("keeps the bubble usable when focus moves to its open button and opens the fu
     expect(screen.queryByRole("dialog")).toBeNull();
   } finally { vi.useRealTimers(); }
 });
+
+it("opens the shelf when the summary body is clicked", async () => {
+  render(<BrainHub fixture={index} />);
+  fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
+  const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
+  fireEvent.click(within(bubble).getByText(/1 item \(1 file\)/));
+  await act(async () => {});
+  expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
+});
+
+it("keeps a hovered bubble open after keyboard focus leaves, then dismisses it", async () => {
+  vi.useFakeTimers();
+  try {
+    render(<BrainHub fixture={index} />);
+    await act(async () => { cardFor("library").focus(); });
+    const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
+    fireEvent.pointerEnter(bubble, { pointerType: "mouse" });
+    await act(async () => { screen.getByLabelText("Search the Brain").focus(); vi.advanceTimersByTime(250); });
+    expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
+    fireEvent.pointerLeave(bubble, { pointerType: "mouse" });
+    await act(async () => { vi.advanceTimersByTime(250); });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  } finally { vi.useRealTimers(); }
+});
+
+it("dismisses after pointer departure even when the info toggle retains mouse focus", async () => {
+  vi.useFakeTimers();
+  try {
+    render(<BrainHub fixture={index} />);
+    const toggle = screen.getByRole("button", { name: "About The Library" });
+    const shelf = toggle.parentElement!;
+    fireEvent.pointerDown(toggle, { pointerType: "mouse" });
+    await act(async () => { toggle.focus(); });
+    fireEvent.pointerUp(toggle, { pointerType: "mouse" });
+    fireEvent.click(toggle);
+    fireEvent.pointerEnter(shelf, { pointerType: "mouse" });
+    expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
+    fireEvent.pointerLeave(shelf, { pointerType: "mouse" });
+    await act(async () => { vi.advanceTimersByTime(250); });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  } finally { vi.useRealTimers(); }
+});

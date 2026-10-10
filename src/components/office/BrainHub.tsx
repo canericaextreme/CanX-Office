@@ -423,6 +423,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
               return (
                 <BrainShelfBubble
                   key={b}
+                  onSelect={() => open(b)}
                   number={shelfNumber + 1}
                   name={display.name}
                   id={`shelf-bubble-${b}`}
@@ -437,7 +438,8 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                       <Button
                         size="sm"
                         className="mt-3"
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           setInfoOpen(null);
                           open(b);
                         }}

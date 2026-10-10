@@ -10,6 +10,7 @@ export function BrainShelfBubble({
   open,
   onOpenChange,
   number,
+  onSelect,
 }: {
   children: ReactNode;
   contents: ReactNode;
@@ -18,16 +19,23 @@ export function BrainShelfBubble({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   number: number;
+  onSelect: () => void;
 }) {
   const anchor = useRef<HTMLDivElement>(null);
   const bubble = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerFocus = useRef(false);
+  const keyboardFocus = useRef(false);
+  const hovered = useRef({ shelf: false, bubble: false });
   const cancelClose = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     closeTimer.current = null;
   };
   useEffect(() => cancelClose, []);
+  useEffect(() => {
+    // A dismissed portal may unmount without emitting pointerleave.
+    if (!open) hovered.current.bubble = false;
+  }, [open]);
   const enter = () => {
     cancelClose();
     onOpenChange(true);
@@ -37,7 +45,8 @@ export function BrainShelfBubble({
     cancelClose();
     closeTimer.current = setTimeout(() => {
       const focused = document.activeElement;
-      if (anchor.current?.contains(focused) || bubble.current?.contains(focused)) return;
+      if (hovered.current.shelf || hovered.current.bubble) return;
+      if (keyboardFocus.current && (anchor.current?.contains(focused) || bubble.current?.contains(focused))) return;
       onOpenChange(false);
     }, 200);
   };
@@ -47,6 +56,7 @@ export function BrainShelfBubble({
       (anchor.current?.contains(target) || bubble.current?.contains(target))
     )
       return;
+    keyboardFocus.current = false;
     leave();
   };
   return (
@@ -58,13 +68,20 @@ export function BrainShelfBubble({
           data-open={open}
           data-shelf={number}
           onPointerEnter={(e) => {
-            if (e.pointerType !== "touch") enter();
+            if (e.pointerType !== "touch") {
+              hovered.current.shelf = true;
+              enter();
+            }
           }}
           onPointerLeave={(e) => {
-            if (e.pointerType !== "touch") leave();
+            if (e.pointerType !== "touch") {
+              hovered.current.shelf = false;
+              leave();
+            }
           }}
           onPointerDown={() => {
             pointerFocus.current = true;
+            keyboardFocus.current = false;
           }}
           onPointerUp={() => {
             pointerFocus.current = false;
@@ -73,7 +90,10 @@ export function BrainShelfBubble({
             pointerFocus.current = false;
           }}
           onFocus={() => {
-            if (!pointerFocus.current) enter();
+            if (!pointerFocus.current) {
+              keyboardFocus.current = true;
+              enter();
+            }
           }}
           onBlur={(e) => blur(e.relatedTarget)}
         >
@@ -97,16 +117,29 @@ export function BrainShelfBubble({
         side="top"
         sideOffset={12}
         collisionPadding={12}
-        className="brain-shelf-bubble w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] duration-200 ease-out data-[state=open]:[animation-delay:75ms] motion-reduce:animate-none"
+        className="brain-shelf-bubble w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] cursor-pointer"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onPointerEnter={(e) => {
-          if (e.pointerType !== "touch") enter();
+          if (e.pointerType !== "touch") {
+            hovered.current.bubble = true;
+            enter();
+          }
         }}
         onPointerLeave={(e) => {
-          if (e.pointerType !== "touch") leave();
+          if (e.pointerType !== "touch") {
+            hovered.current.bubble = false;
+            leave();
+          }
         }}
-        onFocus={cancelClose}
+        onFocusOutside={(event) => {
+          if (hovered.current.shelf || hovered.current.bubble) event.preventDefault();
+        }}
+        onClick={onSelect}
+        onFocus={() => {
+          keyboardFocus.current = true;
+          cancelClose();
+        }}
         onBlur={(e) => blur(e.relatedTarget)}
         onEscapeKeyDown={cancelClose}
       >
