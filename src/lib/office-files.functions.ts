@@ -1,9 +1,10 @@
 import { createServerFn } from '@tanstack/react-start';
 import { FILE_BUCKET, FILE_ROOMS, FILE_FOLDERS, validateWebLink, validateOfficeFile, type OfficeFile } from './office-files';
 const token = (v: unknown) => typeof v === 'string' ? v.slice(0,4000) : '';
-async function client(accessToken: string, room?: string) {
+async function client(accessToken: string, room?: string, readOnly = false) {
  const b = await import('./canx-backend.server'); const config = b.readBackendConfig();
- const owner = room === 'finance' ? await b.verifyOwner(accessToken) : await b.verifySignedIn(accessToken);
+ const v = readOnly ? await import('./canx-viewer.server') : null;
+ const owner = v ? (room === 'finance' ? await v.verifyOwnerOrViewerRead(accessToken) : await v.verifySignedInOrViewerRead(accessToken)) : (room === 'finance' ? await b.verifyOwner(accessToken) : await b.verifySignedIn(accessToken));
  if (!owner.ok) throw new Error(owner.message); if (!config) throw new Error('Database unavailable.');
  const { createClient } = await import('@supabase/supabase-js');
  return { owner, db: createClient(config.url, config.publishableKey, { global: { headers: { Authorization: `Bearer ${accessToken}` } }, auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) };
@@ -24,7 +25,7 @@ export const finishOfficeUpload = createServerFn({method:'POST'}).inputValidator
  return confirmOriginalUpload(db, owner.userId, data);
 });
 export const listOfficeFiles = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string;room?:string})=>({accessToken:token(v.accessToken),room:v.room})).handler(async({data})=>{
- const {db} = await client(data.accessToken,data.room); let query = db.from('office_files').select('*').order('created_at',{ascending:false}).limit(200);
+ const {db} = await client(data.accessToken,data.room,true); let query = db.from('office_files').select('*').order('created_at',{ascending:false}).limit(200);
  if(data.room && data.room!=='brain') query=query.eq('room',data.room);
  const {data: rows,error}=await query; if(error) throw new Error('Saved files could not be loaded.'); let linksQuery=db.from('office_links').select('*').order('created_at',{ascending:false}).limit(200);
  if(data.room && data.room!=='brain') linksQuery=linksQuery.eq('room',data.room);

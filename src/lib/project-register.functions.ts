@@ -33,7 +33,7 @@ export const getProjectRegister = createServerFn({ method: "POST" })
     const b = await import("./canx-backend.server");
     const config = b.readBackendConfig();
     if (!config) return { ok: false, message: b.DENY_MESSAGES.backend_not_configured };
-    const owner = await b.verifyOwner(data.accessToken);
+    const owner = await (await import("./canx-viewer.server")).verifyOwnerOrViewerRead(data.accessToken);
     if (!owner.ok) return { ok: false, message: owner.message };
     const rest: RegisterRest = (p, i) => b.restRequest(config, data.accessToken, p, i);
     const reg = await readRegisterWith(rest);

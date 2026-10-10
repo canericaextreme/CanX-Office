@@ -10,7 +10,7 @@ export const getBrainIndex = createServerFn({ method: "POST" })
     const b = await import("./canx-backend.server");
     const config = b.readBackendConfig();
     if (!config) return { ok: false, message: b.DENY_MESSAGES.backend_not_configured };
-    const who = await b.verifySignedIn(data.accessToken);
+    const who = await (await import("./canx-viewer.server")).verifySignedInOrViewerRead(data.accessToken);
     if (!who.ok) return { ok: false, message: who.message };
     const { readBrainIndexWith } = await import("./brain-index.server");
     return { ok: true, index: await readBrainIndexWith({ config, token: data.accessToken, aal: who.aal, rest: b.restRequest }) };

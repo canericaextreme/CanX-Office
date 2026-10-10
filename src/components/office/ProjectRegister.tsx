@@ -28,12 +28,12 @@ export function ProjectRegister() {
   useEffect(() => {
     let active = true;
     setError("");
-    if (!session.accessToken || !session.stepUpComplete) return;
+    if (!session.accessToken || !session.canReadProtected) return;
     void read({ data: { accessToken: session.accessToken } })
       .then((r) => { if (!active) return; if (r.ok) { setProjects(r.projects); setCheckedAt(r.checkedAt); setLocators(new Map(r.locators.map((l) => [l.project.projectId, l]))); setTasksReadAt(r.tasksReadAt); } else setError(r.message); })
       .catch(() => { if (active) setError("The project register could not be read."); });
     return () => { active = false; };
-  }, [session.accessToken, session.stepUpComplete, read, refresh]);
+  }, [session.accessToken, session.canReadProtected, read, refresh]);
 
   // Stay current: re-read when John returns to this tab (after Work Board or Elsie actions elsewhere).
   useEffect(() => {
@@ -73,7 +73,7 @@ export function ProjectRegister() {
         </div>
         <Button size="sm" variant="outline" disabled={!session.stepUpComplete} onClick={() => setRefresh((n) => n + 1)}><RefreshCw className="mr-1.5 h-4 w-4" aria-hidden /> Refresh</Button>
       </div>
-      {!session.stepUpComplete && <p className="text-sm text-muted-foreground">Sign in as the owner with your authenticator code to see your projects.</p>}
+      {!session.canReadProtected && <p className="text-sm text-muted-foreground">Sign in as the owner with your authenticator code to see your projects.</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {projects && (
         <>

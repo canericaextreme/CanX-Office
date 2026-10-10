@@ -25,7 +25,7 @@ export const getRoomSnapshot = createServerFn({ method: "POST" })
     const backend = await import("./canx-backend.server");
     const config = backend.readBackendConfig();
     if (!config) return { ok: false, code: "not_configured", message: backend.DENY_MESSAGES.backend_not_configured };
-    const verified = await backend.verifySignedIn(data.accessToken);
+    const verified = await (await import("./canx-viewer.server")).verifySignedInOrViewerRead(data.accessToken);
     if (!verified.ok) return { ok: false, code: "auth", message: verified.message };
     const { readRoomSnapshotWith } = await import("./room-snapshot.server");
     const { sanitizeDeviceSnapshot } = await import("./room-device-snapshot");
@@ -49,8 +49,8 @@ export const checkRoomReportPresence = createServerFn({ method: "POST" })
     const backend = await import("./canx-backend.server");
     const config = backend.readBackendConfig();
     if (!config) return { presence: "failed" };
-    const verified = await backend.verifySignedIn(data.accessToken);
-    if (!verified.ok || verified.aal !== "aal2") return { presence: "failed" };
+    const verified = await (await import("./canx-viewer.server")).verifySignedInOrViewerRead(data.accessToken);
+    if (!verified.ok || (verified.aal !== "aal2" && verified.aal !== "viewer")) return { presence: "failed" };
     const { readRoomReportPresenceWith } = await import("./room-snapshot.server");
     return { presence: await readRoomReportPresenceWith({ config, token: data.accessToken, rest: backend.restRequest, roomId: target.id, id: data.id }) };
   });

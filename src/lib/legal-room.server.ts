@@ -3,7 +3,7 @@ export async function readLegalFilings(data: { accessToken: string }) {
   const b = await import("./canx-backend.server");
   const config = b.readBackendConfig();
   if (!config) throw new Error("Legal filing is unavailable.");
-  const owner = await b.verifyOwner(data.accessToken);
+  const owner = await (await import("./canx-viewer.server")).verifyOwnerOrViewerRead(data.accessToken);
   if (!owner.ok) throw new Error(owner.message);
   const filings: Record<string, LegalFiling> = {};
   for (let offset = 0; offset < 10000; offset += 200) {

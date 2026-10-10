@@ -270,7 +270,7 @@ export function OfficeGate({ children }: { children: ReactNode }) {
 
   if (session.state === "checking" || !entranceChecked) return <OfficeOpeningScreen />;
   if (session.state !== "owner") return <OfficeSignInScreen onSignedIn={enterOffice} />;
-  if (!entered) {
+  if (!entered && !session.viewer) {
     return (
       <Shell>
         <h1 className="text-2xl font-semibold">Welcome back</h1>

@@ -22,7 +22,7 @@ export function RoomReports() {
     setError("");
     const load = async () => {
       const current = ++sequence;
-      if (!session.accessToken || !session.stepUpComplete || !room) return;
+      if (!session.accessToken || !session.canReadProtected || !room) return;
       try {
         const reply = await list({ data: { accessToken: session.accessToken } });
         if (!active || current !== sequence) return;
@@ -34,7 +34,7 @@ export function RoomReports() {
     void load();
     window.addEventListener("canx:room-reports-changed", load);
     return () => { active = false; window.removeEventListener("canx:room-reports-changed", load); };
-  }, [room, session.accessToken, session.stepUpComplete, list]);
+  }, [room, session.accessToken, session.canReadProtected, list]);
   if (!reports.length && !error) return null;
   return <section aria-label="Room reports" className="mx-auto max-w-6xl space-y-3 px-4 py-6">
     <h2 className="text-xl font-semibold">Room reports</h2>
