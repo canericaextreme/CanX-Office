@@ -115,3 +115,10 @@ Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403
 - Repair: existing working-grant record reads; dedicated owner-scoped CAS claim/reply and budget RPCs; no changes to raw table policies or agreed limits.
 - Validation: 40 targeted tests, typecheck, production build and isolated SQL authorization/idempotency/budget fixtures passed. Migration applied and grants checked live.
 - Acceptance pending: publish repaired source, obtain an Anthropic receipt, read saved reply back, and repeat the request id without another provider call. This does not verify all rooms, voice, or GitHub builder credentials.
+
+
+## Claude conversation entry repair — 10 October 2026
+
+Owner request: repair the Office Claude submission path so a failed send does not require a separate browser chat. `ClaudeOfficeChatPanel` is the primary conversation entry in Build & Testing, using the existing `claudeOfficeChat` owner-verified executor. It accepts short messages, sends bounded follow-up history, retains drafts and the last 20 messages in owner-scoped session storage in the current browser tab, and reports the server's `persisted` readback separately from this recovery copy. Pending requests survive room navigation without automatic resending. Failures keep the draft and show a reason; uncertain delivery requires a status check before another message.
+
+The dashboard link now distinguishes Talk to Claude in Office from External Claude — separate chat. No external native conversation is imported, resumed or messaged by this UI. Existing API budgets, owner verification, builder choice and action permissions are unchanged. No credentials are stored in recovery data; no migration is needed. Automated interaction checks and publication are separate from signed-in provider acceptance.

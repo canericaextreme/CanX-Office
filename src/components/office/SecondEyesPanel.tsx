@@ -290,7 +290,7 @@ export function SecondEyesPanel() {
         <header className="border-b border-border p-4 text-left">
           <h2 id="claude-connection-title" className="text-base font-semibold">Claude connection</h2>
           <p className="text-xs text-muted-foreground">
-            Open Claude or use its Office build entry below. Reviews in this panel are read-only;
+            Use Talk to Claude in Office to keep your requests and follow-ups together. Reviews in this panel are read-only;
             they do not edit or publish the office. John decides.
           </p>
         </header>
@@ -298,10 +298,10 @@ export function SecondEyesPanel() {
         <div className="space-y-4 p-4">
           <nav aria-label="Claude connections" className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
-              <a href="https://claude.ai/" target="_blank" rel="noreferrer">Open Claude</a>
+              <a href="https://claude.ai/" target="_blank" rel="noreferrer">External Claude — separate chat</a>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/build-testing" onClick={() => setOpen(false)}>Claude builds in Office</Link>
+              <Link to="/build-testing" onClick={() => setOpen(false)}>Talk to Claude in Office</Link>
             </Button>
           </nav>
           <div className="rounded-lg border border-border/60 p-3">

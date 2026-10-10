@@ -135,6 +135,15 @@
       "audience": "office-status",
       "summary": "Owner-requested relay repair replaces blocked raw OAuth reads/writes with owner working-grant RPCs. Dedicated claim/reply saves preserve earlier text, CAS and request idempotency. Budget reservations use existing limits without initializing or increasing them. Database migration applied; application publication and real Claude acceptance pending.",
       "evidence": "40 targeted tests, typecheck, production build and isolated SQL authorization/claim/save/budget fixtures passed. Migration office_colleague_relay_work_grant applied; live anonymous execute grants denied."
+    },
+    {
+      "id": "2026-10-10-claude-conversation-repair",
+      "at": "2026-10-10T05:10:44.217286Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared a primary Office Claude conversation with short-message submission, follow-up context, tab-scoped recovery and visible failure feedback. External Claude is labelled as a separate chat.",
+      "evidence": "Full suite: 143 test files and 1,454 tests passed; TypeScript and production build passed; new conversation component and tests pass ESLint. Publication and signed-in provider acceptance not yet verified; no migration or authentication change."
     }
   ]
 }

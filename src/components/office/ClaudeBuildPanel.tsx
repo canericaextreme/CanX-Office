@@ -5,9 +5,10 @@ import {claudeBuildOperation} from '@/lib/claude-builds.functions';
 import type {ClaudeBuildResult} from '@/lib/claude-builds.server';
 import {invokeOfficeClaude,type ClaudeModel} from '@/lib/claude-chat';
 import {Button} from '@/components/ui/button';
-import {managerChat,claudeOfficeChat,getClaudeOfficeStatus,type ManagerReply} from '@/lib/manager.functions';
+import {managerChat,type ManagerReply} from '@/lib/manager.functions';
 import {currentBuildVersion} from '@/lib/office-health';
 import {OfficeStatusPanel} from '@/components/office/OfficeStatusPanel';
+import {ClaudeOfficeChatPanel} from '@/components/office/ClaudeOfficeChatPanel';
 
 /** Shows Elsie's verified action results from an explicit handoff. Not Claude tool use. */
 export function ElsieHandoffResult({reply}:{reply:ManagerReply}) {
@@ -31,10 +32,6 @@ export function ClaudeBuildPanel() {
  const session=useOwnerSession();
  const build=useServerFn(claudeBuildOperation);
  const askElsie=useServerFn(managerChat);
- const askClaudeOffice=useServerFn(claudeOfficeChat);
- const checkClaudeOffice=useServerFn(getClaudeOfficeStatus);
- const [officeReply,setOfficeReply]=useState<ManagerReply|null>(null);
- const [officeConnection,setOfficeConnection]=useState("Claude Office connection has not been checked.");
  const [handoff,setHandoff]=useState<ManagerReply|null>(null);
  const [request,setRequest]=useState('');
  const [busy,setBusy]=useState(false);
@@ -77,6 +74,9 @@ export function ClaudeBuildPanel() {
    const reply=await invokeOfficeClaude(check?{action:'models'}:{prompt:request,model});
    if(check) {setModels(reply.models??[]);setConnection(reply.ok?'Claude API connection checked. Choose a model for coding advice.':reply.detail??'Connection check failed.');}
    else setAnswer(reply.ok?`${reply.text??''}${reply.complete?'':'\n\nThis response is incomplete.'}`:reply.detail??'Claude did not answer.');
+  } catch {
+   if(check) setConnection('The connection check did not finish. No message was sent.');
+   else setAnswer('The reply could not be confirmed. Your request is still here; it was not resent automatically.');
   } finally {setBusy(false);}
  }
  async function handToElsie() {
@@ -86,25 +86,10 @@ export function ClaudeBuildPanel() {
   catch {setHandoff({ok:false,code:'context_unavailable',provider:'none',state:'configured_unverified',model:null,text:'',detail:'The handoff could not be confirmed. Check the Work Board and Build & Testing before asking again.',toolCalls:[],actionResults:[]} as ManagerReply);}
   finally {buildInFlight.current=false;setBusy(false);}
  }
- async function officeRequest(check:boolean) {
-  if(buildInFlight.current||!session.stepUpComplete||!session.accessToken) return;
-  buildInFlight.current=true;setBusy(true);
-  try {
-   if(check) {
-    const status=await checkClaudeOffice({data:{accessToken:session.accessToken}});
-    setOfficeConnection(status.detail);
-   } else {
-    setOfficeReply(null);
-    setOfficeReply(await askClaudeOffice({data:{accessToken:session.accessToken,messages:[{role:'user',content:request.trim()}],currentRoute:'/build-testing',buildId:currentBuildVersion()}}));
-   }
-  } catch {
-   if(check) setOfficeConnection('Claude Office connection could not be confirmed.');
-   else setOfficeReply({ok:false,code:'context_unavailable',provider:'none',state:'configured_unverified',model:null,text:'',detail:'The result could not be confirmed. Check the Work Board and builder status before sending again.',toolCalls:[],actionResults:[]});
-  } finally {buildInFlight.current=false;setBusy(false);}
- }
  const locked=busy||!session.stepUpComplete;
  return <section aria-label="Claude builds" className="space-y-3 rounded-xl border bg-card p-5">
   <h2 className="text-lg font-semibold">Build with Claude</h2>
+  <ClaudeOfficeChatPanel />
   <OfficeStatusPanel />
   <p>Claude works on the same Office repository as Codex. A build prepares a draft change with typecheck, test and build evidence. Checked, completed changes follow the Office release process.</p>
   <label className="block" htmlFor="claude-build-request">What should Claude build or fix?</label>
@@ -117,18 +102,9 @@ export function ClaudeBuildPanel() {
   <p role="status">{busy?'Contacting Claude…':result?.detail??'Build connection has not been checked. A Pro subscription alone does not connect the build runner.'}</p>
   {activeBuild&&<p role="status" className="flex items-center gap-2"><span aria-hidden="true" className="inline-block h-4 w-4 animate-spin motion-reduce:animate-none rounded-full border-2 border-current border-t-transparent"/>{activeBuild.state==='in_progress'?'Claude build is running.':'Claude build is queued or waiting.'} Status refreshes every 15 seconds while this panel is open.</p>}
   {result?.runs?.map(item=><p key={item.id}><a className="underline" href={item.url} target="_blank" rel="noreferrer">Claude build {item.id}</a> — {item.state}. {item.title}</p>)}
-  <details><summary className="cursor-pointer font-medium">Run an Office request with Claude</summary>
-   <div className="mt-3 space-y-3">
-    <p className="text-sm">Claude can use the same Office actions as Elsie: room records, tasks, approvals and builders. Your owner verification and existing spending limits apply. Name Claude in a build request to choose the Claude builder; otherwise Codex remains the default. Other services need their own Office connections.</p>
-    <Button variant="outline" disabled={locked} onClick={()=>void officeRequest(true)}>Check Claude Office connection</Button>
-    <p role="status">{officeConnection}</p>
-    <Button disabled={locked||hasActiveBuild||request.trim().length<10} onClick={()=>void officeRequest(false)}>Ask Claude to run Office request</Button>
-    {officeReply&&<ClaudeOfficeResult reply={officeReply}/>}
-   </div>
-  </details>
   <details><summary className="cursor-pointer font-medium">Hand this request to Elsie (Office actions)</summary>
    <div className="mt-3 space-y-3">
-    <p className="text-sm">Elsie runs the request through her owner-verified Office actions (tasks, room reads, builder status, builds). Results come back here. This control asks Elsie to carry out the request. Use Run an Office request with Claude above for Claude's own action path. A build goes to Claude only if your request names Claude; otherwise Codex. Uses Elsie's office AI budget unless it is a plain status check.</p>
+    <p className="text-sm">Elsie runs the request through her owner-verified Office actions (tasks, room reads, builder status, builds). Results come back here. This control asks Elsie to carry out the request. Use Talk to Claude in the Office above for Claude's own action path. A build goes to Claude only if your request names Claude; otherwise Codex. Uses Elsie's office AI budget unless it is a plain status check.</p>
     <Button variant="outline" disabled={locked||request.trim().length<10} onClick={()=>void handToElsie()}>Hand to Elsie</Button>
     {handoff&&<ElsieHandoffResult reply={handoff}/>}
    </div>
