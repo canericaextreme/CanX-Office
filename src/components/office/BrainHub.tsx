@@ -16,6 +16,7 @@ import {
   Lamp,
 } from "lucide-react";
 import { OfficeFiles } from "./OfficeFiles";
+import { BrainShelfBubble } from "./BrainShelfBubble";
 import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getBrainIndex, setBrainShelf } from "@/lib/brain-index.functions";
@@ -420,7 +421,40 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
               const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable);
               const synId = `shelf-synopsis-${b}`;
               return (
-                <div key={b} className="group relative" data-shelf={shelfNumber + 1}>
+                <BrainShelfBubble
+                  key={b}
+                  number={shelfNumber + 1}
+                  name={display.name}
+                  id={`shelf-contents-${b}`}
+                  open={infoOpen === b}
+                  onOpenChange={(expanded) =>
+                    setInfoOpen((current) => (expanded ? b : current === b ? null : current))
+                  }
+                  contents={
+                    <>
+                      <h3 className="font-serif text-lg font-semibold">{display.name}</h3>
+                      <p className="mb-3 text-xs">{synopsis}</p>
+                      {shelvesReadable && (
+                        <ul
+                          aria-label={`${CATEGORY_LABELS[b]} shelf contents`}
+                          className="space-y-2"
+                        >
+                          {(index?.items ?? []).filter((item) => itemShelf(item) === b).map(row)}
+                        </ul>
+                      )}
+                      <Button
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => {
+                          setInfoOpen(null);
+                          open(b);
+                        }}
+                      >
+                        Open {CATEGORY_LABELS[b]}
+                      </Button>
+                    </>
+                  }
+                >
                   <button
                     type="button"
                     onClick={() => open(b)}
@@ -458,25 +492,10 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                       </span>
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    aria-label={`About ${display.name}`}
-                    aria-expanded={infoOpen === b}
-                    onClick={() => setInfoOpen(infoOpen === b ? null : b)}
-                    className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--brain-line)] bg-[var(--brain-card)] text-sm font-bold focus-visible:outline-2"
-                  >
-                    i
-                  </button>
-                  <p
-                    id={synId}
-                    role="tooltip"
-                    className={`absolute inset-x-2 top-full z-20 mt-1 rounded-lg border border-[var(--brain-line)] bg-[var(--brain-card)] p-3 text-xs leading-snug shadow-lg ${
-                      infoOpen === b ? "block" : "hidden group-hover:block group-focus-within:block"
-                    }`}
-                  >
+                  <span id={synId} className="sr-only">
                     {synopsis}
-                  </p>
-                </div>
+                  </span>
+                </BrainShelfBubble>
               );
             })}
           </nav>
