@@ -83,6 +83,35 @@ describe("viewer path", () => {
 
 /* ------------------------- only read-only call sites accept a viewer ------------------------- */
 
+describe("the page keeps action gates owner-only", () => {
+  it("never lets a viewer count as having completed the authenticator step-up", () => {
+    const provider = readFileSync("src/lib/owner-session.tsx", "utf8");
+    expect(provider).toContain('stepUpComplete: state === "owner" && aal === "aal2",');
+    expect(provider).toContain('canReadProtected: state === "owner" && (aal === "aal2" || viewer)');
+  });
+
+  it("uses the read-only flag only where data is read, never for an action", () => {
+    const users = ["src/components/office/RoomReports.tsx", "src/components/office/ProjectRegister.tsx"];
+    for (const f of users) expect(readFileSync(f, "utf8")).toContain("canReadProtected");
+    for (const f of readdirSync("src/components/office").map((n) => `src/components/office/${n}`).filter((n) => n.endsWith(".tsx") && !n.endsWith(".test.tsx"))) {
+      if (users.includes(f)) continue;
+      expect(readFileSync(f, "utf8"), f).not.toContain("canReadProtected");
+    }
+    // The assistants, builds, consent and spending panels still need the real authenticator.
+    for (const f of ["OfficeManager", "ClaudeBuildPanel", "CodexBuildPanel", "ClaudeSpendApproval"]) {
+      expect(readFileSync(`src/components/office/${f}.tsx`, "utf8")).toContain("session.stepUpComplete");
+    }
+    expect(readFileSync("src/routes/_office/oauth/consent.tsx", "utf8")).toContain("session.stepUpComplete");
+  });
+
+  it("starts no assistant, alert or companion in a viewing session", () => {
+    const layout = readFileSync("src/routes/_office.tsx", "utf8");
+    expect(layout).toMatch(/readOnlyViewer \? \(/);
+    const viewerBranch = layout.slice(layout.indexOf("readOnlyViewer ? ("), layout.indexOf(") : ("));
+    expect(viewerBranch).not.toMatch(/OfficeManager|CompanionDock|ApprovalAlert/);
+  });
+});
+
 describe("the viewer allowlist", () => {
   const src = (p: string) => readFileSync(p, "utf8");
   // Writes, spending and outside sends. (A handler may test whether a key is configured; it may not use one.)
@@ -93,7 +122,9 @@ describe("the viewer allowlist", () => {
       .filter((f) => /\.(ts|tsx)$/.test(f) && !f.endsWith(".test.ts") && !f.endsWith(".test.tsx") && f !== "canx-viewer.server.ts")
       .map((f) => `src/lib/${f}`)
       .filter((p) => src(p).includes("canx-viewer.server"));
-    expect([...users].sort()).toEqual([...VIEWER_READ_SITES].sort().filter((p) => users.includes(p)));
+    const sessionCheck = "src/lib/auth.functions.ts"; // tells the page a session is a read-only viewer; reads nothing
+    expect(users).toContain(sessionCheck);
+    expect([...users.filter((p) => p !== sessionCheck)].sort()).toEqual([...VIEWER_READ_SITES].sort().filter((p) => users.includes(p)));
     // Every listed site really uses it (no stale entries).
     for (const site of VIEWER_READ_SITES) {
       expect(src(site), site).toContain("canx-viewer.server");
