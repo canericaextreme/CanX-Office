@@ -19,13 +19,9 @@ export const prepareOfficeUpload = createServerFn({method:'POST'}).inputValidato
  return {path,uploadToken:signed.token};
 });
 export const finishOfficeUpload = createServerFn({method:'POST'}).inputValidator((v: {accessToken:string;filename:string;room:string;folder:string;size_bytes:number;content_hash:string;mime_type:string}) => ({...validateOfficeFile(v), accessToken:token(v.accessToken), mime_type:typeof v.mime_type==='string'?v.mime_type.slice(0,200):'application/octet-stream'})).handler(async({data}) => {
- const {db,owner} = await client(data.accessToken,data.room); const path = `${owner.userId}/${data.content_hash}/original`;
- const {data: objects,error} = await db.storage.from(FILE_BUCKET).list(`${owner.userId}/${data.content_hash}`,{limit:10});
- const object = objects?.find(f=>f.name==='original');
- if(error || !object || Number(object.metadata?.size)!==data.size_bytes) throw new Error('Original file upload was not verified. Retry the same file.');
- const {data: row,error: saveError} = await db.from('office_files').upsert({owner_id:owner.userId,filename:data.filename,room:data.room,folder:data.folder,object_path:path,content_hash:data.content_hash,size_bytes:data.size_bytes,mime_type:data.mime_type},{onConflict:'owner_id,content_hash,room,folder'}).select().single();
- if(saveError || !row) throw new Error('Original uploaded, but filing was not confirmed. Retry the same file.');
- return row as OfficeFile;
+ const {db,owner} = await client(data.accessToken,data.room);
+ const {confirmOriginalUpload} = await import('./office-upload.server');
+ return confirmOriginalUpload(db, owner.userId, data);
 });
 export const listOfficeFiles = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string;room?:string})=>({accessToken:token(v.accessToken),room:v.room})).handler(async({data})=>{
  const {db} = await client(data.accessToken,data.room); let query = db.from('office_files').select('*').order('created_at',{ascending:false}).limit(200);

@@ -91,14 +91,14 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
     }
     case "brain-index": {
       const { readBrainIndexWith } = await import("./brain-index.server");
-      const { countByCategory, CATEGORY_LABELS } = await import("./brain-index");
+      const { countByShelf, SHELF_LABELS } = await import("./brain-shelves");
       const index = await readBrainIndexWith({ config: req.config, token: req.token, aal: req.aal, rest: req.rest, ...(req.now ? { now: req.now } : {}) });
       const bad = index.sources.filter((s) => s.status !== "read");
-      const counts = countByCategory(index.items);
+      const counts = countByShelf(index.items);
       return result(def, {
         status: index.sources.every((s) => s.status === "failed") ? "failed" : "read",
         count: index.items.length,
-        items: (Object.keys(counts) as Array<keyof typeof counts>).map((k) => `${CATEGORY_LABELS[k]}: ${counts[k]}`),
+        items: (Object.keys(counts) as Array<keyof typeof counts>).map((k) => `${SHELF_LABELS[k]}: ${index.sources.some(s => s.key === "shelves" && s.status !== "read") ? "unknown" : counts[k]}`),
         detail: `metadata index only${bad.length ? `; not read: ${bad.map((s) => `${s.label} (${s.status})`).join(", ")}` : ""}`,
       });
     }

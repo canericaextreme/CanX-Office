@@ -77,7 +77,7 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
       n++;
       items.push({
         key: `note:${t(r["id"], 80)}`, kind: "note", title: t(r["title"]) || "(untitled)", room: null, folder: null, at: t(r["created_at"], 40) || null,
-        provenance: `${source || "John"} (office_notes)`, version: null, access: "saved record text", defaultCategory: def, category: def, manual: false, route: "/records",
+        shelfOrigin: source, provenance: `${source || "John"} (office_notes)`, version: null, access: "saved record text", defaultCategory: def, category: def, manual: false, route: "/records",
       });
     }
     sources[sources.length - 1]!.count = notes ? n : null;
@@ -119,5 +119,6 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
   });
 
   const applied = applyLabels(items, labels);
-  return { checkedAt: (input.now?.() ?? new Date()).toISOString(), items: applied.items, sources, orphanLabels: applied.orphanLabels };
+  const { addBrainShelves } = await import("./brain-shelves.server");
+  return addBrainShelves({ checkedAt: (input.now?.() ?? new Date()).toISOString(), items: applied.items, sources, orphanLabels: applied.orphanLabels }, input);
 }

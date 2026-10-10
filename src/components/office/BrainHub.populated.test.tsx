@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children: React.ReactNode }) => React.createElement("a", null, children) }));
-vi.mock("@/lib/brain-index.functions", () => ({ getBrainIndex: {}, setBrainCategory: {} }));
+vi.mock("@/lib/brain-index.functions", () => ({ getBrainIndex: {}, setBrainShelf: {} }));
 vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => ({ accessToken: "fixture", stepUpComplete: true }) }));
 vi.mock("./OfficeFiles", () => ({ OfficeFiles: ({ onSaved }: { onSaved?: () => void }) => React.createElement("button", { onClick: onSaved }, "Upload from computer") }));
 import { BrainHub } from "./BrainHub";
@@ -20,7 +20,7 @@ it("home shows category shelves and only last-3-day activity, not a full item li
     item("file:old", "Old archive.pdf", "2026-08-01T00:00:00Z"),
     item("note:m", "Budget decision", "2026-10-02T00:00:00Z", { kind: "note", category: "memory", defaultCategory: "memory" }),
   ]) }));
-  for (const label of ["Downloads", "Knowledge", "Discussions", "Memory", "Projects", "Rules &amp; Skills"]) expect(html).toContain(label);
+  for (const label of ["Compass", "Rulebook", "Workshop", "Piggy Bank", "Library", "Diary", "Logbook", "Lost-and-Found"]) expect(html).toContain(label);
   expect(html).toContain("Recent activity");
   expect(html).toContain("New lease.pdf");
   expect(html).toContain("Budget decision");
@@ -33,6 +33,6 @@ it("clear empty state when nothing in the last three days; unsorted shelf kept w
     item("file:x", "Undated thing", null, { category: "unsorted", defaultCategory: "unsorted" }),
   ]) }));
   expect(html).toContain("Nothing saved in the last three days");
-  expect(html).toContain("Needs a category");
+  expect(html).toContain("Lost-and-Found");
   expect(html).not.toContain("Undated thing");
 });
