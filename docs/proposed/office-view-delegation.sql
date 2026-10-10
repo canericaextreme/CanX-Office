@@ -69,6 +69,26 @@ create table if not exists canx_private.office_view_captures(
   revoked_at timestamptz
 );
 
+-- A request to look at one room. Made by an assistant (or Elsie); claimed once by the capture broker.
+create table if not exists canx_private.office_view_requests(
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null,
+  assistant text not null check (assistant in ('claude','chatgpt','elsie')),
+  route text not null,
+  purpose text not null default 'image' check (purpose in ('image','information')),
+  viewport text not null check (viewport in ('desktop','mobile')),
+  ui_state text not null check (ui_state in ('default','synopsis_open')),
+  requested_at timestamptz not null default now(),
+  expires_at timestamptz not null default now() + interval '3 minutes',
+  status text not null default 'queued' check (status in ('queued','claimed','stored','failed','refused')),
+  view_session_id uuid,
+  capture_id uuid,
+  detail text
+);
+create index if not exists office_view_requests_recent on canx_private.office_view_requests(owner_id, assistant, requested_at);
+alter table canx_private.office_view_requests enable row level security;
+revoke all on canx_private.office_view_requests from public, anon, authenticated;
+
 alter table canx_private.office_view_grants enable row level security;
 alter table canx_private.office_view_sessions enable row level security;
 alter table canx_private.office_view_captures enable row level security;
@@ -150,7 +170,7 @@ create policy office_view_read on public.knowledge_document_sections for select 
 -- ---------------------------------------------------------------- owner controls
 
 -- Grant or update. Needs the owner's authenticator (AAL2): this is the one-time delegation check.
-create or replace function public.canx_view_grant_set(_assistant text, _viewer_user uuid, _rooms text[], _days integer default 30)
+create or replace function public.canx_view_grant_set(_assistant text, _viewer_user uuid, _rooms text[], _days integer default 30, _scopes text[] default array['view_room_images','read_room_information'])
 returns void language plpgsql security definer set search_path = public, canx_private as $$
 declare uid uuid := auth.uid();
 begin
@@ -162,19 +182,21 @@ begin
     raise exception 'Access must last between 1 and 90 days' using errcode = '22023'; end if;
   if _rooms is null or cardinality(_rooms) = 0 or not (_rooms <@ public.canx_view_rooms()) then
     raise exception 'Rooms must be known Office rooms' using errcode = '22023'; end if;
+  if _scopes is null or cardinality(_scopes) = 0 or not (_scopes <@ array['view_room_images','read_room_information']) then
+    raise exception 'Scope must be viewing images and/or reading room information' using errcode = '22023'; end if;
   if _viewer_user is null or _viewer_user = uid or public.has_role(_viewer_user, 'owner') then
     raise exception 'The viewer identity must be a separate, non-owner account' using errcode = '42501'; end if;
   if not exists(select 1 from auth.users where id = _viewer_user) then
     raise exception 'Viewer account does not exist' using errcode = '22023'; end if;
   if exists(select 1 from canx_private.office_view_grants g where g.viewer_user_id = _viewer_user and (g.owner_id <> uid or g.assistant <> _assistant)) then
     raise exception 'That viewer account already belongs to another assistant' using errcode = '42501'; end if;
-  insert into canx_private.office_view_grants(owner_id, assistant, viewer_user_id, rooms, delegated_at, delegated_aal, expires_at)
-    values (uid, _assistant, _viewer_user, (select array_agg(distinct r order by r) from unnest(_rooms) r), now(), 'aal2', now() + make_interval(days => _days))
+  insert into canx_private.office_view_grants(owner_id, assistant, viewer_user_id, rooms, scopes, delegated_at, delegated_aal, expires_at)
+    values (uid, _assistant, _viewer_user, (select array_agg(distinct r order by r) from unnest(_rooms) r), (select array_agg(distinct x order by x) from unnest(_scopes) x), now(), 'aal2', now() + make_interval(days => _days))
   on conflict (owner_id, assistant) do update
-    set rooms = excluded.rooms, delegated_at = now(), delegated_aal = 'aal2', expires_at = excluded.expires_at,
+    set rooms = excluded.rooms, scopes = excluded.scopes, delegated_at = now(), delegated_aal = 'aal2', expires_at = excluded.expires_at,
         enabled = true, revoked_at = null, updated_at = now(), viewer_user_id = excluded.viewer_user_id;
   insert into public.office_audit(owner_id, action, entity, entity_id, detail)
-    values (uid, 'office_view.grant', 'assistant', _assistant, jsonb_build_object('rooms', _rooms, 'days', _days, 'aal', 'aal2'));
+    values (uid, 'office_view.grant', 'assistant', _assistant, jsonb_build_object('rooms', _rooms, 'scopes', _scopes, 'days', _days, 'aal', 'aal2'));
 end $$;
 
 -- Revoke one assistant. Deliberately needs only the owner's normal sign-in, so turning access OFF is never harder than turning it on.
@@ -196,9 +218,9 @@ end $$;
 
 -- Owner-facing status for the management panel. Never returns credentials.
 create or replace function public.canx_view_grants_status()
-returns table(assistant text, enabled boolean, rooms text[], expires_at timestamptz, delegated_at timestamptz, revoked_at timestamptz, captures_last_day bigint, last_used_at timestamptz)
+returns table(assistant text, enabled boolean, rooms text[], scopes text[], expires_at timestamptz, delegated_at timestamptz, revoked_at timestamptz, captures_last_day bigint, last_used_at timestamptz)
 language sql stable security definer set search_path = public, canx_private as $$
-  select g.assistant, (g.enabled and g.revoked_at is null and g.expires_at > now()), g.rooms, g.expires_at, g.delegated_at, g.revoked_at,
+  select g.assistant, (g.enabled and g.revoked_at is null and g.expires_at > now()), g.rooms, g.scopes, g.expires_at, g.delegated_at, g.revoked_at,
     (select count(*) from canx_private.office_view_sessions s where s.owner_id = g.owner_id and s.assistant = g.assistant and s.issued_at > now() - interval '1 day'),
     (select max(s.issued_at) from canx_private.office_view_sessions s where s.owner_id = g.owner_id and s.assistant = g.assistant)
   from canx_private.office_view_grants g
@@ -214,28 +236,6 @@ language sql stable security definer set search_path = public as $$
   order by a.at desc limit least(greatest(coalesce(_limit, 100), 1), 500) $$;
 
 -- ---------------------------------------------------------------- server-only (service role)
-
--- Issue one capture session. Returns the session id or raises with a stable reason code.
-create or replace function public.canx_view_session_issue(_owner uuid, _assistant text, _route text, _purpose text)
-returns uuid language plpgsql security definer set search_path = public, canx_private as $$
-declare g canx_private.office_view_grants%rowtype; sid uuid; recent integer;
-begin
-  select * into g from canx_private.office_view_grants where owner_id = _owner and assistant = _assistant;
-  if not found then raise exception 'no_grant' using errcode = '42501'; end if;
-  if not g.enabled or g.revoked_at is not null then raise exception 'revoked' using errcode = '42501'; end if;
-  if g.expires_at <= now() then raise exception 'grant_expired' using errcode = '42501'; end if;
-  if _purpose is null or _purpose not in ('image','information') then raise exception 'bad_purpose' using errcode = '22023'; end if;
-  if not (_route = any(public.canx_view_rooms())) then raise exception 'unknown_room' using errcode = '22023'; end if;
-  if not (_route = any(g.rooms)) then raise exception 'room_not_granted' using errcode = '42501'; end if;
-  if _purpose = 'image' and not ('view_room_images' = any(g.scopes)) then raise exception 'wrong_permission' using errcode = '42501'; end if;
-  if _purpose = 'information' and not ('read_room_information' = any(g.scopes)) then raise exception 'wrong_permission' using errcode = '42501'; end if;
-  select count(*) into recent from canx_private.office_view_sessions where owner_id = _owner and assistant = _assistant and issued_at > now() - interval '1 hour';
-  if recent >= 30 then raise exception 'rate_limited' using errcode = '53400'; end if;
-  insert into canx_private.office_view_sessions(owner_id, assistant, route, purpose) values (_owner, _assistant, _route, _purpose) returning id into sid;
-  insert into public.office_audit(owner_id, action, entity, entity_id, detail)
-    values (_owner, 'office_view.session', 'assistant', _assistant, jsonb_build_object('route', _route, 'purpose', _purpose, 'outcome', 'issued'));
-  return sid;
-end $$;
 
 -- Bind the freshly created auth session to the capture session. Works once; a second bind is refused (replay).
 create or replace function public.canx_view_session_bind(_session uuid, _auth_session uuid)
@@ -268,6 +268,7 @@ begin
           (_meta->>'pageHeight')::integer, _meta->>'imageSha256', _path, (_meta->>'capturedAt')::timestamptz, now() + interval '24 hours')
   returning id into cid;
   update canx_private.office_view_sessions set closed_at = now() where id = _session and closed_at is null;
+  update canx_private.office_view_requests set status = 'stored', capture_id = cid where view_session_id = _session;
   insert into public.office_audit(owner_id, action, entity, entity_id, detail)
     values (s.owner_id, 'office_view.capture', 'assistant', s.assistant, jsonb_build_object('route', s.route, 'capture', cid, 'outcome', 'stored'));
   return cid;
@@ -297,13 +298,116 @@ returns table(storage_path text) language sql security definer set search_path =
    where c.deleted_at is null and (c.expires_at <= now() or c.revoked_at is not null)
   returning c.storage_path $$;
 
+-- ---------------------------------------------------------------- requests (assistants never touch sessions)
+
+-- Shared checks for creating a request. Raises a stable reason code on any refusal.
+create or replace function canx_private.view_request_make(_owner uuid, _assistant text, _route text, _viewport text, _state text, _purpose text default 'image')
+returns uuid language plpgsql security definer set search_path = public, canx_private as $$
+declare g canx_private.office_view_grants%rowtype; rid uuid; recent integer;
+begin
+  select * into g from canx_private.office_view_grants where owner_id = _owner and assistant = _assistant;
+  if not found then raise exception 'no_grant' using errcode = '42501'; end if;
+  if not g.enabled or g.revoked_at is not null then raise exception 'revoked' using errcode = '42501'; end if;
+  if g.expires_at <= now() then raise exception 'grant_expired' using errcode = '42501'; end if;
+  if _purpose is null or _purpose not in ('image','information') then raise exception 'bad_request' using errcode = '22023'; end if;
+  if _purpose = 'image' and not ('view_room_images' = any(g.scopes)) then raise exception 'wrong_permission' using errcode = '42501'; end if;
+  if _purpose = 'information' and not ('read_room_information' = any(g.scopes)) then raise exception 'wrong_permission' using errcode = '42501'; end if;
+  if _route is null or not (_route = any(public.canx_view_rooms())) then raise exception 'unknown_room' using errcode = '22023'; end if;
+  if not (_route = any(g.rooms)) then raise exception 'room_not_granted' using errcode = '42501'; end if;
+  if _viewport is null or _viewport not in ('desktop','mobile') or _state is null or _state not in ('default','synopsis_open') then
+    raise exception 'bad_request' using errcode = '22023'; end if;
+  select count(*) into recent from canx_private.office_view_requests where owner_id = _owner and assistant = _assistant and requested_at > now() - interval '1 hour';
+  if recent >= 30 then raise exception 'rate_limited' using errcode = '53400'; end if;
+  insert into canx_private.office_view_requests(owner_id, assistant, route, purpose, viewport, ui_state) values (_owner, _assistant, _route, _purpose, _viewport, _state) returning id into rid;
+  insert into public.office_audit(owner_id, action, entity, entity_id, detail)
+    values (_owner, 'office_view.request', 'assistant', _assistant, jsonb_build_object('route', _route, 'purpose', _purpose, 'viewport', _viewport, 'state', _state, 'outcome', 'queued'));
+  return rid;
+end $$;
+revoke all on function canx_private.view_request_make(uuid, text, text, text, text, text) from public, anon, authenticated;
+
+-- Entry 1: Claude or ChatGPT through the approved Office connector (an OAuth client).
+-- The assistant name comes from the owner's own connector approval, never from the caller.
+create or replace function public.canx_view_request_create(_route text, _viewport text default 'desktop', _state text default 'default', _purpose text default 'image')
+returns uuid language plpgsql security definer set search_path = public, canx_private as $$
+declare who text;
+begin
+  if not canx_private.mcp_session_active() then raise exception 'connector_inactive' using errcode = '42501'; end if;
+  select c.identity into who from canx_private.office_mcp_clients c
+   where c.owner_id = auth.uid() and c.client_id = (auth.jwt()->>'client_id')::uuid and c.enabled;
+  if who is null then raise exception 'connector_inactive' using errcode = '42501'; end if;
+  return canx_private.view_request_make(auth.uid(), who, _route, _viewport, _state, _purpose);
+end $$;
+
+-- Entry 2: Elsie, from inside the Office, on the owner's own signed-in session. Always recorded as 'elsie'.
+create or replace function public.canx_view_request_create_elsie(_route text, _viewport text default 'desktop', _state text default 'default', _purpose text default 'image')
+returns uuid language plpgsql security definer set search_path = public, canx_private as $$
+begin
+  if auth.uid() is null or auth.jwt()->>'client_id' is not null or not public.has_role(auth.uid(), 'owner') then
+    raise exception 'Owner sign-in required' using errcode = '42501'; end if;
+  return canx_private.view_request_make(auth.uid(), 'elsie', _route, _viewport, _state, _purpose);
+end $$;
+
+-- What happened to a request. A caller sees only requests made under its own assistant name.
+create or replace function public.canx_view_request_status(_request uuid, _as_elsie boolean default false)
+returns table(status text, capture_id uuid, detail text, route text, expires_at timestamptz)
+language plpgsql security definer set search_path = public, canx_private as $$
+declare who text;
+begin
+  if _as_elsie then
+    if auth.uid() is null or auth.jwt()->>'client_id' is not null or not public.has_role(auth.uid(), 'owner') then
+      raise exception 'Owner sign-in required' using errcode = '42501'; end if;
+    who := 'elsie';
+  else
+    if not canx_private.mcp_session_active() then raise exception 'connector_inactive' using errcode = '42501'; end if;
+    select c.identity into who from canx_private.office_mcp_clients c
+     where c.owner_id = auth.uid() and c.client_id = (auth.jwt()->>'client_id')::uuid and c.enabled;
+    if who is null then raise exception 'connector_inactive' using errcode = '42501'; end if;
+  end if;
+  return query select r.status, r.capture_id, r.detail, r.route, r.expires_at from canx_private.office_view_requests r
+    where r.id = _request and r.owner_id = auth.uid() and r.assistant = who;
+end $$;
+
+-- Broker only. Claim a queued request ONCE: re-checks the grant now, opens the 5 minute session and returns what to capture.
+create or replace function public.canx_view_request_claim(_request uuid)
+returns table(session_id uuid, owner_id uuid, assistant text, route text, purpose text, viewport text, ui_state text, viewer_user_id uuid)
+language plpgsql security definer set search_path = public, canx_private as $$
+#variable_conflict use_column
+declare r canx_private.office_view_requests%rowtype; g canx_private.office_view_grants%rowtype; sid uuid;
+begin
+  select * into r from canx_private.office_view_requests where id = _request for update;
+  if not found then raise exception 'unknown_request' using errcode = '22023'; end if;
+  if r.status <> 'queued' then raise exception 'request_already_claimed' using errcode = '42501'; end if;
+  if r.expires_at <= now() then
+    update canx_private.office_view_requests set status = 'failed', detail = 'expired_before_claim' where id = _request;
+    raise exception 'request_expired' using errcode = '42501'; end if;
+  select * into g from canx_private.office_view_grants where owner_id = r.owner_id and assistant = r.assistant;
+  if not found or not g.enabled or g.revoked_at is not null or g.expires_at <= now() or not (r.route = any(g.rooms)) then
+    update canx_private.office_view_requests set status = 'refused', detail = 'grant_not_active' where id = _request;
+    raise exception 'grant_not_active' using errcode = '42501'; end if;
+  insert into canx_private.office_view_sessions(owner_id, assistant, route, purpose) values (r.owner_id, r.assistant, r.route, r.purpose) returning id into sid;
+  update canx_private.office_view_requests set status = 'claimed', view_session_id = sid where id = _request;
+  return query select sid, r.owner_id, r.assistant, r.route, r.purpose, r.viewport, r.ui_state, g.viewer_user_id;
+end $$;
+
+create or replace function public.canx_view_request_fail(_request uuid, _detail text)
+returns void language sql security definer set search_path = public, canx_private as $$
+  update canx_private.office_view_requests set status = 'failed', detail = left(coalesce(_detail, 'failed'), 200)
+   where id = _request and status in ('queued','claimed');
+  update canx_private.office_view_sessions set closed_at = now()
+   where id = (select view_session_id from canx_private.office_view_requests where id = _request) and closed_at is null $$;
+
+revoke all on function public.canx_view_request_create(text, text, text, text), public.canx_view_request_create_elsie(text, text, text, text), public.canx_view_request_status(uuid, boolean) from public, anon;
+grant execute on function public.canx_view_request_create(text, text, text, text), public.canx_view_request_create_elsie(text, text, text, text), public.canx_view_request_status(uuid, boolean) to authenticated;
+revoke all on function public.canx_view_request_claim(uuid), public.canx_view_request_fail(uuid, text) from public, anon, authenticated;
+grant execute on function public.canx_view_request_claim(uuid), public.canx_view_request_fail(uuid, text) to service_role;
+
 -- Owner controls: signed-in owner only (never an OAuth client, never a viewer).
-revoke all on function public.canx_view_grant_set(text, uuid, text[], integer), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) from public, anon;
-grant execute on function public.canx_view_grant_set(text, uuid, text[], integer), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) to authenticated;
+revoke all on function public.canx_view_grant_set(text, uuid, text[], integer, text[]), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) from public, anon;
+grant execute on function public.canx_view_grant_set(text, uuid, text[], integer, text[]), public.canx_view_grant_revoke(text), public.canx_view_grants_status(), public.canx_view_history(integer) to authenticated;
 -- Server-only.
-revoke all on function public.canx_view_session_issue(uuid, text, text, text), public.canx_view_session_bind(uuid, uuid), public.canx_view_session_close(uuid),
+revoke all on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_close(uuid),
   public.canx_view_capture_record(uuid, jsonb, text), public.canx_view_capture_fetch(uuid, text, uuid), public.canx_view_capture_purge() from public, anon, authenticated;
-grant execute on function public.canx_view_session_issue(uuid, text, text, text), public.canx_view_session_bind(uuid, uuid), public.canx_view_session_close(uuid),
+grant execute on function public.canx_view_session_bind(uuid, uuid), public.canx_view_session_close(uuid),
   public.canx_view_capture_record(uuid, jsonb, text), public.canx_view_capture_fetch(uuid, text, uuid), public.canx_view_capture_purge() to service_role;
 
 -- Private bucket for capture images. No policy for authenticated users: only the server (service role) touches it.
