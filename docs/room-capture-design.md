@@ -44,7 +44,7 @@ The hard part is step 1. The Office is behind owner sign-in. A server browser ha
 2. **Rules file** — included (`src/lib/room-capture.ts`) with tests. All 24 rooms, two-step tiers, viewport sizes, record validation, freshness.
 3. **Not built yet — each needs a decision:**
    - A GitHub Actions workflow to run the script (workflows are a protected area).
-   - A way to open the room as owner. Candidate: the Office's edge function (which already holds the server key) issues a **5-minute, single-use, AAL1** session to the running job, proved by GitHub's OIDC token. Rooms that need the authenticator (AAL2) stay closed to it. This is my suggestion and needs a security review.
+   - A way to open the room. **Superseded:** an AAL1 owner session cannot read most rooms (most tables require AAL2), and an owner session would be unrestricted. The design is now a separate read-only viewer identity per assistant with a standing, revocable grant created once under the authenticator (see office-access-build.md and docs/proposed/office-view-delegation.sql).
    - A database table and a **private** storage bucket with owner-only row security.
    - Two new connector tools in `supabase/functions/office-mcp`: ask for a capture, and read a capture back as an image.
    - Deploying the edge function.

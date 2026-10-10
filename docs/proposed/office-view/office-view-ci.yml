@@ -1,0 +1,30 @@
+# PROPOSED reproducible check on the project's LOCKED dependencies (the scratch runs used public npm, not the lockfile).
+# Copy to .github/workflows/office-view-ci.yml only after John approves. Read-only, no secrets, no deploy.
+name: Office view check
+on:
+  pull_request:
+    paths: ['src/**', 'scripts/capture/**', 'scripts/office-view/**', 'docs/proposed/**', 'docs/office-room-briefs.json', 'supabase/functions/**']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with: { persist-credentials: false }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: '1.3.6' }
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: bun run lint
+      - run: bunx vitest run
+      - run: bun run build
+      - name: Real Postgres check of the proposed database setup
+        run: |
+          mkdir -p /tmp/pg && cd /tmp/pg && npm init -y >/dev/null && npm i --no-audit --no-fund @electric-sql/pglite@0.5.8
+          CANX_TEST_PGLITE_MODULE=/tmp/pg/node_modules/@electric-sql/pglite/dist/index.js node scripts/office-view/verify-sql.mjs
+      - name: Capture runner in real Chromium (stand-in servers, not the live Office)
+        run: |
+          npm i --no-save --no-audit --no-fund playwright@1.49.1 && npx playwright install --with-deps chromium
+          node scripts/capture/verify-runner.mjs
