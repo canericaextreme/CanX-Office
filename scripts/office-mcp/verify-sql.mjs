@@ -26,8 +26,9 @@ try {
  create function public.has_role(_user_id uuid,_role public.app_role) returns boolean language sql security definer set search_path=public as $$ select exists(select 1 from public.user_roles where user_id=_user_id and role=_role) $$;
  create function public.session_aal() returns text language sql stable as $$ select auth.jwt()->>'aal' $$;
  create table public.office_notes(id text primary key,owner_id uuid,title text,detail text,source text,kind text,provenance text,updated_at timestamptz default now());
- create table public.manager_tasks(id uuid primary key,owner_id uuid,title text,detail text,status text,project text,risk text,worker text,waiting_reason text,updated_at timestamptz default now());
- create table public.ai_usage(owner_id uuid,estimated_cents int,at timestamptz);
+ create table public.manager_tasks(id uuid primary key,owner_id uuid,title text,detail text,status text,project text,risk text,worker text,waiting_reason text,result text,evidence text,updated_at timestamptz default now());
+ create table public.ai_usage(id uuid default gen_random_uuid(),owner_id uuid,estimated_cents int,at timestamptz default now(),outcome text default 'reserved',settled_at timestamptz);
+ create table public.ai_limits(owner_id uuid primary key,max_calls_per_minute int,max_calls_per_day int,max_cents_per_day int,max_cents_per_month int);
  create table public.office_audit(owner_id uuid,action text,entity text,entity_id text,detail jsonb);
  create table public.finance_receipts(owner_id uuid primary key,doc jsonb,updated_at timestamptz default now());
  create table storage.objects(id uuid primary key);
@@ -39,6 +40,7 @@ try {
  `);
  await db.exec(await readFile(new URL("../../supabase/migrations/20261008180144_office_mcp_scoped_access.sql",import.meta.url),"utf8"));
  await db.exec(await readFile(new URL("../../supabase/migrations/20261008200158_office_mcp_work_access.sql",import.meta.url),"utf8"));
+ await db.exec(await readFile(new URL("../../supabase/migrations/20261010023817_office_colleague_relay_work_grant.sql",import.meta.url),"utf8"));
  await db.exec(`
  insert into auth.users values('${uid}');
  insert into public.user_roles values('${uid}','owner');
@@ -105,7 +107,38 @@ try {
  assert.equal((await claim()).dispatch,true);assert.equal((await claim()).dispatch,false);
  await assert.rejects(db.query("select public.canx_mcp_claim_build($1,'claude','Build a test interface')",[bid]));
  await db.query("select public.canx_mcp_finish_build($1,'{\"ok\":true}'::jsonb)",[bid]);assert.deepEqual((await claim()).result,{ok:true});
+ // Delegated relay: protected writes, exact CAS, preserved history and budgets.
+ await db.exec(`update public.manager_tasks set risk='green',result='Earlier',evidence='Earlier evidence',updated_at=now()-interval '5 minutes'; insert into public.ai_limits values('${uid}',6,200,500,10000);`);
+ await db.exec('set role authenticated');
+ const relayId='11111111-2222-4333-8444-555555555555';
+ const task=async()=> (await db.query("select public.canx_office_records('manager_tasks',$1) as r",[sid])).rows[0].r.records[0].data;
+ const before=await task();
+ const at=new Date(Date.now()-2000).toISOString();
+ const evidence=before.evidence+`\n\n[colleague-relay ${relayId} claimed claude ${at}]`;
+ const save=async(expected,patch)=>(await db.query('select public.canx_mcp_relay_save($1,$2,$3::jsonb) as r',[sid,expected,JSON.stringify(patch)])).rows[0].r;
+ await assert.rejects(save(before.updated_at,{evidence:'OVERWRITE',updated_at:at}));
+ await assert.rejects(save(before.updated_at,{evidence,updated_at:at,status:'done'}));
+ assert.equal((await save(before.updated_at,{evidence,updated_at:at})).length,1);
+ assert.equal((await save(before.updated_at,{evidence,updated_at:at})).length,0);
+ const result=before.result+`\n\n[colleague-relay ${relayId} reply claude ${at}]\nReceived`;
+ const finishAt=new Date().toISOString();
+ const receipt=evidence+`\n\nRelay receipt ${relayId}: Anthropic response msg_fixture; model fixture.`;
+ assert.equal((await save(at,{evidence:receipt,result,updated_at:finishAt})).length,1);
+ const finished=await task();assert.equal(finished.result,result);assert.equal(finished.status,'open');
+ assert.equal((await save(finishAt,{evidence:receipt+`\n\n[colleague-relay ${relayId} claimed claude ${at}]`,updated_at:new Date(Date.now()+1000).toISOString()})).length,0);
+ const reserve=async(c)=>(await db.query('select * from public.canx_mcp_relay_reserve($1)',[c])).rows[0];
+ assert.equal((await reserve(-1)).allowed,false);
+ const reservation=await reserve(4);assert.equal(reservation.allowed,true);
+ await db.query("select public.canx_mcp_relay_settle($1,'ok')",[reservation.reservation_id]);
+ await db.exec('reset role');
+ assert.equal((await db.query('select outcome from public.ai_usage where id=$1',[reservation.reservation_id])).rows[0].outcome,'ok');
+ await db.exec(`update public.ai_limits set max_cents_per_month=4`);
+ assert.equal((await reserve(4)).reason,'budget_limit');
+ await db.exec(`update public.manager_tasks set risk='yellow'`);
+ await assert.rejects(save(finishAt,{evidence:receipt,updated_at:new Date(Date.now()+1000).toISOString()}));
+ await claims({...base,sub:other});await assert.rejects(save(finishAt,{evidence:receipt,updated_at:at}));assert.equal((await reserve(4)).allowed,false);await claims(base);
+ await db.exec('set role anon');await assert.rejects(save(finishAt,{evidence:receipt,updated_at:at}));await db.exec('reset role');
  await db.exec("update auth.oauth_consents set revoked_at=now()");assert.equal(await work(),false);await assert.rejects(db.query("select public.canx_office_records('office_notes')"));await db.exec("update auth.oauth_consents set revoked_at=null");
  await db.exec("delete from auth.sessions");assert.equal(await active(),false);
- console.log("Isolated SQL fixtures passed: owner consent, current session/grant, narrow saved metadata, direct-record denial, unchanged normal-owner access, expiry, revocation, removed owner and sign-out denial. No live records touched.");
+ console.log("Isolated SQL fixtures passed: owner consent, current session/grant, narrow saved metadata, direct-record denial, unchanged normal-owner access, expiry, revocation, removed owner and sign-out denial. Relay claim/save, stale versions, duplicate IDs, foreign/revoked clients, unchanged budgets and anonymous denial also passed. No live records touched.");
 } finally {await db.close();}

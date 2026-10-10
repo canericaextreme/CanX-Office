@@ -126,6 +126,15 @@
       "audience": "office-status",
       "summary": "John approved merging and publishing change 73. GitHub merge commit synced to Lovable and the live Office serves the matching deployment ID. Both builder status routes returned ok. Preview publication filter behavior passed 19 local targeted checks; no paid build or signed-in room health check was started.",
       "evidence": "PR 73 merged as 80dde4629338a73070a924bbfb4a012b6cdb043e. Lovable latest_commit_sha matched; production x-deployment-id matched 217e333f-2e2e-4ab6-b720-11051ce43c5b at 22:46 UTC. Local assertions cover whole-word publish, negative publish instructions and preview wording."
+    },
+    {
+      "id": "2026-10-10-relay-work-grant-repair",
+      "at": "2026-10-10T02:41:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Owner-requested relay repair replaces blocked raw OAuth reads/writes with owner working-grant RPCs. Dedicated claim/reply saves preserve earlier text, CAS and request idempotency. Budget reservations use existing limits without initializing or increasing them. Database migration applied; application publication and real Claude acceptance pending.",
+      "evidence": "40 targeted tests, typecheck, production build and isolated SQL authorization/claim/save/budget fixtures passed. Migration office_colleague_relay_work_grant applied; live anonymous execute grants denied."
     }
   ]
 }

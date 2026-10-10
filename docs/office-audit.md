@@ -109,3 +109,9 @@ Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403
 ## Colleague relay (9 Oct 2026, unpublished)
 - Installed and unit-tested: MCP `relay_to_colleague` (claude|chatgpt Office API colleague, one task, one request id, owner direction note `canx-communication-20261008` labelled) and `read_colleague_replies`.
 - Not live tested: no signed-in owner round trip yet. Does not wake native external Claude/ChatGPT chats.
+
+### Delegated Claude relay repair — 10 October 2026 UTC
+- Source check: raw OAuth reads and budget owner checks blocked colleague delivery before Anthropic.
+- Repair: existing working-grant record reads; dedicated owner-scoped CAS claim/reply and budget RPCs; no changes to raw table policies or agreed limits.
+- Validation: 40 targeted tests, typecheck, production build and isolated SQL authorization/idempotency/budget fixtures passed. Migration applied and grants checked live.
+- Acceptance pending: publish repaired source, obtain an Anthropic receipt, read saved reply back, and repeat the request id without another provider call. This does not verify all rooms, voice, or GitHub builder credentials.
