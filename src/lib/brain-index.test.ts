@@ -3,6 +3,7 @@ import { readBrainIndexWith, type BrainRest } from "./brain-index.server";
 import {
   CATEGORY_NOTE_SOURCE, brainIndexForModel, categoryNoteId, countByCategory, isItemKey, noteDefaultCategory, requestNeedsBrain, searchBrain,
 } from "./brain-index";
+import { BRAIN_SHELVES, SHELF_HELP, shelfRoute, shelfFromHash } from "./brain-shelves";
 import { OFFICE_SKILLS } from "./office-skills";
 import { readRoomSnapshotWith } from "./room-snapshot.server";
 import { roomTargetForRoute } from "./room-snapshot";
@@ -138,7 +139,8 @@ describe("Elsie retrieval and the shared Brain snapshot", () => {
     const snap = await readRoomSnapshotWith({ config: CONFIG, token: "t", aal: "aal2", target: roomTargetForRoute("/brain")!, rest: d.rest, now: () => new Date("2026-10-03T22:00:00Z") });
     const src = snap.sources.find((s) => s.key === "brain-index")!;
     expect(src.status).toBe("read");
-    expect(src.items).toContain("Downloads: 4");
+    expect(src.items).toContain("Library: 4");
+    expect(src.items).toContain("Piggy Bank: 1");
     expect(src.detail).toMatch(/metadata index only/);
   });
   it("setBrainCategory saves one label and requires readback (source contract)", async () => {
@@ -193,4 +195,19 @@ describe("Brain recent activity", () => {
     ];
     expect(recentBrainItems(items, new Date("2026-10-03T22:00:00Z")).map((i) => i.key)).toEqual(["b", "a"]);
   });
+});
+
+
+it("shares every shelf description and working route with Elsie without implying a live verification", () => {
+  const context = brainIndexForModel({ checkedAt: "2026-10-10T00:00:00Z", items: [], sources: [], orphanLabels: 0 }, "Brain remodel");
+  for (const shelf of BRAIN_SHELVES) {
+    expect(context).toContain(SHELF_HELP[shelf]);
+    expect(context).toContain(shelfRoute(shelf));
+    expect(shelfFromHash(`#shelf-${shelf}`)).toBe(shelf);
+  }
+  expect(shelfFromHash("#unknown")).toBeNull();
+  expect(context).toContain("/build-testing#codex-builder");
+  expect(context).toContain("/build-testing#claude-builder");
+  expect(context).toContain("selected shelf is separately saved and re-read");
+  expect(context).toContain("METADATA INDEX ONLY");
 });

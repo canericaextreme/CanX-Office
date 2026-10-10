@@ -1,0 +1,39 @@
+# Brain Remodel — corrected installation candidate
+
+John requested installation and Elsie familiarization, then explicitly required a base-up build with no workarounds. Review compared build 12 against saved records `brain-shelves-plan-20261009`, `brain-map-20261008` and parts 1–4, and the actual draft PR70. The original build12 candidate retained the old six categories and could not read those plans. It was withheld from publication and corrected on PR77.
+
+## Foundation and behavior
+
+- One eight-shelf registry serves BrainHub, the owner-scoped room snapshot and Elsie's per-request Brain context: Compass, Rulebook, Workshop, Piggy Bank, Library, Diary, Logbook and Lost-and-Found. Shelf colors and cast match the original draft. Legal-style header and separate ChatGPT/Codex and Claude builder cards retain current presentation defaults.
+- Each shelf has its own direct URL, filtered indexed records, source-based counts, search, room/folder controls and Back/browser-history navigation. Unavailable shelf-label reads produce unknown counts and no guessed saved assignments. Bounded source reads and their limits are disclosed.
+- Explicit shelf filing is a separate deterministic SHA-256-keyed `office_notes` record, source `Brain shelf: filing`, with versioned JSON. Every write verifies owner/MFA, checks the actual indexed item, compares the observed prior label, uses conditional update or non-overwriting insert, then independently reads the exact saved label. Missing/stale/conflicting/unconfirmed writes do not report success. Existing records, filenames, folders, content and legacy category labels are retained.
+- Default source classifications use exact saved type/origin, never title keywords: files/links/document text in Library (Finance-room entries in Piggy Bank); projects in Workshop; canonical Skills in Rulebook; active goal/profile memory in Compass; standing-rule memory in Rulebook; project-context memory in Workshop; saved conversation summaries in Diary. Ambiguous notes remain in Lost-and-Found. Legacy categories are not silently converted. A source default is visibly distinguished from John's explicitly saved shelf filing.
+- Elsie's active memory metadata is read through the existing owner's database token, only with two-step verification. No memory content is copied or exposed by this metadata index. Logbook indexes the sanitized versioned shared operational log, labelled dated repository history rather than a live connection check.
+- Computer upload uses existing private storage and permission checks. The original object's size is verified; metadata insertion ignores duplicates, preserving an existing filename; exact owner/hash/room/folder metadata is independently read back. Shelf upload then saves and re-reads a separate filing label. An original upload that succeeds while shelf filing fails reports the distinction and remains recoverable through refresh and manual filing.
+- No schema migration, new credentials, authentication bypass, provider enablement change, spending-limit change, additional paid build or external message was introduced. The existing functional scope is preserved; this index is not a claim to expose every record or file's content.
+
+## Verification
+
+Corrected candidate: typecheck passed; all 144 test files / 1,463 tests passed; production build passed; `git diff --check` passed. Meaningful new tests cover persistent filing reload, original/legacy preservation, absent records, stale expected values, concurrent saves, failed readback, unavailable labels, two-step denial, duplicate upload preservation and independent original metadata verification. Interaction fixtures cover all eight shelves, filters, focus, Back, direct URLs and provider destinations. Existing build warnings remain.
+
+Build12 source: `2fac9ecb1ed2b1ebac277eb5944e962a42fda586`. Initial candidate commit: `01a0dc3f3ad8bba2eebba8feb3f418884500a834`. Run: https://github.com/canericaextreme/CanX-Office/actions/runs/38020018942. Corrected candidate: https://github.com/canericaextreme/CanX-Office/pull/77.
+
+## Installation acceptance pending
+
+This candidate is not installed or published. On an authorized signed-in owner preview, test a real upload, independently reload its original and shelf filing, compare actual counts/filtering, open each shelf, exercise app/browser Back and test responsive layout. Confirm source failures/denied reads and Finance/MFA boundaries remain visible. Ask Elsie in her real chat to read and describe the installed shelf names, functions, source limits and actual saved test receipt. Saving her briefing is not an acknowledgment or comprehension test. The Office connector supports saved records and Claude/ChatGPT colleague relays, but does not expose Elsie's live chat. Signed-in browser access is needed for this acceptance work; no permission bypass or substitute colleague response will be used.
+
+## Reconciliation with the agreed design (Claude builder, 9 October 2026)
+
+Compared PR70 (`a8b47c0`), saved records `brain-shelves-plan-20261009` and `brain-map-20261008` parts 1–4, and candidate PR77 (`93257f2`). The eight-shelf data layer, colours (hex values), filing, counts and upload behaviour already matched. Four display differences were found and aligned to the agreed design, with no change to the data layer:
+
+1. Shelf cards now show the number badge, the agreed name ("The Compass" … "The Lost-and-Found"), the colour name ("Yellow shelf" …) and the PR70 guide wording, with a full-colour border. Text carries every signal, so colour is never the only cue.
+2. The cast is a "Who's who" strip of five cards, named as in the saved map (Elsie, ChatGPT, Claude, Brain, Codex and Claude builders).
+3. Hover/focus/touch summary per shelf, built only from the live index (count by type and newest saved date, no titles, "unknown" when labels are unreadable, "nothing filed" when empty). An info button toggles it on touch screens.
+4. Elsie's per-request Brain context now uses the same registry: shelf number, name, colour, guide, cast.
+
+Unchanged: separate "ChatGPT / Codex" and "Claude" builder cards, Legal-style header, filing, readback, upload and permission code. No migration, credential, spending or publication change.
+
+### Verification (this commit)
+- Typecheck passed. Full suite: 144 files / 1,469 tests passed (baseline candidate: 1,463; six new tests cover the display registry, cast, synopsis and Elsie context). Production build passed. `git diff --check` passed.
+- Dependencies were installed with npm because the bun lockfile points at a private package cache this environment cannot reach (HTTP 403); versions may differ slightly from `bun.lock`.
+- NOT yet done: signed-in owner preview, real upload and reload check, responsive check, and Elsie's live chat test (needs owner sign-in and two-step verification). Not installed or published.

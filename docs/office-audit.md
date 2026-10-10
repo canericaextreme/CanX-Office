@@ -28,7 +28,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 17 | Research | files, reports only | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
 | 20 | Future | — | Reserved | Reserved by John |
-| — | Brain | Brain index, memory, decisions | Decision History, Brain (3) | — |
+| — | Brain | Eight-shelf filing, active memory metadata, versioned shared log; shared descriptions/routes | Decision History, Brain (3) | Corrected against saved eight-shelf plan; signed-in owner upload/filing/count and actual Elsie acknowledgment acceptance pending |
 | — | Projects | project register, tasks | Projects (4) | External repos/deployments not connected |
 
 ## Build handoff (what Elsie can build with)
