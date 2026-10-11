@@ -22,7 +22,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      CANX_VIEW_BROKER_URL: ${{ vars.CANX_VIEW_BROKER_URL }}
+      CANX_VIEW_BROKER_URL: ${{ vars.CANX_VIEW_BROKER_URL || 'https://gmsjjiprtulxojhkmbqb.supabase.co/functions/v1/office-view' }}
     steps:
       - uses: actions/checkout@v5
         with:
