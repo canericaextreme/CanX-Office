@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useOwnerSession } from "@/lib/owner-session";
+import { AUTHENTICATOR_SIGNS_OUT_ASSISTANTS } from "@/lib/assistant-connections";
 
 export function AccountMenu() {
   const session = useOwnerSession();
@@ -63,6 +64,7 @@ export function AccountMenu() {
             <p className="text-xs text-muted-foreground">
               Verify now if you are about to approve, send, buy, publish, or change security.
             </p>
+            <p className="text-xs text-muted-foreground">{AUTHENTICATOR_SIGNS_OUT_ASSISTANTS}</p>
             <Input
               inputMode="numeric"
               value={code}

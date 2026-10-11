@@ -84,6 +84,7 @@ import {
 } from "@/lib/office-theme";
 import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/office-notes";
 import { useOwnerSession } from "@/lib/owner-session";
+import { AUTHENTICATOR_SIGNS_OUT_ASSISTANTS } from "@/lib/assistant-connections";
 import { speakManagerText, transcribeManagerAudio } from "@/lib/manager-voice.functions";
 import { useManagerVoice } from "@/lib/use-manager-voice";
 import { useRealtimeManager } from "@/lib/use-realtime-manager";
@@ -1480,6 +1481,7 @@ export function OfficeManager() {
                         Enter the current six-digit code from your authenticator app. This completes
                         the secure owner sign-in for this session.
                       </p>
+                      <p className="text-xs text-muted-foreground">{AUTHENTICATOR_SIGNS_OUT_ASSISTANTS}</p>
                       <div className="flex gap-2">
                         <Input
                           inputMode="numeric"

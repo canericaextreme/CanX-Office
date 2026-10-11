@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useOwnerSession } from "@/lib/owner-session";
 import { CAPTURE_ROOM_LABELS } from "@/lib/room-capture-meta";
 import { getViewAccess, revokeViewAccess, setViewAccess } from "@/lib/office-view-owner.functions";
+import { AUTHENTICATOR_SIGNS_OUT_ASSISTANTS, CONNECTION_ASSISTANTS, describeConnection, type ConnectionRow } from "@/lib/assistant-connections";
 import { SCOPE_WORDS, VIEW_ASSISTANTS, VIEW_SCOPES, describeGrant, protectedRoomsIn, type GrantRow, type HistoryRow, type ViewScope } from "@/lib/office-view-owner";
 
-type Loaded = { grants: GrantRow[]; history: HistoryRow[] } | { error: string } | null;
+type Loaded = { grants: GrantRow[]; history: HistoryRow[]; connections?: ConnectionRow[] | null } | { error: string } | null;
 const NAMES: Record<string, string> = { claude: "Claude", chatgpt: "ChatGPT", elsie: "Elsie" };
 
 /** Owner control for the view-only delegation: who may look, at which rooms, until when; revoke one at a time. */
@@ -50,7 +51,7 @@ export function ViewAccessPanel() {
 
   useEffect(() => {
     if (!session.accessToken || !session.signedIn || session.viewer) return;
-    void read({ data: { accessToken: session.accessToken } }).then((r) => setLoaded(r.ok ? { grants: r.grants, history: r.history } : { error: r.message }), () => setLoaded({ error: "Viewing access could not be read." }));
+    void read({ data: { accessToken: session.accessToken } }).then((r) => setLoaded(r.ok ? { grants: r.grants, history: r.history, connections: r.connections ?? null } : { error: r.message }), () => setLoaded({ error: "Viewing access could not be read." }));
   }, [session.accessToken, session.signedIn, session.viewer, read, refresh]);
 
   const toggleRoom = useCallback((route: string) => setRooms((cur) => (cur.includes(route) ? cur.filter((r) => r !== route) : [...cur, route])), []);
@@ -70,6 +71,14 @@ export function ViewAccessPanel() {
         <p className="text-sm text-muted-foreground">Lets Claude, ChatGPT and Elsie each look at the Office and read what is saved, even when your browser is closed. They can never change, spend, delete, build or change access. You can switch any one off at any time without affecting the others. Passwords and authenticator codes are never shared.</p>
         {notice && <p role="status" aria-live="polite" className="rounded-lg border border-border p-3 text-sm">{notice}</p>}
         {loaded && "error" in loaded && <p role="alert" className="rounded-lg border border-destructive p-3 text-sm">{loaded.error}</p>}
+        <section aria-label="Assistant connections" className="space-y-1 rounded-lg border border-border/50 p-3">
+          <h3 className="font-medium">Connector sign-in (needed before ChatGPT or Claude can look)</h3>
+          {CONNECTION_ASSISTANTS.map((a) => {
+            const connections = loaded && "grants" in loaded ? loaded.connections ?? null : null;
+            const c = describeConnection(connections?.find((r) => r.identity === a), connections !== null);
+            return <p key={a} className="text-sm"><span className="font-medium">{NAMES[a]} — {c.state === "connected" ? "CONNECTED" : c.state === "needs_reconnect" ? "NEEDS RECONNECT" : c.state === "not_approved" ? "NOT APPROVED" : "UNKNOWN"}.</span> <span className="text-muted-foreground">{c.label}</span></p>;
+          })}
+        </section>
         <ul className="space-y-2">
           {VIEW_ASSISTANTS.map((a) => {
             const row = grants.find((g) => g.assistant === a);
@@ -113,7 +122,7 @@ export function ViewAccessPanel() {
           <Button type="submit" disabled={busy || verifying}>Authorise (needs your authenticator)</Button>
           <Dialog open={mfaOpen} onOpenChange={(open) => { setMfaOpen(open); if (!open) { setMfaCode(""); setMfaError(""); } }}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Confirm your authenticator</DialogTitle><DialogDescription>Enter your current six-digit code to authorise viewing access. Your room choices stay in place.</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>Confirm your authenticator</DialogTitle><DialogDescription>Enter your current six-digit code to authorise viewing access. Your room choices stay in place. {AUTHENTICATOR_SIGNS_OUT_ASSISTANTS}</DialogDescription></DialogHeader>
             <label className="block text-sm" htmlFor="view-access-authenticator">Six-digit authenticator code</label>
             <Input id="view-access-authenticator" type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
               value={mfaCode} disabled={verifying} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
