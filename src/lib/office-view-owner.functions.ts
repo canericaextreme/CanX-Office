@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { cleanGrantInput, type GrantRow, type HistoryRow } from "./office-view-owner";
+import { cleanConnectionRows, type ConnectionRow } from "./assistant-connections";
 
 const tok = (v: unknown) => (typeof (v as { accessToken?: unknown })?.accessToken === "string" ? (v as { accessToken: string }).accessToken.slice(0, 4000) : "");
 const rpc = async (b: typeof import("./canx-backend.server"), token: string, fn: string, args: Record<string, unknown>) => {
@@ -12,13 +13,14 @@ const rpc = async (b: typeof import("./canx-backend.server"), token: string, fn:
 /** Status and history. Owner session only; never returns credentials or images. */
 export const getViewAccess = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => ({ accessToken: tok(v) }))
-  .handler(async ({ data }): Promise<{ ok: true; grants: GrantRow[]; history: HistoryRow[] } | { ok: false; message: string }> => {
+  .handler(async ({ data }): Promise<{ ok: true; grants: GrantRow[]; history: HistoryRow[]; connections: ConnectionRow[] | null } | { ok: false; message: string }> => {
     const b = await import("./canx-backend.server");
     const who = await b.verifySignedIn(data.accessToken);
     if (!who.ok) return { ok: false, message: who.message };
-    const [g, h] = await Promise.all([rpc(b, data.accessToken, "canx_view_grants_status", {}), rpc(b, data.accessToken, "canx_view_history", { _limit: 100 })]);
+    const [g, h, c] = await Promise.all([rpc(b, data.accessToken, "canx_view_grants_status", {}), rpc(b, data.accessToken, "canx_view_history", { _limit: 100 }), rpc(b, data.accessToken, "canx_mcp_connection_status", {})]);
     if (!g.ok || !Array.isArray(g.body)) return { ok: false, message: "Viewing access is not installed or could not be read. Nothing is switched on. Missing information is not the same as no access." };
-    return { ok: true, grants: g.body as GrantRow[], history: h.ok && Array.isArray(h.body) ? (h.body as Record<string, unknown>[]).map((x) => ({ at: String(x["at"]), action: String(x["action"]), assistant: String(x["assistant"]) })) : [] };
+    // null = not installed or unreadable; shown as "could not be checked", never as disconnected.
+    return { ok: true, connections: c.ok ? cleanConnectionRows(c.body) : null, grants: g.body as GrantRow[], history: h.ok && Array.isArray(h.body) ? (h.body as Record<string, unknown>[]).map((x) => ({ at: String(x["at"]), action: String(x["action"]), assistant: String(x["assistant"]) })) : [] };
   });
 
 /** Authorise or renew. Needs the authenticator: the database refuses anything weaker. */

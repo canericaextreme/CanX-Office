@@ -70,3 +70,26 @@ describe('viewing panel authenticator verification', () => {
     expect(h.save).not.toHaveBeenCalled();
   });
 });
+describe('assistant connector sign-in', () => {
+  it('shows an approved but signed-out assistant as needing reconnect', async () => {
+    h.read.mockResolvedValue({ ok: true, grants: [], history: [], connections: [
+      { identity: 'chatgpt', enabled: true, consent_active: true, live_sessions: 0, last_active_at: null },
+      { identity: 'claude', enabled: true, consent_active: true, live_sessions: 1, last_active_at: '2026-10-11T02:00:00Z' } ] });
+    render(<ViewAccessPanel />);
+    expect(await screen.findByText('ChatGPT — NEEDS RECONNECT.')).toBeTruthy();
+    expect(screen.getByText('Claude — CONNECTED.')).toBeTruthy();
+  });
+  it('shows UNKNOWN, not disconnected, when the check is not installed', async () => {
+    h.read.mockResolvedValue({ ok: true, grants: [], history: [], connections: null });
+    render(<ViewAccessPanel />);
+    expect(await screen.findByText('ChatGPT — UNKNOWN.')).toBeTruthy();
+  });
+  it('warns that the authenticator code signs the assistants out', async () => {
+    h.verified = false;
+    render(<ViewAccessPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'All rooms' }));
+    fireEvent.change(screen.getByPlaceholderText('00000000-0000-0000-0000-000000000000'), { target: { value: '00000000-0000-4000-8000-000000000011' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Authorise (needs your authenticator)' }));
+    expect(await screen.findByText(/signs ChatGPT and Claude out/)).toBeTruthy();
+  });
+});

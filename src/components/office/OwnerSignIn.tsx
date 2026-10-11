@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOwnerSession } from "@/lib/owner-session";
+import { AUTHENTICATOR_SIGNS_OUT_ASSISTANTS } from "@/lib/assistant-connections";
 import { SUPABASE_SETUP_URL } from "@/lib/connections-inventory";
 
 export function OwnerSignIn() {
@@ -97,6 +98,7 @@ export function OwnerSignIn() {
             <p className="text-sm text-foreground">
               Enter the six-digit code from your authenticator app to finish signing in.
             </p>
+            <p className="text-xs text-muted-foreground">{AUTHENTICATOR_SIGNS_OUT_ASSISTANTS}</p>
             <Input
               inputMode="numeric"
               value={code}

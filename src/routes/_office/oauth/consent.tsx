@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect,useState } from "react";
 import { useOwnerSession } from "@/lib/owner-session";
+import { CONSENT_CODE_SIGNS_OUT_OTHER } from "@/lib/assistant-connections";
 import { verifyOfficeConsentOwner,registerOfficeConsentClient } from "@/lib/office-mcp-consent.functions";
 import { loadCanxSupabase } from "@/lib/canx-supabase";
 import { browserConsentDeps } from "@/lib/office-mcp-consent-browser";
@@ -60,6 +61,7 @@ function OfficeConsent() {
     <p>Approve only the assistant you are connecting.</p>
     {!authorization_id?<p>Start this connection from ChatGPT or Claude to open a valid authorization request.</p>:!session.stepUpComplete?<form className="space-y-3" onSubmit={e=>{e.preventDefault();void confirmAuthenticator();}}>
       <p>Confirm your authenticator once to authorize this connection.</p>
+      <p className="text-sm text-muted-foreground">{CONSENT_CODE_SIGNS_OUT_OTHER}</p>
       <Input aria-label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e=>setCode(e.target.value)} />
       <Button disabled={busy || !code} type="submit">Confirm</Button>
     </form>:!details?<p>Verifying the connection request…</p>:<>
