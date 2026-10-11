@@ -4,23 +4,67 @@ import React from "react";
 import { render, screen, fireEvent, cleanup, within, act } from "@testing-library/react";
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => vi.fn() }));
-vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children: React.ReactNode }) => React.createElement("a", { href: "#" }, children) }));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: React.ReactNode }) =>
+    React.createElement("a", { href: "#" }, children),
+}));
 vi.mock("@/lib/brain-index.functions", () => ({ getBrainIndex: {}, setBrainShelf: {} }));
-vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => ({ accessToken: "fixture", stepUpComplete: true }) }));
-vi.mock("./OfficeFiles", () => ({ OfficeFiles: ({ onSaved }: { onSaved?: () => void }) => React.createElement("button", { onClick: onSaved }, "Upload from computer") }));
+vi.mock("@/lib/owner-session", () => ({
+  useOwnerSession: () => ({ accessToken: "fixture", stepUpComplete: true }),
+}));
+vi.mock("./OfficeFiles", () => ({
+  OfficeFiles: ({ onSaved }: { onSaved?: () => void }) =>
+    React.createElement("button", { onClick: onSaved }, "Upload from computer"),
+}));
 import { BrainHub } from "./BrainHub";
 import { type BrainIndex, type BrainItem } from "@/lib/brain-index";
-import { BRAIN_SHELVES as BRAIN_CATEGORIES, SHELF_LABELS as CATEGORY_LABELS, type BrainShelf as BrainBucket } from "@/lib/brain-shelves";
+import {
+  BRAIN_SHELVES as BRAIN_CATEGORIES,
+  SHELF_LABELS as CATEGORY_LABELS,
+  type BrainShelf as BrainBucket,
+} from "@/lib/brain-shelves";
 
-const mk = (key: string, title: string, shelf: BrainBucket, at = "2026-08-01T00:00:00Z"): BrainItem => ({
-  key, title, shelf, shelfReadable: true, shelfExpected: null, category: "downloads", defaultCategory: "downloads", kind: "file",
-  room: "legal", folder: null, at, provenance: "fixture", version: null, access: "metadata only", manual: false, route: "/legal",
+const mk = (
+  key: string,
+  title: string,
+  shelf: BrainBucket,
+  at = "2026-08-01T00:00:00Z",
+): BrainItem => ({
+  key,
+  title,
+  shelf,
+  shelfReadable: true,
+  shelfExpected: null,
+  category: "downloads",
+  defaultCategory: "downloads",
+  kind: "file",
+  room: "legal",
+  folder: null,
+  at,
+  provenance: "fixture",
+  version: null,
+  access: "metadata only",
+  manual: false,
+  route: "/legal",
 });
-const items: BrainItem[] = BRAIN_CATEGORIES.filter(s => s !== "diary").map(s => mk(`file:${s}`, `Item in ${CATEGORY_LABELS[s]}`, s));
-const index: BrainIndex = { checkedAt: "2026-10-03T22:00:00Z", items, sources: [], orphanLabels: 0 };
-afterEach(() => { cleanup(); window.history.replaceState(null, "", "/brain"); });
+const items: BrainItem[] = BRAIN_CATEGORIES.filter((s) => s !== "diary").map((s) =>
+  mk(`file:${s}`, `Item in ${CATEGORY_LABELS[s]}`, s),
+);
+const index: BrainIndex = {
+  checkedAt: "2026-10-03T22:00:00Z",
+  items,
+  sources: [],
+  orphanLabels: 0,
+};
+afterEach(() => {
+  cleanup();
+  window.history.replaceState(null, "", "/brain");
+});
 
-const cardFor = (c: BrainBucket) => screen.getByRole("button", { name: new RegExp(`^Open ${CATEGORY_LABELS[c].replace("&", "\\&")}:`) });
+const cardFor = (c: BrainBucket) =>
+  screen.getByRole("button", {
+    name: new RegExp(`^Open ${CATEGORY_LABELS[c].replace("&", "\\&")}:`),
+  });
 
 describe("Brain category cards open a category view", () => {
   for (const c of BRAIN_CATEGORIES) {
@@ -29,9 +73,16 @@ describe("Brain category cards open a category view", () => {
         render(<BrainHub fixture={index} />);
         const card = cardFor(c);
         if (how === "click") fireEvent.click(card);
-        else { card.focus(); fireEvent.keyDown(card, { key: "Enter" }); fireEvent.click(card); /* native button: Enter dispatches click */ }
+        else {
+          card.focus();
+          fireEvent.keyDown(card, { key: "Enter" });
+          fireEvent.click(card); /* native button: Enter dispatches click */
+        }
         await act(async () => {});
-        const heading = screen.getByRole("heading", { level: 3, name: new RegExp(CATEGORY_LABELS[c].replace("&", "\\&")) });
+        const heading = screen.getByRole("heading", {
+          level: 3,
+          name: new RegExp(CATEGORY_LABELS[c].replace("&", "\\&")),
+        });
         expect(document.activeElement).toBe(heading);
         expect(screen.queryByRole("navigation", { name: "Brain categories" })).toBeNull(); // cards no longer above
         const list = screen.getByRole("list", { name: `${CATEGORY_LABELS[c]} items` });
@@ -39,7 +90,8 @@ describe("Brain category cards open a category view", () => {
           if (other.shelf === c) expect(within(list).getByText(other.title)).toBeTruthy();
           else expect(screen.queryByText(other.title)).toBeNull();
         }
-        if (c === "diary") expect(screen.getByText(/Nothing is filed under Diary yet/)).toBeTruthy();
+        if (c === "diary")
+          expect(screen.getByText(/Nothing is filed under Diary yet/)).toBeTruthy();
         fireEvent.click(screen.getByRole("button", { name: /Back to all categories/ }));
         expect(screen.getByRole("navigation", { name: "Brain categories" })).toBeTruthy();
         expect(screen.getByText(/Recent activity/)).toBeTruthy();
@@ -68,10 +120,19 @@ describe("Brain category cards open a category view", () => {
   });
 });
 
-
 it("opens a direct shelf route, filters its own items, and supports browser navigation", async () => {
   window.history.replaceState(null, "", "/brain#shelf-library");
-  render(<BrainHub fixture={{ ...index, items: [...items, { ...mk("file:two", "Other library", "library"), room: "research", folder: "Earlier" }] }} />);
+  render(
+    <BrainHub
+      fixture={{
+        ...index,
+        items: [
+          ...items,
+          { ...mk("file:two", "Other library", "library"), room: "research", folder: "Earlier" },
+        ],
+      }}
+    />,
+  );
   await act(async () => {});
   expect(screen.getByRole("heading", { level: 3, name: /Library/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Upload from computer" })).toBeTruthy();
@@ -84,18 +145,29 @@ it("opens a direct shelf route, filters its own items, and supports browser navi
   fireEvent.click(screen.getByRole("button", { name: "Back to all categories" }));
   expect(window.location.hash).toBe("");
   expect(screen.getByRole("navigation", { name: "Brain categories" })).toBeTruthy();
-  await act(async () => { window.history.replaceState(null, "", "/brain#shelf-compass"); window.dispatchEvent(new PopStateEvent("popstate")); });
+  await act(async () => {
+    window.history.replaceState(null, "", "/brain#shelf-compass");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
   expect(screen.getByRole("heading", { level: 3, name: /Compass/ })).toBeTruthy();
 });
 
 it("provides two provider navigation cards without submitting a build", () => {
   render(<BrainHub fixture={index} />);
-  expect(screen.getByRole("link", { name: "Open ChatGPT / Codex builder" }).getAttribute("href")).toBe("/build-testing#codex-builder");
-  expect(screen.getByRole("link", { name: "Open Claude builder" }).getAttribute("href")).toBe("/build-testing#claude-builder");
+  expect(
+    screen.getByRole("link", { name: "Open ChatGPT / Codex builder" }).getAttribute("href"),
+  ).toBe("/build-testing#codex-builder");
+  expect(screen.getByRole("link", { name: "Open Claude builder" }).getAttribute("href")).toBe(
+    "/build-testing#claude-builder",
+  );
 });
 
 it("shelf cards show number badge, colour name, guide wording, Who's who strip and a live hover summary", () => {
-  render(<BrainHub fixture={{ checkedAt: "2026-10-03T22:00:00Z", items, sources: [], orphanLabels: 0 }} />);
+  render(
+    <BrainHub
+      fixture={{ checkedAt: "2026-10-03T22:00:00Z", items, sources: [], orphanLabels: 0 }}
+    />,
+  );
   const card = document.querySelector('[data-shelf="3"]') as HTMLElement;
   expect(card.textContent).toContain("The Workshop");
   expect(card.textContent).toContain("Green shelf");
@@ -104,36 +176,48 @@ it("shelf cards show number badge, colour name, guide wording, Who's who strip a
   expect(document.querySelectorAll("[data-cast]").length).toBe(5);
   // synopsis exists for keyboard and screen-reader users, is built from the shelf's records, and the touch button toggles it
   const tip = document.getElementById("shelf-synopsis-workshop") as HTMLElement;
-  expect(tip.textContent).toMatch(/The Workshop: Projects and apps\. 1 item \(1 file\)/);
+  expect(tip.textContent).toMatch(
+    /^On this shelf you will find saved files, gathered here to help you find material filed with your project work\./,
+  );
   const info = screen.getByRole("button", { name: "About The Workshop" });
   expect(info.getAttribute("aria-expanded")).toBe("false");
   fireEvent.click(info);
   expect(info.getAttribute("aria-expanded")).toBe("true");
 });
 
-it.each([25, 82])("shows a brief synopsis for %i items and opens every item on selection", async (count) => {
-  const library = Array.from({ length: count }, (_, i) => mk(`file:library-${i}`, `Library record ${i}`, "library"));
-  render(<BrainHub fixture={{ ...index, items: library }} />);
-  fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
-  const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
-  expect(within(bubble).getByText(new RegExp(`${count} items`))).toBeTruthy();
-  expect(within(bubble).queryByRole("list")).toBeNull();
-  expect(within(bubble).getByText(/Saved titles include “Library record 0”, “Library record 1”, “Library record 2”/)).toBeTruthy();
-  expect(bubble.textContent).not.toContain("Library record 3”");
-  expect(within(bubble).queryByRole("combobox")).toBeNull();
-  expect(bubble.closest("nav")).toBeTruthy();
-  expect(bubble.className).toContain("inset-0");
-  fireEvent.click(cardFor("library"));
-  await act(async () => {});
-  const list = screen.getByRole("list", { name: "Library items" });
-  expect(within(list).getAllByRole("listitem")).toHaveLength(count);
-  expect(screen.queryByRole("dialog")).toBeNull();
-});
+it.each([25, 82])(
+  "shows a brief synopsis for %i items and opens every item on selection",
+  async (count) => {
+    const library = Array.from({ length: count }, (_, i) =>
+      mk(`file:library-${i}`, `Library record ${i}`, "library"),
+    );
+    render(<BrainHub fixture={{ ...index, items: library }} />);
+    fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
+    const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
+    expect(within(bubble).getByText(/^On this shelf you will find saved files/)).toBeTruthy();
+    expect(within(bubble).queryByRole("list")).toBeNull();
+    expect(bubble.textContent).not.toMatch(/Library record|\d+ items|Saved titles/);
+    expect(bubble.textContent).not.toContain("Library record 3”");
+    expect(within(bubble).queryByRole("combobox")).toBeNull();
+    expect(bubble.closest("nav")).toBeTruthy();
+    expect(bubble.className).toContain("inset-0");
+    fireEvent.click(cardFor("library"));
+    await act(async () => {});
+    const list = screen.getByRole("list", { name: "Library items" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(count);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
 
 it("freezes the entry anchor and dismisses when the pointer exits the shelf box", () => {
   render(<BrainHub fixture={index} />);
   const shelf = cardFor("library").parentElement!;
-  vi.spyOn(shelf, "getBoundingClientRect").mockReturnValue({ left: 10, top: 20, width: 300, height: 160 } as DOMRect);
+  vi.spyOn(shelf, "getBoundingClientRect").mockReturnValue({
+    left: 10,
+    top: 20,
+    width: 300,
+    height: 160,
+  } as DOMRect);
   fireEvent.pointerEnter(shelf, { pointerType: "mouse", clientX: 90, clientY: 70 });
   const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
   const origin = bubble.style.transformOrigin;
@@ -147,7 +231,9 @@ it("freezes the entry anchor and dismisses when the pointer exits the shelf box"
 
 it("opens on keyboard focus and dismisses with Escape without navigating", async () => {
   render(<BrainHub fixture={index} />);
-  await act(async () => { cardFor("library").focus(); });
+  await act(async () => {
+    cardFor("library").focus();
+  });
   expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
   fireEvent.keyDown(document.activeElement!, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
@@ -173,12 +259,27 @@ it("lets touch users toggle the synopsis without opening the shelf view", () => 
 it("shows empty and unreadable shelf states without presenting unavailable records", () => {
   const { unmount } = render(<BrainHub fixture={index} />);
   fireEvent.pointerEnter(cardFor("diary"), { pointerType: "mouse" });
-  expect(within(screen.getByRole("dialog")).getByText(/Nothing is filed here yet/)).toBeTruthy();
+  expect(within(screen.getByRole("dialog")).getByText(/no saved material yet/)).toBeTruthy();
   unmount();
-  render(<BrainHub fixture={{ ...index, sources: [{ key: "shelves", label: "Shelf labels", status: "failed", count: 0, detail: "Unavailable" }] }} />);
+  render(
+    <BrainHub
+      fixture={{
+        ...index,
+        sources: [
+          {
+            key: "shelves",
+            label: "Shelf labels",
+            status: "failed",
+            count: 0,
+            detail: "Unavailable",
+          },
+        ],
+      }}
+    />,
+  );
   fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
   const bubble = screen.getByRole("dialog");
-  expect(within(bubble).getByText(/count is unknown/)).toBeTruthy();
+  expect(within(bubble).getByText(/contents are currently unavailable/)).toBeTruthy();
   expect(within(bubble).queryByText("Item in Library")).toBeNull();
 });
 
@@ -186,32 +287,49 @@ it("keeps the bubble usable when focus moves to its open button and opens the fu
   vi.useFakeTimers();
   try {
     render(<BrainHub fixture={index} />);
-    await act(async () => { cardFor("library").focus(); });
+    await act(async () => {
+      cardFor("library").focus();
+    });
     const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
-    await act(async () => { within(bubble).getByRole("button", { name: "Open Library" }).focus(); vi.advanceTimersByTime(250); });
+    await act(async () => {
+      within(bubble).getByRole("button", { name: "Open Library" }).focus();
+      vi.advanceTimersByTime(250);
+    });
     expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
     fireEvent.pointerLeave(bubble.parentElement!, { pointerType: "mouse" });
-    await act(async () => { vi.advanceTimersByTime(250); });
+    await act(async () => {
+      vi.advanceTimersByTime(250);
+    });
     expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
     fireEvent.click(within(bubble).getByRole("button", { name: "Open Library" }));
     expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
-  } finally { vi.useRealTimers(); }
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("opens full contents when the synopsis itself is clicked", () => {
   render(<BrainHub fixture={index} />);
   fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
-  fireEvent.click(within(screen.getByRole("dialog", { name: "The Library synopsis" })).getByText(/Saved titles include/));
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "The Library synopsis" })).getByText(
+      /^On this shelf you will find/,
+    ),
+  );
   expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 it("returns focus to the shelf when Escape dismisses a focused synopsis button", async () => {
   render(<BrainHub fixture={index} />);
-  await act(async () => { cardFor("library").focus(); });
+  await act(async () => {
+    cardFor("library").focus();
+  });
   const button = within(screen.getByRole("dialog")).getByRole("button", { name: "Open Library" });
-  await act(async () => { button.focus(); });
+  await act(async () => {
+    button.focus();
+  });
   fireEvent.keyDown(button, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(document.activeElement).toBe(cardFor("library"));

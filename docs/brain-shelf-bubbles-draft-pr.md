@@ -1,26 +1,27 @@
-# Draft PR: Keep Brain synopses inside their shelves and lighten uploads
+# Draft PR: Summarise Brain shelves in ordinary language
 
-Base: `main` at `e2018fe`. Reconstructed locally because build38096499070 was not packaged.
+Base: local checkout at `ba2e68c`. Local review draft only; no commit, push, merge, publication, production calls or external contact.
 
-Hovering or focusing a Brain shelf now reveals a compact synopsis inside that shelf box. Its entrance animation uses pointer-entry coordinates as a fixed transform origin, with no pointer-move repositioning. The bubble cannot flip above or below the shelf. Pointer exit dismisses it unless keyboard focus remains inside. Clicking the synopsis or shelf opens full contents. Keyboard focus, Escape (including focus return from the synopsis), touch information-button toggling, reduced motion and scrolling within narrow shelf boxes remain supported. Existing 3D shelf face motion is preserved.
+Brain shelf bubbles now use a short paragraph beginning “On this shelf you will find”. Counts, newest dates and sample title lists have been removed from the overview. The paragraph describes the kinds of records actually present and why they are gathered on that shelf. Known saved origins refine notes and memories into goals, preferences, rules, project notes, conversations or build/connection history. Titles and document bodies are not guessed or interpreted. A file filed in Workshop remains described as a saved file, not an invented project.
 
-Synopses show indexed type counts, the newest known saved date and up to three actual saved titles (each bounded to 90 characters). They disclose metadata/read limits and partial unavailable sources; unreadable shelf filing shows no titles or guessed count. Recent activity remains its existing short dated list. Updated populated-render tests allow old and undated titles in shelf description spans while proving they do not become full record rows in the collapsed hub. Interaction coverage checks 25/82-item full contents, fixed entry coordinates, shelf-local placement, dismissal, touch, keyboard, focus return and synopsis clicks.
+For example, a Library with files and imported documents reads: “On this shelf you will find saved files and imported documents, gathered here to keep reference material easy to find and return to. This overview uses saved record details rather than the full contents.”
 
-Brain's Add files or photos trigger and portalled upload controls use a light opt-in theme. Other room themes and all data, upload, authentication and filing behavior remain unchanged. There are no upload tabs in this base; scoped tab styling is included for that role. The Choose from computer button is styled, but the operating system's native chooser window cannot be themed by application CSS.
+Empty shelves describe no saved material yet. Partial reads disclose possible missing contents; unreadable filing reports unavailable contents instead of claiming to know what is there. The screen-reader description uses the same paragraph. Shelf-face counts and recent activity retain their existing roles outside the bubble.
 
-## Verification
+The accepted shelf motion, fixed overlay position and entry anchor, gentle entrance, leaving/focus dismissal, click-to-open, keyboard/Escape and touch controls are unchanged. Add files/photos and the upload dialog keep the existing light, readable styling. No protected changes are needed. Changed TypeScript/test files are formatted to satisfy their lint checks.
 
-Final checks passed on 11 October 2026:
+## Checks
 
-- Entire `bun run test` suite: 145 files, 1,481 tests passed (exit 0).
-- `bun run typecheck`: passed (exit 0).
-- `bun run build`: production build passed (exit 0).
+Passed locally on 11 October 2026:
+
+- Full `bun run test`: 145 files, 1,482 tests, exit 0.
+- `bun run typecheck`: exit 0.
+- `bun run build`: exit 0.
+- ESLint on all four changed source/test files: exit 0.
 - `git diff --check`: passed.
 
-The test command used `GITHUB_STEP_SUMMARY=/tmp/brain-test-summary` to keep the CI reporter output inside the permitted filesystem. Existing server-function deprecation and build optimization warnings remain. Fixture tests do not verify signed-in saved-data behavior or Office health.
+Regression coverage checks shelf-specific record kinds, explicit saved origins, all eight paragraph openings, empty/partial/unreadable states, large shelves without titles/counts, populated rendering, and the existing pointer, keyboard, touch and click interactions. Existing build/deprecation warnings remain. Fixture checks are not signed-in Office health verification.
 
-## Review and visual limits
+## Device review still required
 
-PR87 and the previous candidate are absent from local refs. No external systems were called to retrieve them. The requested dismissal/animation ideas are implemented locally; PR87's external positioning is not used. No browser screenshots or device visual checks were performed. Before owner acceptance, check desktop entry near shelf edges, scrolling and click targets on narrow screens, keyboard/screen-reader behavior, reduced motion, and iOS/Android tap toggling. Confirm populated signed-in Brain separately on the current build; local fixtures cannot satisfy that verification.
-
-This is a local draft PR package only. No GitHub PR was created, and nothing was committed, pushed, merged or published. Changes are restricted to src/ and docs/; no protected changes are needed.
+No browser screenshots or real-device checks were performed. Review paragraph wrapping and scrolling at narrow widths, desktop hover entry/exit, keyboard focus and Escape, reduced motion, screen-reader descriptions, iOS/Android tap toggling and Add files/photos contrast. Separately check populated signed-in Brain on the candidate build with the owner; production was not accessed during this work.

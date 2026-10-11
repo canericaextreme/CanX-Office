@@ -173,6 +173,15 @@
       "evidence": "Entire bun run test suite passed: 145 files / 1,481 tests. Typecheck and production build passed. docs/brain-shelf-bubbles-draft-pr.md records device limits. No push, merge, production call or external contact."
     },
     {
+      "id": "2026-10-11-codex-brain-shelf-prose-draft",
+      "at": "2026-10-11T00:12:00Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared local owner-requested Brain shelf prose correction. Bubble overviews now describe available record kinds and explicit saved origins rather than counts, dates or titles. Accepted interactions and light upload controls preserved. No production or publication actions.",
+      "evidence": "Base ba2e68c; full local suite passed 145 files / 1482 tests, typecheck, production build and changed-file lint passed. docs/brain-shelf-bubbles-draft-pr.md records the review draft and pending device/signed-in checks. No live health verification claimed."
+    },
+    {
       "id": "2026-10-10-office-access-build-record",
       "at": "2026-10-10T17:30:00Z",
       "actor": "Claude",
