@@ -1,7 +1,7 @@
 # Office-wide access for Claude, ChatGPT and Elsie — build record
 
-Status: **IN PROGRESS. Merged to main (087d073, PR 81) and a publish was requested on 10 Oct 2026; whether the database part and the function are live is NOT yet confirmed, and no assistant has yet received a real room image.**
-Last updated 10 Oct 2026. Branch `claude/room-capture-phase1`, draft PR #81. No money spent.
+Status: **BACKEND INSTALLED; owner setup and live assistant acceptance remain incomplete.** PR 92 merged as `07f0f01`; Supabase migration and both functions installed. The live production Build & Testing asset includes the new independent switches. No assistant has received a room image.
+Last updated 11 Oct 2026 UTC (10 Oct Whitehorse). No paid build provider was invoked.
 
 ## Explained simply
 The Office is a building. John has the master key. Each helper gets its own **visitor badge**: it opens the doors John
@@ -11,31 +11,31 @@ John cancels one badge without touching the others. Behind the second lock (auth
 authenticator, and can cancel at any time. The badge never contains John's key, password or authenticator code.
 "Permanent" here means a standing, revocable permission that quietly gets a fresh 5-minute badge for each look, not a key that never expires.
 
-## Progress (stated checklist; 9 of 22 items = 41%; items 1–8 are code or stand-in tested, none is live)
+## Progress (development checks and deployment are separate from live assistant acceptance)
 | # | Item | State |
 |---|---|---|
 | 1 | Database setup: grants, sessions, requests, captures, read-only policies, revoke, retention (proposed SQL) | done — real-Postgres check passes |
-| 2 | View service logic (identity from the database, workflow identity proof, storage checks, safe logging) | done — 24 tests |
+| 2 | View service logic (identity from the database, workflow identity proof, storage checks, safe logging) | done — 25 tests |
 | 3 | Office page read-only viewer mode (action gates stay owner-only) | done — tests |
 | 4 | Capture runner (real Chromium, refuses sign-in/wrong room/unfinished/revoked) | done — real Chromium vs stand-in servers |
-| 5 | Edge function wiring (proposed, typechecked only) | written, never run |
+| 5 | Edge function wiring | deployed — office-view v1, office-mcp v13; live unauthenticated requests refused |
 | 6 | Capture workflow + install/rollback guide + CI check on locked dependencies (proposed) | written, never run |
 | 7 | Connector tools: list rooms, tour (summary/detailed/resume), room brief, view room (image block), read room information | done — tests; off until configured |
 | 8 | Owner panel: authorise, rooms, scope, status, revoke one, history | done — tests |
 | 9 | Elsie's path | **open** — see "Elsie" |
 | 10 | Server-side saving of device-only data | **open** — plan below |
 | 11 | Full skill instructions through the viewing tools | partial — existing `read_office_skills` gives them; not yet tied to viewing grants |
-| 12 | Independent review package | **open** |
+| 12 | Independent review package | done — ChatGPT reviewed the supplied files against the live schema and corrected room restrictions, write guards, capture replay/expiry, OIDC claims and cleanup retry |
 | 13 | Deployment package approved by John | done — approved 10 Oct 2026 |
-| 14 | Deployed | **in progress** — merged to main 087d073, Lovable synced it, publish requested (deployment e9454363, shown as pending). Not confirmed: migration applied, `office-view` function deployed, published site loads. From the shell I cannot reach the database or the live site. |
-| 15 | Live: Claude sees and describes a room | **blocked on 14 and on John's setup** |
-| 16 | Live: ChatGPT sees and describes a room | **blocked on 14 and on John's setup** |
-| 17 | Live: Elsie | **blocked on 14 and on John's setup** |
-| 18 | Live: browser closed | **blocked on 14 and on John's setup** |
-| 19 | Live: revoke one assistant, others unaffected, old pictures unretrievable | **blocked on 14 and on John's setup** |
-| 20 | Live: protected rooms through the one-time delegation | **blocked on 14 and on John's setup** |
-| 21 | Live: all 24 rooms x 3 assistants (matrix below) | **blocked on 14 and on John's setup** |
-| 22 | Final security review of the deployed result | **blocked on 14 and on John's setup** |
+| 14 | Deployed | installed — migration 20261011012433, private bucket, office-view v1, office-mcp v13; PR 92 synced and new production asset verified. Tool-enable secret, accounts and grants remain unset/unverified. |
+| 15 | Live: Claude sees and describes a room | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
+| 16 | Live: ChatGPT sees and describes a room | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
+| 17 | Live: Elsie | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
+| 18 | Live: browser closed | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
+| 19 | Live: revoke one assistant, others unaffected, old pictures unretrievable | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
+| 20 | Live: protected rooms through the one-time delegation | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
+| 21 | Live: all 24 rooms x 3 assistants (matrix below) | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
+| 22 | Final security review of the deployed result | **blocked on viewing accounts, dispatch token, tool-enable configuration and owner grants** |
 
 ## Problem → why it matters → solution → acceptance → testing → must not change
 | | |
@@ -92,10 +92,10 @@ Nothing below is live-verified. "not live-tested" means exactly that; fixture an
 | 25 | Round Table | standard | — | not live-tested | not live-tested | not live-tested |
 
 ## Deployment package (to request approval once items 9–13 are closed)
-Exact changes and undo steps: `docs/office-view-install.md`. Expected cost: no new paid service; GitHub Actions free on a public repo; storage PNGs ≤3 MB deleted after 24 h. Needs John personally: one authenticator check to create the grants; a fine-grained GitHub token (Actions write, this repository only, 90 days); three viewer accounts.
+Exact changes and undo steps: `docs/office-view-install.md`. Expected cost: no new paid service; GitHub Actions free on a public repo; storage PNGs ≤3 MB become inaccessible after 24 h and are deleted by the hourly cleanup. Needs John personally: one authenticator check to create the grants; a fine-grained GitHub token (Actions write, this repository only, 90 days); three viewer accounts.
 
 ## Review package for an independent reviewer (ChatGPT can read the PR on GitHub)
-Read in this order: `supabase/migrations/20261010180000_office_view_delegation.sql`, `src/lib/office-view-broker.ts` (+ test), `supabase/functions/office-view/index.ts`, `src/lib/canx-viewer.server.ts` (+ test), `scripts/capture/run-capture.mjs`, `src/lib/office-mcp-view.ts`. Questions to answer: can any viewing credential write, spend, delete, read another assistant's data, or outlive a revoke? Does any log, artifact or repo file carry a credential or picture? Can a retrieved page act as an instruction?
+Read in this order: `supabase/migrations/20261011012433_office_view_delegation.sql`, `src/lib/office-view-broker.ts` (+ test), `supabase/functions/office-view/index.ts`, `src/lib/canx-viewer.server.ts` (+ test), `scripts/capture/run-capture.mjs`, `src/lib/office-mcp-view.ts`. Questions to answer: can any viewing credential write, spend, delete, read another assistant's data, or outlive a revoke? Does any log, artifact or repo file carry a credential or picture? Can a retrieved page act as an instruction?
 
 ## Self security review (before independent review)
 - Supply chain: the capture job installs one pinned browser library with install scripts disabled; the workflow's identity token is only accepted for the exact workflow file on `main`, and only for a request id that is already queued, unclaimed and unexpired. Residual risk: any code run inside that job could ask for a token, so the job installs nothing else and uploads nothing.
@@ -106,3 +106,13 @@ Read in this order: `supabase/migrations/20261010180000_office_view_delegation.s
 
 ## Install record (10 Oct 2026)
 Source commit: `087d0739` (merge of PR 81). Lovable synced that commit. Publish requested for `canx-office.lovable.app`; the tool reported `pending`, which is not a successful publication. A local build of the merged code succeeds and the app starts without script errors in a browser against the dev server. Not checked: the live site, the migration, the function. **Quickest check for John:** open Build & Testing; the new "Assistant viewing access" panel shows "not installed or could not be read" if the migration has not run, and the three assistants as OFF if it has.
+
+## Verified installation record — 11 Oct 2026 UTC
+- Source: PR 92, merge `07f0f01ea72a6d09ecf9b0ebe210c027a3cfab8f`; Lovable reports that exact synced commit.
+- Database: four private viewing tables, 57 restrictive write policies, private office-captures bucket, owner-status/room RPCs. There are zero viewing grants.
+- Functions: office-view v1, office-mcp v13. Both reject unauthenticated live HTTP requests (401).
+- Production: deployment request e8cea4dc-329b-46e7-a75c-b50fb8dfd1bc initially pending. Subsequently the live site's index-CrmVt5fp.js references build-testing-Bav0I5DS.js, which contains the new viewing switches and UNAVAILABLE status. This verifies published code, not a signed-in room check.
+- Live database transaction assertions: a synthetic viewer session can access its allowed room; an ungranted room is refused; a viewer cannot revoke; revocation removes viewing access. Entire transaction rolled back; grant count remains zero. These are database checks, not real-assistant image acceptance.
+- Development: 1,587 existing tests, three switch interaction tests, added cleanup-workflow identity regression, isolated Postgres security tests, typecheck, production build, function bundle smoke tests.
+- Security advisor: pinned the three new pure helper functions' search paths in migration 20261011012738. Private tables deliberately have no user policies. Existing generic SECURITY DEFINER/auth advisory findings are separate from full live acceptance.
+- Setup remains: three dedicated no-role Auth identities; repository-scoped GitHub Actions dispatch token in function secrets; CANX_VIEW_SERVICE_URL; per-assistant room authorisation with the owner's authenticator; real-image and revocation tests for each assistant.

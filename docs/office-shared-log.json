@@ -225,6 +225,15 @@
       "audience": "office-status",
       "summary": "Reviewed Claude viewing package against the live Canx Office Supabase project. Corrected room restrictions, read-only identities, capture replay/expiry, workflow identity and retryable hourly deletion. Added independent owner switches.",
       "evidence": "Development checks pass; migration/function installation and live room-image/revocation acceptance remain separately tracked. No viewing grant enabled."
+    },
+    {
+      "id": "office-view-backend-installed-20261011",
+      "at": "2026-10-11T01:28:50Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Installed the hardened viewing migration and deployed office-view v1 and office-mcp v13. PR 92 synced to Lovable; production assets include independent viewing switches. Four private tables and private bucket verified; grants remain zero.",
+      "evidence": "Live functions return 401 without authorisation. Rolled-back database tests pass; no room image or signed-in assistant acceptance yet. Owner accounts, dispatch token, tool-enable secret and grants remain required."
     }
   ]
 }
