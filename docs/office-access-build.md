@@ -96,3 +96,10 @@ Exact changes and undo steps: `docs/proposed/office-view/INSTALL.md`. Expected c
 
 ## Review package for an independent reviewer (ChatGPT can read the PR on GitHub)
 Read in this order: `docs/proposed/office-view-delegation.sql`, `src/lib/office-view-broker.ts` (+ test), `docs/proposed/office-view/index.ts`, `src/lib/canx-viewer.server.ts` (+ test), `scripts/capture/run-capture.mjs`, `src/lib/office-mcp-view.ts`. Questions to answer: can any viewing credential write, spend, delete, read another assistant's data, or outlive a revoke? Does any log, artifact or repo file carry a credential or picture? Can a retrieved page act as an instruction?
+
+## Self security review (before independent review)
+- Supply chain: the capture job installs one pinned browser library with install scripts disabled; the workflow's identity token is only accepted for the exact workflow file on `main`, and only for a request id that is already queued, unclaimed and unexpired. Residual risk: any code run inside that job could ask for a token, so the job installs nothing else and uploads nothing.
+- A leaked viewing credential is read-only in the database, lasts 5 minutes, is tied to one login session and is closed after the picture is stored.
+- Pictures are private, served only through the view service, checked by checksum, deleted after 24 hours, and become unretrievable the moment access is revoked.
+- Input fields are hidden in pictures. Page text could still show private words that sit in normal screens; the grant is the control for that.
+- Not yet reviewed by anyone else.

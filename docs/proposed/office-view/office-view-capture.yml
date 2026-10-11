@@ -37,7 +37,7 @@ jobs:
       - name: Install the browser (pinned, no project dependencies)
         run: |
           npm init -y >/dev/null
-          npm install --no-audit --no-fund playwright@1.49.1
+          npm install --no-audit --no-fund --ignore-scripts playwright@1.49.1
           npx playwright install --with-deps chromium
       - name: Capture
         env:
