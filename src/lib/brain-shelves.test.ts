@@ -176,66 +176,139 @@ import type { BrainItem } from "./brain-index";
 describe("agreed shelf display design (PR70 + brain map)", () => {
   it("has all eight shelves with the agreed names, colour names and colours", () => {
     expect(BRAIN_SHELVES.map((s) => SHELF_DISPLAY[s].name)).toEqual([
-      "The Compass", "The Rulebook", "The Workshop", "The Piggy Bank",
-      "The Library", "The Diary", "The Logbook", "The Lost-and-Found",
+      "The Compass",
+      "The Rulebook",
+      "The Workshop",
+      "The Piggy Bank",
+      "The Library",
+      "The Diary",
+      "The Logbook",
+      "The Lost-and-Found",
     ]);
     expect(BRAIN_SHELVES.map((s) => SHELF_DISPLAY[s].colourName)).toEqual([
-      "Yellow", "Red", "Green", "Orange", "Blue", "Purple", "Light grey", "Dark grey",
+      "Yellow",
+      "Red",
+      "Green",
+      "Orange",
+      "Blue",
+      "Purple",
+      "Light grey",
+      "Dark grey",
     ]);
     expect(BRAIN_SHELVES.map((s) => SHELF_COLORS[s])).toEqual([
-      "#FACC15", "#B91C1C", "#15803D", "#F97316", "#1D4ED8", "#7E22CE", "#D1D5DB", "#374151",
+      "#FACC15",
+      "#B91C1C",
+      "#15803D",
+      "#F97316",
+      "#1D4ED8",
+      "#7E22CE",
+      "#D1D5DB",
+      "#374151",
     ]);
   });
   it("names the cast as in the saved map", () => {
     expect(BRAIN_CAST.map((c) => `${c.who}: ${c.role}`)).toEqual([
-      "Elsie: Front-Desk Manager", "ChatGPT: the Drafter", "Claude: the Second Pair of Eyes",
-      "Brain: the Memory Keeper", "Codex and Claude builders: the Workshop Crew",
+      "Elsie: Front-Desk Manager",
+      "ChatGPT: the Drafter",
+      "Claude: the Second Pair of Eyes",
+      "Brain: the Memory Keeper",
+      "Codex and Claude builders: the Workshop Crew",
     ]);
   });
 });
 
 describe("hover synopsis comes only from live records", () => {
-  const mk = (key: string, kind: BrainItem["kind"], at: string | null, shelf?: BrainItem["shelf"]) =>
-    ({ key, kind, title: `T ${key}`, room: null, folder: null, at, provenance: "x", version: null,
-      access: "metadata only", defaultCategory: "unsorted", category: "unsorted", manual: false,
-      route: null, shelf }) as unknown as BrainItem;
-  it("counts types, shows the newest date and samples real titles from this shelf", () => {
-    const items = [
-      mk("file:1", "file", "2026-10-01T00:00:00Z", "library"),
-      mk("file:2", "file", "2026-10-03T00:00:00Z", "library"),
-      mk("doc:1", "doc", null, "library"),
-      mk("file:3", "file", "2026-10-09T00:00:00Z", "diary"),
+  const mk = (
+    key: string,
+    kind: BrainItem["kind"],
+    at: string | null,
+    shelf?: BrainItem["shelf"],
+  ) =>
+    ({
+      key,
+      kind,
+      title: `T ${key}`,
+      room: null,
+      folder: null,
+      at,
+      provenance: "x",
+      version: null,
+      access: "metadata only",
+      defaultCategory: "unsorted",
+      category: "unsorted",
+      manual: false,
+      route: null,
+      shelf,
+    }) as unknown as BrainItem;
+  it("summarises only the kinds actually filed here, without titles, counts or dates", () => {
+    const text = shelfSynopsis(
+      [
+        mk("file:1", "file", "2026-10-03", "library"),
+        mk("doc:1", "doc", null, "library"),
+        mk("project:1", "project", null, "workshop"),
+      ],
+      "library",
+      true,
+    );
+    expect(text).toBe(
+      "On this shelf you will find saved files and imported documents, gathered here to keep reference material easy to find and return to. This overview uses saved record details rather than the full contents.",
+    );
+    expect(text).not.toMatch(/T file|project records|2026|items|Newest|Saved titles/);
+  });
+  it("uses saved origins rather than guessing from titles or the shelf name", () => {
+    const goal = { ...mk("memory:1", "memory", null, "compass"), shelfOrigin: "goal" };
+    expect(shelfSynopsis([goal], "compass", true)).toContain("saved goals");
+    expect(shelfSynopsis([mk("file:1", "file", null, "workshop")], "workshop", true)).toContain(
+      "saved files, gathered here",
+    );
+    expect(shelfSynopsis([mk("file:1", "file", null, "workshop")], "workshop", true)).not.toContain(
+      "project records",
+    );
+  });
+  it("stays short with many records and discloses partial or unreadable data", () => {
+    const items = Array.from({ length: 82 }, (_, n) => mk(`file:${n}`, "file", null, "library"));
+    const sources = [
+      {
+        key: "files" as const,
+        label: "Files",
+        status: "failed" as const,
+        count: 0,
+        detail: "Unavailable",
+      },
     ];
-    const text = shelfSynopsis(items, "library", true);
-    expect(text).toContain("3 items (2 files, 1 document)");
-    expect(text).toContain("Newest saved 2026-10-03");
-    expect(text).toContain("Saved titles include “T file:1”, “T file:2”, “T doc:1”");
-    expect(text).not.toContain("T file:3");
-    expect(text).toContain("Indexed metadata only; source read limits apply");
+    const text = shelfSynopsis(items, "library", true, sources);
+    expect(text).toContain("overview may be incomplete");
+    expect(text.length).toBeLessThan(300);
+    expect(text).not.toMatch(/82|T file/);
+    expect(shelfSynopsis(items, "library", false)).toContain("contents are currently unavailable");
+    expect(shelfSynopsis([], "library", true, sources)).toContain("other contents may be missing");
   });
-  it("bounds title samples and discloses unavailable sources without inventing content", () => {
-    const items = Array.from({ length: 8 }, (_, n) => mk(`file:${n}`, "file", null, "library"));
-    const text = shelfSynopsis(items, "library", true, [{ key: "files", label: "Files", status: "failed", count: 0, detail: "Unavailable" }]);
-    expect(text).toContain("8 items (8 files)");
-    expect(text).toContain("T file:2");
-    expect(text).not.toContain("T file:3");
-    expect(text).toContain("Some sources are unavailable; this summary is partial");
-    expect(shelfSynopsis(items, "library", false)).not.toContain("T file:");
-  });
-  it("says nothing is filed when empty, and unknown when shelf labels are unreadable", () => {
-    expect(shelfSynopsis([], "diary", true)).toContain("Nothing is filed here yet.");
-    const unread = shelfSynopsis([mk("file:1", "file", null, "diary")], "diary", false);
-    expect(unread).toContain("count is unknown");
-    expect(unread).not.toMatch(/\d+ items?/);
+  it("gives every shelf a paragraph beginning with the requested words", () => {
+    for (const shelf of BRAIN_SHELVES) {
+      expect(shelfSynopsis([mk("file:1", "file", null, shelf)], shelf, true)).toMatch(
+        /^On this shelf you will find /,
+      );
+      expect(shelfSynopsis([], shelf, true)).toBe(
+        "On this shelf you will find no saved material yet.",
+      );
+      expect(shelfSynopsis([], shelf, false)).toMatch(/^On this shelf you will find /);
+    }
   });
 });
 
 describe("Elsie receives the same authoritative shelf definitions", () => {
   it("lists every shelf with its number, agreed name, colour and the cast", () => {
-    const idx = { checkedAt: "2026-10-03T22:00:00Z", items: [], sources: [], orphanLabels: 0 } as unknown as Parameters<typeof shelvesForModel>[0];
+    const idx = {
+      checkedAt: "2026-10-03T22:00:00Z",
+      items: [],
+      sources: [],
+      orphanLabels: 0,
+    } as unknown as Parameters<typeof shelvesForModel>[0];
     const text = shelvesForModel(idx).join("\n");
     BRAIN_SHELVES.forEach((s, n) => {
-      expect(text).toContain(`Shelf ${n + 1}, ${SHELF_DISPLAY[s].name} (${SHELF_DISPLAY[s].colourName}, ${SHELF_COLORS[s]})`);
+      expect(text).toContain(
+        `Shelf ${n + 1}, ${SHELF_DISPLAY[s].name} (${SHELF_DISPLAY[s].colourName}, ${SHELF_COLORS[s]})`,
+      );
     });
     expect(text).toContain("Elsie is Front-Desk Manager");
     expect(text).toContain("Claude is the Second Pair of Eyes");
