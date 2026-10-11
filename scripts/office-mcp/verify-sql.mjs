@@ -143,7 +143,7 @@ try {
  if (process.argv.includes('--isolation')) {
  // Dedicated identities fixture. Existing legacy tests above run unchanged.
  await db.exec(`create table canx_private.office_view_grants(viewer_user_id uuid);`);
- await db.exec(await readFile(new URL("../../supabase/migrations/20261011030021_office_assistant_identity_isolation.sql",import.meta.url),"utf8"));
+ await db.exec(await readFile(new URL("../../supabase/migrations/20261011031034_office_assistant_identity_isolation.sql",import.meta.url),"utf8"));
  const chatAgent='00000000-0000-4000-8000-000000000021',claudeAgent='00000000-0000-4000-8000-000000000022';
  const claudeClient='00000000-0000-4000-8000-000000000023',claudeSession='00000000-0000-4000-8000-000000000024';
  await db.exec(`insert into auth.users(id,raw_app_meta_data,email_confirmed_at) values('${chatAgent}','{"canx_owner_id":"${uid}","canx_assistant":"chatgpt"}',now()),('${claudeAgent}','{"canx_owner_id":"${uid}","canx_assistant":"claude"}',now());

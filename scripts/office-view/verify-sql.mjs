@@ -451,7 +451,7 @@ try {
   alter table auth.oauth_authorizations add column redirect_uri text, add column scope text, add column state text;`);
   await db.exec(await readFile(new URL('../../supabase/migrations/20261008200158_office_mcp_work_access.sql',import.meta.url),'utf8'));
   await db.exec(await readFile(new URL('../../supabase/migrations/20261010023817_office_colleague_relay_work_grant.sql',import.meta.url),'utf8'));
-  await db.exec(await readFile(new URL('../../supabase/migrations/20261011030021_office_assistant_identity_isolation.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../../supabase/migrations/20261011031034_office_assistant_identity_isolation.sql',import.meta.url),'utf8'));
   const agentChat=U(81),agentClaude=U(82);
   await db.exec(`insert into auth.users(id,raw_app_meta_data,email_confirmed_at) values('${agentChat}','{"canx_owner_id":"${owner}","canx_assistant":"chatgpt"}',now()),('${agentClaude}','{"canx_owner_id":"${owner}","canx_assistant":"claude"}',now());
   insert into canx_private.office_mcp_identities(owner_id,identity,assistant_user_id) values('${owner}','chatgpt','${agentChat}'),('${owner}','claude','${agentClaude}');
