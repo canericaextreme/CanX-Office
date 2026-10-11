@@ -2,13 +2,13 @@
 import React from 'react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-const h = vi.hoisted(() => ({ read: vi.fn(), save: vi.fn(), revoke: vi.fn(), verified: true }));
+const h = vi.hoisted(() => ({ read: vi.fn(), save: vi.fn(), revoke: vi.fn(), verified: true, mfa: vi.fn() }));
 vi.mock('@tanstack/react-start', () => ({ useServerFn: (fn: string) => fn === 'read' ? h.read : fn === 'save' ? h.save : h.revoke }));
 vi.mock('@/lib/office-view-owner.functions', () => ({ getViewAccess: 'read', setViewAccess: 'save', revokeViewAccess: 'revoke' }));
-vi.mock('@/lib/owner-session', () => ({ useOwnerSession: () => ({ accessToken: 'owner-token', signedIn: true, viewer: false, stepUpComplete: h.verified }) }));
+vi.mock('@/lib/owner-session', () => ({ useOwnerSession: () => ({ accessToken: 'owner-token', signedIn: true, viewer: false, stepUpComplete: h.verified, submitMfaCode: h.mfa }) }));
 import { ViewAccessPanel } from './ViewAccessPanel';
 const grant = (assistant: string, enabled = true) => ({ assistant, viewer_user_id: '00000000-0000-4000-8000-000000000011', enabled, rooms: ['/brain'], scopes: ['view_room_images'], expires_at: '2099-01-01T00:00:00Z', delegated_at: '2026-10-10T00:00:00Z', revoked_at: enabled ? null : '2026-10-10T00:00:00Z', captures_last_day: 0, last_used_at: null });
-beforeEach(() => { vi.clearAllMocks(); h.verified = true; h.read.mockResolvedValue({ ok: true, grants: ['claude','chatgpt','elsie'].map(a => grant(a)), history: [] }); h.revoke.mockResolvedValue({ ok: true, message: 'Access revoked.' }); h.save.mockResolvedValue({ ok: true, message: 'Access saved.' }); });
+beforeEach(() => { vi.clearAllMocks(); h.verified = true; h.mfa.mockResolvedValue(null); h.read.mockResolvedValue({ ok: true, grants: ['claude','chatgpt','elsie'].map(a => grant(a)), history: [] }); h.revoke.mockResolvedValue({ ok: true, message: 'Access revoked.' }); h.save.mockResolvedValue({ ok: true, message: 'Access saved.' }); });
 afterEach(cleanup);
 describe('independent owner viewing switches', () => {
   it('switches only the selected assistant off without requiring MFA', async () => {
@@ -37,5 +37,36 @@ describe('independent owner viewing switches', () => {
     for (const button of screen.getAllByRole('switch')) expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Claude — UNAVAILABLE')).toBeTruthy();
     expect(h.save).not.toHaveBeenCalled(); expect(h.revoke).not.toHaveBeenCalled();
+  });
+});
+
+describe('viewing panel authenticator verification', () => {
+  it('opens the authenticator popup from Authorise without submitting a grant and preserves the selected rooms', async () => {
+    h.verified = false;
+    const ui = render(<ViewAccessPanel />);
+    fireEvent.click(screen.getByLabelText('Reception'));
+    fireEvent.click(screen.getByRole('button', { name: 'Authorise (needs your authenticator)' }));
+    const input = screen.getByLabelText('Six-digit authenticator code');
+    fireEvent.change(input, { target: { value: '123456' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(h.mfa).toHaveBeenCalledWith('123456'));
+    expect(h.save).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    h.verified = true;
+    ui.rerender(<ViewAccessPanel />);
+    expect(screen.queryByLabelText('Six-digit authenticator code')).toBeNull();
+    expect((screen.getByLabelText('Reception') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('button', { name: 'Authorise (needs your authenticator)' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it('shows a rejected code and keeps authorisation disabled', async () => {
+    h.verified = false;
+    h.mfa.mockResolvedValue('That code was not accepted.');
+    render(<ViewAccessPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Authorise (needs your authenticator)' }));
+    fireEvent.change(screen.getByLabelText('Six-digit authenticator code'), { target: { value: '654321' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify with authenticator' }));
+    expect(await screen.findByText('That code was not accepted.')).toBeTruthy();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(h.save).not.toHaveBeenCalled();
   });
 });

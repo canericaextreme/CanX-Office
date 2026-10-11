@@ -234,6 +234,15 @@
       "audience": "office-status",
       "summary": "Installed the hardened viewing migration and deployed office-view v1 and office-mcp v13. PR 92 synced to Lovable; production assets include independent viewing switches. Four private tables and private bucket verified; grants remain zero.",
       "evidence": "Live functions return 401 without authorisation. Rolled-back database tests pass; no room image or signed-in assistant acceptance yet. Owner accounts, dispatch token, tool-enable secret and grants remain required."
+    },
+    {
+      "id": "office-view-inline-authenticator-20261011",
+      "at": "2026-10-11T02:11:30.402333Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Made the viewing Authorise button open a six-digit authenticator popup after John could not find a usable code field. Selected rooms remain in place; verification does not save or enable a grant.",
+      "evidence": "Five viewing panel interaction tests pass, including opening the popup, successful verification and rejected-code refusal. Signed-in owner acceptance remains required."
     }
   ]
 }
