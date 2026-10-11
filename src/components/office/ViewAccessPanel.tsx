@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOwnerSession } from "@/lib/owner-session";
 import { CAPTURE_ROOM_LABELS } from "@/lib/room-capture-meta";
 import { getViewAccess, revokeViewAccess, setViewAccess } from "@/lib/office-view-owner.functions";
@@ -26,6 +28,25 @@ export function ViewAccessPanel() {
   const [scopes, setScopes] = useState<ViewScope[]>(["view_room_images", "read_room_information"]);
   const [days, setDays] = useState(30);
   const [refresh, setRefresh] = useState(0);
+  const [mfaCode, setMfaCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [mfaError, setMfaError] = useState("");
+  const [mfaOpen, setMfaOpen] = useState(false);
+
+  const verify = async () => {
+    if (verifying || mfaCode.length !== 6) return;
+    setVerifying(true);
+    setMfaError("");
+    try {
+      const problem = await session.submitMfaCode(mfaCode);
+      setMfaCode("");
+      if (problem) setMfaError(problem);
+      else { setMfaOpen(false); setNotice("Authenticator confirmed. Click Authorise to save your selected rooms."); }
+    } catch {
+      setMfaCode("");
+      setMfaError("Verification could not finish. Try again with a fresh code.");
+    } finally { setVerifying(false); }
+  };
 
   useEffect(() => {
     if (!session.accessToken || !session.signedIn || session.viewer) return;
@@ -74,7 +95,7 @@ export function ViewAccessPanel() {
             );
           })}
         </ul>
-        <form className="space-y-3 rounded-lg border border-border/50 p-3" onSubmit={(e) => { e.preventDefault(); void act(() => save({ data: { accessToken: session.accessToken ?? "", input: { assistant, viewerUserId: viewerUserId.trim(), rooms, days, scopes } } })); }}>
+        <form className="space-y-3 rounded-lg border border-border/50 p-3" onSubmit={(e) => { e.preventDefault(); if (!session.stepUpComplete) { setMfaError(""); setMfaOpen(true); return; } void act(() => save({ data: { accessToken: session.accessToken ?? "", input: { assistant, viewerUserId: viewerUserId.trim(), rooms, days, scopes } } })); }}>
           <h3 className="font-medium">Authorise or renew</h3>
           <div className="flex flex-wrap gap-3">
             <label className="text-sm">Assistant <select className="ml-1 rounded border bg-background p-1" value={assistant} onChange={(e) => setAssistant(e.target.value)}>{VIEW_ASSISTANTS.map((a) => <option key={a} value={a}>{NAMES[a]}</option>)}</select></label>
@@ -89,8 +110,19 @@ export function ViewAccessPanel() {
             <div className="grid gap-1 sm:grid-cols-2">{Object.entries(CAPTURE_ROOM_LABELS).map(([route, label]) => <label key={route} className="text-sm"><input type="checkbox" checked={rooms.includes(route)} onChange={() => toggleRoom(route)} /> {label}</label>)}</div>
           </fieldset>
           {protectedPicked.length > 0 && <p className="text-sm">Includes protected rooms ({protectedPicked.map((r) => CAPTURE_ROOM_LABELS[r]).join(", ")}). That is why saving needs your authenticator code, once.</p>}
-          <Button type="submit" disabled={busy || !session.stepUpComplete}>Authorise (needs your authenticator)</Button>
-          {!session.stepUpComplete && <p className="text-sm text-muted-foreground">Complete the authenticator step first. Switching an assistant off never needs it.</p>}
+          <Button type="submit" disabled={busy || verifying}>Authorise (needs your authenticator)</Button>
+          <Dialog open={mfaOpen} onOpenChange={(open) => { setMfaOpen(open); if (!open) { setMfaCode(""); setMfaError(""); } }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Confirm your authenticator</DialogTitle><DialogDescription>Enter your current six-digit code to authorise viewing access. Your room choices stay in place.</DialogDescription></DialogHeader>
+            <label className="block text-sm" htmlFor="view-access-authenticator">Six-digit authenticator code</label>
+            <Input id="view-access-authenticator" type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+              value={mfaCode} disabled={verifying} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void verify(); } }} />
+            <Button type="button" disabled={verifying || mfaCode.length !== 6} onClick={() => void verify()}>{verifying ? "Verifying…" : "Verify with authenticator"}</Button>
+            <p className="text-sm text-muted-foreground">After verification, click Authorise to save your selected rooms. Switching an assistant off never needs a code.</p>
+            {mfaError && <p role="alert" className="text-sm text-destructive">{mfaError}</p>}
+          </DialogContent>
+          </Dialog>
         </form>
         <details><summary className="cursor-pointer text-sm font-medium">Access history</summary>
           <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
