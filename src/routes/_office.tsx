@@ -9,6 +9,7 @@ import { OfficeGate } from "@/components/office/OfficeGate";
 import { OfficeThemeProvider } from "@/lib/office-theme";
 import { OwnerSessionProvider } from "@/lib/owner-session";
 import { useOfficeViewMode } from "@/hooks/use-office-view";
+import { useOwnerSession } from "@/lib/owner-session";
 
 export const Route = createFileRoute("/_office")({
   component: OfficeLayout,
@@ -16,6 +17,8 @@ export const Route = createFileRoute("/_office")({
 
 function OfficeInterior() {
   const { mode, setMode, hydrated } = useOfficeViewMode();
+  // A read-only assistant viewing session: no assistants, alerts or companion are started, so nothing can be spent or asked.
+  const readOnlyViewer = useOwnerSession().viewer;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -32,13 +35,21 @@ function OfficeInterior() {
         </div>
       </div>
       {/* Overlays are excluded from every observation. */}
-      <div data-canx-no-capture="true">
-        <ApprovalAlert />
-      </div>
-      <CompanionDock />
-      <div data-canx-no-capture="true">
-        <OfficeManager />
-      </div>
+      {readOnlyViewer ? (
+        <p data-canx-no-capture="true" data-canx-viewer-badge="true" className="pointer-events-none fixed bottom-2 left-2 z-50 rounded bg-black/70 px-2 py-1 text-xs text-white">
+          Read-only view
+        </p>
+      ) : (
+        <>
+          <div data-canx-no-capture="true">
+            <ApprovalAlert />
+          </div>
+          <CompanionDock />
+          <div data-canx-no-capture="true">
+            <OfficeManager />
+          </div>
+        </>
+      )}
     </div>
   );
 }

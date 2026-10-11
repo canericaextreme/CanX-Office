@@ -1,0 +1,3003 @@
+{
+ "note": "Generated from src/lib/room-brief.ts. Documented in code, not proof a room works today.",
+ "tour": [
+  {
+   "key": "elsie",
+   "route": null,
+   "label": "Elsie — Office Manager",
+   "group": "office-manager",
+   "order": 1
+  },
+  {
+   "key": "/reception",
+   "route": "/reception",
+   "label": "Reception",
+   "group": "clockwise",
+   "order": 2
+  },
+  {
+   "key": "/owner-desk",
+   "route": "/owner-desk",
+   "label": "Owner's Desk",
+   "group": "clockwise",
+   "order": 3
+  },
+  {
+   "key": "/family-continuity",
+   "route": "/family-continuity",
+   "label": "Family Continuity, Skills & Training",
+   "group": "clockwise",
+   "order": 4
+  },
+  {
+   "key": "/office-team",
+   "route": "/office-team",
+   "label": "Office Team",
+   "group": "clockwise",
+   "order": 5
+  },
+  {
+   "key": "/health",
+   "route": "/health",
+   "label": "Office Health",
+   "group": "clockwise",
+   "order": 6
+  },
+  {
+   "key": "/approvals",
+   "route": "/approvals",
+   "label": "Approvals",
+   "group": "clockwise",
+   "order": 7
+  },
+  {
+   "key": "/communications",
+   "route": "/communications",
+   "label": "Communications & Marketing",
+   "group": "clockwise",
+   "order": 8
+  },
+  {
+   "key": "/idea-garage",
+   "route": "/idea-garage",
+   "label": "Idea Garage",
+   "group": "clockwise",
+   "order": 9
+  },
+  {
+   "key": "/systems",
+   "route": "/systems",
+   "label": "Systems",
+   "group": "clockwise",
+   "order": 10
+  },
+  {
+   "key": "/blueprint",
+   "route": "/blueprint",
+   "label": "Blueprint",
+   "group": "clockwise",
+   "order": 11
+  },
+  {
+   "key": "/research",
+   "route": "/research",
+   "label": "Research",
+   "group": "clockwise",
+   "order": 12
+  },
+  {
+   "key": "/legal",
+   "route": "/legal",
+   "label": "Legal",
+   "group": "clockwise",
+   "order": 13
+  },
+  {
+   "key": "/work-board",
+   "route": "/work-board",
+   "label": "Work Board",
+   "group": "clockwise",
+   "order": 14
+  },
+  {
+   "key": "/subscriptions",
+   "route": "/subscriptions",
+   "label": "Subscriptions",
+   "group": "clockwise",
+   "order": 15
+  },
+  {
+   "key": "/records",
+   "route": "/records",
+   "label": "Records",
+   "group": "clockwise",
+   "order": 16
+  },
+  {
+   "key": "/finance",
+   "route": "/finance",
+   "label": "Finance",
+   "group": "clockwise",
+   "order": 17
+  },
+  {
+   "key": "/safe-highways",
+   "route": "/safe-highways",
+   "label": "Safe Highways",
+   "group": "clockwise",
+   "order": 18
+  },
+  {
+   "key": "/build-testing",
+   "route": "/build-testing",
+   "label": "Build & Testing",
+   "group": "clockwise",
+   "order": 19
+  },
+  {
+   "key": "/future",
+   "route": "/future",
+   "label": "Future",
+   "group": "clockwise",
+   "order": 20
+  },
+  {
+   "key": "/brain",
+   "route": "/brain",
+   "label": "CanX Brain",
+   "group": "centre",
+   "order": 21
+  },
+  {
+   "key": "/analytics",
+   "route": "/analytics",
+   "label": "Analytics Control Wall",
+   "group": "centre",
+   "order": 22
+  },
+  {
+   "key": "/projects",
+   "route": "/projects",
+   "label": "Projects",
+   "group": "other",
+   "order": 23
+  },
+  {
+   "key": "/skills",
+   "route": "/skills",
+   "label": "Skills",
+   "group": "other",
+   "order": 24
+  },
+  {
+   "key": "/round-table",
+   "route": "/round-table",
+   "label": "Round Table",
+   "group": "other",
+   "order": 25
+  }
+ ],
+ "briefs": [
+  {
+   "route": "/reception",
+   "label": "Reception",
+   "number": "01",
+   "tourOrder": 2,
+   "previousRoute": null,
+   "nextRoute": "/owner-desk",
+   "purpose": "Single point of instruction — type a request, see status, next step.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "tasks",
+     "label": "Work Board tasks",
+     "kind": "live"
+    },
+    {
+     "key": "approvals",
+     "label": "Approval box",
+     "kind": "live"
+    },
+    {
+     "key": "notes",
+     "label": "Shared office notes",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "office-manager.daily-review",
+     "name": "Office Manager — Daily Office Review",
+     "purpose": "Give John one honest picture of what needs attention across the office, using only records visible in this request.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Room status data (Layer 4) is not stored anywhere yet",
+      "Device-only rooms (Idea Lab scores, health checks) are not visible",
+      "No durable skill audit log"
+     ]
+    },
+    {
+     "id": "office-manager.skill-router",
+     "name": "Office Manager — Skill Router",
+     "purpose": "Choose the smallest installed skill for the problem and load only what it needs.",
+     "assurance": "inputs-connected",
+     "missingInputs": [
+      "Room status data (Layer 4)",
+      "Durable audit log (Layer 5)"
+     ]
+    },
+    {
+     "id": "reception.classify-incoming-request",
+     "name": "Reception — Classify Incoming Request",
+     "purpose": "Classify a new request by intent, urgency, risk and the office area responsible for it.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "reception.route-request-to-room",
+     "name": "Reception — Route Request to Room",
+     "purpose": "Choose the current real office destination for a classified request and explain the handoff.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "reception.identify-missing-information",
+     "name": "Reception — Identify Missing Information",
+     "purpose": "Identify only the facts required before a request can be assessed or routed safely.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "office-manager.office-health-summary",
+     "name": "Office Manager — Office Health Summary",
+     "purpose": "Summarise release and room-check evidence without confusing connectivity with owner verification.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No background room monitor; owner must trigger checks"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/owner-desk",
+     "label": "Owner's Desk",
+     "relation": "escalates decisions",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "routes analytics",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/owner-desk",
+     "label": "Owner's Desk",
+     "relation": "shares the procedure \"Office Manager — Daily Office Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/health",
+     "label": "Office Health",
+     "relation": "shares the procedure \"Office Manager — Daily Office Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/health",
+     "label": "Office Health",
+     "relation": "shares the procedure \"Office Manager — Office Health Summary\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [
+    "Missing input for installed procedures: Room status data (Layer 4) is not stored anywhere yet",
+    "Missing input for installed procedures: Device-only rooms (Idea Lab scores, health checks) are not visible",
+    "Missing input for installed procedures: No durable skill audit log",
+    "Missing input for installed procedures: Room status data (Layer 4)",
+    "Missing input for installed procedures: Durable audit log (Layer 5)",
+    "Missing input for installed procedures: No background room monitor; owner must trigger checks"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/owner-desk",
+   "label": "Owner's Desk",
+   "number": "02",
+   "tourOrder": 3,
+   "previousRoute": "/reception",
+   "nextRoute": "/family-continuity",
+   "purpose": "John's daily overview — decisions, red stops, priorities, cost guardrail.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "approvals",
+     "label": "Approval box",
+     "kind": "live"
+    },
+    {
+     "key": "decisions",
+     "label": "Saved decisions",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "office-manager.daily-review",
+     "name": "Office Manager — Daily Office Review",
+     "purpose": "Give John one honest picture of what needs attention across the office, using only records visible in this request.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Room status data (Layer 4) is not stored anywhere yet",
+      "Device-only rooms (Idea Lab scores, health checks) are not visible",
+      "No durable skill audit log"
+     ]
+    },
+    {
+     "id": "approvals.owner-decision-filter",
+     "name": "Approvals — Owner Decision Filter",
+     "purpose": "Decide whether a proposed action needs John's approval before anything happens.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "brain.retrieve-decision-history",
+     "name": "Brain — Retrieve Decision History",
+     "purpose": "Find what was previously decided about a topic, with the saved title and date.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/reception",
+     "label": "Reception",
+     "relation": "escalates decisions (incoming)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/approvals",
+     "label": "Approvals",
+     "relation": "approves actions",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/reception",
+     "label": "Reception",
+     "relation": "shares the procedure \"Office Manager — Daily Office Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/health",
+     "label": "Office Health",
+     "relation": "shares the procedure \"Office Manager — Daily Office Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/approvals",
+     "label": "Approvals",
+     "relation": "shares the procedure \"Approvals — Owner Decision Filter\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "shares the procedure \"Brain — Retrieve Decision History\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/records",
+     "label": "Records",
+     "relation": "shares the procedure \"Brain — Retrieve Decision History\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [
+    "Missing input for installed procedures: Room status data (Layer 4) is not stored anywhere yet",
+    "Missing input for installed procedures: Device-only rooms (Idea Lab scores, health checks) are not visible",
+    "Missing input for installed procedures: No durable skill audit log"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/family-continuity",
+   "label": "Family Continuity, Skills & Training",
+   "number": "19",
+   "tourOrder": 4,
+   "previousRoute": "/owner-desk",
+   "nextRoute": "/office-team",
+   "purpose": "Family knowledge and approved working procedures",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "skills-registry",
+     "label": "Office Skills registry",
+     "kind": "static",
+     "note": "Written into the app (versioned)."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "training.create-training-brief",
+     "name": "Training — Create Training Brief",
+     "purpose": "Create a concise training brief from an approved current procedure and named audience.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No learner completion or assessment system"
+     ]
+    },
+    {
+     "id": "training.knowledge-check",
+     "name": "Training — Knowledge Check",
+     "purpose": "Create or evaluate a bounded knowledge check against the approved procedure supplied.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No learner completion or assessment system"
+     ]
+    },
+    {
+     "id": "training.procedure-update",
+     "name": "Training — Procedure Update",
+     "purpose": "Compare an approved procedure with dated change evidence and draft a controlled revision.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No learner completion or assessment system"
+     ]
+    },
+    {
+     "id": "training.gap-identification",
+     "name": "Training — Gap Identification",
+     "purpose": "Identify missing training coverage, evidence or ownership without inventing competence records.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No learner completion or assessment system"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Office Skills registry: Written into the app (versioned).",
+    "Missing input for installed procedures: No learner completion or assessment system",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/office-team",
+   "label": "Office Team",
+   "number": "05",
+   "tourOrder": 5,
+   "previousRoute": "/family-continuity",
+   "nextRoute": "/health",
+   "purpose": "Role cards, capabilities, permissions, current job, last result, reviewer.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "team",
+     "label": "Office Team roster",
+     "kind": "device",
+     "note": "Kept on this device; sent to Elsie with each message as untrusted data."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "office-team.roster-review",
+     "name": "Office Team — Roster & Capability Review",
+     "purpose": "Review each worker seat against its recorded role, room and genuinely connected capability.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Office Team roster is device-only unless supplied in a fresh same-room report"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Office Team roster: kept on John's device only, so it cannot be retrieved from the server. Kept on this device; sent to Elsie with each message as untrusted data.",
+    "Missing input for installed procedures: Office Team roster is device-only unless supplied in a fresh same-room report",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/health",
+   "label": "Office Health",
+   "number": "09",
+   "tourOrder": 6,
+   "previousRoute": "/office-team",
+   "nextRoute": "/approvals",
+   "purpose": "Reliability — incidents, stale feeds, failed jobs, backups, restore evidence.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "changes",
+     "label": "Recent change log",
+     "kind": "live"
+    },
+    {
+     "key": "room-checks",
+     "label": "Post-update room checks",
+     "kind": "device",
+     "note": "Recorded on this device."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "office-manager.daily-review",
+     "name": "Office Manager — Daily Office Review",
+     "purpose": "Give John one honest picture of what needs attention across the office, using only records visible in this request.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Room status data (Layer 4) is not stored anywhere yet",
+      "Device-only rooms (Idea Lab scores, health checks) are not visible",
+      "No durable skill audit log"
+     ]
+    },
+    {
+     "id": "security.incident-triage",
+     "name": "Security — Incident Triage",
+     "purpose": "Classify a reported security concern, contain what can safely be contained, and escalate.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No access logs or security event feed"
+     ]
+    },
+    {
+     "id": "office-manager.office-health-summary",
+     "name": "Office Manager — Office Health Summary",
+     "purpose": "Summarise release and room-check evidence without confusing connectivity with owner verification.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No background room monitor; owner must trigger checks"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/reception",
+     "label": "Reception",
+     "relation": "shares the procedure \"Office Manager — Daily Office Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/owner-desk",
+     "label": "Owner's Desk",
+     "relation": "shares the procedure \"Office Manager — Daily Office Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/systems",
+     "label": "Systems",
+     "relation": "shares the procedure \"Security — Incident Triage\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/reception",
+     "label": "Reception",
+     "relation": "shares the procedure \"Office Manager — Office Health Summary\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [
+    "Post-update room checks: kept on John's device only, so it cannot be retrieved from the server. Recorded on this device.",
+    "Missing input for installed procedures: Room status data (Layer 4) is not stored anywhere yet",
+    "Missing input for installed procedures: Device-only rooms (Idea Lab scores, health checks) are not visible",
+    "Missing input for installed procedures: No durable skill audit log",
+    "Missing input for installed procedures: No access logs or security event feed",
+    "Missing input for installed procedures: No background room monitor; owner must trigger checks"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/approvals",
+   "label": "Approvals",
+   "number": "03",
+   "tourOrder": 7,
+   "previousRoute": "/health",
+   "nextRoute": "/communications",
+   "purpose": "One decision inbox — exact action, reasons, alternatives, cost, risk.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "approvals",
+     "label": "Approval box",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "approvals.owner-decision-filter",
+     "name": "Approvals — Owner Decision Filter",
+     "purpose": "Decide whether a proposed action needs John's approval before anything happens.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "approvals.spend-approval-check",
+     "name": "Approvals — Spend Approval Check",
+     "purpose": "Test a proposed spend against recorded limits and owner approval requirements before commitment.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "approvals.delete-destructive-action-check",
+     "name": "Approvals — Delete/Destructive Action Check",
+     "purpose": "Identify irreversible or data-changing effects and require an explicit approved path.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "approvals.high-risk-decision-escalation",
+     "name": "Approvals — High-Risk Decision Escalation",
+     "purpose": "Prepare a bounded decision package when legal, safety, privacy, security or major financial risk is present.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/owner-desk",
+     "label": "Owner's Desk",
+     "relation": "approves actions (incoming)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/owner-desk",
+     "label": "Owner's Desk",
+     "relation": "shares the procedure \"Approvals — Owner Decision Filter\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/communications",
+   "label": "Communications & Marketing",
+   "number": "10",
+   "tourOrder": 8,
+   "previousRoute": "/approvals",
+   "nextRoute": "/idea-garage",
+   "purpose": "Correspondence and marketing — drafts, launch plans, campaigns and results.",
+   "tier": "two_step",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "mail-evidence",
+     "label": "Saved billing-email evidence",
+     "kind": "live",
+     "needsTwoStep": true
+    },
+    {
+     "key": "mailboxes",
+     "label": "Gmail mailbox identities",
+     "kind": "static",
+     "note": "Checked live only by the Mailbox access panel on request; not read by this snapshot."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "outreach.draft-response",
+     "name": "Outreach — Draft Response",
+     "purpose": "Draft correspondence from supplied facts without sending it or making unsupported commitments.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No general inbox reader in room snapshots",
+      "No send-email tool"
+     ]
+    },
+    {
+     "id": "outreach.stakeholder-follow-up",
+     "name": "Outreach — Stakeholder Follow-up",
+     "purpose": "Identify evidenced unanswered commitments and draft a follow-up for John's review.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No general inbox reader in room snapshots",
+      "No send-email tool"
+     ]
+    },
+    {
+     "id": "outreach.correspondence-register",
+     "name": "Outreach — Correspondence Register",
+     "purpose": "Summarise available correspondence evidence by party, date, subject and status without claiming a complete mailbox.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No general inbox reader in room snapshots",
+      "No send-email tool"
+     ]
+    },
+    {
+     "id": "outreach.tone-commitment-check",
+     "name": "Outreach — Tone/Commitment Check",
+     "purpose": "Review a draft for tone and explicit or implied commitments before John sends it.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No general inbox reader in room snapshots",
+      "No send-email tool"
+     ]
+    },
+    {
+     "id": "communications.marketing-review",
+     "name": "Communications — Marketing Item Review",
+     "purpose": "Review a supplied marketing item for factual support, audience fit, rights, tone and unsupported commitments without publishing it.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No publishing or campaign analytics connection"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    },
+    {
+     "id": "mail-rule",
+     "label": "Keep/Ignore mail rule for one exact address",
+     "evidence": "Rule re-read from the owner-only Finance record."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Saved data in this room needs the owner's two-step (authenticator) check; assistants see it only through the read-only viewing access John authorises once with his authenticator (revocable at any time), or inside a window he opens.",
+    "Gmail mailbox identities: Checked live only by the Mailbox access panel on request; not read by this snapshot.",
+    "Missing input for installed procedures: No general inbox reader in room snapshots",
+    "Missing input for installed procedures: No send-email tool",
+    "Missing input for installed procedures: No publishing or campaign analytics connection",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/idea-garage",
+   "label": "Idea Garage",
+   "number": "04",
+   "tourOrder": 9,
+   "previousRoute": "/communications",
+   "nextRoute": "/systems",
+   "purpose": "Bike rack for raw ideas, bulletin board for contenders, decision table.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "idea-cards",
+     "label": "Idea Garage / Bike Rack cards",
+     "kind": "static",
+     "note": "Written into the app; parked ideas, not approved projects."
+    },
+    {
+     "key": "idea-lab",
+     "label": "Idea Lab scores and notes",
+     "kind": "device",
+     "note": "Kept on this device only; Elsie cannot read them."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "idea-garage.capture-idea",
+     "name": "Idea Garage — Capture Idea",
+     "purpose": "Structure John's idea as an unapproved Bike Rack item with origin, problem, evidence and unknowns.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Idea Lab scores are device-only unless supplied in a fresh same-room report",
+      "No automatic market research"
+     ]
+    },
+    {
+     "id": "idea-garage.score-readiness",
+     "name": "Idea Garage — Score Readiness",
+     "purpose": "Assess an idea using the existing evidence-based readiness fields without promoting it automatically.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Idea Lab scores are device-only unless supplied in a fresh same-room report",
+      "No automatic market research"
+     ]
+    },
+    {
+     "id": "idea-garage.park-or-promote-idea",
+     "name": "Idea Garage — Park or Promote Idea",
+     "purpose": "Recommend parking or promotion from recorded evidence while leaving the decision to John.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Idea Lab scores are device-only unless supplied in a fresh same-room report",
+      "No automatic market research"
+     ]
+    },
+    {
+     "id": "idea-garage.duplicate-idea-check",
+     "name": "Idea Garage — Duplicate Idea Check",
+     "purpose": "Compare idea titles, problems and intended users and link possible duplicates without deleting either.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Idea Lab scores are device-only unless supplied in a fresh same-room report",
+      "No automatic market research"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Idea Garage / Bike Rack cards: Written into the app; parked ideas, not approved projects.",
+    "Idea Lab scores and notes: kept on John's device only, so it cannot be retrieved from the server. Kept on this device only; Elsie cannot read them.",
+    "Missing input for installed procedures: Idea Lab scores are device-only unless supplied in a fresh same-room report",
+    "Missing input for installed procedures: No automatic market research",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/systems",
+   "label": "Systems",
+   "number": "08",
+   "tourOrder": 10,
+   "previousRoute": "/idea-garage",
+   "nextRoute": "/blueprint",
+   "purpose": "Account and integration control — connection states, ownership, health.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "changes",
+     "label": "Recent change log",
+     "kind": "live"
+    },
+    {
+     "key": "connections",
+     "label": "Connection inventory",
+     "kind": "static",
+     "note": "App configuration; live checks happen in their own panels."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "security.incident-triage",
+     "name": "Security — Incident Triage",
+     "purpose": "Classify a reported security concern, contain what can safely be contained, and escalate.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No access logs or security event feed"
+     ]
+    },
+    {
+     "id": "security.access-review",
+     "name": "Security — Access Review",
+     "purpose": "Review supplied access and role evidence for least privilege and stale access.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No access-log or security-event feed",
+      "No credential rotation tool"
+     ]
+    },
+    {
+     "id": "security.credential-permission-check",
+     "name": "Security — Credential/Permission Check",
+     "purpose": "Check credential and permission evidence without exposing secret values or changing access.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No access-log or security-event feed",
+      "No credential rotation tool"
+     ]
+    },
+    {
+     "id": "security.security-control-audit",
+     "name": "Security — Security Control Audit",
+     "purpose": "Review named security controls against available evidence and mark untested controls unknown.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No access-log or security-event feed",
+      "No credential rotation tool"
+     ]
+    },
+    {
+     "id": "settings.connector-health-check",
+     "name": "Settings — Connector Health Check",
+     "purpose": "Read available connection state and distinguish configured, verified, failed and untested.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Individual connectors require their own explicit live health check"
+     ]
+    },
+    {
+     "id": "settings.configuration-review",
+     "name": "Settings — Configuration Review",
+     "purpose": "Compare current recorded configuration with the approved requirement and disclose unreadable settings.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Individual connectors require their own explicit live health check"
+     ]
+    },
+    {
+     "id": "settings.integration-failure-triage",
+     "name": "Settings — Integration Failure Triage",
+     "purpose": "Separate observed connector failure evidence from hypotheses and propose safe diagnostics.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Individual connectors require their own explicit live health check"
+     ]
+    },
+    {
+     "id": "settings.change-impact-check",
+     "name": "Settings — Change Impact Check",
+     "purpose": "Identify rooms, records and controls a proposed configuration change could affect before application.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "Individual connectors require their own explicit live health check"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/safe-highways",
+     "label": "Safe Highways",
+     "relation": "read-only link (planned)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/health",
+     "label": "Office Health",
+     "relation": "shares the procedure \"Security — Incident Triage\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [
+    "Connection inventory: App configuration; live checks happen in their own panels.",
+    "Missing input for installed procedures: No access logs or security event feed",
+    "Missing input for installed procedures: No access-log or security-event feed",
+    "Missing input for installed procedures: No credential rotation tool",
+    "Missing input for installed procedures: Individual connectors require their own explicit live health check"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/blueprint",
+   "label": "Blueprint",
+   "number": "07",
+   "tourOrder": 11,
+   "previousRoute": "/systems",
+   "nextRoute": "/research",
+   "purpose": "Current specification, phase progress, room map, dependency records.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "blueprint",
+     "label": "Office blueprint",
+     "kind": "static",
+     "note": "App configuration."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "blueprint.layout-change-record",
+     "name": "Blueprint — Layout Change Record",
+     "purpose": "Prepare an agreed layout-change record with date, affected room and comparison to the approved baseline.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No automatic visual comparison with the historical baseline"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Office blueprint: App configuration.",
+    "Missing input for installed procedures: No automatic visual comparison with the historical baseline",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/research",
+   "label": "Research",
+   "number": "17",
+   "tourOrder": 12,
+   "previousRoute": "/blueprint",
+   "nextRoute": "/legal",
+   "purpose": "Evidence, options and advice",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "research.source-check",
+     "name": "Research — Source Check",
+     "purpose": "Verify a claim against the best available source and return a confidence/evidence note.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No live web/research search tool"
+     ]
+    },
+    {
+     "id": "research.evidence-quality-review",
+     "name": "Research — Evidence Quality Review",
+     "purpose": "Rate supplied evidence for authority, date, relevance and contradiction before it supports a decision.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No live web or standards monitoring tool"
+     ]
+    },
+    {
+     "id": "research.research-brief",
+     "name": "Research — Research Brief",
+     "purpose": "Turn supplied source evidence into a concise question, findings, gaps and recommended verification plan.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No live web or standards monitoring tool"
+     ]
+    },
+    {
+     "id": "research.standards-change-monitor",
+     "name": "Research — Standards Change Monitor",
+     "purpose": "Compare dated standards evidence when John triggers a review; it does not monitor in the background.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No live web or standards monitoring tool"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Missing input for installed procedures: No live web/research search tool",
+    "Missing input for installed procedures: No live web or standards monitoring tool",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/legal",
+   "label": "Legal",
+   "number": "11",
+   "tourOrder": 13,
+   "previousRoute": "/research",
+   "nextRoute": "/work-board",
+   "purpose": "Obligations and risks — issue register, agreements, IP/control records.",
+   "tier": "two_step",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "legal-filings",
+     "label": "Legal topics, statuses, dates and lawyer questions",
+     "kind": "live",
+     "needsTwoStep": true
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "legal.legal-issue-spotter",
+     "name": "Legal — Legal Issue Spotter",
+     "purpose": "Identify facts that may require qualified legal review without giving a legal determination.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No legal research service or professional counsel connection"
+     ]
+    },
+    {
+     "id": "legal.privacy-check",
+     "name": "Legal — Privacy Check",
+     "purpose": "Check proposed handling against data minimisation, access, consent and disclosure boundaries.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No legal research service or professional counsel connection"
+     ]
+    },
+    {
+     "id": "legal.policy-contract-check",
+     "name": "Legal — Policy/Contract Check",
+     "purpose": "Compare supplied language with a named policy or contract and quote the controlling text.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No legal research service or professional counsel connection"
+     ]
+    },
+    {
+     "id": "legal.escalation-memo",
+     "name": "Legal — Escalation Memo",
+     "purpose": "Prepare a factual issue, evidence, deadline, risk and question package for professional review.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No legal research service or professional counsel connection"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Saved data in this room needs the owner's two-step (authenticator) check; assistants see it only through the read-only viewing access John authorises once with his authenticator (revocable at any time), or inside a window he opens.",
+    "Missing input for installed procedures: No legal research service or professional counsel connection",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/work-board",
+   "label": "Work Board",
+   "number": "14",
+   "tourOrder": 14,
+   "previousRoute": "/legal",
+   "nextRoute": "/subscriptions",
+   "purpose": "Canonical queue — tasks, dependencies, blockers, priorities, evidence.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "tasks",
+     "label": "Work Board tasks",
+     "kind": "live"
+    },
+    {
+     "key": "changes",
+     "label": "Recent change log",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "operations.project-health-review",
+     "name": "Operations — Project Health Review",
+     "purpose": "Assess a project's health from its tasks, blockers and milestones.",
+     "assurance": "inputs-connected",
+     "missingInputs": [
+      "Resource allocation/calendar",
+      "Milestone tracking logic"
+     ]
+    },
+    {
+     "id": "operations.blocker-detection",
+     "name": "Operations — Blocker Detection",
+     "purpose": "Identify evidenced task dependencies, stale work and unresolved decisions blocking progress.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "operations.next-action-planner",
+     "name": "Operations — Next Action Planner",
+     "purpose": "Recommend one bounded next action from current project and task evidence without launching work.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "operations.status-update",
+     "name": "Operations — Status Update",
+     "purpose": "Draft an evidence-based project or task status update with freshness and blockers.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "foreman.work-queue-review",
+     "name": "Foreman — Work Queue Review",
+     "purpose": "Review the current Work Board queue for ownership, age, priority and evidence gaps.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No crew telemetry or field dispatch system"
+     ]
+    },
+    {
+     "id": "foreman.priority-triage",
+     "name": "Foreman — Priority Triage",
+     "purpose": "Order operational work by recorded urgency, safety impact and dependency without dispatching anyone.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No crew telemetry or field dispatch system"
+     ]
+    },
+    {
+     "id": "foreman.crew-task-summary",
+     "name": "Foreman — Crew Task Summary",
+     "purpose": "Summarise assigned work, blockers and required evidence for a named crew or worker.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No crew telemetry or field dispatch system"
+     ]
+    },
+    {
+     "id": "foreman.completion-check",
+     "name": "Foreman — Completion Check",
+     "purpose": "Check whether a task has completion evidence before it is represented as done.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No crew telemetry or field dispatch system"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Missing input for installed procedures: Resource allocation/calendar",
+    "Missing input for installed procedures: Milestone tracking logic",
+    "Missing input for installed procedures: No crew telemetry or field dispatch system",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/subscriptions",
+   "label": "Subscriptions",
+   "number": "12",
+   "tourOrder": 15,
+   "previousRoute": "/work-board",
+   "nextRoute": "/records",
+   "purpose": "Recurring subscriptions, variable API use, hosting, renewals, alternatives.",
+   "tier": "two_step",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "subscriptions",
+     "label": "Saved subscriptions",
+     "kind": "live",
+     "needsTwoStep": true
+    },
+    {
+     "key": "mail-evidence",
+     "label": "Saved billing-email evidence",
+     "kind": "live",
+     "needsTwoStep": true
+    },
+    {
+     "key": "mail-preferences",
+     "label": "Your Keep/Ignore mail rules",
+     "kind": "live",
+     "needsTwoStep": true
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "finance.subscription-review",
+     "name": "Finance — Subscription Review",
+     "purpose": "Review a subscription's cost, change and dependency and recommend a next step without spending money.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No vendor usage telemetry"
+     ]
+    },
+    {
+     "id": "finance.receipt-reconciliation",
+     "name": "Finance — Receipt Reconciliation",
+     "purpose": "Match email evidence to verified stored Finance receipts and list unmatched or conflicting records.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No complete bank or accounting ledger"
+     ]
+    },
+    {
+     "id": "finance.budget-variance-review",
+     "name": "Finance — Budget Variance Review",
+     "purpose": "Compare verified spending evidence with the recorded budget scope and explain material variance.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No complete bank or accounting ledger"
+     ]
+    },
+    {
+     "id": "finance.renewal-watch",
+     "name": "Finance — Renewal Watch",
+     "purpose": "Review evidenced renewal and expiry dates without inventing amounts, payment state or deadlines.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No complete bank or accounting ledger"
+     ]
+    },
+    {
+     "id": "subscriptions.renewal-check",
+     "name": "Subscriptions — Renewal Check",
+     "purpose": "Review stored subscription and billing evidence for a named renewal, deadline and review need.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No vendor usage telemetry"
+     ]
+    },
+    {
+     "id": "subscriptions.plan-change-review",
+     "name": "Subscriptions — Plan Change Review",
+     "purpose": "Compare evidenced current and proposed plan terms without changing a subscription.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No vendor usage telemetry"
+     ]
+    },
+    {
+     "id": "subscriptions.tool-value-review",
+     "name": "Subscriptions — Tool Value Review",
+     "purpose": "Assess a tool's recorded cost, use and dependency while marking unavailable usage data.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No vendor usage telemetry"
+     ]
+    },
+    {
+     "id": "subscriptions.vendor-dependency-check",
+     "name": "Subscriptions — Vendor Dependency Check",
+     "purpose": "Identify which recorded work depends on a vendor and what verified fallback exists.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No vendor usage telemetry"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    },
+    {
+     "id": "mail-rule",
+     "label": "Keep/Ignore mail rule for one exact address",
+     "evidence": "Rule re-read from the owner-only Finance record."
+    },
+    {
+     "id": "check-emails",
+     "label": "Check emails now",
+     "evidence": "Per-mailbox result and verified save; partial runs say so."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/finance",
+     "label": "Finance",
+     "relation": "tracks spend (incoming)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/finance",
+     "label": "Finance",
+     "relation": "shares the procedure \"Finance — Subscription Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/finance",
+     "label": "Finance",
+     "relation": "shares the procedure \"Finance — Receipt Reconciliation\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/finance",
+     "label": "Finance",
+     "relation": "shares the procedure \"Finance — Budget Variance Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/finance",
+     "label": "Finance",
+     "relation": "shares the procedure \"Finance — Renewal Watch\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [
+    "Saved data in this room needs the owner's two-step (authenticator) check; assistants see it only through the read-only viewing access John authorises once with his authenticator (revocable at any time), or inside a window he opens.",
+    "Missing input for installed procedures: No vendor usage telemetry",
+    "Missing input for installed procedures: No complete bank or accounting ledger"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/records",
+   "label": "Records",
+   "number": "06",
+   "tourOrder": 16,
+   "previousRoute": "/subscriptions",
+   "nextRoute": "/finance",
+   "purpose": "Canonical knowledge — versioned files, decisions, sources, search, exports.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "notes",
+     "label": "Shared office notes",
+     "kind": "live"
+    },
+    {
+     "key": "decisions",
+     "label": "Saved decisions",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "brain.retrieve-decision-history",
+     "name": "Brain — Retrieve Decision History",
+     "purpose": "Find what was previously decided about a topic, with the saved title and date.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "brain.save-approved-knowledge",
+     "name": "Brain — Save Approved Knowledge",
+     "purpose": "Prepare approved knowledge for the existing save path with title, source, date and scope.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "brain.detect-conflicting-guidance",
+     "name": "Brain — Detect Conflicting Guidance",
+     "purpose": "Find incompatible saved guidance and preserve both versions until John resolves the conflict.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "brain.knowledge-freshness-review",
+     "name": "Brain — Knowledge Freshness Review",
+     "purpose": "Identify saved knowledge whose dates or dependencies make re-verification appropriate.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "records.provenance-check",
+     "name": "Records — Record Provenance Check",
+     "purpose": "Check that a saved record has a source, date, owner scope and an intact original rather than inferred provenance.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "shares the procedure \"Brain — Retrieve Decision History\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/owner-desk",
+     "label": "Owner's Desk",
+     "relation": "shares the procedure \"Brain — Retrieve Decision History\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "shares the procedure \"Brain — Save Approved Knowledge\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "shares the procedure \"Brain — Detect Conflicting Guidance\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "shares the procedure \"Brain — Knowledge Freshness Review\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/finance",
+   "label": "Finance",
+   "number": "13",
+   "tourOrder": 17,
+   "previousRoute": "/records",
+   "nextRoute": "/safe-highways",
+   "purpose": "Income, expenses, receipts, reconciliation, allocations, tax prep.",
+   "tier": "two_step",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "finance-receipts",
+     "label": "Filed receipts (counts and totals by currency)",
+     "kind": "live",
+     "needsTwoStep": true
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "finance.subscription-review",
+     "name": "Finance — Subscription Review",
+     "purpose": "Review a subscription's cost, change and dependency and recommend a next step without spending money.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No vendor usage telemetry"
+     ]
+    },
+    {
+     "id": "finance.receipt-reconciliation",
+     "name": "Finance — Receipt Reconciliation",
+     "purpose": "Match email evidence to verified stored Finance receipts and list unmatched or conflicting records.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No complete bank or accounting ledger"
+     ]
+    },
+    {
+     "id": "finance.budget-variance-review",
+     "name": "Finance — Budget Variance Review",
+     "purpose": "Compare verified spending evidence with the recorded budget scope and explain material variance.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No complete bank or accounting ledger"
+     ]
+    },
+    {
+     "id": "finance.renewal-watch",
+     "name": "Finance — Renewal Watch",
+     "purpose": "Review evidenced renewal and expiry dates without inventing amounts, payment state or deadlines.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No complete bank or accounting ledger"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/subscriptions",
+     "label": "Subscriptions",
+     "relation": "tracks spend",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/subscriptions",
+     "label": "Subscriptions",
+     "relation": "shares the procedure \"Finance — Subscription Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/subscriptions",
+     "label": "Subscriptions",
+     "relation": "shares the procedure \"Finance — Receipt Reconciliation\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/subscriptions",
+     "label": "Subscriptions",
+     "relation": "shares the procedure \"Finance — Budget Variance Review\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/subscriptions",
+     "label": "Subscriptions",
+     "relation": "shares the procedure \"Finance — Renewal Watch\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [
+    "Saved data in this room needs the owner's two-step (authenticator) check; assistants see it only through the read-only viewing access John authorises once with his authenticator (revocable at any time), or inside a window he opens.",
+    "Missing input for installed procedures: No vendor usage telemetry",
+    "Missing input for installed procedures: No complete bank or accounting ledger"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/safe-highways",
+   "label": "Safe Highways",
+   "number": "16",
+   "tourOrder": 18,
+   "previousRoute": "/finance",
+   "nextRoute": "/build-testing",
+   "purpose": "Programme oversight — public app, foreman, operations, routing evidence.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "sh-boundary",
+     "label": "Safe Highways oversight notes",
+     "kind": "static",
+     "note": "Advisory only; the Safe Highways project is never read or changed from here."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "safe-highways.defect-report-review",
+     "name": "Safe Highways — Defect Report Review",
+     "purpose": "Review a road-defect report John brings into the office for completeness, routing and priority — advisory only.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No read connection to the Safe Highways project (read-only connectors not yet set up)"
+     ]
+    },
+    {
+     "id": "safe-highways.duplicate-report-check",
+     "name": "Safe Highways — Duplicate Report Check",
+     "purpose": "Compare supplied report facts for possible duplicates while preserving linked reporter outcomes.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No read or write connection to Safe Highways production",
+      "No authoritative routing or standards feed"
+     ]
+    },
+    {
+     "id": "safe-highways.contractor-cma-routing",
+     "name": "Safe Highways — Contractor/CMA Routing",
+     "purpose": "Assess routing evidence supplied to the Office; never invent or execute an authoritative highway handoff.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No read or write connection to Safe Highways production",
+      "No authoritative routing or standards feed"
+     ]
+    },
+    {
+     "id": "safe-highways.standards-compliance-check",
+     "name": "Safe Highways — Standards Compliance Check",
+     "purpose": "Compare supplied work or report evidence with a cited, dated standard and flag uncertainty.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No read or write connection to Safe Highways production",
+      "No authoritative routing or standards feed"
+     ]
+    },
+    {
+     "id": "safe-highways.closure-audit",
+     "name": "Safe Highways — Closure Audit",
+     "purpose": "Check that a proposed closure has outcome evidence, reason, history and reporter follow-up.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No read or write connection to Safe Highways production",
+      "No authoritative routing or standards feed"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "oversees programme (incoming)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/projects",
+     "label": "Project Rooms",
+     "relation": "contains (incoming)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/systems",
+     "label": "Systems",
+     "relation": "read-only link (planned) (incoming)",
+     "source": "brain-map-link"
+    }
+   ],
+   "limits": [
+    "Safe Highways oversight notes: Advisory only; the Safe Highways project is never read or changed from here.",
+    "Missing input for installed procedures: No read connection to the Safe Highways project (read-only connectors not yet set up)",
+    "Missing input for installed procedures: No read or write connection to Safe Highways production",
+    "Missing input for installed procedures: No authoritative routing or standards feed"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/build-testing",
+   "label": "Build & Testing",
+   "number": "15",
+   "tourOrder": 19,
+   "previousRoute": "/safe-highways",
+   "nextRoute": "/future",
+   "purpose": "Controlled development — briefs, review findings, tests, release gates.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "changes",
+     "label": "Recent change log",
+     "kind": "live"
+    },
+    {
+     "key": "room-checks",
+     "label": "Post-update room checks",
+     "kind": "device",
+     "note": "Recorded on this device."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "build-testing.release-check",
+     "name": "Build & Testing — Post-update Room Check",
+     "purpose": "Run the existing owner-triggered release check contract and distinguish code checks from signed-in room verification.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "No background monitor; owner sign-in and MFA are required for saved-data room verification"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Post-update room checks: kept on John's device only, so it cannot be retrieved from the server. Recorded on this device.",
+    "Missing input for installed procedures: No background monitor; owner sign-in and MFA are required for saved-data room verification",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/future",
+   "label": "Future",
+   "number": "20",
+   "tourOrder": 20,
+   "previousRoute": "/build-testing",
+   "nextRoute": "/brain",
+   "purpose": "Reserved expansion — empty, labelled placeholder; no pretend staff or spend.",
+   "tier": "standard",
+   "reserved": true,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "reserved",
+     "label": "Reserved room",
+     "kind": "static",
+     "note": "No worker, skill or capability is installed."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "future.reserved",
+     "name": "Future — reserved",
+     "purpose": "Reserved for longer plans. No worker or capability exists.",
+     "assurance": "outline",
+     "missingInputs": [
+      "Reserved — no capability"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Reserved room: no worker, skill or capability is installed.",
+    "Reserved room: No worker, skill or capability is installed.",
+    "Missing input for installed procedures: Reserved — no capability",
+    "Procedures named but not installed: Future — reserved.",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/brain",
+   "label": "Goal & Analytics / CanX Brain",
+   "number": null,
+   "tourOrder": 21,
+   "previousRoute": "/future",
+   "nextRoute": "/analytics",
+   "purpose": "Interactive brain map of projects, workers, skills, and connections.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "brain-index",
+     "label": "Brain index — Downloads, Knowledge, Discussions, Memory, Projects, Rules & Skills",
+     "kind": "live"
+    },
+    {
+     "key": "brain-memory",
+     "label": "Brain memory and continuity notes",
+     "kind": "live"
+    },
+    {
+     "key": "decisions",
+     "label": "Saved decisions",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "brain.retrieve-decision-history",
+     "name": "Brain — Retrieve Decision History",
+     "purpose": "Find what was previously decided about a topic, with the saved title and date.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "brain.save-approved-knowledge",
+     "name": "Brain — Save Approved Knowledge",
+     "purpose": "Prepare approved knowledge for the existing save path with title, source, date and scope.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "brain.detect-conflicting-guidance",
+     "name": "Brain — Detect Conflicting Guidance",
+     "purpose": "Find incompatible saved guidance and preserve both versions until John resolves the conflict.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    },
+    {
+     "id": "brain.knowledge-freshness-review",
+     "name": "Brain — Knowledge Freshness Review",
+     "purpose": "Identify saved knowledge whose dates or dependencies make re-verification appropriate.",
+     "assurance": "inputs-connected",
+     "missingInputs": []
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/reception",
+     "label": "Reception",
+     "relation": "routes analytics (incoming)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/projects",
+     "label": "Project Rooms",
+     "relation": "tracks projects",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/safe-highways",
+     "label": "Safe Highways",
+     "relation": "oversees programme",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/owner-desk",
+     "label": "Owner's Desk",
+     "relation": "shares the procedure \"Brain — Retrieve Decision History\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/records",
+     "label": "Records",
+     "relation": "shares the procedure \"Brain — Retrieve Decision History\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/records",
+     "label": "Records",
+     "relation": "shares the procedure \"Brain — Save Approved Knowledge\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/records",
+     "label": "Records",
+     "relation": "shares the procedure \"Brain — Detect Conflicting Guidance\"",
+     "source": "shared-skill"
+    },
+    {
+     "route": "/records",
+     "label": "Records",
+     "relation": "shares the procedure \"Brain — Knowledge Freshness Review\"",
+     "source": "shared-skill"
+    }
+   ],
+   "limits": [],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/analytics",
+   "label": "Analytics",
+   "number": null,
+   "tourOrder": 22,
+   "previousRoute": "/brain",
+   "nextRoute": "/projects",
+   "purpose": "Evidence-based office measures.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "tasks",
+     "label": "Work Board tasks",
+     "kind": "live"
+    },
+    {
+     "key": "approvals",
+     "label": "Approval box",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "No installed procedure is linked to this room.",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/projects",
+   "label": "Project Rooms",
+   "number": null,
+   "tourOrder": 23,
+   "previousRoute": "/analytics",
+   "nextRoute": "/skills",
+   "purpose": "Separate workstreams with goals, tasks, files, decisions, cost, history.",
+   "tier": "two_step",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "project-register",
+     "label": "Project register (saved Lovable project records)",
+     "kind": "live",
+     "needsTwoStep": true
+    },
+    {
+     "key": "tasks",
+     "label": "Work Board tasks grouped by project",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [
+    {
+     "id": "projects.project-brief-review",
+     "name": "Projects — Project Brief Review",
+     "purpose": "Review the real project register entry, owner goal, stage, evidence, blockers and next move.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "External project repositories and production deployments are not connected here"
+     ]
+    },
+    {
+     "id": "projects.asset-readiness-check",
+     "name": "Projects — Asset Readiness Check",
+     "purpose": "Inventory evidenced project assets and rights, marking missing or unverified items.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "External project repositories and production deployments are not connected here"
+     ]
+    },
+    {
+     "id": "projects.publishing-launch-checklist",
+     "name": "Projects — Publishing/Launch Checklist",
+     "purpose": "Prepare a non-executing launch checklist covering evidence, rights, approvals and rollback.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "External project repositories and production deployments are not connected here"
+     ]
+    },
+    {
+     "id": "projects.project-decision-summary",
+     "name": "Projects — Project Decision Summary",
+     "purpose": "Summarise saved project decisions, conflicts, dates and open owner choices.",
+     "assurance": "instructions-only",
+     "missingInputs": [
+      "External project repositories and production deployments are not connected here"
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [
+    {
+     "route": "/brain",
+     "label": "Goal & Analytics / CanX Brain",
+     "relation": "tracks projects (incoming)",
+     "source": "brain-map-link"
+    },
+    {
+     "route": "/safe-highways",
+     "label": "Safe Highways",
+     "relation": "contains",
+     "source": "brain-map-link"
+    }
+   ],
+   "limits": [
+    "Saved data in this room needs the owner's two-step (authenticator) check; assistants see it only through the read-only viewing access John authorises once with his authenticator (revocable at any time), or inside a window he opens.",
+    "Missing input for installed procedures: External project repositories and production deployments are not connected here"
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/skills",
+   "label": "Skills / SOP Library",
+   "number": null,
+   "tourOrder": 24,
+   "previousRoute": "/projects",
+   "nextRoute": "/round-table",
+   "purpose": "Approved procedures, versions, permissions, tests, review dates.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "skills-registry",
+     "label": "Office Skills registry",
+     "kind": "static",
+     "note": "Written into the app (versioned)."
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "Office Skills registry: Written into the app (versioned).",
+    "No installed procedure is linked to this room.",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  },
+  {
+   "route": "/round-table",
+   "label": "Round Table",
+   "number": null,
+   "tourOrder": 25,
+   "previousRoute": "/skills",
+   "nextRoute": null,
+   "purpose": "Meeting agenda, notes, decisions, owners and due dates.",
+   "tier": "standard",
+   "reserved": false,
+   "sources": [
+    {
+     "key": "files",
+     "label": "Saved files and links for this room",
+     "kind": "live"
+    },
+    {
+     "key": "reports",
+     "label": "Room reports saved at John's request",
+     "kind": "live"
+    },
+    {
+     "key": "round-tables",
+     "label": "Round table records",
+     "kind": "live"
+    }
+   ],
+   "skillRegistryVersion": "2026-10-04.3",
+   "skills": [],
+   "actions": [
+    {
+     "id": "read",
+     "label": "Read and summarise this room",
+     "evidence": "Answer cites checked time and sources."
+    },
+    {
+     "id": "save-report",
+     "label": "Save a room report",
+     "evidence": "Saved record re-read before success is shown."
+    },
+    {
+     "id": "create-task",
+     "label": "Create or assign a Work Board task",
+     "evidence": "Task row re-read; yellow/red still need approval."
+    },
+    {
+     "id": "request-approval",
+     "label": "Raise an approval",
+     "evidence": "Approval row re-read; John decides."
+    },
+    {
+     "id": "save-link",
+     "label": "Save a file or link",
+     "evidence": "Upload/link save is confirmed by the database."
+    }
+   ],
+   "connections": [],
+   "limits": [
+    "No installed procedure is linked to this room.",
+    "No documented connection to another room was found in the Brain map or shared procedures."
+   ],
+   "assurance": {
+    "documentedInCode": true,
+    "ownerVerifiedSkillCount": 0,
+    "liveRoomCheck": "unknown",
+    "note": "Everything above is documented in the Office's code. Only procedures marked owner-verified were confirmed by John in real use. Whether the room works today needs a signed-in check on the current build; read current records for live contents."
+   }
+  }
+ ]
+}

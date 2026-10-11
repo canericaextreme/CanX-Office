@@ -35,10 +35,17 @@ async function owner(accessToken: string) {
   return verified.ok ? { ok: true as const, userId: verified.userId, aal: verified.aal } : { ok: false as const, message: verified.message };
 }
 
+async function ownerRead(accessToken: string) {
+  const backend = await import("./canx-backend.server");
+  if (!backend.readBackendConfig()) return { ok: false as const, message: backend.DENY_MESSAGES.backend_not_configured };
+  const verified = await (await import("./canx-viewer.server")).verifyOwnerOrViewerRead(accessToken);
+  return verified.ok ? { ok: true as const, userId: verified.userId, aal: verified.aal } : { ok: false as const, message: verified.message };
+}
+
 export const listSubscriptions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: token(input) }))
   .handler(async ({ data }): Promise<SubscriptionsResult<{ saved: boolean; subscriptions: SubscriptionRecord[]; evidence: SubscriptionEvidence[]; lastCheck: LastCheck | null; scanConfig: GmailScanConfig | null }>> => {
-    const who = await owner(data.accessToken);
+    const who = await ownerRead(data.accessToken);
     if (!who.ok) return { ok: false, message: who.message, data: null };
     const store = await import("./subscriptions-store.server");
     const state = await store.readSubscriptionState(data.accessToken);

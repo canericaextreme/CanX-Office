@@ -19,7 +19,7 @@ const routeForRoom = (room: string) => OFFICE_ROOM_IDENTITIES.find((r) => r.id =
 
 export async function readBrainIndexWith(input: { config: BackendConfig; token: string; aal: string; rest: BrainRest; now?: () => Date }): Promise<BrainIndex> {
   const { config, token, aal, rest } = input;
-  const twoStep = aal === "aal2";
+  const twoStep = aal === "aal2" || aal === "viewer"; // "viewer": a confirmed read-only delegation; the database still decides what it can read
   const get = async (path: string): Promise<Row[] | null> => {
     const r = await rest(config, token, path).catch(() => null);
     return r?.ok && Array.isArray(r.body) ? (r.body as Row[]) : null;

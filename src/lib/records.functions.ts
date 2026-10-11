@@ -60,6 +60,24 @@ async function withOwner<T>(
   return run({ config, userId: verified.userId, token: accessToken, rest: backend.restRequest });
 }
 
+/** Read-only variant: also accepts a confirmed viewer session (see canx-viewer.server.ts). */
+async function withOwnerRead<T>(
+  accessToken: string,
+  run: (ctx: {
+    config: NonNullable<Awaited<ReturnType<typeof import("@/lib/canx-backend.server").readBackendConfig>>>;
+    userId: string;
+    token: string;
+    rest: typeof import("@/lib/canx-backend.server").restRequest;
+  }) => Promise<RecordsResult<T>>,
+): Promise<RecordsResult<T>> {
+  const backend = await import("@/lib/canx-backend.server");
+  const config = backend.readBackendConfig();
+  if (!config) return fail("backend_not_configured", backend.DENY_MESSAGES.backend_not_configured);
+  const verified = await (await import("@/lib/canx-viewer.server")).verifyOwnerOrViewerRead(accessToken);
+  if (!verified.ok) return fail(verified.reason, verified.message);
+  return run({ config, userId: verified.userId, token: accessToken, rest: backend.restRequest });
+}
+
 const tokenOf = (input: unknown) => {
   const raw = input as { accessToken?: unknown } | undefined;
   return typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "";
@@ -70,7 +88,7 @@ const tokenOf = (input: unknown) => {
 export const listSharedNotes = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: tokenOf(input) }))
   .handler(async ({ data }): Promise<RecordsResult<OfficeNote[]>> =>
-    withOwner<OfficeNote[]>(data.accessToken, async ({ config, token, rest }) => {
+    withOwnerRead<OfficeNote[]>(data.accessToken, async ({ config, token, rest }) => {
       const response = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=300");
       if (!response.ok) return fail("backend_error", "The shared records could not be read.");
       const rows = Array.isArray(response.body) ? response.body : [];
@@ -162,7 +180,7 @@ export const loadSharedRoundTable = createServerFn({ method: "POST" })
   })
   // The document is returned as JSON text so the transport stays plainly serializable.
   .handler(async ({ data }): Promise<RecordsResult<string>> =>
-    withOwner<string>(data.accessToken, async ({ config, token, rest }) => {
+    withOwnerRead<string>(data.accessToken, async ({ config, token, rest }) => {
       const response = await rest(config, token, `round_tables?select=doc&key=eq.${encodeURIComponent(data.key)}&limit=1`);
       if (!response.ok) return fail("backend_error", "The meeting record could not be read.");
       const rows = Array.isArray(response.body) ? (response.body as Array<{ doc?: unknown }>) : [];

@@ -78,7 +78,7 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
     if (!rep.ok) return result(def, { status: "not-read", detail: rep.why });
     return result(def, { count: rep.summary.count, items: rep.summary.items.slice(0, MAX_ITEMS), latestAt: rep.at, detail: `reported by this device at ${rep.at} (untrusted device data): ${rep.summary.detail}` });
   }
-  if (def.needsTwoStep && req.aal !== "aal2") return result(def, { status: "denied", detail: "needs two-step verification" });
+  if (def.needsTwoStep && req.aal !== "aal2" && req.aal !== "viewer") return result(def, { status: "denied", detail: "needs two-step verification" });
   const id = encodeURIComponent(req.target.id);
   switch (def.key) {
     case "project-register": {
@@ -104,7 +104,7 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
     }
     case "files": {
       const all = req.target.route === "/brain";
-      const filter = all ? (req.aal === "aal2" ? "" : "&room=neq.finance") : `&room=eq.${id}`;
+      const filter = all ? (req.aal === "aal2" || req.aal === "viewer" ? "" : "&room=neq.finance") : `&room=eq.${id}`;
       const [files, links] = await Promise.all([
         rows(req, `office_files?select=filename,created_at${filter}&order=created_at.desc&limit=100`),
         rows(req, `office_links?select=title,created_at${filter}&order=created_at.desc&limit=100`),
@@ -113,7 +113,7 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       const merged = [...files.map((f) => ({ t: text(f["filename"]), at: text(f["created_at"], 40) })), ...links.map((l) => ({ t: text(l["title"]), at: text(l["created_at"], 40) }))]
         .sort((a, b) => b.at.localeCompare(a.at));
       const capped = files.length >= 100 || links.length >= 100;
-      return result(def, { count: merged.length, capped, items: merged.slice(0, MAX_ITEMS).map((m) => `${m.t} (${m.at.slice(0, 10)})`), latestAt: merged[0]?.at || null, detail: (capped ? "showing up to 100 files and 100 links; more may exist; names and dates only, file contents not read. " : "names and dates only; file contents not read. ") + (all ? (req.aal === "aal2" ? "all rooms (Brain shows every saved file)" : "all rooms except Finance (needs two-step verification)") : "") });
+      return result(def, { count: merged.length, capped, items: merged.slice(0, MAX_ITEMS).map((m) => `${m.t} (${m.at.slice(0, 10)})`), latestAt: merged[0]?.at || null, detail: (capped ? "showing up to 100 files and 100 links; more may exist; names and dates only, file contents not read. " : "names and dates only; file contents not read. ") + (all ? (req.aal === "aal2" || req.aal === "viewer" ? "all rooms (Brain shows every saved file)" : "all rooms except Finance (needs two-step verification)") : "") });
     }
     case "legal-filings": {
       const { LEGAL_SOURCE, parseLegalFiling, LEGAL_TOPICS } = await import("./legal-room");

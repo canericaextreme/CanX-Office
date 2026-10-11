@@ -24,6 +24,8 @@ export interface SessionResult {
   email: string | null;
   /** Verified assurance level of this session: "aal1" ordinary, "aal2" authenticator. */
   aal: string | null;
+  /** True for a read-only assistant viewer session (never for the owner). The server decided this. */
+  viewer?: boolean;
 }
 
 export const getBackendStatus = createServerFn({ method: "GET" }).handler(async (): Promise<BackendStatus> => {
@@ -65,10 +67,14 @@ function tokenOf(input: unknown): string {
 export const verifyOwnerSession = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: tokenOf(input) }))
   .handler(async ({ data }): Promise<SessionResult> => {
-    const { verifySignedIn } = await import("@/lib/canx-backend.server");
-    const result = await verifySignedIn(data.accessToken);
+    const { verifySignedInOrViewerRead } = await import("@/lib/canx-viewer.server");
+    const result = await verifySignedInOrViewerRead(data.accessToken);
     if (!result.ok) {
       return { ok: false, reason: result.reason, message: result.message, userId: null, email: null, aal: null };
+    }
+    if (result.viewer) {
+      // A confirmed read-only assistant viewing session. It can look; the database refuses everything else.
+      return { ok: true, reason: null, message: "Read-only viewing session.", userId: result.userId, email: null, aal: "aal1", viewer: true };
     }
     return {
       ok: true,

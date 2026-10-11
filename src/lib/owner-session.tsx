@@ -34,8 +34,12 @@ export interface OwnerSession {
   aal: "aal1" | "aal2" | null;
   /** Ordinary office access: signed in as the owner, authenticator not required. */
   signedIn: boolean;
-  /** Authenticator confirmed — protected actions may proceed. */
+  /** Authenticator confirmed — protected actions may proceed. NEVER true for an assistant viewer. */
   stepUpComplete: boolean;
+  /** True when this is an assistant's read-only viewing session, not the owner. The database refuses every write from it. */
+  viewer: boolean;
+  /** May READ protected rooms: the owner with the authenticator, or an assistant viewer under a delegation. Reading only; no action may use this. */
+  canReadProtected: boolean;
   /** True when shared saving to the CanX account is permitted. */
   shared: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
@@ -115,9 +119,11 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [aal, setAal] = useState<"aal1" | "aal2" | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [viewer, setViewer] = useState(false);
 
   const applyResult = useCallback((token: string | null, result: SessionResult) => {
     setAccessToken(token);
+    setViewer(result.ok && result.viewer === true);
     if (result.ok) {
       setState("owner");
       setEmail(result.email);
@@ -317,6 +323,8 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       aal,
       signedIn: state === "owner" && Boolean(accessToken),
       stepUpComplete: state === "owner" && aal === "aal2",
+      viewer: state === "owner" && viewer,
+      canReadProtected: state === "owner" && (aal === "aal2" || viewer),
       shared: state === "owner" && Boolean(accessToken),
       signIn,
       requestPasswordReset,
@@ -327,7 +335,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       signOut,
       refresh,
     }),
-    [state, configured, email, userId, message, accessToken, aal, signIn, requestPasswordReset, updatePassword, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
+    [state, configured, email, userId, message, accessToken, aal, viewer, signIn, requestPasswordReset, updatePassword, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

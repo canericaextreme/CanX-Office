@@ -45,11 +45,29 @@ async function withOwner<T>(
   return run({ config, userId: verified.userId, token: accessToken, rest: backend.restRequest });
 }
 
+/** Read-only variant: also accepts a confirmed viewer session (see canx-viewer.server.ts). */
+async function withOwnerRead<T>(
+  accessToken: string,
+  run: (ctx: {
+    config: NonNullable<ReturnType<typeof import("@/lib/canx-backend.server").readBackendConfig>>;
+    userId: string;
+    token: string;
+    rest: typeof import("@/lib/canx-backend.server").restRequest;
+  }) => Promise<FinanceResult<T>>,
+): Promise<FinanceResult<T>> {
+  const backend = await import("@/lib/canx-backend.server");
+  const config = backend.readBackendConfig();
+  if (!config) return fail("backend_not_configured", backend.DENY_MESSAGES.backend_not_configured);
+  const verified = await (await import("@/lib/canx-viewer.server")).verifyOwnerOrViewerRead(accessToken);
+  if (!verified.ok) return fail(verified.reason, verified.message);
+  return run({ config, userId: verified.userId, token: accessToken, rest: backend.restRequest });
+}
+
 /** Reads the owner's private receipts. */
 export const listPrivateReceipts = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: tokenOf(input) }))
   .handler(async ({ data }): Promise<FinanceResult<string>> =>
-    withOwner<string>(data.accessToken, async ({ config, token, rest }) => {
+    withOwnerRead<string>(data.accessToken, async ({ config, token, rest }) => {
       const response = await rest(config, token, "finance_receipts?select=doc,ingested_receipts&order=created_at.desc&limit=1");
       if (!response.ok) return fail("backend_error", "The private receipts could not be read.");
       const rows = Array.isArray(response.body) ? (response.body as Array<{ doc?: unknown; ingested_receipts?: unknown }>) : [];

@@ -180,6 +180,33 @@
       "audience": "office-status",
       "summary": "Prepared local owner-requested Brain shelf prose correction. Bubble overviews now describe available record kinds and explicit saved origins rather than counts, dates or titles. Accepted interactions and light upload controls preserved. No production or publication actions.",
       "evidence": "Base ba2e68c; full local suite passed 145 files / 1482 tests, typecheck, production build and changed-file lint passed. docs/brain-shelf-bubbles-draft-pr.md records the review draft and pending device/signed-in checks. No live health verification claimed."
+    },
+    {
+      "id": "2026-10-10-office-access-build-record",
+      "at": "2026-10-10T17:30:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "PROPOSED, not merged or deployed: draft PR #81 now covers all 24 rooms, access rules, room briefs and a build record. Verified only in unit tests and fixture Chromium runs. No assistant has retrieved or described a live room image; Claude, ChatGPT and Elsie are all untested; 0 of 24 rooms verified live.",
+      "evidence": "docs/office-access-build.md; 39 unit tests passing in a scratch install; refusal runs in real Chromium on fixtures. No credentials recorded."
+    },
+    {
+      "id": "2026-10-10-room-capture-phase1-proposed",
+      "at": "2026-10-10T16:40:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "PROPOSED, not merged or deployed: draft PR adds a real-browser room capture script, capture rules with tests, and a design document. No assistant has yet retrieved or described a captured image; live-Office capture, retrieval and signed-out refusal are untested.",
+      "evidence": "Fixture-based Chromium runs and unit tests in a scratch install; see docs/room-capture-design.md. No credentials recorded."
+    },
+    {
+      "id": "2026-10-10-office-view-access-build-progress",
+      "at": "2026-10-10T23:58:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Office viewing access build in progress, 8 of 22 checklist items (36%), all code or stand-in tested, none live. Built on draft PR 81: proposed read-only delegation database setup, view service logic, page viewer mode, capture runner, proposed edge function and workflow, connector tools (list rooms, tour with resume, room brief, view room image, read room information, off until configured) and an owner panel to authorise, scope and revoke each assistant. No assistant has received a real room image; browser-closed operation, revocation, Elsie and per-room checks are unverified. Nothing merged, deployed or spent.",
+      "evidence": "docs/office-access-build.md (checklist, matrix, limits); PR 81 branch claude/room-capture-phase1. Real-Postgres and real-Chromium checks used stand-ins, not the live Office. No credentials or private contents recorded."
     }
   ]
 }
