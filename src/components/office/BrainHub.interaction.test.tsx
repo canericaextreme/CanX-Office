@@ -118,9 +118,11 @@ it.each([25, 82])("shows a brief synopsis for %i items and opens every item on s
   const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
   expect(within(bubble).getByText(new RegExp(`${count} items`))).toBeTruthy();
   expect(within(bubble).queryByRole("list")).toBeNull();
-  expect(within(bubble).queryByText("Library record 0")).toBeNull();
+  expect(within(bubble).getByText(/Saved titles include “Library record 0”, “Library record 1”, “Library record 2”/)).toBeTruthy();
+  expect(bubble.textContent).not.toContain("Library record 3”");
   expect(within(bubble).queryByRole("combobox")).toBeNull();
-  expect(bubble.closest("nav")).toBeNull();
+  expect(bubble.closest("nav")).toBeTruthy();
+  expect(bubble.className).toContain("inset-0");
   fireEvent.click(cardFor("library"));
   await act(async () => {});
   const list = screen.getByRole("list", { name: "Library items" });
@@ -128,21 +130,19 @@ it.each([25, 82])("shows a brief synopsis for %i items and opens every item on s
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("keeps the bubble open across the pointer gap, then closes after leaving both", async () => {
-  vi.useFakeTimers();
-  try {
-    render(<BrainHub fixture={index} />);
-    const shelf = cardFor("library").parentElement!;
-    fireEvent.pointerEnter(shelf, { pointerType: "mouse" });
-    const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
-    fireEvent.pointerLeave(shelf, { pointerType: "mouse" });
-    fireEvent.pointerEnter(bubble, { pointerType: "mouse" });
-    await act(async () => { vi.advanceTimersByTime(250); });
-    expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
-    fireEvent.pointerLeave(bubble, { pointerType: "mouse" });
-    await act(async () => { vi.advanceTimersByTime(250); });
-    expect(screen.queryByRole("dialog")).toBeNull();
-  } finally { vi.useRealTimers(); }
+it("freezes the entry anchor and dismisses when the pointer exits the shelf box", () => {
+  render(<BrainHub fixture={index} />);
+  const shelf = cardFor("library").parentElement!;
+  vi.spyOn(shelf, "getBoundingClientRect").mockReturnValue({ left: 10, top: 20, width: 300, height: 160 } as DOMRect);
+  fireEvent.pointerEnter(shelf, { pointerType: "mouse", clientX: 90, clientY: 70 });
+  const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
+  const origin = bubble.style.transformOrigin;
+  expect(origin).toBe("80px 50px");
+  fireEvent.pointerMove(shelf, { pointerType: "mouse", clientX: 220, clientY: 100 });
+  expect(bubble.style.transformOrigin).toBe(origin);
+  expect(bubble.parentElement).toBe(shelf);
+  fireEvent.pointerLeave(shelf, { pointerType: "mouse" });
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 it("opens on keyboard focus and dismisses with Escape without navigating", async () => {
@@ -190,11 +190,29 @@ it("keeps the bubble usable when focus moves to its open button and opens the fu
     const bubble = screen.getByRole("dialog", { name: "The Library synopsis" });
     await act(async () => { within(bubble).getByRole("button", { name: "Open Library" }).focus(); vi.advanceTimersByTime(250); });
     expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
-    fireEvent.pointerLeave(bubble, { pointerType: "mouse" });
+    fireEvent.pointerLeave(bubble.parentElement!, { pointerType: "mouse" });
     await act(async () => { vi.advanceTimersByTime(250); });
     expect(screen.getByRole("dialog", { name: "The Library synopsis" })).toBeTruthy();
     fireEvent.click(within(bubble).getByRole("button", { name: "Open Library" }));
     expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
   } finally { vi.useRealTimers(); }
+});
+
+it("opens full contents when the synopsis itself is clicked", () => {
+  render(<BrainHub fixture={index} />);
+  fireEvent.pointerEnter(cardFor("library"), { pointerType: "mouse" });
+  fireEvent.click(within(screen.getByRole("dialog", { name: "The Library synopsis" })).getByText(/Saved titles include/));
+  expect(screen.getByRole("list", { name: "Library items" })).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("returns focus to the shelf when Escape dismisses a focused synopsis button", async () => {
+  render(<BrainHub fixture={index} />);
+  await act(async () => { cardFor("library").focus(); });
+  const button = within(screen.getByRole("dialog")).getByRole("button", { name: "Open Library" });
+  await act(async () => { button.focus(); });
+  fireEvent.keyDown(button, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(cardFor("library"));
 });

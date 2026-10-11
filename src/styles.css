@@ -365,9 +365,27 @@
     transform: translateZ(28px) translateY(-6px);
   }
 }
-.brain-shelf-bubble[data-state] {
-  animation: none;
-  transition: none;
+.brain-shelf-bubble { animation: brain-synopsis-enter 180ms ease-out both; }
+@keyframes brain-synopsis-enter {
+  from { opacity: 0; transform: scale(.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.brain-upload-trigger,
+.brain-upload-panel button,
+.brain-upload-panel [role="tab"],
+.brain-upload-panel input,
+.brain-upload-panel select {
+  background: #fffdf7;
+  color: #172943;
+  border-color: #b6a88c;
+}
+.brain-upload-trigger:hover,
+.brain-upload-panel button:hover,
+.brain-upload-panel [role="tab"][data-state="active"] { background: #eee5d3; color: #172943; }
+.brain-upload-panel label { color: #172943; }
+.brain-upload-panel input::file-selector-button { background: #eee5d3; color: #172943; border: 1px solid #b6a88c; }
+@media (prefers-reduced-motion: reduce) {
+  .brain-shelf-bubble { animation: none; }
 }
 /* Opt-in dialog theme also reaches controls inside the portalled upload panel. */
 .brain-upload-panel {

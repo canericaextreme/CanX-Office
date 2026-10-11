@@ -64,11 +64,14 @@ export const BRAIN_CAST: readonly { who: string; role: string }[] = [
   { who: "Codex and Claude builders", role: "the Workshop Crew" },
 ];
 /** Hover synopsis, built only from the live index: never typed in by hand, never guessed. */
-export function shelfSynopsis(items: BrainItem[], shelf: BrainShelf, readable: boolean): string {
+export function shelfSynopsis(items: BrainItem[], shelf: BrainShelf, readable: boolean, sources: BrainIndex["sources"] = []): string {
   const { name, guide } = SHELF_DISPLAY[shelf];
   if (!readable) return `${name}: ${guide} The count is unknown because shelf labels could not be read.`;
+  const limits = sources.some((s) => s.status !== "read")
+    ? " Some sources are unavailable; this summary is partial."
+    : " Indexed metadata only; source read limits apply.";
   const here = items.filter((i) => itemShelf(i) === shelf);
-  if (here.length === 0) return `${name}: ${guide} 0 items. Nothing is filed here yet.`;
+  if (here.length === 0) return `${name}: ${guide} 0 items. Nothing is filed here yet.${limits}`;
   const kinds = new Map<string, number>();
   for (const i of here) kinds.set(i.kind, (kinds.get(i.kind) ?? 0) + 1);
   const KIND_WORD: Record<string, string> = { file: "file", link: "link", doc: "document", note: "note", project: "project", skill: "skill", memory: "memory" };
@@ -77,7 +80,9 @@ export function shelfSynopsis(items: BrainItem[], shelf: BrainShelf, readable: b
     .map((i) => (i.at ? new Date(i.at).getTime() : NaN))
     .filter((t) => !Number.isNaN(t));
   const newest = times.length ? ` Newest saved ${new Date(Math.max(...times)).toISOString().slice(0, 10)}.` : "";
-  return `${name}: ${guide} ${here.length} item${here.length === 1 ? "" : "s"} (${parts.join(", ")}).${newest}`;
+  const titles = [...new Set(here.map((i) => i.title.trim()).filter(Boolean))].slice(0, 3)
+    .map((title) => `“${title.length > 90 ? title.slice(0, 87) + "…" : title}”`).join(", ");
+  return `${name}: ${guide} ${here.length} item${here.length === 1 ? "" : "s"} (${parts.join(", ")}).${newest}${titles ? ` Saved titles include ${titles}.` : ""}${limits}`;
 }
 export const SHELF_SOURCE = "Brain shelf: filing";
 export const shelfNoteId = (key: string) => `bshelf-${sha256Hex(key)}`;

@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { it, expect, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
@@ -24,8 +25,18 @@ it("home shows category shelves and only last-3-day activity, not a full item li
   expect(html).toContain("Recent activity");
   expect(html).toContain("New lease.pdf");
   expect(html).toContain("Budget decision");
-  expect(html).not.toContain("Old archive.pdf"); // older items live in their category / search
-  expect(html.indexOf("New lease.pdf")).toBeLessThan(html.indexOf("Budget decision")); // newest first
+  const hub = document.createElement("div");
+  hub.innerHTML = html;
+  const synopsis = hub.querySelector("#shelf-synopsis-library")!;
+  expect(synopsis.textContent).toContain("Old archive.pdf");
+  synopsis.remove();
+  expect(hub.textContent).not.toContain("Old archive.pdf");
+  expect(hub.querySelector('[aria-label="Library items"]')).toBeNull();
+  expect(hub.querySelector('select[aria-label="Category for Old archive.pdf"]')).toBeNull();
+  const rows = [...hub.querySelectorAll("li")].filter((li) => li.querySelector('select[aria-label^="Category for"]'));
+  expect(rows).toHaveLength(2);
+  expect(rows[0]?.textContent).toContain("New lease.pdf");
+  expect(rows[1]?.textContent).toContain("Budget decision");
 });
 
 it("clear empty state when nothing in the last three days; unsorted shelf kept when present", () => {
@@ -34,5 +45,11 @@ it("clear empty state when nothing in the last three days; unsorted shelf kept w
   ]) }));
   expect(html).toContain("Nothing saved in the last three days");
   expect(html).toContain("Lost-and-Found");
-  expect(html).not.toContain("Undated thing");
+  const hub = document.createElement("div");
+  hub.innerHTML = html;
+  const synopsis = hub.querySelector("#shelf-synopsis-library")!;
+  expect(synopsis.textContent).toContain("Undated thing");
+  synopsis.remove();
+  expect(hub.textContent).not.toContain("Undated thing");
+  expect(hub.querySelector('[aria-label="Library items"]')).toBeNull();
 });

@@ -418,12 +418,13 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
             {buckets.map((b, shelfNumber) => {
               const active = cat === b;
               const display = SHELF_DISPLAY[b];
-              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable);
+              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable, index?.sources);
               const synId = `shelf-synopsis-${b}`;
               return (
                 <BrainShelfBubble
                   key={b}
                   number={shelfNumber + 1}
+                  onSelect={() => { setInfoOpen(null); open(b); }}
                   name={display.name}
                   id={`shelf-bubble-${b}`}
                   open={infoOpen === b}

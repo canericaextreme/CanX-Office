@@ -1,19 +1,26 @@
-# Draft: Brain shelf synopsis bubbles
+# Draft PR: Keep Brain synopses inside their shelves and lighten uploads
 
-Brain hover/focus bubbles previously rendered full indexed record lists and filing controls. They now show only a brief shelf synopsis with its current indexed count and an Open button. Clicking the shelf opens its full contents without truncation. Empty shelves report 0 items; unreadable shelf labels retain the unknown-count warning.
+Base: `main` at `e2018fe`. Reconstructed locally because build38096499070 was not packaged.
 
-LegalRoom was inspected: its topic cards present descriptions and counts before selection reveals papers. This checkout has no separate Legal synopsis hover implementation. Brain follows that synopsis-first interaction while retaining its existing Radix portal, viewport collision handling, Escape dismissal, keyboard focus and touch information-button toggle.
+Hovering or focusing a Brain shelf now reveals a compact synopsis inside that shelf box. Its entrance animation uses pointer-entry coordinates as a fixed transform origin, with no pointer-move repositioning. The bubble cannot flip above or below the shelf. Pointer exit dismisses it unless keyboard focus remains inside. Clicking the synopsis or shelf opens full contents. Keyboard focus, Escape (including focus return from the synopsis), touch information-button toggling, reduced motion and scrolling within narrow shelf boxes remain supported. Existing 3D shelf face motion is preserved.
 
-Shelves move forward visually by two pixels with a gentle transition. The compact bubble fades/zooms over 200 ms after a 75 ms opening animation delay. A 200 ms close delay bridges the pointer gap; focus within the shelf or bubble prevents pointer-leave dismissal. Reduced-motion and existing Office movement settings remain supported.
+Synopses show indexed type counts, the newest known saved date and up to three actual saved titles (each bounded to 90 characters). They disclose metadata/read limits and partial unavailable sources; unreadable shelf filing shows no titles or guessed count. Recent activity remains its existing short dated list. Updated populated-render tests allow old and undated titles in shelf description spans while proving they do not become full record rows in the collapsed hub. Interaction coverage checks 25/82-item full contents, fixed entry coordinates, shelf-local placement, dismissal, touch, keyboard, focus return and synopsis clicks.
 
-## Checks
+Brain's Add files or photos trigger and portalled upload controls use a light opt-in theme. Other room themes and all data, upload, authentication and filing behavior remain unchanged. There are no upload tabs in this base; scoped tab styling is included for that role. The Choose from computer button is styled, but the operating system's native chooser window cannot be themed by application CSS.
 
-Targeted Brain interaction, populated Brain, LegalRoom and shelf-registry tests pass (41 tests), including 25/82-item counts and complete shelf lists, pointer crossing, keyboard/Escape, focus retention, touch toggling and empty/unreadable states. TypeScript checking passes. Fixture checks do not verify signed-in saved-data behavior.
+## Verification
 
-## Device verification still needed
+Final checks passed on 11 October 2026:
 
-Check the animation and pointer crossing in a desktop browser, collision positioning near viewport edges, keyboard and screen-reader announcement, reduced-motion behavior, and tap toggling/direct shelf opening on iOS and Android. No production systems were called.
+- Entire `bun run test` suite: 145 files, 1,481 tests passed (exit 0).
+- `bun run typecheck`: passed (exit 0).
+- `bun run build`: production build passed (exit 0).
+- `git diff --check`: passed.
 
-## Draft status
+The test command used `GITHUB_STEP_SUMMARY=/tmp/brain-test-summary` to keep the CI reporter output inside the permitted filesystem. Existing server-function deprecation and build optimization warnings remain. Fixture tests do not verify signed-in saved-data behavior or Office health.
 
-Changes remain local and uncommitted for review. No push, merge, publication or external contact was performed. No protected configuration or saved-data behavior was changed.
+## Review and visual limits
+
+PR87 and the previous candidate are absent from local refs. No external systems were called to retrieve them. The requested dismissal/animation ideas are implemented locally; PR87's external positioning is not used. No browser screenshots or device visual checks were performed. Before owner acceptance, check desktop entry near shelf edges, scrolling and click targets on narrow screens, keyboard/screen-reader behavior, reduced motion, and iOS/Android tap toggling. Confirm populated signed-in Brain separately on the current build; local fixtures cannot satisfy that verification.
+
+This is a local draft PR package only. No GitHub PR was created, and nothing was committed, pushed, merged or published. Changes are restricted to src/ and docs/; no protected changes are needed.
