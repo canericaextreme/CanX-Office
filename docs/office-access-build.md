@@ -1,6 +1,6 @@
 # Office-wide access for Claude, ChatGPT and Elsie — build record
 
-Status: **IN PROGRESS. Nothing here is merged, deployed or live. No assistant has yet received a real room image.**
+Status: **IN PROGRESS. Merged to main (087d073, PR 81) and a publish was requested on 10 Oct 2026; whether the database part and the function are live is NOT yet confirmed, and no assistant has yet received a real room image.**
 Last updated 10 Oct 2026. Branch `claude/room-capture-phase1`, draft PR #81. No money spent.
 
 ## Explained simply
@@ -11,7 +11,7 @@ John cancels one badge without touching the others. Behind the second lock (auth
 authenticator, and can cancel at any time. The badge never contains John's key, password or authenticator code.
 "Permanent" here means a standing, revocable permission that quietly gets a fresh 5-minute badge for each look, not a key that never expires.
 
-## Progress (stated checklist; 8 of 22 items = 36%, and every finished item is code or stand-in tested, none is live)
+## Progress (stated checklist; 9 of 22 items = 41%; items 1–8 are code or stand-in tested, none is live)
 | # | Item | State |
 |---|---|---|
 | 1 | Database setup: grants, sessions, requests, captures, read-only policies, revoke, retention (proposed SQL) | done — real-Postgres check passes |
@@ -26,16 +26,16 @@ authenticator, and can cancel at any time. The badge never contains John's key, 
 | 10 | Server-side saving of device-only data | **open** — plan below |
 | 11 | Full skill instructions through the viewing tools | partial — existing `read_office_skills` gives them; not yet tied to viewing grants |
 | 12 | Independent review package | **open** |
-| 13 | Deployment package approved by John | **open** |
-| 14 | Deployed | **blocked on 13** |
-| 15 | Live: Claude sees and describes a room | **blocked on 14** |
-| 16 | Live: ChatGPT sees and describes a room | **blocked on 14** |
-| 17 | Live: Elsie | **blocked on 14** |
-| 18 | Live: browser closed | **blocked on 14** |
-| 19 | Live: revoke one assistant, others unaffected, old pictures unretrievable | **blocked on 14** |
-| 20 | Live: protected rooms through the one-time delegation | **blocked on 14** |
-| 21 | Live: all 24 rooms x 3 assistants (matrix below) | **blocked on 14** |
-| 22 | Final security review of the deployed result | **blocked on 14** |
+| 13 | Deployment package approved by John | done — approved 10 Oct 2026 |
+| 14 | Deployed | **in progress** — merged to main 087d073, Lovable synced it, publish requested (deployment e9454363, shown as pending). Not confirmed: migration applied, `office-view` function deployed, published site loads. From the shell I cannot reach the database or the live site. |
+| 15 | Live: Claude sees and describes a room | **blocked on 14 and on John's setup** |
+| 16 | Live: ChatGPT sees and describes a room | **blocked on 14 and on John's setup** |
+| 17 | Live: Elsie | **blocked on 14 and on John's setup** |
+| 18 | Live: browser closed | **blocked on 14 and on John's setup** |
+| 19 | Live: revoke one assistant, others unaffected, old pictures unretrievable | **blocked on 14 and on John's setup** |
+| 20 | Live: protected rooms through the one-time delegation | **blocked on 14 and on John's setup** |
+| 21 | Live: all 24 rooms x 3 assistants (matrix below) | **blocked on 14 and on John's setup** |
+| 22 | Final security review of the deployed result | **blocked on 14 and on John's setup** |
 
 ## Problem → why it matters → solution → acceptance → testing → must not change
 | | |
@@ -103,3 +103,6 @@ Read in this order: `supabase/migrations/20261010180000_office_view_delegation.s
 - Pictures are private, served only through the view service, checked by checksum, deleted after 24 hours, and become unretrievable the moment access is revoked.
 - Input fields are hidden in pictures. Page text could still show private words that sit in normal screens; the grant is the control for that.
 - Not yet reviewed by anyone else.
+
+## Install record (10 Oct 2026)
+Source commit: `087d0739` (merge of PR 81). Lovable synced that commit. Publish requested for `canx-office.lovable.app`; the tool reported `pending`, which is not a successful publication. A local build of the merged code succeeds and the app starts without script errors in a browser against the dev server. Not checked: the live site, the migration, the function. **Quickest check for John:** open Build & Testing; the new "Assistant viewing access" panel shows "not installed or could not be read" if the migration has not run, and the three assistants as OFF if it has.
