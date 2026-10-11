@@ -46,7 +46,7 @@ async function signer() {
 }
 
 const goodClaims = (over: Record<string, unknown> = {}) => ({
-  iss: GITHUB_OIDC_ISSUER, aud: "canx-office-view", repository: REPO, ref: "refs/heads/main", job_workflow_ref: WORKFLOW,
+  iss: GITHUB_OIDC_ISSUER, aud: "canx-office-view", repository: REPO, ref: "refs/heads/main", workflow_ref: WORKFLOW, job_workflow_ref: WORKFLOW,
   event_name: "workflow_dispatch", run_id: "123", iat: NOW / 1000 - 5, nbf: NOW / 1000 - 5, exp: NOW / 1000 + 300, ...over,
 });
 
@@ -59,6 +59,8 @@ describe("runner identity (GitHub OIDC)", () => {
       expect(r.ok).toBe(false);
       expect(r.reason).toBe(reason);
     };
+    expect((await verifyGithubOidc(await s.sign(goodClaims({ job_workflow_ref: undefined })), POLICY, { jwks: s.jwks, now: () => NOW })).ok).toBe(true);
+    await refuse({ workflow_ref: `${REPO}/.github/workflows/other.yml@refs/heads/main` }, "workflow");
     await refuse({ aud: "someone-else" }, "audience");
     await refuse({ repository: "attacker/CanX-Office" }, "repository");
     await refuse({ ref: "refs/heads/feature" }, "ref");
@@ -73,6 +75,14 @@ describe("runner identity (GitHub OIDC)", () => {
     await refuse({ iat: NOW / 1000 - 3600, nbf: NOW / 1000 - 3600 }, "too-old");
   });
 
+  it("allows scheduled cleanup only under its separate workflow policy", async () => {
+    const s = await signer();
+    const cleanup = `${REPO}/.github/workflows/office-view-cleanup.yml@refs/heads/main`;
+    const claims = goodClaims({ workflow_ref: cleanup, job_workflow_ref: undefined, event_name: "schedule" });
+    const proof = await s.sign(claims);
+    expect((await verifyGithubOidc(proof, { ...POLICY, workflowRef: cleanup, events: ["schedule", "workflow_dispatch"] }, { jwks: s.jwks, now: () => NOW })).ok).toBe(true);
+    expect((await verifyGithubOidc(proof, POLICY, { jwks: s.jwks, now: () => NOW })).ok).toBe(false);
+  });
   it("refuses forged, re-signed, unsigned or malformed tokens", async () => {
     const real = await signer();
     const forger = await signer();

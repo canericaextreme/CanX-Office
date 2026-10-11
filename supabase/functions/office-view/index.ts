@@ -2,7 +2,7 @@
 // broker (src/lib/office-view-broker.ts). Every rule lives in the broker, not here.
 import {
   BROKER_MESSAGES, BrokerError, claimForRunner, failFromRunner, fetchCapture, precheckForRunner, readRoomInformation, redactForLog,
-  requestCapture, storeFromRunner, waitForCapture, requestStatus,
+  requestCapture, storeFromRunner, waitForCapture, requestStatus, verifyGithubOidc,
   type BrokerDeps, type OidcPolicy,
 } from "../../../src/lib/office-view-broker.ts";
 
@@ -13,6 +13,11 @@ const WORKFLOW_FILE = "office-view-capture.yml";
 const POLICY: OidcPolicy = {
   audience: "canx-office-view", repository: REPO, ref: "refs/heads/main",
   workflowRef: `${REPO}/.github/workflows/${WORKFLOW_FILE}@refs/heads/main`,
+};
+const CLEANUP_POLICY: OidcPolicy = {
+  ...POLICY,
+  workflowRef: `${REPO}/.github/workflows/office-view-cleanup.yml@refs/heads/main`,
+  events: ["schedule", "workflow_dispatch"],
 };
 const BUCKET = "office-captures";
 const T = { signal: () => AbortSignal.timeout(15_000) };
@@ -67,7 +72,10 @@ const deps: BrokerDeps = {
       const r = await fetch(`${URL_}/storage/v1/object/${BUCKET}/${path}`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` }, redirect: "error", signal: T.signal() });
       return r.ok ? new Uint8Array(await r.arrayBuffer()) : null;
     },
-    async remove(path) { await fetch(`${URL_}/storage/v1/object/${BUCKET}/${path}`, { method: "DELETE", headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` }, signal: T.signal() }); },
+    async remove(path) {
+      const r = await fetch(`${URL_}/storage/v1/object/${BUCKET}/${path}`, { method: "DELETE", headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` }, signal: T.signal() });
+      if (!r.ok && r.status !== 404) throw new Error("storage_delete_failed");
+    },
   },
   async dispatch(requestId) {
     const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`, {
@@ -85,16 +93,20 @@ const deps: BrokerDeps = {
   log: (entry) => console.log(JSON.stringify(redactForLog(entry))),
 };
 
-/** Retention: pictures past 24 h or revoked are already unreachable in the database; this also deletes the files.
- *  Runs on each request (there is no scheduler), so physical deletion can lag until the next use. Errors never block a request. */
+/** Expired/revoked captures are unreadable immediately. The authenticated hourly workflow deletes bytes.
+ * Failed deletes remain pending and make the workflow fail visibly, so the next run can retry. */
 async function purgeExpired() {
-  try {
-    const rows = await deps.callService("canx_view_capture_purge", {});
-    for (const row of Array.isArray(rows) ? rows : []) {
-      const path = (row as { storage_path?: unknown }).storage_path;
-      if (typeof path === "string") await deps.storage.remove(path).catch(() => undefined);
-    }
-  } catch { /* retention is retried on the next request */ }
+  const rows = await deps.callService("canx_view_capture_purge", {});
+  let failed = false;
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const path = (row as { storage_path?: unknown }).storage_path;
+    if (typeof path !== "string") { failed = true; continue; }
+    try {
+      await deps.storage.remove(path);
+      await deps.callService("canx_view_capture_deleted", { _path: path });
+    } catch { failed = true; deps.log({ event: "capture_cleanup_retry" }); }
+  }
+  if (failed) throw new BrokerError("unavailable");
 }
 
 const bearer = (req: Request) => (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -108,8 +120,13 @@ Deno.serve(async (req) => {
   const token = bearer(req);
   if (!token) return json(401, { ok: false, code: "not_signed_in", message: BROKER_MESSAGES.not_signed_in });
   const caller = { token, asElsie: body["asElsie"] === true };
-  await purgeExpired();
   try {
+    if (route === "cleanup") {
+      const proof = await verifyGithubOidc(token, CLEANUP_POLICY, { jwks, now: deps.now });
+      if (!proof.ok) throw new BrokerError("oidc_invalid");
+      await purgeExpired();
+      return json(200, { ok: true });
+    }
     switch (route) {
       // Runner (proven by the workflow's own GitHub identity token; no stored secret).
       case "claim": return json(200, { ok: true, claimed: await claimForRunner(deps, token, POLICY, jwks, String(body["requestId"] ?? "")) });

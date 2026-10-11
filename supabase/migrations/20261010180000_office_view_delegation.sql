@@ -118,6 +118,7 @@ language sql stable security definer set search_path = public, canx_private as $
     and s.auth_session_id is not null
     and s.auth_session_id::text = auth.jwt()->>'session_id'
     and s.revoked_at is null and s.closed_at is null and s.expires_at > now()
+    and s.route = any(g.rooms)
   limit 1 $$;
 
 -- May the current viewer read a room-restricted class of data?
@@ -126,7 +127,13 @@ language sql stable security definer set search_path = public, canx_private as $
   select exists(
     select 1 from canx_private.office_view_grants g
     where g.owner_id = _owner and g.viewer_user_id = auth.uid()
-      and 'read_room_information' = any(g.scopes)
+      and (
+        'read_room_information' = any(g.scopes)
+        or ('view_room_images' = any(g.scopes) and exists(select 1 from canx_private.office_view_sessions s
+          where s.owner_id = g.owner_id and s.assistant = g.assistant and s.purpose = 'image'
+            and s.auth_session_id::text = auth.jwt()->>'session_id'
+            and s.closed_at is null and s.revoked_at is null and s.expires_at > now()))
+      )
       and g.rooms && _routes) $$;
 
 -- Which room does a saved note belong to? Unknown sources are general.
@@ -136,7 +143,8 @@ language sql immutable as $$
     when _source = 'Legal room: document filing' then array['/legal']
     when _source in ('Lovable project import','Project register: category','Project register: plan') then array['/projects']
     when _source like 'CanX Brain:%' or _source in ('Brain index: category','Brain shelf: filing') then array['/brain']
-    else public.canx_view_rooms() end $$;
+    when _source = 'Shared note' then public.canx_view_rooms()
+    else array[]::text[] end $$;
 
 grant execute on function public.canx_view_rooms(), public.canx_view_room_route(text), public.canx_view_note_routes(text) to authenticated;
 revoke all on function public.canx_view_owner() from public, anon;
@@ -151,15 +159,15 @@ create policy office_view_read on public.office_files for select to authenticate
 create policy office_view_read on public.office_links for select to authenticated
   using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array[public.canx_view_room_route(room)]));
 create policy office_view_read on public.manager_tasks for select to authenticated
-  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, public.canx_view_rooms()));
+  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array['/work-board']));
 create policy office_view_read on public.manager_approvals for select to authenticated
-  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, public.canx_view_rooms()));
+  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array['/approvals']));
 create policy office_view_read on public.manager_changes for select to authenticated
-  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, public.canx_view_rooms()));
+  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array['/build-testing']));
 create policy office_view_read on public.round_tables for select to authenticated
   using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array['/round-table']));
 create policy office_view_read on public.finance_receipts for select to authenticated
-  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array['/finance','/subscriptions','/communications']));
+  using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array['/finance']));
 create policy office_view_read on public.knowledge_documents for select to authenticated
   using (owner_id = (select public.canx_view_owner()) and public.canx_view_allows(owner_id, array['/brain']));
 create policy office_view_read on public.knowledge_document_sections for select to authenticated
@@ -216,7 +224,7 @@ begin
     raise exception 'Rooms must be known Office rooms' using errcode = '22023'; end if;
   if _scopes is null or cardinality(_scopes) = 0 or not (_scopes <@ array['view_room_images','read_room_information']) then
     raise exception 'Scope must be viewing images and/or reading room information' using errcode = '22023'; end if;
-  if _viewer_user is null or _viewer_user = uid or public.has_role(_viewer_user, 'owner') then
+  if _viewer_user is null or _viewer_user = uid or exists(select 1 from public.user_roles where user_id = _viewer_user) then
     raise exception 'The viewer identity must be a separate, non-owner account' using errcode = '42501'; end if;
   if not exists(select 1 from auth.users where id = _viewer_user) then
     raise exception 'Viewer account does not exist' using errcode = '22023'; end if;
@@ -307,9 +315,9 @@ begin
   select * into s from canx_private.office_view_sessions where id = _session;
   if not found or s.purpose <> 'image' then raise exception 'unknown_session' using errcode = '22023'; end if;
   select * into g from canx_private.office_view_grants where owner_id = s.owner_id and assistant = s.assistant;
-  if s.revoked_at is not null or not g.enabled or g.revoked_at is not null or g.expires_at <= now() then
+  if s.revoked_at is not null or s.closed_at is not null or s.expires_at <= now() or not g.enabled or g.revoked_at is not null or g.expires_at <= now() or not (s.route = any(g.rooms)) or not ('view_room_images' = any(g.scopes)) then
     raise exception 'revoked_during_capture' using errcode = '42501'; end if;
-  if _meta->>'route' <> s.route then raise exception 'wrong_route' using errcode = '22023'; end if;
+  if _meta->>'route' is distinct from s.route then raise exception 'wrong_route' using errcode = '22023'; end if;
   insert into canx_private.office_view_captures(owner_id, assistant, route, room, viewport, ui_state, build_version, page_height, image_sha256, storage_path, captured_at, expires_at)
   values (s.owner_id, s.assistant, s.route, _meta->>'room', _meta->'viewport'->>'name', _meta->>'state', _meta->>'buildVersion',
           (_meta->>'pageHeight')::integer, _meta->>'imageSha256', _path, (_meta->>'capturedAt')::timestamptz, now() + interval '24 hours')
@@ -330,6 +338,7 @@ begin
   select * into g from canx_private.office_view_grants where owner_id = _owner and assistant = _assistant;
   if not found then raise exception 'no_grant' using errcode = '42501'; end if;
   if not g.enabled or g.revoked_at is not null then raise exception 'revoked' using errcode = '42501'; end if;
+  if not ('view_room_images' = any(g.scopes)) then raise exception 'wrong_permission' using errcode = '42501'; end if;
   if g.expires_at <= now() then raise exception 'grant_expired' using errcode = '42501'; end if;
   return query select c.storage_path, c.route, c.room, c.viewport, c.ui_state, c.build_version, c.page_height, c.image_sha256, c.captured_at
     from canx_private.office_view_captures c
@@ -341,9 +350,16 @@ end $$;
 -- Retention: returns paths to delete from the private bucket and marks them deleted.
 create or replace function public.canx_view_capture_purge()
 returns table(storage_path text) language sql security definer set search_path = public, canx_private as $$
-  update canx_private.office_view_captures c set deleted_at = now()
-   where c.deleted_at is null and (c.expires_at <= now() or c.revoked_at is not null)
-  returning c.storage_path $$;
+  select c.storage_path from canx_private.office_view_captures c
+   where c.deleted_at is null and (c.expires_at <= now() or c.revoked_at is not null) $$;
+
+-- Mark deleted only AFTER the Storage API confirms removal, so failures remain retryable.
+create or replace function public.canx_view_capture_deleted(_path text)
+returns void language sql security definer set search_path = public, canx_private as $$
+  update canx_private.office_view_captures set deleted_at = now()
+   where storage_path = _path and deleted_at is null and (expires_at <= now() or revoked_at is not null) $$;
+revoke all on function public.canx_view_capture_deleted(text) from public, anon, authenticated;
+grant execute on function public.canx_view_capture_deleted(text) to service_role;
 
 -- ---------------------------------------------------------------- requests (assistants never touch sessions)
 
@@ -493,3 +509,19 @@ grant execute on function public.canx_view_session_bind(uuid, uuid), public.canx
 
 -- Private bucket for capture images. No policy for authenticated users: only the server (service role) touches it.
 insert into storage.buckets(id, name, public) values ('office-captures', 'office-captures', false) on conflict (id) do nothing;
+
+
+-- Existing ownership-only policies must not let a dedicated viewer create its own Office rows.
+create or replace function public.canx_is_viewer_identity() returns boolean
+language sql stable security definer set search_path = public, canx_private as $$
+  select exists(select 1 from canx_private.office_view_grants where viewer_user_id = auth.uid()) $$;
+revoke all on function public.canx_is_viewer_identity() from public, anon;
+grant execute on function public.canx_is_viewer_identity() to authenticated;
+do $$ declare t record; begin
+  for t in select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relkind='r' and c.relrowsecurity loop
+    execute format('create policy office_view_no_insert on public.%I as restrictive for insert to authenticated with check (not (select public.canx_is_viewer_identity()))', t.relname);
+    execute format('create policy office_view_no_update on public.%I as restrictive for update to authenticated using (not (select public.canx_is_viewer_identity())) with check (not (select public.canx_is_viewer_identity()))', t.relname);
+    execute format('create policy office_view_no_delete on public.%I as restrictive for delete to authenticated using (not (select public.canx_is_viewer_identity()))', t.relname);
+  end loop;
+end $$;

@@ -1,0 +1,33 @@
+# Expired images become unreadable at 24h. Physical deletion is retried hourly.
+name: CanX Office view cleanup
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: canx-office-view-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      id-token: write
+    steps:
+      - name: Delete expired captures with short-lived GitHub identity
+        env:
+          CANX_VIEW_BROKER_URL: https://gmsjjiprtulxojhkmbqb.supabase.co/functions/v1/office-view
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          const identityUrl = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
+          identityUrl.searchParams.set('audience', 'canx-office-view');
+          const identity = await fetch(identityUrl, { headers: { Authorization: `Bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` }, redirect: 'error' });
+          if (!identity.ok) throw Error('cleanup identity refused');
+          const { value } = await identity.json();
+          const result = await fetch(`${process.env.CANX_VIEW_BROKER_URL}/cleanup`, { method: 'POST', headers: { Authorization: `Bearer ${value}`, 'Content-Type': 'application/json' }, body: '{}', redirect: 'error', signal: AbortSignal.timeout(90000) });
+          if (!result.ok || (await result.json()).ok !== true) throw Error('cleanup service refused');
+          console.log('Expired capture cleanup request completed.');
+          JS

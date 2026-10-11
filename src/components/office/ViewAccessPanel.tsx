@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useOwnerSession } from "@/lib/owner-session";
 import { CAPTURE_ROOM_LABELS } from "@/lib/room-capture-meta";
 import { getViewAccess, revokeViewAccess, setViewAccess } from "@/lib/office-view-owner.functions";
@@ -52,13 +53,20 @@ export function ViewAccessPanel() {
           {VIEW_ASSISTANTS.map((a) => {
             const row = grants.find((g) => g.assistant === a);
             const d = describeGrant(row);
+            const known = !!loaded && "grants" in loaded;
             return (
               <li key={a} className="space-y-1 rounded-lg border border-border/50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium">{NAMES[a]} — {d.state === "on" ? "ON" : "OFF"}</span>
-                  {d.state === "on" && <Button size="sm" variant="destructive" disabled={busy} onClick={() => act(() => revoke({ data: { accessToken: session.accessToken ?? "", assistant: a } }))}>Switch off {NAMES[a]}</Button>}
+                  <span className="font-medium">{NAMES[a]} — {known ? (d.state === "on" ? "ON" : "OFF") : "UNAVAILABLE"}</span>
+                  <Switch aria-label={`${NAMES[a]} viewing access`} checked={known && d.state === "on"}
+                    disabled={busy || !known || !row?.viewer_user_id || (d.state !== "on" && !session.stepUpComplete)}
+                    onCheckedChange={(on) => {
+                      if (!on) void act(() => revoke({ data: { accessToken: session.accessToken ?? "", assistant: a } }));
+                      else if (row?.viewer_user_id) void act(() => save({ data: { accessToken: session.accessToken ?? "", input: { assistant: a, viewerUserId: row.viewer_user_id, rooms: row.rooms, scopes: row.scopes as ViewScope[], days: 30 } } }));
+                    }} />
                 </div>
-                <p className="text-sm text-muted-foreground">{d.label}</p>
+                <p className="text-sm text-muted-foreground">{known ? d.label : "Access status could not be confirmed."}</p>
+                {known && !row && <p className="text-sm text-muted-foreground">Authorise this assistant below to enable its switch.</p>}
                 {row && d.state === "on" && (
                   <p className="text-sm text-muted-foreground">Rooms: {row.rooms.length} of {Object.keys(CAPTURE_ROOM_LABELS).length}. Allowed: {row.scopes.map((s) => SCOPE_WORDS[s as ViewScope] ?? s).join("; ")}. Views in the last day: {row.captures_last_day}. Last used: {row.last_used_at ? new Date(row.last_used_at).toLocaleString() : "never"}.</p>
                 )}
