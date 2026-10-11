@@ -52,7 +52,7 @@ authenticator, and can cancel at any time. The badge never contains John's key, 
 - **ChatGPT and Claude connectors** may not pass image blocks to the model. Each must be tested separately; if one cannot, text-only access is documented as text-only.
 - The viewer sees the Office's normal screens, so owner-looking buttons appear in a picture; the server and database refuse every write.
 - The existing connector sign-in is stricter than viewing needs (it requires an owner working grant). To be settled in live testing.
-- Room information read returns what the grant allows from six tables, not filtered to the single requested room yet.
+- Room information is narrowed to the requested room by a database function that runs as the viewer (checked on real Postgres). Its per-room rules for notes, files, links, tasks, approvals, changes, Round Table, Brain documents and Finance are documented in code, not yet checked against the live schema.
 - Captures take about 30–90 s because the workflow must start.
 - Synopsis menu wording and "not ready" phrases are guesses until tried in the real UI. The 3 MB image cap may be too small for very tall rooms.
 - **Device-only data cannot be read from the server** (list below). It is never described as accessible.

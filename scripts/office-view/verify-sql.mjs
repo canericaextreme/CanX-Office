@@ -273,6 +273,20 @@ try {
   await denied("viewer reads private captures", "select * from canx_private.office_view_captures");
   pass("viewer reads only granted rooms; roles, audit and private tables stay hidden");
 
+  // ---- 4b. One room at a time.
+  const roomInfo = async (route) => (await db.query("select public.canx_view_room_information($1) j", [route])).rows[0].j;
+  const brainInfo = await roomInfo("/brain");
+  assert.deepEqual(brainInfo.notes.map((n) => n.id).sort(), ["n-brain", "n-general"], "Brain room: its own notes plus general ones, not Legal's");
+  assert.deepEqual(brainInfo.documents.map((d) => d.id), ["k1"]);
+  assert.equal(brainInfo.files.length, 0, "no other room's files");
+  const legalInfo = await roomInfo("/legal");
+  assert.deepEqual(legalInfo.notes.map((n) => n.id).sort(), ["n-general", "n-legal"]);
+  assert.ok(!JSON.stringify(legalInfo).includes("BRAIN DETAIL"), "Legal answer holds no Brain note");
+  assert.deepEqual((await roomInfo("/reception")).files.map((f) => f.id), ["f1"]);
+  await assert.rejects(roomInfo("/finance"), (e) => /room_not_granted/.test(e.message), "an ungranted room is refused");
+  await assert.rejects(roomInfo("/not-a-room"), (e) => /room_not_granted/.test(e.message), "an unknown room is refused");
+  pass("room information is narrowed to the requested room and refuses ungranted or unknown rooms");
+
   // A viewer session can confirm itself; nobody else gets an answer.
   const selfRow = (await db.query("select * from public.canx_view_self()")).rows;
   assert.equal(selfRow.length, 1); assert.equal(selfRow[0].assistant, "claude"); assert.equal(selfRow[0].owner_id, owner);

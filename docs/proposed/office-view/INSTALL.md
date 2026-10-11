@@ -14,7 +14,7 @@ Nothing here is installed. Order matters; each step lists how to undo it.
 No new paid service. GitHub Actions minutes: roughly 1–2 per capture (public repo: free). Supabase storage: PNGs ≤3 MB, deleted after 24 h. Function invocations: negligible.
 
 ## Known limits (do not claim otherwise)
-- `readRoom` returns every row the grant allows from six tables, not only the requested room's rows; per-room filtering is still to do.
+- `read_room_information` returns only the requested room's rows (database function `canx_view_room_information`, run as the viewer, so row-level security still applies). Device-only data is never included.
 - A capture takes roughly 30–90 s (workflow start-up), so the first answer is not instant.
 - Elsie's path relies on John's signed-in session for her conversation.
 - Nothing here has run live. Fixture and stand-in success is not live verification.

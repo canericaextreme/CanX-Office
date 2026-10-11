@@ -167,6 +167,38 @@ create policy office_view_read on public.knowledge_document_sections for select 
 -- Deliberately NOT readable by any viewer: user_roles, ai_limits, ai_usage, office_audit,
 -- conversation memory, the three canx_private tables above, and the OAuth client table.
 
+
+-- What one room holds, read AS THE VIEWER (security invoker): row-level security still decides everything, and this
+-- function only narrows the answer to the requested room. Refuses a room the grant does not include.
+create or replace function public.canx_view_room_information(_route text) returns jsonb
+language plpgsql stable security invoker set search_path = public as $$
+declare o uuid := public.canx_view_owner(); r jsonb := '{}'::jsonb; part jsonb;
+begin
+  if o is null or not (_route = any(public.canx_view_rooms())) or not public.canx_view_allows(o, array[_route]) then
+    raise exception 'room_not_granted' using errcode = '42501'; end if;
+  select coalesce(jsonb_agg(to_jsonb(n)), '[]') into part from (select * from public.office_notes n where _route = any(public.canx_view_note_routes(n.source)) order by n.updated_at desc nulls last limit 200) n;
+  r := r || jsonb_build_object('notes', part);
+  select coalesce(jsonb_agg(to_jsonb(f)), '[]') into part from (select * from public.office_files f where public.canx_view_room_route(f.room) = _route limit 200) f;
+  r := r || jsonb_build_object('files', part);
+  select coalesce(jsonb_agg(to_jsonb(l)), '[]') into part from (select * from public.office_links l where public.canx_view_room_route(l.room) = _route limit 200) l;
+  r := r || jsonb_build_object('links', part);
+  if _route = '/work-board' then
+    select coalesce(jsonb_agg(to_jsonb(t)), '[]') into part from (select * from public.manager_tasks t limit 200) t; r := r || jsonb_build_object('tasks', part); end if;
+  if _route = '/approvals' then
+    select coalesce(jsonb_agg(to_jsonb(a)), '[]') into part from (select * from public.manager_approvals a limit 200) a; r := r || jsonb_build_object('approvals', part); end if;
+  if _route = '/build-testing' then
+    select coalesce(jsonb_agg(to_jsonb(c)), '[]') into part from (select * from public.manager_changes c limit 200) c; r := r || jsonb_build_object('changes', part); end if;
+  if _route = '/round-table' then
+    select coalesce(jsonb_agg(to_jsonb(x)), '[]') into part from (select * from public.round_tables x limit 50) x; r := r || jsonb_build_object('round_tables', part); end if;
+  if _route = '/brain' then
+    select coalesce(jsonb_agg(to_jsonb(k)), '[]') into part from (select * from public.knowledge_documents k limit 200) k; r := r || jsonb_build_object('documents', part); end if;
+  if _route in ('/finance','/subscriptions','/communications') then
+    select coalesce(jsonb_agg(to_jsonb(f)), '[]') into part from (select doc from public.finance_receipts f limit 1) f; r := r || jsonb_build_object('finance_document', part); end if;
+  return r;
+end $$;
+revoke all on function public.canx_view_room_information(text) from public, anon;
+grant execute on function public.canx_view_room_information(text) to authenticated;
+
 -- ---------------------------------------------------------------- owner controls
 
 -- Grant or update. Needs the owner's authenticator (AAL2): this is the one-time delegation check.

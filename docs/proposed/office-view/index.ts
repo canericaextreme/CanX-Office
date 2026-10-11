@@ -78,16 +78,8 @@ const deps: BrokerDeps = {
     });
     if (r.status !== 204) throw new Error("dispatch");
   },
-  // Row-level security decides what comes back: the viewer token can only see rooms its grant allows.
-  async readRoom(viewerToken, route) {
-    const tables = ["office_notes", "office_files", "office_links", "manager_tasks", "round_tables", "knowledge_documents"];
-    const out: Record<string, unknown> = { route, tables: {} };
-    for (const t of tables) {
-      const r = await rest(`/rest/v1/${t}?select=*&limit=200`, { method: "GET", key: ANON, bearer: viewerToken });
-      (out.tables as Record<string, unknown>)[t] = r.ok ? await r.json() : { unavailable: r.status };
-    }
-    return out;
-  },
+  // Runs as the viewer (security invoker): row-level security decides, and the function narrows to the requested room.
+  readRoom: (viewerToken, route) => rpc("canx_view_room_information", { _route: route }, ANON, viewerToken),
   now: () => Date.now(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   newId: () => crypto.randomUUID(),
