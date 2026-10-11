@@ -91,6 +91,7 @@ export interface OidcPolicy {
   workflowRef: string; // owner/name/.github/workflows/file.yml@refs/heads/main
   issuer?: string;
   skewSeconds?: number;
+  events?: readonly string[];
 }
 
 export const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
@@ -153,8 +154,9 @@ export async function verifyGithubOidc(
   if (!(aud === policy.audience || (Array.isArray(aud) && aud.includes(policy.audience)))) return fail("audience");
   if (claims["repository"] !== policy.repository) return fail("repository");
   if (claims["ref"] !== policy.ref) return fail("ref");
-  if (claims["job_workflow_ref"] !== policy.workflowRef) return fail("workflow");
-  if (claims["event_name"] !== "workflow_dispatch") return fail("event");
+  if (claims["workflow_ref"] !== policy.workflowRef) return fail("workflow");
+  if (claims["job_workflow_ref"] !== undefined && claims["job_workflow_ref"] !== policy.workflowRef) return fail("workflow");
+  if (!(policy.events ?? ["workflow_dispatch"]).includes(String(claims["event_name"]))) return fail("event");
   return { ok: true, claims };
 }
 

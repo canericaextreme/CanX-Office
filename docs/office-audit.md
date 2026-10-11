@@ -115,3 +115,11 @@ Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403
 - Repair: existing working-grant record reads; dedicated owner-scoped CAS claim/reply and budget RPCs; no changes to raw table policies or agreed limits.
 - Validation: 40 targeted tests, typecheck, production build and isolated SQL authorization/idempotency/budget fixtures passed. Migration applied and grants checked live.
 - Acceptance pending: publish repaired source, obtain an Anthropic receipt, read saved reply back, and repeat the request id without another provider call. This does not verify all rooms, voice, or GitHub builder credentials.
+
+
+## Assistant viewing installation review — 11 October 2026 UTC
+- Hardened the previously uninstalled viewing migration: direct table reads now require the matching Work Board, Approvals or Build & Testing room; unknown note origins are withheld; the complete Finance document requires Finance access.
+- Dedicated viewing identities are denied writes by restrictive policies on existing RLS-protected public tables, including legacy ownership-only paths. No owner role may be assigned to a viewing identity.
+- Capture recording rejects closed/expired sessions, removed rooms and removed image permission. Physical deletion is acknowledged only after successful Storage removal and retried through an hourly GitHub OIDC cleanup workflow.
+- The panel has three independent switches. Missing database status is UNAVAILABLE, never a proven OFF state. Enabling requires a saved viewing identity and the owner authenticator; disabling one grant affects only that assistant.
+- Verification: isolated Postgres security/expiry/revocation tests, existing full suite (1,587 tests), targeted switch and workflow-identity tests, typecheck and production build. These are development checks, not proof that any assistant received a live room image.

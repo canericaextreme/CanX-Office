@@ -265,7 +265,9 @@ try {
   assert.equal(await count("public.finance_receipts"), 0, "Finance not granted");
   assert.equal(await count("public.knowledge_documents"), 1, "Brain granted");
   assert.equal(await count("public.round_tables"), 0, "Round Table not granted");
-  assert.equal(await count("public.manager_tasks"), 1);
+  assert.equal(await count("public.manager_tasks"), 0, "Work Board not granted");
+  assert.equal(await count("public.manager_approvals"), 0, "Approvals not granted");
+  assert.equal(await count("public.manager_changes"), 0, "Build & Testing not granted");
   assert.equal(await count("public.user_roles"), 0, "viewer cannot read roles");
   assert.equal(await count("public.office_audit"), 0, "viewer cannot read the audit log");
   await denied("viewer reads private grants", "select * from canx_private.office_view_grants");
@@ -298,6 +300,7 @@ try {
 
   // ---- 5. Read-only: every write is refused.
   const writes = [
+    "insert into public.office_notes values ('own-x','" + vClaude + "','task','t','d','Shared note')",
     "insert into public.office_notes values ('x','" + owner + "','task','t','d','s')",
     "update public.office_notes set title='changed'",
     "delete from public.office_notes",
@@ -362,6 +365,7 @@ try {
   const rec = async (sid, m, path = "claude/c1.png") => (await db.query("select public.canx_view_capture_record($1,$2::jsonb,$3) as id", [sid, JSON.stringify(m), path])).rows[0].id;
   await assert.rejects(rec(sess, meta("/legal", "Legal")), (e) => String(e.message).includes("wrong_route"));
   const cap = await rec(sess, meta("/brain", "Goal & Analytics / CanX Brain"));
+  await assert.rejects(rec(sess, meta("/brain", "Goal & Analytics / CanX Brain")), (e) => String(e.message).includes("revoked_during_capture"), "closed capture session cannot store twice");
   const fetchCap = (a, id) => db.query("select * from public.canx_view_capture_fetch($1,$2,$3)", [owner, a, id]);
   assert.equal((await fetchCap("claude", cap)).rows.length, 1);
   await assert.rejects(fetchCap("chatgpt", cap), (e) => String(e.message).includes("capture_unavailable"));
@@ -393,7 +397,9 @@ try {
   assert.equal(await count("public.office_files"), 2, "ChatGPT unaffected by revoking Claude");
   await svc();
   assert.equal((await db.query("select * from public.canx_view_capture_purge()")).rows.length, 1, "revoked captures are queued for deletion");
-  assert.equal((await db.query("select * from public.canx_view_capture_purge()")).rows.length, 0, "purge is not repeated");
+  assert.equal((await db.query("select * from public.canx_view_capture_purge()")).rows.length, 1, "failed removal stays retryable");
+  await db.query("select public.canx_view_capture_deleted($1)", ["claude/c1.png"]);
+  assert.equal((await db.query("select * from public.canx_view_capture_purge()")).rows.length, 0, "successful removal is not repeated");
   pass("revocation stops reads, new sessions, in-flight captures and retrieval of old captures, and leaves other assistants alone");
 
   // Revoke permissions.

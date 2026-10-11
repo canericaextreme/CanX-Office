@@ -216,6 +216,15 @@
       "audience": "office-status",
       "summary": "With John's approval, PR 81 (view-only access for Claude, ChatGPT and Elsie) was merged to main as 087d0739 and Lovable synced it; a publish to canx-office.lovable.app was requested and reported pending. NOT confirmed: the database migration being applied, the office-view function being deployed, or the published site loading. No viewer accounts, secrets or grants exist yet, so no assistant can view anything and the connector viewing tools are off. No assistant has received a real room image.",
       "evidence": "Merge 087d0739 on main; Lovable latest_commit_sha matched; deployment e9454363 pending. Local build and dev-server start succeeded. Shell cannot reach the live site or database. No credentials recorded."
+    },
+    {
+      "id": "office-view-install-review-20261011",
+      "at": "2026-10-11T01:22:49Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Reviewed Claude viewing package against the live Canx Office Supabase project. Corrected room restrictions, read-only identities, capture replay/expiry, workflow identity and retryable hourly deletion. Added independent owner switches.",
+      "evidence": "Development checks pass; migration/function installation and live room-image/revocation acceptance remain separately tracked. No viewing grant enabled."
     }
   ]
 }
