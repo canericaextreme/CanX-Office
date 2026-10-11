@@ -442,6 +442,37 @@ try {
   assert.equal((await db.query("select public.canx_view_room_route('project-rooms') r")).rows[0].r, "/projects");
   pass("SQL room list matches");
 
+
+  if (process.argv.includes('--isolation')) {
+  // Repeat the actual viewing entry points under dedicated OAuth identities.
+  await as(null,{});
+  await db.exec(`alter table auth.users add column raw_app_meta_data jsonb, add column email_confirmed_at timestamptz, add column deleted_at timestamptz, add column banned_until timestamptz;
+  alter table auth.oauth_clients add column client_name text;
+  alter table auth.oauth_authorizations add column redirect_uri text, add column scope text, add column state text;`);
+  await db.exec(await readFile(new URL('../../supabase/migrations/20261008200158_office_mcp_work_access.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../../supabase/migrations/20261010023817_office_colleague_relay_work_grant.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../../supabase/migrations/20261011031034_office_assistant_identity_isolation.sql',import.meta.url),'utf8'));
+  const agentChat=U(81),agentClaude=U(82);
+  await db.exec(`insert into auth.users(id,raw_app_meta_data,email_confirmed_at) values('${agentChat}','{"canx_owner_id":"${owner}","canx_assistant":"chatgpt"}',now()),('${agentClaude}','{"canx_owner_id":"${owner}","canx_assistant":"claude"}',now());
+  insert into canx_private.office_mcp_identities(owner_id,identity,assistant_user_id) values('${owner}','chatgpt','${agentChat}'),('${owner}','claude','${agentClaude}');
+  update canx_private.office_mcp_clients set assistant_user_id=case when identity='chatgpt' then '${agentChat}'::uuid else '${agentClaude}'::uuid end;
+  update auth.sessions set user_id='${agentChat}' where id='${oauthChat}';
+  update auth.sessions set user_id='${agentClaude}' where id='${oauthClaude}';
+  update auth.oauth_consents set user_id=case when client_id='${cChat}' then '${agentChat}'::uuid else '${agentClaude}'::uuid end;
+  update canx_private.office_view_grants set enabled=true,revoked_at=null;
+  delete from canx_private.office_view_requests;`);
+  const chatIdentity={...connectorJwt(cChat,oauthChat),sub:agentChat};
+  await as('authenticated',chatIdentity);
+  const isolatedRequest=(await db.query("select public.canx_view_request_create('/reception','desktop','default','information') r")).rows[0].r;
+  assert.deepEqual((await db.query('select * from public.canx_view_whoami(false)')).rows,[{owner_id:owner,assistant:'chatgpt'}]);
+  assert.equal((await db.query('select * from public.canx_view_request_status($1,false)',[isolatedRequest])).rows[0].route,'/reception');
+  await as('authenticated',{...connectorJwt(cClaude,oauthClaude),sub:agentClaude});
+  assert.equal((await db.query('select * from public.canx_view_request_status($1,false)',[isolatedRequest])).rows.length,0,'other assistant cannot read request');
+  await svc();
+  const queued=(await db.query('select * from public.canx_view_request_claim($1)',[isolatedRequest])).rows[0];
+  assert.equal(queued.owner_id,owner);assert.equal(queued.assistant,'chatgpt');assert.equal(queued.viewer_user_id,vChat);
+  pass('dedicated OAuth identities preserve the real owner and assistant across viewing request, status, broker claim and existing viewer grant');
+  }
   console.log("Office viewing delegation SQL fixtures passed:\n - " + log.join("\n - ") + "\nNo live records touched.");
 } catch (e) {
   console.error(e.lastSql ? `${e.message}\n  while running: ${e.lastSql}` : e);
