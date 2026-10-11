@@ -52,7 +52,8 @@ describe("the owner functions and panel", () => {
   it("is hidden from a viewing session and never offers the grant without the authenticator", () => {
     const panel = readFileSync("src/components/office/ViewAccessPanel.tsx", "utf8");
     expect(panel).toContain("if (session.viewer) return null;");
-    expect(panel).toContain("disabled={busy || !session.stepUpComplete}");
+    expect(panel).toContain("if (!session.stepUpComplete)");
+    expect(panel).toContain("setMfaOpen(true)");
     expect(panel).not.toContain("canReadProtected");
   });
 });

@@ -50,7 +50,9 @@ export async function liveOfficeWorkBuild(token:string,value:unknown){
   // Decode only after signature + live owner/session/client/grant verification.
   const claims=backend.decodeClaims(t);
   if(!claims || typeof claims['sub']!=='string')throw Error('CANX_CLAIMS_INVALID');
-  return {ok:true,userId:claims['sub'],email:'',aal:typeof claims['aal']==='string'?claims['aal']:'aal1'};
+  const ownerId=await rpc(t,'canx_mcp_owner',{});
+  if(typeof ownerId!=='string'||!/^[0-9a-f-]{36}$/i.test(ownerId))throw Error('CANX_CLAIMS_INVALID');
+  return {ok:true,userId:ownerId,email:'',aal:typeof claims['aal']==='string'?claims['aal']:'aal1'};
  };
  const relayDeps=async()=>{
   const {relayWorkbench}=await import('./colleague-relay.server');

@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 
 const out = path.resolve(process.argv[2] ?? "dist-functions");
 await mkdir(out, { recursive: true });
-const functions = ["office-view", "office-mcp"];
+const functions = ["office-view", "office-mcp", "office-consent"];
 for (const name of functions) {
   await build({
     entryPoints: [`supabase/functions/${name}/index.ts`], outfile: path.join(out, `${name}.js`), bundle: true, format: "esm",
@@ -29,6 +29,11 @@ for (const name of functions) {
     const noToken = await handler(new Request(`${base}/office-view/request`, { method: "POST", body: "{}" }));
     assert.equal(noToken.status, 401, "no token is refused");
     const get = await handler(new Request(`${base}/office-view/request`));
+    assert.equal(get.status, 405, "GET is refused");
+  } else if (name === "office-consent") {
+    const noToken = await handler(new Request(`${base}/office-consent`, { method: "POST", body: "{}" }));
+    assert.equal(noToken.status, 401, "owner token is required");
+    const get = await handler(new Request(`${base}/office-consent`));
     assert.equal(get.status, 405, "GET is refused");
   } else {
     const list = await handler(new Request(`${base}/office-mcp`, { method: "POST", headers: { Authorization: "Bearer x.y.z", "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) }));

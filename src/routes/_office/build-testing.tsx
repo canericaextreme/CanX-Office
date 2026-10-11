@@ -5,6 +5,7 @@ import { ClaudeBuildPanel } from "@/components/office/ClaudeBuildPanel";
 import { CodexBuildPanel } from "@/components/office/CodexBuildPanel";
 import { OfficeHealthPanel } from "@/components/office/OfficeHealthPanel";
 import { ViewAccessPanel } from "@/components/office/ViewAccessPanel";
+import { AssistantConnectionsPanel } from "@/components/office/AssistantConnectionsPanel";
 import { RoomConnectionCheck } from "@/components/office/RoomConnectionCheck";
 
 export const Route = createFileRoute("/_office/build-testing")({
@@ -35,6 +36,7 @@ function BuildTesting() {
       <div className="space-y-6">
         <div id="codex-builder"><CodexBuildPanel /></div>
         <div id="claude-builder"><ClaudeBuildPanel /></div>
+        <AssistantConnectionsPanel />
         <ViewAccessPanel />
         <OfficeHealthPanel />
         <RoomConnectionCheck />

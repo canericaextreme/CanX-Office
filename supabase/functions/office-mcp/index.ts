@@ -8,8 +8,10 @@ import briefs from "../../../docs/office-room-briefs.json" with { type: "json" }
 
 const url = Deno.env.get("SUPABASE_URL") ?? "";
 const key = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-// Read-only viewing tools are offered only when the view service address is set. Unset = they do not exist.
-const viewUrl = Deno.env.get("CANX_VIEW_SERVICE_URL") ?? "";
+// The installed broker is in this same project. Derive its address from the
+// trusted runtime URL; a misspelled optional secret must not hide every tool.
+// Standing owner room/scopes grants are still checked for every request.
+const viewUrl = `${url}/functions/v1/office-view`;
 const viewBackend = /^https:\/\/[a-z0-9]{20}\.supabase\.co\/functions\/v1\/office-view$/.test(viewUrl) ? httpViewBackend(viewUrl) : null;
 
 Deno.serve(request => {

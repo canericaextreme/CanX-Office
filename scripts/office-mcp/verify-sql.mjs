@@ -16,11 +16,11 @@ try {
  grant usage on schema public,auth,storage to authenticated;
  create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb) $$;
  create function auth.uid() returns uuid language sql stable as $$ select (auth.jwt()->>'sub')::uuid $$;
- create table auth.users(id uuid primary key);
- create table auth.oauth_clients(id uuid primary key,deleted_at timestamptz);
+ create table auth.users(id uuid primary key, raw_app_meta_data jsonb, email_confirmed_at timestamptz, deleted_at timestamptz, banned_until timestamptz);
+ create table auth.oauth_clients(id uuid primary key,deleted_at timestamptz,client_name text);
  create table auth.sessions(id uuid primary key,user_id uuid,oauth_client_id uuid,not_after timestamptz);
  create table auth.oauth_consents(id uuid primary key,user_id uuid,client_id uuid,revoked_at timestamptz);
- create table auth.oauth_authorizations(authorization_id text,user_id uuid,client_id uuid,status text,expires_at timestamptz,code_challenge_method text,resource text);
+ create table auth.oauth_authorizations(authorization_id text,user_id uuid,client_id uuid,status text,expires_at timestamptz,code_challenge_method text,resource text,redirect_uri text,scope text,state text);
  create type public.app_role as enum('owner');
  create table public.user_roles(user_id uuid,role public.app_role);
  create function public.has_role(_user_id uuid,_role public.app_role) returns boolean language sql security definer set search_path=public as $$ select exists(select 1 from public.user_roles where user_id=_user_id and role=_role) $$;
@@ -42,12 +42,12 @@ try {
  await db.exec(await readFile(new URL("../../supabase/migrations/20261008200158_office_mcp_work_access.sql",import.meta.url),"utf8"));
  await db.exec(await readFile(new URL("../../supabase/migrations/20261010023817_office_colleague_relay_work_grant.sql",import.meta.url),"utf8"));
  await db.exec(`
- insert into auth.users values('${uid}');
+ insert into auth.users(id) values('${uid}');
  insert into public.user_roles values('${uid}','owner');
  insert into auth.oauth_clients(id) values('${cid}');
  insert into auth.sessions(id,user_id,oauth_client_id) values('${sid}','${uid}','${cid}');
  insert into auth.oauth_consents(id,user_id,client_id) values('${sid}','${uid}','${cid}');
- insert into auth.oauth_authorizations values('fixture-request','${uid}','${cid}','approved',now()+interval '1 hour','s256','https://gmsjjiprtulxojhkmbqb.supabase.co/functions/v1/office-mcp');
+ insert into auth.oauth_authorizations values('fixture-request','${uid}','${cid}','approved',now()+interval '1 hour','s256','https://gmsjjiprtulxojhkmbqb.supabase.co/functions/v1/office-mcp','https://client.example/callback','openid','state');
  insert into public.office_notes(id,owner_id,title,detail,source) values('project','${uid}','Fixture project','PRIVATE DETAIL','Lovable project import'),('private','${uid}','PRIVATE TITLE','PRIVATE DETAIL','Private archive');
  insert into public.manager_tasks(id,owner_id,title,detail,status,project) values('${sid}','${uid}','PRIVATE TASK','PRIVATE DETAIL','open','PRIVATE PROJECT TEXT');
  `);
@@ -139,6 +139,85 @@ try {
  await claims({...base,sub:other});await assert.rejects(save(finishAt,{evidence:receipt,updated_at:at}));assert.equal((await reserve(4)).allowed,false);await claims(base);
  await db.exec('set role anon');await assert.rejects(save(finishAt,{evidence:receipt,updated_at:at}));await db.exec('reset role');
  await db.exec("update auth.oauth_consents set revoked_at=now()");assert.equal(await work(),false);await assert.rejects(db.query("select public.canx_office_records('office_notes')"));await db.exec("update auth.oauth_consents set revoked_at=null");
+
+ if (process.argv.includes('--isolation')) {
+ // Dedicated identities fixture. Existing legacy tests above run unchanged.
+ await db.exec(`create table canx_private.office_view_grants(viewer_user_id uuid);`);
+ await db.exec(await readFile(new URL("../../supabase/migrations/20261011030021_office_assistant_identity_isolation.sql",import.meta.url),"utf8"));
+ const chatAgent='00000000-0000-4000-8000-000000000021',claudeAgent='00000000-0000-4000-8000-000000000022';
+ const claudeClient='00000000-0000-4000-8000-000000000023',claudeSession='00000000-0000-4000-8000-000000000024';
+ await db.exec(`insert into auth.users(id,raw_app_meta_data,email_confirmed_at) values('${chatAgent}','{"canx_owner_id":"${uid}","canx_assistant":"chatgpt"}',now()),('${claudeAgent}','{"canx_owner_id":"${uid}","canx_assistant":"claude"}',now());
+ insert into auth.oauth_clients(id,client_name) values('${claudeClient}','Claude');
+ insert into auth.oauth_authorizations values('chat-new',null,'${cid}','pending',now()+interval '1 hour','s256','https://gmsjjiprtulxojhkmbqb.supabase.co/functions/v1/office-mcp','https://client.example/callback','openid','state');
+ insert into auth.oauth_authorizations values('claude-new',null,'${claudeClient}','pending',now()+interval '1 hour','s256','https://gmsjjiprtulxojhkmbqb.supabase.co/functions/v1/office-mcp','https://client.example/callback','openid','state');`);
+ const ownerClaims={...base,client_id:undefined,aal:'aal2'};
+ await claims(ownerClaims);
+ await db.exec('set role authenticated');
+ const preview=(await db.query("select public.canx_mcp_consent_preview('chat-new','chatgpt') as r")).rows[0].r;
+ assert.equal(preview.user.id,uid);assert.equal(preview.assistant_user_id,null);
+ await assert.rejects(db.query("select * from canx_private.office_mcp_identities"));
+ await db.query("select public.canx_mcp_bind_identity('chatgpt',$1)",[chatAgent]);
+ await db.query("select public.canx_mcp_bind_identity('claude',$1)",[claudeAgent]);
+ await assert.rejects(db.query("select public.canx_mcp_bind_identity('chatgpt',$1)",[uid]));
+ await assert.rejects(db.query("select public.canx_mcp_bind_identity('chatgpt',$1)",[claudeAgent]));
+ await db.exec('reset role');
+ await db.exec(`update auth.oauth_authorizations set user_id='${chatAgent}',status='approved' where authorization_id='chat-new';
+ update auth.oauth_authorizations set user_id='${claudeAgent}',status='approved' where authorization_id='claude-new';
+ insert into auth.sessions(id,user_id,oauth_client_id) values('${claudeSession}','${claudeAgent}','${claudeClient}');
+ update auth.sessions set user_id='${chatAgent}' where id='${sid}';
+ update auth.oauth_consents set user_id='${chatAgent}';
+ insert into auth.oauth_consents(id,user_id,client_id) values('${claudeSession}','${claudeAgent}','${claudeClient}');`);
+ await db.exec('set role authenticated');
+ await db.query("select public.canx_approve_office_work('chat-new','chatgpt')");
+ await db.query("select public.canx_approve_office_work('claude-new','claude')");
+ const chatJwt={...base,sub:chatAgent};
+ const claudeJwt={...base,sub:claudeAgent,client_id:claudeClient,session_id:claudeSession};
+ await claims(chatJwt);
+ assert.equal(await active(),true);assert.equal(await work(),true);
+ assert.equal((await db.query('select public.canx_mcp_owner() as r')).rows[0].r,uid);
+ assert.deepEqual((await db.query('select * from public.canx_view_whoami(false)')).rows,[{owner_id:uid,assistant:'chatgpt'}]);
+ assert.equal((await db.query('select public.is_verified_owner() as r')).rows[0].r,false);
+ assert.equal((await db.query('select count(*)::int as n from public.office_notes')).rows[0].n,0);
+ assert.equal((await db.query("select public.canx_office_records('office_notes') as r")).rows[0].r.records.length,2);
+ const newNote=(await db.query("select public.canx_write_office_record('office_notes','isolated-note','{\"title\":\"Delegated\"}') as r")).rows[0].r;
+ assert.equal(newNote.data.owner_id,uid);
+ await assert.rejects(db.query("select public.canx_mcp_bind_identity('chatgpt',$1)",[chatAgent]));
+ await claims({...chatJwt,client_id:claudeClient});assert.equal(await active(),false);
+ await claims({...chatJwt,session_id:claudeSession});assert.equal(await active(),false);
+ await claims(chatJwt);
+ await db.exec('reset role');
+ // Reproduce Supabase MFA's user-scoped invalidation, including repeated MFA.
+ await db.exec('alter table auth.sessions add column aal text default \'aal1\'');
+ for(let i=0;i<2;i++){
+   await db.query("delete from auth.sessions where user_id=$1 and aal<'aal2'",[uid]);
+   await claims(chatJwt);assert.equal(await active(),true);
+   await claims(claudeJwt);assert.equal(await active(),true);
+ }
+ await db.exec("update public.ai_limits set max_cents_per_month=10000; update public.manager_tasks set risk='green';");
+ await claims(chatJwt);await db.exec('set role authenticated');
+ const isolatedBudget=await reserve(4);assert.equal(isolatedBudget.allowed,true);
+ await db.query("select public.canx_mcp_relay_settle($1,'ok')",[isolatedBudget.reservation_id]);
+ const isolatedBuild='00000000-0000-4000-8000-000000000025';
+ assert.equal((await db.query("select public.canx_mcp_claim_build($1,'codex','Build a delegated test') as r",[isolatedBuild])).rows[0].r.dispatch,true);
+ await db.query("select public.canx_mcp_finish_build($1,'{\"ok\":true}')",[isolatedBuild]);
+ await db.exec('reset role');
+ assert.equal((await db.query('select owner_id from public.ai_usage where id=$1',[isolatedBudget.reservation_id])).rows[0].owner_id,uid);
+ assert.equal((await db.query('select owner_id from canx_private.office_mcp_build_requests where request_id=$1',[isolatedBuild])).rows[0].owner_id,uid);
+ // Ban, missing consent and owner removal deny. Restoring state re-enables only valid sessions.
+ for(const [deny,restore] of [
+  [`update auth.users set banned_until=now()+interval '1 hour' where id='${chatAgent}'`,`update auth.users set banned_until=null where id='${chatAgent}'`],
+  [`update auth.oauth_consents set revoked_at=now() where user_id='${chatAgent}'`,`update auth.oauth_consents set revoked_at=null where user_id='${chatAgent}'`],
+  ["delete from public.user_roles",`insert into public.user_roles values('${uid}','owner')`]
+ ]){await db.exec(deny);assert.equal(await active(),false);await db.exec(restore);assert.equal(await active(),true);}
+ await claims(ownerClaims);await db.exec('set role authenticated');
+ await db.query('select public.canx_mcp_client_revoke($1)',[cid]);
+ await claims(chatJwt);assert.equal(await active(),false);
+ await claims(claudeJwt);assert.equal(await active(),true);
+ await assert.rejects(db.query('select public.canx_mcp_client_revoke($1)',[claudeClient]));
+ await db.exec('reset role');
+ await claims(chatJwt);
+ console.log('Isolated identities passed: repeated owner MFA, separate clients, scoped owner data/write/budget/build, viewer identity resolution, immediate revocation, owner-only consent, role and raw-table denial.');
+ }
  await db.exec("delete from auth.sessions");assert.equal(await active(),false);
  console.log("Isolated SQL fixtures passed: owner consent, current session/grant, narrow saved metadata, direct-record denial, unchanged normal-owner access, expiry, revocation, removed owner and sign-out denial. Relay claim/save, stale versions, duplicate IDs, foreign/revoked clients, unchanged budgets and anonymous denial also passed. No live records touched.");
 } finally {await db.close();}
