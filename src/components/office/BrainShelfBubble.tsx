@@ -1,7 +1,6 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useRef, useState, type ReactNode } from "react";
 
-/** A shelf and its portalled contents share one hover/focus boundary. */
+/** The synopsis stays inside its shelf; entry coordinates never follow pointer movement. */
 export function BrainShelfBubble({
   children,
   contents,
@@ -10,6 +9,7 @@ export function BrainShelfBubble({
   open,
   onOpenChange,
   number,
+  onSelect,
 }: {
   children: ReactNode;
   contents: ReactNode;
@@ -18,100 +18,80 @@ export function BrainShelfBubble({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   number: number;
+  onSelect: () => void;
 }) {
-  const anchor = useRef<HTMLDivElement>(null);
-  const bubble = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerFocus = useRef(false);
-  const cancelClose = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = null;
-  };
-  useEffect(() => cancelClose, []);
-  const enter = () => {
-    cancelClose();
-    onOpenChange(true);
-  };
-  // Allow the pointer to cross the small gap between the anchor and portal.
-  const leave = () => {
-    cancelClose();
-    closeTimer.current = setTimeout(() => {
-      const focused = document.activeElement;
-      if (anchor.current?.contains(focused) || bubble.current?.contains(focused)) return;
-      onOpenChange(false);
-    }, 200);
-  };
-  const blur = (target: EventTarget | null) => {
-    if (
-      target instanceof Node &&
-      (anchor.current?.contains(target) || bubble.current?.contains(target))
-    )
-      return;
-    leave();
-  };
+  const [origin, setOrigin] = useState("50% 50%");
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverAnchor asChild>
-        <div
-          ref={anchor}
-          className="brain-shelf group/shelf relative"
-          data-open={open}
-          data-shelf={number}
-          onPointerEnter={(e) => {
-            if (e.pointerType !== "touch") enter();
-          }}
-          onPointerLeave={(e) => {
-            if (e.pointerType !== "touch") leave();
-          }}
-          onPointerDown={() => {
-            pointerFocus.current = true;
-          }}
-          onPointerUp={() => {
-            pointerFocus.current = false;
-          }}
-          onPointerCancel={() => {
-            pointerFocus.current = false;
-          }}
-          onFocus={() => {
-            if (!pointerFocus.current) enter();
-          }}
-          onBlur={(e) => blur(e.relatedTarget)}
-        >
-          {children}
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label={`About ${name}`}
-              aria-controls={open ? id : undefined}
-              className="brain-shelf-info absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--brain-line)] bg-[var(--brain-card)] text-sm font-bold focus-visible:outline-2"
-            >
-              i
-            </button>
-          </PopoverTrigger>
-        </div>
-      </PopoverAnchor>
-      <PopoverContent
-        ref={bubble}
-        id={id}
-        aria-label={`${name} synopsis`}
-        side="top"
-        sideOffset={12}
-        collisionPadding={12}
-        className="brain-shelf-bubble w-[min(20rem,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words border-[var(--brain-line)] bg-[var(--brain-card)] text-[var(--brain-room-ink)] duration-200 ease-out data-[state=open]:[animation-delay:75ms] motion-reduce:animate-none"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-        onPointerEnter={(e) => {
-          if (e.pointerType !== "touch") enter();
-        }}
-        onPointerLeave={(e) => {
-          if (e.pointerType !== "touch") leave();
-        }}
-        onFocus={cancelClose}
-        onBlur={(e) => blur(e.relatedTarget)}
-        onEscapeKeyDown={cancelClose}
+    <div
+      className="brain-shelf group/shelf relative"
+      data-open={open}
+      data-shelf={number}
+      onPointerEnter={(e) => {
+        if (e.pointerType === "touch") return;
+        const box = e.currentTarget.getBoundingClientRect();
+        setOrigin(
+          `${Math.max(0, Math.min(box.width, e.clientX - box.left))}px ${Math.max(0, Math.min(box.height, e.clientY - box.top))}px`,
+        );
+        onOpenChange(true);
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType !== "touch" && !e.currentTarget.contains(document.activeElement))
+          onOpenChange(false);
+      }}
+      onPointerDown={() => {
+        pointerFocus.current = true;
+      }}
+      onPointerUp={() => {
+        pointerFocus.current = false;
+      }}
+      onPointerCancel={() => {
+        pointerFocus.current = false;
+      }}
+      onFocus={(e) => {
+        if (!pointerFocus.current && !e.currentTarget.contains(e.relatedTarget as Node)) {
+          setOrigin("50% 50%");
+          onOpenChange(true);
+        }
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) onOpenChange(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          if ((e.target as HTMLElement).closest(".brain-shelf-bubble"))
+            e.currentTarget.querySelector<HTMLButtonElement>(".brain-shelf-face")?.focus();
+          onOpenChange(false);
+        }
+      }}
+    >
+      {children}
+      <button
+        type="button"
+        aria-label={`About ${name}`}
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        className="brain-shelf-info absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--brain-line)] bg-[var(--brain-card)] text-sm font-bold focus-visible:outline-2"
+        onClick={() => onOpenChange(!open)}
       >
-        {contents}
-      </PopoverContent>
-    </Popover>
+        i
+      </button>
+      {open && (
+        <div
+          id={id}
+          role="dialog"
+          aria-label={`${name} synopsis`}
+          className="brain-shelf-bubble absolute inset-0 z-10 overflow-y-auto overscroll-contain break-words rounded-xl border border-[var(--brain-line)] bg-[var(--brain-card)] p-3 pr-12 text-[var(--brain-room-ink)]"
+          style={{ transformOrigin: origin }}
+          onClick={(e) => {
+            if (!(e.target as HTMLElement).closest("button")) onSelect();
+          }}
+        >
+          {contents}
+        </div>
+      )}
+    </div>
   );
 }

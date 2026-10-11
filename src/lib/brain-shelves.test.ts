@@ -199,7 +199,7 @@ describe("hover synopsis comes only from live records", () => {
     ({ key, kind, title: `T ${key}`, room: null, folder: null, at, provenance: "x", version: null,
       access: "metadata only", defaultCategory: "unsorted", category: "unsorted", manual: false,
       route: null, shelf }) as unknown as BrainItem;
-  it("counts items by type and shows the newest saved date, without listing titles", () => {
+  it("counts types, shows the newest date and samples real titles from this shelf", () => {
     const items = [
       mk("file:1", "file", "2026-10-01T00:00:00Z", "library"),
       mk("file:2", "file", "2026-10-03T00:00:00Z", "library"),
@@ -209,7 +209,18 @@ describe("hover synopsis comes only from live records", () => {
     const text = shelfSynopsis(items, "library", true);
     expect(text).toContain("3 items (2 files, 1 document)");
     expect(text).toContain("Newest saved 2026-10-03");
-    expect(text).not.toContain("T file:1");
+    expect(text).toContain("Saved titles include “T file:1”, “T file:2”, “T doc:1”");
+    expect(text).not.toContain("T file:3");
+    expect(text).toContain("Indexed metadata only; source read limits apply");
+  });
+  it("bounds title samples and discloses unavailable sources without inventing content", () => {
+    const items = Array.from({ length: 8 }, (_, n) => mk(`file:${n}`, "file", null, "library"));
+    const text = shelfSynopsis(items, "library", true, [{ key: "files", label: "Files", status: "failed", count: 0, detail: "Unavailable" }]);
+    expect(text).toContain("8 items (8 files)");
+    expect(text).toContain("T file:2");
+    expect(text).not.toContain("T file:3");
+    expect(text).toContain("Some sources are unavailable; this summary is partial");
+    expect(shelfSynopsis(items, "library", false)).not.toContain("T file:");
   });
   it("says nothing is filed when empty, and unknown when shelf labels are unreadable", () => {
     expect(shelfSynopsis([], "diary", true)).toContain("Nothing is filed here yet.");
