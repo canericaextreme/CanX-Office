@@ -2,7 +2,7 @@
  * Read-only viewer verification — SERVER ONLY.
  *
  * PROPOSED. A viewer is an assistant's dedicated identity (see
- * docs/proposed/office-view-delegation.sql). It is NOT the owner. The ordinary
+ * supabase/migrations/20261010180000_office_view_delegation.sql). It is NOT the owner. The ordinary
  * verifiers (verifyOwner, verifySignedIn) never accept it. Only the read-only
  * call sites listed in VIEWER_READ_SITES use the functions below, and the
  * database itself refuses every write from a viewer, so a mistake here cannot

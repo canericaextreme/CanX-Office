@@ -2,7 +2,7 @@
 /**
  * Capture runner for the CanX Office view service. PROPOSED, not deployed.
  *
- * Runs only inside the capture workflow (docs/proposed/office-view-capture.yml). It holds NO stored
+ * Runs only inside the capture workflow (.github/workflows/office-view-capture.yml). It holds NO stored
  * secret. It proves who it is with the workflow's own short-lived GitHub identity token, asks the
  * broker for the one request it was started for, and receives a 5 minute READ-ONLY viewing session
  * for that request. It opens the real Office in Chromium as that viewer, checks it is really the

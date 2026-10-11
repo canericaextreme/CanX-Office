@@ -2,7 +2,7 @@
  * Read-only "look at the Office" tools for the Office connector. PROPOSED, not deployed.
  *
  * The connector function stays keyless: it forwards the assistant's own token to the view service
- * (docs/proposed/office-view), which reads the assistant's identity from the database. These tools can
+ * (supabase/functions/office-view), which reads the assistant's identity from the database. These tools can
  * only look: they never write, spend, delete, build or change access, and their arguments are strict.
  * Plain relative imports only, so the Deno connector can use this file.
  */

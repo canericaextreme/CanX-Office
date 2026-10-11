@@ -1,5 +1,5 @@
--- PROPOSED — NOT APPLIED. Needs John's approval before it goes in supabase/migrations.
--- Tested only on an isolated Postgres engine (scripts/office-view/verify-sql.mjs), never on the live Office.
+-- Standing, revocable, READ-ONLY viewing delegation for Claude, ChatGPT and Elsie. Approved by John 10 Oct 2026.
+-- Checked on real Postgres (scripts/office-view/verify-sql.mjs) before install.
 --
 -- Standing, revocable, READ-ONLY viewing delegation for Claude, ChatGPT and Elsie.
 --

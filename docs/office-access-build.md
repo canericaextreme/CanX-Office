@@ -92,10 +92,10 @@ Nothing below is live-verified. "not live-tested" means exactly that; fixture an
 | 25 | Round Table | standard | — | not live-tested | not live-tested | not live-tested |
 
 ## Deployment package (to request approval once items 9–13 are closed)
-Exact changes and undo steps: `docs/proposed/office-view/INSTALL.md`. Expected cost: no new paid service; GitHub Actions free on a public repo; storage PNGs ≤3 MB deleted after 24 h. Needs John personally: one authenticator check to create the grants; a fine-grained GitHub token (Actions write, this repository only, 90 days); three viewer accounts.
+Exact changes and undo steps: `docs/office-view-install.md`. Expected cost: no new paid service; GitHub Actions free on a public repo; storage PNGs ≤3 MB deleted after 24 h. Needs John personally: one authenticator check to create the grants; a fine-grained GitHub token (Actions write, this repository only, 90 days); three viewer accounts.
 
 ## Review package for an independent reviewer (ChatGPT can read the PR on GitHub)
-Read in this order: `docs/proposed/office-view-delegation.sql`, `src/lib/office-view-broker.ts` (+ test), `docs/proposed/office-view/index.ts`, `src/lib/canx-viewer.server.ts` (+ test), `scripts/capture/run-capture.mjs`, `src/lib/office-mcp-view.ts`. Questions to answer: can any viewing credential write, spend, delete, read another assistant's data, or outlive a revoke? Does any log, artifact or repo file carry a credential or picture? Can a retrieved page act as an instruction?
+Read in this order: `supabase/migrations/20261010180000_office_view_delegation.sql`, `src/lib/office-view-broker.ts` (+ test), `supabase/functions/office-view/index.ts`, `src/lib/canx-viewer.server.ts` (+ test), `scripts/capture/run-capture.mjs`, `src/lib/office-mcp-view.ts`. Questions to answer: can any viewing credential write, spend, delete, read another assistant's data, or outlive a revoke? Does any log, artifact or repo file carry a credential or picture? Can a retrieved page act as an instruction?
 
 ## Self security review (before independent review)
 - Supply chain: the capture job installs one pinned browser library with install scripts disabled; the workflow's identity token is only accepted for the exact workflow file on `main`, and only for a request id that is already queued, unclaimed and unexpired. Residual risk: any code run inside that job could ask for a token, so the job installs nothing else and uploads nothing.

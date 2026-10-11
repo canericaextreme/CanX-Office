@@ -1,6 +1,5 @@
-# PROPOSED workflow. NOT installed. Copy to .github/workflows/office-view-capture.yml ONLY after John approves.
-# It holds NO stored secret. Its only credential is GitHub's own short-lived identity token, which the broker
-# accepts only from this exact file on main. No artifacts are uploaded; the picture goes straight to private storage.
+# CanX Office view capture (approved by John 10 Oct 2026). No stored secret: uses GitHub's own short-lived identity token.
+# Accepted by the view service only from this exact file on main. Uploads no artifacts.
 name: CanX Office view capture
 run-name: CanX Office view capture ${{ github.run_number }}
 on:

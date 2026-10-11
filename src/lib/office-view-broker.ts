@@ -2,7 +2,7 @@
  * Office view broker — the one trusted piece between assistants and the capture runner.
  *
  * PROPOSED, not deployed. Pure and dependency-injected so every rule can be tested
- * without a network. The edge function (docs/proposed/office-view-function.ts) only
+ * without a network. The edge function (supabase/functions/office-view/index.ts) only
  * wires real fetch, storage and GitHub calls into these handlers.
  *
  * Who may call what:

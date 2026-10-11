@@ -1,5 +1,4 @@
-// PROPOSED edge function `office-view`. NOT installed, NOT deployed. Install steps: docs/proposed/office-view/INSTALL.md
-// Copy to supabase/functions/office-view/index.ts. It only wires real fetch/storage/GitHub calls into the tested
+// edge function `office-view` (approved by John 10 Oct 2026). Install guide: docs/proposed/office-view/INSTALL.md
 // broker (src/lib/office-view-broker.ts). Every rule lives in the broker, not here.
 import {
   BROKER_MESSAGES, BrokerError, claimForRunner, failFromRunner, fetchCapture, precheckForRunner, readRoomInformation, redactForLog,
@@ -86,6 +85,18 @@ const deps: BrokerDeps = {
   log: (entry) => console.log(JSON.stringify(redactForLog(entry))),
 };
 
+/** Retention: pictures past 24 h or revoked are already unreachable in the database; this also deletes the files.
+ *  Runs on each request (there is no scheduler), so physical deletion can lag until the next use. Errors never block a request. */
+async function purgeExpired() {
+  try {
+    const rows = await deps.callService("canx_view_capture_purge", {});
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const path = (row as { storage_path?: unknown }).storage_path;
+      if (typeof path === "string") await deps.storage.remove(path).catch(() => undefined);
+    }
+  } catch { /* retention is retried on the next request */ }
+}
+
 const bearer = (req: Request) => (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
 const HTTP: Record<string, number> = { oidc_invalid: 401, not_signed_in: 401, bad_request: 400, unavailable: 503, capture_timeout: 504, image_too_large: 413 };
 
@@ -97,6 +108,7 @@ Deno.serve(async (req) => {
   const token = bearer(req);
   if (!token) return json(401, { ok: false, code: "not_signed_in", message: BROKER_MESSAGES.not_signed_in });
   const caller = { token, asElsie: body["asElsie"] === true };
+  await purgeExpired();
   try {
     switch (route) {
       // Runner (proven by the workflow's own GitHub identity token; no stored secret).

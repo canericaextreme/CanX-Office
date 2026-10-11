@@ -1,4 +1,4 @@
-// Isolated Postgres check of docs/proposed/office-view-delegation.sql. Never touches the live Office.
+// Isolated Postgres check of supabase/migrations/20261010180000_office_view_delegation.sql. Never touches the live Office.
 // Run: CANX_TEST_PGLITE_MODULE=/path/to/@electric-sql/pglite/dist/index.js node scripts/office-view/verify-sql.mjs
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -72,7 +72,7 @@ try {
 
   // The real production migration: restrictive "no OAuth client" policy on every table, is_verified_owner, connector approval.
   await db.exec(await readFile(new URL("../../supabase/migrations/20261008180144_office_mcp_scoped_access.sql", import.meta.url), "utf8"));
-  const sql = await readFile(new URL("../../docs/proposed/office-view-delegation.sql", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../../supabase/migrations/20261010180000_office_view_delegation.sql", import.meta.url), "utf8");
   await db.exec(sql);
   await db.exec(`grant execute on all functions in schema public to service_role;`);
 
