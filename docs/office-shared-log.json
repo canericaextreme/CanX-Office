@@ -2,24 +2,6 @@
   "version": 1,
   "entries": [
     {
-      "id": "2026-10-10-office-access-build-record",
-      "at": "2026-10-10T17:30:00Z",
-      "actor": "Claude",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "PROPOSED, not merged or deployed: draft PR #81 now covers all 24 rooms, access rules, room briefs and a build record. Verified only in unit tests and fixture Chromium runs. No assistant has retrieved or described a live room image; Claude, ChatGPT and Elsie are all untested; 0 of 24 rooms verified live.",
-      "evidence": "docs/office-access-build.md; 39 unit tests passing in a scratch install; refusal runs in real Chromium on fixtures. No credentials recorded."
-    },
-    {
-      "id": "2026-10-10-room-capture-phase1-proposed",
-      "at": "2026-10-10T16:40:00Z",
-      "actor": "Claude",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "PROPOSED, not merged or deployed: draft PR adds a real-browser room capture script, capture rules with tests, and a design document. No assistant has yet retrieved or described a captured image; live-Office capture, retrieval and signed-out refusal are untested.",
-      "evidence": "Fixture-based Chromium runs and unit tests in a scratch install; see docs/room-capture-design.md. No credentials recorded."
-    },
-    {
       "id": "2026-10-05-stage1-approved",
       "at": "2026-10-05T16:05:10Z",
       "actor": "John",
@@ -171,6 +153,42 @@
       "audience": "office-status",
       "summary": "Reviewed build 12 against the saved Brain Remodel. Original candidate retained six categories; corrected to eight named shelves with separate compare-and-save filing, shared owner-scoped counts and Elsie context, original upload readback and preservation. Saved label failure is unavailable, not guessed. Installation and actual Elsie acknowledgment remain unverified.",
       "evidence": "docs/brain-remodel-candidate-20261010.md; corrected candidate in PR77. Existing data, legacy filing, authentication and provider controls preserved. No production installation claimed."
+    },
+    {
+      "id": "2026-10-10-brain-shelf-bubbles-release",
+      "at": "2026-10-10T17:40:08.634Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Owner authorized completing the Brain hover bubbles. Reviewed PR82 and merged the candidate; exact merge commit synced to Lovable. Publication requested; signed-in desktop/mobile behavior remains unverified.",
+      "evidence": "PR82 merge 99af76fab6e757763376d3dc4b0527c99315e610; CI run 38067856222 passed typecheck, 1475 tests and production build. Lovable deployment request baedda24-27eb-4d3e-b8a8-4b4d31f0e80a returned pending."
+    },
+    {
+      "id": "2026-10-11-codex-brain-shelf-local-correction",
+      "at": "2026-10-11T00:01:16Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Reconstructed the owner-requested Brain shelf UI correction locally on e2018fe: shelf-contained synopsis, real title samples and Brain-only light upload controls. No publication or live verification.",
+      "evidence": "Entire bun run test suite passed: 145 files / 1,481 tests. Typecheck and production build passed. docs/brain-shelf-bubbles-draft-pr.md records device limits. No push, merge, production call or external contact."
+    },
+    {
+      "id": "2026-10-10-office-access-build-record",
+      "at": "2026-10-10T17:30:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "PROPOSED, not merged or deployed: draft PR #81 now covers all 24 rooms, access rules, room briefs and a build record. Verified only in unit tests and fixture Chromium runs. No assistant has retrieved or described a live room image; Claude, ChatGPT and Elsie are all untested; 0 of 24 rooms verified live.",
+      "evidence": "docs/office-access-build.md; 39 unit tests passing in a scratch install; refusal runs in real Chromium on fixtures. No credentials recorded."
+    },
+    {
+      "id": "2026-10-10-room-capture-phase1-proposed",
+      "at": "2026-10-10T16:40:00Z",
+      "actor": "Claude",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "PROPOSED, not merged or deployed: draft PR adds a real-browser room capture script, capture rules with tests, and a design document. No assistant has yet retrieved or described a captured image; live-Office capture, retrieval and signed-out refusal are untested.",
+      "evidence": "Fixture-based Chromium runs and unit tests in a scratch install; see docs/room-capture-design.md. No credentials recorded."
     },
     {
       "id": "2026-10-10-office-view-access-build-progress",

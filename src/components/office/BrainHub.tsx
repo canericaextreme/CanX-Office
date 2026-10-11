@@ -16,6 +16,7 @@ import {
   Lamp,
 } from "lucide-react";
 import { OfficeFiles } from "./OfficeFiles";
+import { BrainShelfBubble } from "./BrainShelfBubble";
 import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getBrainIndex, setBrainShelf } from "@/lib/brain-index.functions";
@@ -360,7 +361,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        {cat === null && <OfficeFiles room="brain" compact onSaved={onUploaded} />}
+        {cat === null && <OfficeFiles brainAppearance room="brain" compact onSaved={onUploaded} />}
         {index && (
           <p className="text-xs text-[var(--brain-room-muted)]">
             Counts show indexed items from readable sources.
@@ -412,22 +413,48 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
         <>
           <nav
             aria-label="Brain categories"
-            className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3"
+            className="mt-4 grid grid-cols-1 gap-x-5 gap-y-7 min-[420px]:grid-cols-2 lg:grid-cols-3"
           >
             {buckets.map((b, shelfNumber) => {
               const active = cat === b;
               const display = SHELF_DISPLAY[b];
-              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable);
+              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable, index?.sources);
               const synId = `shelf-synopsis-${b}`;
               return (
-                <div key={b} className="group relative" data-shelf={shelfNumber + 1}>
+                <BrainShelfBubble
+                  key={b}
+                  number={shelfNumber + 1}
+                  onSelect={() => { setInfoOpen(null); open(b); }}
+                  name={display.name}
+                  id={`shelf-bubble-${b}`}
+                  open={infoOpen === b}
+                  onOpenChange={(expanded) =>
+                    setInfoOpen((current) => (expanded ? b : current === b ? null : current))
+                  }
+                  contents={
+                    <>
+                      <h3 className="font-serif text-lg font-semibold">{display.name}</h3>
+                      <p className="mt-2 text-sm leading-relaxed">{synopsis}</p>
+                      <Button
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => {
+                          setInfoOpen(null);
+                          open(b);
+                        }}
+                      >
+                        Open {CATEGORY_LABELS[b]}
+                      </Button>
+                    </>
+                  }
+                >
                   <button
                     type="button"
                     onClick={() => open(b)}
                     aria-pressed={active}
                     aria-describedby={synId}
                     aria-label={`Open ${CATEGORY_LABELS[b]}: ${shelvesReadable ? counts[b] : "unknown"} items`}
-                    className="flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2"
+                    className="brain-shelf-face flex min-h-24 w-full cursor-pointer items-start gap-3 rounded-xl border-2 bg-[var(--brain-card)] p-4 pr-12 text-left focus-visible:outline-2"
                     style={{
                       borderColor: tone(b),
                       boxShadow: active ? `0 0 0 2px ${tone(b)}` : undefined,
@@ -458,25 +485,10 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
                       </span>
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    aria-label={`About ${display.name}`}
-                    aria-expanded={infoOpen === b}
-                    onClick={() => setInfoOpen(infoOpen === b ? null : b)}
-                    className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--brain-line)] bg-[var(--brain-card)] text-sm font-bold focus-visible:outline-2"
-                  >
-                    i
-                  </button>
-                  <p
-                    id={synId}
-                    role="tooltip"
-                    className={`absolute inset-x-2 top-full z-20 mt-1 rounded-lg border border-[var(--brain-line)] bg-[var(--brain-card)] p-3 text-xs leading-snug shadow-lg ${
-                      infoOpen === b ? "block" : "hidden group-hover:block group-focus-within:block"
-                    }`}
-                  >
+                  <span id={synId} className="sr-only">
                     {synopsis}
-                  </p>
-                </div>
+                  </span>
+                </BrainShelfBubble>
               );
             })}
           </nav>
@@ -558,7 +570,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
             <>
               <p className="text-sm text-[var(--brain-room-muted)]">{CATEGORY_HELP[cat]}</p>
               <div className="flex flex-wrap items-center gap-3">
-                <OfficeFiles room="brain" compact onSaved={onUploaded} />
+                <OfficeFiles brainAppearance room="brain" compact onSaved={onUploaded} />
                 {cat === "library" && (
                   <a href="#brain-documents" className="text-sm underline">
                     Import document text for Elsie
@@ -672,7 +684,10 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
           <h3 id="brain-cast-heading" className="text-base font-bold">
             Who's who
           </h3>
-          <ul aria-labelledby="brain-cast-heading" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <ul
+            aria-labelledby="brain-cast-heading"
+            className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+          >
             {BRAIN_CAST.map((m) => (
               <li
                 key={m.who}
