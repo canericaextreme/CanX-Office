@@ -8,7 +8,21 @@ const fixture = { pngBase64: Buffer.from(png).toString('base64'), meta: {
   viewport:{name:'desktop',width:1440,height:900},buildVersion:'index-fixture.js',state:'default',pageHeight:900,imageSha256:hash,
 } };
 assert.equal(requestsRoomImage('Look at the Brain room now'),true);
-assert.equal(requestsRoomImage('Can you see the Brain room?'),false);
+assert.equal(requestsRoomImage('Can you see the Brain room?'),true);
+assert.equal(requestsRoomImage('What do you see?'),true);
+assert.equal(requestsRoomImage('What do you see in this room?'),true);
+assert.equal(requestsRoomImage('Could you see the current room now?'),true);
+assert.equal(requestsRoomImage('Can you see Research?'),true);
+assert.equal(requestsRoomImage('Can you see the Build & Testing room?'),true);
+assert.equal(requestsRoomImage('Can you see Family Continuity?'),true);
+assert.equal(requestsRoomImage('Can you see Family Continuity, Skills & Training?'),true);
+assert.equal(requestsRoomImage('How would you see Research?'),false);
+assert.equal(requestsRoomImage('Inspect Build & Testing'),true);
+assert.equal(requestsRoomImage('Look at Research now'),true);
+assert.equal(requestsRoomImage('Can you see the Brain notes?'),false);
+assert.equal(requestsRoomImage('Can you see whether the build finished?'),false);
+assert.equal(requestsRoomImage('Check the Finance room status'),false);
+assert.equal(requestsRoomImage('I see the Brain room'),false);
 assert.equal(requestsRoomImage('Do not take a picture of the room'),false);
 assert.equal(requestsRoomImage('Read the saved Brain notes'),false);
 assert.ok(await validateElsieRoomImage(fixture,'/brain',now));

@@ -243,6 +243,15 @@
       "audience": "office-status",
       "summary": "Made the viewing Authorise button open a six-digit authenticator popup after John could not find a usable code field. Selected rooms remain in place; verification does not save or enable a grant.",
       "evidence": "Five viewing panel interaction tests pass, including opening the popup, successful verification and rejected-code refusal. Signed-in owner acceptance remains required."
+    },
+    {
+      "id": "2026-10-13-three-worker-room-audit",
+      "at": "2026-10-13T18:38:00Z",
+      "actor": "ChatGPT/Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Three-worker review reused the existing room-view broker and capture runner. Draft PR97 natural visual-request detection corrected using canonical room labels. Full suite (1607 tests), typecheck and production build passed. Live Office connector reads still fail; native Claude and Elsie voice images are unverified. No live access or continuous video claimed.",
+      "evidence": "Draft PR97; docs/office-audit.md; native adapter checks and locked-dependency fixture validation."
     }
   ]
 }

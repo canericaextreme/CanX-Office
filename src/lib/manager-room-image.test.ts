@@ -21,6 +21,15 @@ function setup(found: ElsieRoomImage | null = image) {
   return {deps,readRoomImage,bodies};
 }
 describe('Elsie room-image integration',()=>{
+  it('captures the current room for a natural visual question and a named room from elsewhere',async()=>{
+    for (const [content, currentRoute] of [['What do you see?', '/brain'], ['Can you see the Brain room?', '/legal']] as const) {
+      const s=setup();
+      const reply=await runManagerChatWith(s.deps,{accessToken:'owner-token',currentRoute,messages:[{role:'user',content}]});
+      expect(s.readRoomImage).toHaveBeenCalledExactlyOnceWith('owner-token','/brain');
+      expect(JSON.stringify(s.bodies)).toContain('input_image');
+      expect(reply.roomImage?.route).toBe('/brain');
+    }
+  });
   it('supplies one image to the answer and only metadata in the receipt',async()=>{
     const s=setup();
     const reply=await runManagerChatWith(s.deps,{accessToken:'owner-token',currentRoute:'/brain',messages:[{role:'user',content:'Look at the Brain room now'}]});

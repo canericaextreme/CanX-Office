@@ -123,3 +123,21 @@ Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403
 - Capture recording rejects closed/expired sessions, removed rooms and removed image permission. Physical deletion is acknowledged only after successful Storage removal and retried through an hourly GitHub OIDC cleanup workflow.
 - The panel has three independent switches. Missing database status is UNAVAILABLE, never a proven OFF state. Enabling requires a saved viewing identity and the owner authenticator; disabling one grant affects only that assistant.
 - Verification: isolated Postgres security/expiry/revocation tests, existing full suite (1,587 tests), targeted switch and workflow-identity tests, typecheck and production build. These are development checks, not proof that any assistant received a live room image.
+
+## Three-worker room access audit — 13 October 2026
+
+Owner requested coordinated reading, visual observation, building and maintenance across the Office. Three local coding workers reviewed data access, visual delivery and integration validation; these workers are not the external Claude or Elsie services.
+
+Canonical capture scope is 24 routes: 19 floor-map rooms plus Brain, Projects, Skills, Round Table and Analytics. The requested 21-room count must be reconciled with this inventory; no duplicate rooms were added. The existing capture runner and five native viewing tools are already in source.
+
+| Capability | Evidence this session | Outstanding acceptance |
+|---|---|---|
+| GitHub source | Repository and draft PR97 read successfully | Merge/publication of checked candidate |
+| Supabase management | Office project reports ACTIVE_HEALTHY; office-mcp, office-view and office-consent deployed | Does not establish user data access or provider health |
+| Native ChatGPT Office reads | Three read calls returned MCP internal errors; exposed tool list lacks the five viewing tools | Restore connector authorization and refresh tools; then test each route |
+| Native Claude Office reads/images | Not tested here | Separate authenticated native Claude acceptance |
+| Elsie typed images | PR97 request-driven adapter; natural visual questions now use canonical room names | Live image/model acceptance on deployed candidate |
+| Elsie voice images | Not implemented by PR97 | Separate voice integration required |
+| Browser-independent captures | Existing GitHub OIDC Playwright runner in source | Capture a protected room with owner browser closed |
+
+For each assistant and each canonical route, record data-read time, image capture time, build version, checksum and observed content. Verify allowed protected rooms, revoked grants and browser-closed captures separately. Still pictures must not be described as continuous live video. Existing owner grants, spending gates and source limitations remain operative.

@@ -3,11 +3,27 @@ import { CAPTURE_MAX_AGE_MS, CAPTURE_ROOM_LABELS, validateCaptureMeta, type Room
 
 export interface ElsieRoomImage { meta: RoomCaptureMeta; pngBase64: string }
 
+const normalizeRoomName = (text: string) => text.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+// Labels and route names come from the same capture catalogue; no second room list.
+const visualRoomNames = new Set(Object.entries(CAPTURE_ROOM_LABELS).flatMap(([route, label]) => [normalizeRoomName(label), normalizeRoomName(route)]));
+
 /** Only explicit visual requests initiate a capture; ordinary room reads stay text-only. */
 export function requestsRoomImage(text: string): boolean {
   if (/\b(?:don't|do not|without|no need to)\b.{0,35}\b(?:look|see|view|picture|image|screenshot|capture)\b/i.test(text)) return false;
+  // These direct questions ask for visual evidence of the current/named room,
+  // not merely whether the assistant has a capability or can find saved records.
+  if (/^\s*(?:please[, ]+)?what (?:do|can) you see(?:\s+(?:here|now|in (?:this|the current) room))?\s*[?.!]*\s*$/i.test(text)) return true;
+  const roomQuestion = text.match(/^\s*(?:can|could) you see\s+(.+?)\s*[?.!]*\s*$/i);
+  if (roomQuestion) {
+    const named = normalizeRoomName(roomQuestion[1]!).replace(/^(?:the|this) /, '').replace(/ now$/, '');
+    const roomName = named.replace(/ room$/, '');
+    if (named === 'room' || named === 'current room' || visualRoomNames.has(roomName)) return true;
+  }
   if (/\b(?:can you|are you able to|how do|how would|could you)\b/i.test(text) && !/\b(?:please|now|show me|take a)\b/i.test(text)) return false;
-  return /\b(?:look at|show me|view|inspect|capture|take a picture of|take a screenshot of)\b.{0,65}\b(?:room|brain|reception|legal|finance|subscriptions|work board|office)\b/i.test(text);
+  const visualCommand = text.match(/\b(?:look at|show me|view|inspect|capture|take a picture of|take a screenshot of)\b(.{0,100})/i);
+  if (!visualCommand) return false;
+  const target = ` ${normalizeRoomName(visualCommand[1]!)} `;
+  return /\b(?:room|office)\b/.test(target) || [...visualRoomNames].some(name => target.includes(` ${name} `));
 }
 
 export async function validateElsieRoomImage(value: unknown, route: string, now = Date.now()): Promise<ElsieRoomImage | null> {
