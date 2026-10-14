@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetPanel } from "@/components/office/BudgetPanel";
 import { OwnerSignIn } from "@/components/office/OwnerSignIn";
 import { ClaudeReviewPanel } from "@/components/office/ClaudeReviewPanel";
+import { ConnectionDiagnosisPanel } from "@/components/office/ConnectionDiagnosisPanel";
 import { useOwnerSession } from "@/lib/owner-session";
 import { backupsRowState, databaseRowState } from "@/lib/systems-status";
 import { getManagerStatus, type ManagerStatus } from "@/lib/manager.functions";
@@ -201,6 +202,7 @@ function Systems() {
             )}
           </CardContent>
         </Card>
+        <ConnectionDiagnosisPanel />
       </div>
     </RoomShell>
   );
