@@ -7,6 +7,21 @@ const deps = (authorize = async () => true): OfficeMcpDeps => ({ resource, issue
 const request = (body: unknown, headers = {}) => new Request(resource, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer token", ...headers }, body: JSON.stringify(body) });
 const rpc = (method: string, params = {}) => ({ jsonrpc: "2.0", id: 1, method, params });
 describe("Office MCP access boundary", () => {
+  it("reports the exact server discovery list through existing authenticated status", async () => {
+    for (const viewing of [false, true]) {
+      const d: OfficeMcpDeps = {...deps(), status: async () => ({projects:[],tasks:[]}), work: async () => ({}),
+        ...(viewing ? {view: async () => ({content:[],isError:false})} : {})};
+      const list = await (await handleOfficeMcp(request(rpc("tools/list")), d)).json();
+      const response = await (await handleOfficeMcp(request(rpc("tools/call", {name:"get_office_status",arguments:{}})), d)).json();
+      const status = JSON.parse(response.result.content[0].text);
+      expect(status.connectorDiscovery.toolNames).toEqual(list.result.tools.map((t: {name:string}) => t.name));
+      expect(status.connectorDiscovery.toolNames).toHaveLength(viewing ? 15 : 10);
+      expect(status.connectorDiscovery.viewingConfigured).toBe(viewing);
+      expect(status.projects).toEqual([]);
+      expect((await handleOfficeMcp(request(rpc("tools/call", {name:"get_office_status"})), {...d,authorize:async()=>false})).status).toBe(401);
+    }
+  });
+
   it("reads scoped metadata with the authenticated token and reports failed reads", async () => {
     const status = vi.fn(async () => ({projects:[{id:"project-id",name:"Saved project"}],tasks:[]}));
     const d = {...deps(),status};
