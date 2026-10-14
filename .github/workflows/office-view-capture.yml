@@ -38,13 +38,18 @@ jobs:
       - name: Install the browser (pinned, no project dependencies)
         id: browser
         run: |
+          start=$SECONDS
           npm init -y >/dev/null
           npm install --no-audit --no-fund --ignore-scripts playwright@1.49.1
+          echo "::notice title=Capture timing::playwright package installed after $((SECONDS - start))s"
           if command -v google-chrome >/dev/null; then
             echo "channel=chrome" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Capture timing::using the runner's Chrome ($(google-chrome --version))"
           else
+            echo "::notice title=Capture timing::no runner Chrome, downloading Chromium"
             npx playwright install --with-deps chromium
           fi
+          echo "::notice title=Capture timing::browser ready after $((SECONDS - start))s"
       - name: Capture
         env:
           REQUEST_ID: ${{ inputs.request_id }}
