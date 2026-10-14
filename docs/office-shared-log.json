@@ -246,12 +246,12 @@
     },
     {
       "id": "2026-10-14-connector-discovery-diagnostic",
-      "at": "2026-10-14T20:23:00Z",
+      "at": "2026-10-14T20:22:29Z",
       "actor": "ChatGPT/Codex",
       "kind": "action",
       "audience": "office-status",
-      "summary": "Prepared authenticated status diagnostic reporting the same server tool registry as tools/list. Live deployment and readback pending.",
-      "evidence": "Deployed office-mcp v17 includes five viewing tools; current session exposes ten tools. Local candidate passed 10/15 registry equality and authorization denial checks."
+      "summary": "Deployed authenticated status diagnostic as office-mcp v18 and verified readback through this ChatGPT session: server registry returns all 15 tools with viewingConfigured true; session callable registry still contains only 10.",
+      "evidence": "get_office_status checkedAt 2026-10-14T20:22:29.12662+00:00; local candidate passed exact registry equality for 10/15 tools and denied unauthorized calls. Source changes saved in draft PR101; client discovery mismatch unresolved."
     }
   ]
 }
