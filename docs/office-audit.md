@@ -123,3 +123,6 @@ Owner-triggered ChatGPT dog build submission and status checks returned HTTP 403
 - Capture recording rejects closed/expired sessions, removed rooms and removed image permission. Physical deletion is acknowledged only after successful Storage removal and retried through an hourly GitHub OIDC cleanup workflow.
 - The panel has three independent switches. Missing database status is UNAVAILABLE, never a proven OFF state. Enabling requires a saved viewing identity and the owner authenticator; disabling one grant affects only that assistant.
 - Verification: isolated Postgres security/expiry/revocation tests, existing full suite (1,587 tests), targeted switch and workflow-identity tests, typecheck and production build. These are development checks, not proof that any assistant received a live room image.
+
+
+Connector discovery diagnostic (14 Oct 2026): authenticated MCP get_office_status includes the exact current server tool names and whether viewing is configured, using the same registry as tools/list. This reports server configuration only; client discovery and image delivery require separate live tests.
