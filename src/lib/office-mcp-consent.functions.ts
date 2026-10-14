@@ -10,7 +10,9 @@ export const isolatedOfficeConsent=createServerFn({method:'POST'}).validator(iso
   if(!config)return blocked;
   try{
     const r=await fetch(`${config.url}/functions/v1/office-consent`,{method:'POST',headers:{apikey:config.publishableKey,Authorization:`Bearer ${data.accessToken}`,'Content-Type':'application/json'},
-      body:JSON.stringify({authorizationId:data.authorizationId,identity:data.identity,action:data.action}),redirect:'error',signal:AbortSignal.timeout(55_000)});
+      // Cloudflare Workers reject the 'error' redirect mode before sending; refuse redirects manually instead.
+      body:JSON.stringify({authorizationId:data.authorizationId,identity:data.identity,action:data.action}),redirect:'manual',signal:AbortSignal.timeout(55_000)});
+    if(r.status>=300&&r.status<400)return blocked;
     const value=await r.json();
     if(!r.ok||!value||value.ok!==true)return blocked;
     if(data.action==='read'){
