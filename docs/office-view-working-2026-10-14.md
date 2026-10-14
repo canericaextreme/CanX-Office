@@ -7,6 +7,8 @@ On 14 Oct 2026, Claude's claude.ai "canx office" connector received real, fresh 
 |---|---|---|---|
 | Reception `/reception` (run 38500585213) | 02:22:30 | `92dbc12ba7c43f5bf686a51d2a62034defe7a099018f4c471a9d2232dbedc898` | `index-BkcfyTdi.js` |
 | Legal `/legal` (run 38500906927) | 02:26:22 | `4508eb24895d4b860e62b67ae1348c7578cfd279e1159ea0a4c5c19b38fafcdf` | `index-BkcfyTdi.js` |
+| Work Board `/work-board` (run 38505603254) | 03:20:06 | `2545119db305cd2bec1604f87d66ccb7f5d1fbd625a38fe9db05f532f2024692` | `index-BkcfyTdi.js` |
+| Legal `/legal` (run 38632147077) | 20:28:25 | `2a516a029d180a1c992a4d3b00b6dda0eef637570393554801fd41d4ccae495b` | `index-BkcfyTdi.js` |
 
 The same day, `read_room_information` returned real saved content for `/brain`: 62 notes, 11 files and 13 documents. Reception and Safe Highways came back empty because no notes are tagged to them (`canx_view_note_routes`).
 
@@ -39,3 +41,33 @@ Rebuild the bundles from the previous working commit (for example `62a8a82`, the
 
 ## Known slowness (next improvement, not required)
 Timing notices on 14 Oct showed that `npm install playwright@1.49.1` takes about 54 s of each run, while the runner's Chrome 154 is ready immediately. Caching that install would likely bring captures under 60 s, so one call would be enough.
+
+## Evening acceptance test with John (14 Oct 2026, 20:26–20:31 UTC)
+- A fresh Legal picture arrived through pending + collect, 93 s after the request (run 38632147077, 20:26:56–20:28:29).
+- A pixel comparison with the 02:26 Legal picture found only one changed strip, the "saved room records read …" timestamp. The live build was still `index-BkcfyTdi.js`. Lovable's edit history showed no app edit after 03:31 UTC, so an expected "update" had not been published. **Lesson:** a picture shows only what is published at `canx-office.lovable.app`.
+- John's checks, answered from the picture:
+  - 12 topic cards (20 card-style boxes in all).
+  - Blue cards: 3 clearly blue by pixel colour (Contracts & Agreements, Insurance & Liability, and the "Your legal papers, in order" banner), plus 2 borderline (Privacy & Data is teal, Software & Cloud Terms is slate).
+  - John accepted the visual connection as working.
+
+## Known limits and pitfalls (checked 14 Oct)
+- **Panels that need an authenticator are blank to the viewer.** On Work Board, the Master task list shows "Two-step verification is required" in the picture, because the read-only viewer account cannot pass an authenticator check.
+- **The Brain room capture failed once** (run 38505474093, 03:17 UTC). The browser was ready, then the capture step exited 1. The service only reports "The capture failed", and the cause is not yet known.
+- **Every authenticator code John enters signs out older assistant sessions.** That is Supabase's rule: sessions below aal2 are deleted on MFA verification. Reconnecting one assistant can sign the other out.
+- **ChatGPT (14 Oct, diagnosis only, not fixed).** ChatGPT showed only 10 tools, and its logs showed HTTP 401 `authorization_required`. office-mcp checks auth before `tools/list` (`src/lib/office-mcp.ts:63-64`) and returns the same list to every client (`:88`), so ChatGPT is showing a stale cached list. The likely cause is a session wiped by an authenticator code. Still unknown: whether ChatGPT has its own viewing grant (`canx_private.office_view_grants`, assistant `chatgpt`).
+- **Brain notes written through `write_office_record`** are rejected (opaque HTTP 400) when the detail is long or multi-paragraph. About 1.1 KB in a single paragraph saves fine.
+- **From Claude's environment:** PRs cannot be merged (John merges), git tags cannot be pushed, and Actions log downloads are blocked. Run and step status and `::notice::` annotations can be read through the GitHub API.
+
+## How we got here (path, 14 Oct 2026 UTC)
+1. **01:38** First live test. `read_room_information` worked. `view_room` timed out at the assistant's 60 s limit, but both capture runs succeeded (~100 s each). Cause: the picture arrived after the assistant had stopped waiting.
+2. **01:48** PR #98: use the runner's Chrome and wait 45 s / 55 s. John merged at 02:02. The next run still took ~85 s.
+3. **02:06** PR #99: `view_room` returns `pending` + `requestId`, and a second call collects the same picture. It also adds timing notices. John merged at 02:12.
+4. **02:12–02:21** John replaced `office-mcp` and `office-view` in Supabase with bundles built from `ad069a1`.
+5. **02:22** The first picture reached an assistant (Reception), followed by Legal at 02:26 and Work Board at 03:20.
+6. **20:28** The evening acceptance test (above) passed.
+
+## If it breaks: get back to this state
+1. **Office connector:** `view_room` should return `pending` then an image. If `view_room` does not appear, or calls fail with an auth error, reconnect the assistant's connector. Enter the authenticator code in the Office first, in the same browser.
+2. **Deployed functions:** each deployed function should match the SHA-256 above. If not, rebuild from `ad069a1` and redeploy (steps above).
+3. **Capture runs:** check them with `gh api repos/canericaextreme/canx-office/actions/workflows/office-view-capture.yml/runs`, which shows status, step timings and `Capture timing` notices.
+4. **Viewing grant:** if a picture call says permission is off, re-authorise the grant under Build & Testing → Assistant viewing access.
