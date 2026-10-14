@@ -257,3 +257,10 @@
 - [ ] Shared roster / Idea Lab storage — blocked: needs John-approved schema change.
 - [ ] Codex build handoff live readiness — blocked: GitHub repo variable/secret not verifiable from here.
 - [x] Drive: attach connection std_01m44yhvz6fn98jh6ww5s8zrsq (drive.file scope only), shared list/read/create/update tools for Elsie+Claude, no delete, honest selected-files status; tests/typecheck/build, commit, no publish.
+
+## ChatGPT room-picture tools missing (2026-10-14)
+- [x] Diagnosed: five viewing tools exist in office-mcp source since 10 Oct; ChatGPT's installed connector holds a stale tool list. Plan: diagnosis-room-picture-tools-missing-from-chatgpt-s-connecto-2026-10-14.md.
+- [ ] John: refresh/reconnect the CanX Office connector in ChatGPT once; check for list_office_rooms / view_room.
+- [ ] If tools still absent: redeploy office-mcp from current source (bundle-functions.mjs), then refresh connector again.
+- [ ] After tools appear: one real view_room call on an authorised room before claiming pictures work.
+- [ ] Claude 60 s picture timeout: unverified; captures take 30–90 s by design — retry fetch, don't re-request capture.
