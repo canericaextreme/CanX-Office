@@ -8,7 +8,7 @@ const NOW = Date.parse("2026-10-10T20:00:00Z");
 const PNG = btoa("png-bytes");
 const meta = (over: Record<string, unknown> = {}) => ({ room: "Reception", route: "/reception", capturedAt: new Date(NOW - 5_000).toISOString(), viewport: { name: "desktop", width: 1440, height: 900 }, buildVersion: "index-abc.js", state: "default", pageHeight: 1200, imageSha256: "a".repeat(64), ...over });
 const backend = (over: Partial<ViewBackend> = {}): ViewBackend => ({
-  capture: vi.fn(async () => "cap-1"), fetchCapture: vi.fn(async () => ({ meta: meta(), pngBase64: PNG })), read: vi.fn(async () => ({ notes: [] })), ...over,
+  capture: vi.fn(async () => "cap-1"), collect: vi.fn(async () => "cap-1"), fetchCapture: vi.fn(async () => ({ meta: meta(), pngBase64: PNG })), read: vi.fn(async () => ({ notes: [] })), ...over,
 });
 
 describe("view tools are read-only and strict", () => {
@@ -20,6 +20,8 @@ describe("view tools are read-only and strict", () => {
   it("reject unknown rooms, extra fields (including a claimed assistant name) and bad values", () => {
     expect(validViewArguments("view_room", { route: "/brain" })).toBe(true);
     expect(validViewArguments("view_room", { route: "/brain", viewport: "mobile", state: "synopsis_open" })).toBe(true);
+    expect(validViewArguments("view_room", { route: "/brain", requestId: "11111111-2222-4333-8444-555555555555" })).toBe(true);
+    expect(validViewArguments("view_room", { route: "/brain", requestId: "not-a-request" })).toBe(false);
     for (const bad of [{}, { route: "/nope" }, { route: "/brain", assistant: "claude" }, { route: "/brain", viewport: "huge" }, { route: 5 }, { route: "/brain", state: "x" }])
       expect(validViewArguments("view_room", bad as Record<string, unknown>)).toBe(false);
     expect(validViewArguments("list_office_rooms", {})).toBe(true);
@@ -86,6 +88,39 @@ describe("the service client", () => {
     expect(calls.map((c) => c.url.split("/").pop())).toEqual(["request", "wait", "fetch"]);
     expect(calls.every((c) => c.auth === "Bearer ASSISTANT-TOKEN")).toBe(true);
     expect(JSON.stringify(calls.map((c) => c.body))).not.toMatch(/assistant|permission|scope/i);
+  });
+  it("hands back a request id when the picture is still being taken, then collects that same picture", async () => {
+    const REQ = "11111111-2222-4333-8444-555555555555";
+    const calls: string[] = [];
+    let ready = false;
+    const fake = (async (url: string, init: RequestInit) => {
+      const route = String(url.split("/").pop());
+      calls.push(`${route}:${JSON.parse(String(init.body))["requestId"] ?? ""}`);
+      if (route === "request") return new Response(JSON.stringify({ ok: true, requestId: REQ }), { status: 200 });
+      if (route === "wait") return ready
+        ? new Response(JSON.stringify({ ok: true, captureId: "c1" }), { status: 200 })
+        : new Response(JSON.stringify({ ok: false, code: "capture_timeout", message: "not ready" }), { status: 504 });
+      return new Response(JSON.stringify({ ok: true, meta: meta(), pngBase64: PNG }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const b = httpViewBackend("https://x/y", fake);
+    const first = await runViewTool(b, "t", "view_room", { route: "/reception" }, NOW);
+    expect(first.content).toHaveLength(1);
+    expect(JSON.parse((first.content[0] as { text: string }).text)).toMatchObject({ status: "pending", requestId: REQ });
+    ready = true;
+    const second = await runViewTool(b, "t", "view_room", { route: "/reception", requestId: REQ }, NOW);
+    expect(second.isError).toBe(false);
+    expect(second.content[0]).toEqual({ type: "image", data: PNG, mimeType: "image/png" });
+    expect(calls).toEqual([`request:`, `wait:${REQ}`, `wait:${REQ}`, `fetch:`]); // no second picture was asked for
+  });
+  it("treats the client's own wait running out as still pending, never as a picture", async () => {
+    const REQ = "11111111-2222-4333-8444-555555555555";
+    const fake = (async (url: string) => {
+      if (String(url).endsWith("/request")) return new Response(JSON.stringify({ ok: true, requestId: REQ }), { status: 200 });
+      throw Object.assign(new Error("timed out"), { name: "TimeoutError" });
+    }) as unknown as typeof fetch;
+    const r = await runViewTool(httpViewBackend("https://x/y", fake), "t", "view_room", { route: "/reception" }, NOW);
+    expect(r.content.some((c) => c.type === "image")).toBe(false);
+    expect(JSON.parse((r.content[0] as { text: string }).text)).toMatchObject({ status: "pending", requestId: REQ });
   });
   it("turns a refusal from the service into a plain message and never a picture", async () => {
     const fake = (async () => new Response(JSON.stringify({ ok: false, code: "grant_not_active", message: "Viewing permission is off." }), { status: 403 })) as unknown as typeof fetch;
