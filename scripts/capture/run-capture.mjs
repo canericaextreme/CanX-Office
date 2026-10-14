@@ -127,7 +127,8 @@ export async function runCapture({ requestId, env = process.env }) {
   if (!ALLOWED_ROUTES.includes(route) || !(viewport in VIEWPORTS) || !["default", "synopsis_open"].includes(state)) return finish("wrong_room");
 
   const { chromium } = await import("playwright");
-  const browser = await chromium.launch();
+  // The workflow may point at the runner's preinstalled Chrome to skip a slow browser download.
+  const browser = await chromium.launch(process.env.CANX_CAPTURE_CHANNEL ? { channel: process.env.CANX_CAPTURE_CHANNEL } : {});
   try {
     const context = await browser.newContext({ viewport: VIEWPORTS[viewport], deviceScaleFactor: 1, serviceWorkers: "block" });
     await context.addInitScript(([key, value]) => { try { window.localStorage.setItem(key, value); } catch { /* the page will show it is not signed in */ } },

@@ -33,12 +33,20 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      # The assistant waits about 60s for a picture. Downloading Chromium took ~80s, so use the
+      # runner's preinstalled Chrome and only download a browser when it is missing.
       - name: Install the browser (pinned, no project dependencies)
+        id: browser
         run: |
           npm init -y >/dev/null
           npm install --no-audit --no-fund --ignore-scripts playwright@1.49.1
-          npx playwright install --with-deps chromium
+          if command -v google-chrome >/dev/null; then
+            echo "channel=chrome" >> "$GITHUB_OUTPUT"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - name: Capture
         env:
           REQUEST_ID: ${{ inputs.request_id }}
+          CANX_CAPTURE_CHANNEL: ${{ steps.browser.outputs.channel }}
         run: node scripts/capture/run-capture.mjs --request-id "$REQUEST_ID"

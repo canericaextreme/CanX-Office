@@ -106,7 +106,7 @@ export async function runViewTool(backend: ViewBackend, token: string, name: str
 /** Talks to the view service. The assistant's token is forwarded as-is; the service reads the identity from the database. */
 export function httpViewBackend(baseUrl: string, doFetch: typeof fetch = fetch): ViewBackend {
   const call = async (token: string, route: string, body: Record<string, unknown>) => {
-    const response = await doFetch(`${baseUrl}/${route}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(route === "wait" ? 100_000 : 30_000) });
+    const response = await doFetch(`${baseUrl}/${route}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(route === "wait" ? 55_000 : 30_000) });
     const json = await response.json().catch(() => ({})) as Record<string, unknown>;
     if (!response.ok || json["ok"] !== true) throw new ViewError(typeof json["message"] === "string" && json["message"].length < 300 ? json["message"] : "The Office viewing service refused the request.", typeof json["code"] === "string" ? json["code"] : "unavailable");
     return json;
