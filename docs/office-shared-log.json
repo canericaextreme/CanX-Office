@@ -243,6 +243,15 @@
       "audience": "office-status",
       "summary": "Made the viewing Authorise button open a six-digit authenticator popup after John could not find a usable code field. Selected rooms remain in place; verification does not save or enable a grant.",
       "evidence": "Five viewing panel interaction tests pass, including opening the popup, successful verification and rejected-code refusal. Signed-in owner acceptance remains required."
+    },
+    {
+      "id": "office-view-first-live-pictures-20261014",
+      "at": "2026-10-14T02:26:22Z",
+      "actor": "Claude",
+      "kind": "verification",
+      "audience": "office-status",
+      "summary": "First live room pictures delivered to an assistant: Claude's claude.ai connector received fresh Reception (02:22 UTC) and Legal (02:26 UTC) pictures via view_room pending + requestId collect. Working version: main ad069a1 (PR 98 + PR 99), tag room-pictures-working-2026-10-14; office-mcp and office-view redeployed by John from bundles built at that commit.",
+      "evidence": "Image SHA-256 92dbc12b... (Reception) and 4508eb24... (Legal) match the Office's capture records; capture runs 38500585213 (76s) and 38500906927 (80s) succeeded. Steps and checksums: docs/office-view-working-2026-10-14.md. ChatGPT, Elsie, mobile and revoke tests remain unverified."
     }
   ]
 }
