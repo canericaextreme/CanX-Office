@@ -15,9 +15,9 @@ The same day, `read_room_information` returned real saved content for `/brain`: 
 **Not proven:** ChatGPT, Elsie, mobile viewport, `synopsis_open` state, rooms other than Reception and Legal, revoke-then-refuse.
 
 ## Exact working version
-- Git: `main` at **`ad069a10646f4ee6f4eee71a5258efd566a8d9dc`** (merge of PR #99), tagged **`room-pictures-working-2026-10-14`**.
+- Git: `main` at **`ad069a10646f4ee6f4eee71a5258efd566a8d9dc`** (merge of PR #99). To get exactly this version: `git checkout ad069a10646f4ee6f4eee71a5258efd566a8d9dc`.
 - Changes that made it work: PR #98 (runner's Chrome, shorter waits) and PR #99 (pending + collect by `requestId`, timing notices).
-- Deployed function bundles were built from this commit with `scripts/office-view/bundle-functions.mjs`. Rebuilding from the tag gives byte-identical files:
+- Deployed function bundles were built from this commit with `scripts/office-view/bundle-functions.mjs`. Rebuilding from this commit gives byte-identical files:
   - `office-mcp.js` sha256 `dbac8bc3460d0c4938f40dc58a7162ad5b8df8b6214d0d88168d8d93edaa3cd9` (194,019 bytes)
   - `office-view.js` sha256 `e43052ff3d755a5bc39435006bd93e406af18fa274a13f8244fc952f4f4b8579` (28,732 bytes)
 - Capture workflow: `.github/workflows/office-view-capture.yml` as of that commit. It only takes effect from `main`, because the view service accepts only that exact workflow file on `refs/heads/main`.
