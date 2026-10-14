@@ -75,7 +75,7 @@ export const BROKER_MESSAGES: Record<BrokerCode, string> = {
   image_invalid: "The captured image was not valid. Nothing was kept.",
   image_too_large: "The captured image was too large. Nothing was kept.",
   checksum_mismatch: "The image did not match its record. Nothing was kept.",
-  capture_timeout: "The capture did not finish in time. No picture is available; try again.",
+  capture_timeout: "The picture was not ready in time. No picture is available yet; ask again in a minute.",
   capture_failed: "The capture failed. No picture is available.",
   dispatch_failed: "The capture runner could not be started. No picture is available.",
   unavailable: "The Office viewing service is unavailable right now. Missing access is not an empty Office.",
@@ -247,8 +247,9 @@ export async function requestStatus(deps: BrokerDeps, caller: Caller, requestId:
   return { status: row["status"] as RequestStatus["status"], captureId: (row["capture_id"] as string | null) ?? null, detail: (row["detail"] as string | null) ?? null };
 }
 
-/** Wait for the runner. A timeout is reported as a timeout, never as a picture. */
-export async function waitForCapture(deps: BrokerDeps, caller: Caller, requestId: string, timeoutMs = 90_000, pollMs = 2_000): Promise<string> {
+/** Wait for the runner. A timeout is reported as a timeout, never as a picture.
+ * 45s keeps the whole call inside the 60s an assistant waits for one tool call. */
+export async function waitForCapture(deps: BrokerDeps, caller: Caller, requestId: string, timeoutMs = 45_000, pollMs = 2_000): Promise<string> {
   const stop = deps.now() + timeoutMs;
   while (deps.now() < stop) {
     const s = await requestStatus(deps, caller, requestId);
