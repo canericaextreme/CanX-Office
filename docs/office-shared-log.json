@@ -243,6 +243,15 @@
       "audience": "office-status",
       "summary": "Made the viewing Authorise button open a six-digit authenticator popup after John could not find a usable code field. Selected rooms remain in place; verification does not save or enable a grant.",
       "evidence": "Five viewing panel interaction tests pass, including opening the popup, successful verification and rejected-code refusal. Signed-in owner acceptance remains required."
+    },
+    {
+      "id": "2026-10-14-connector-discovery-diagnostic",
+      "at": "2026-10-14T20:23:00Z",
+      "actor": "ChatGPT/Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared authenticated status diagnostic reporting the same server tool registry as tools/list. Live deployment and readback pending.",
+      "evidence": "Deployed office-mcp v17 includes five viewing tools; current session exposes ten tools. Local candidate passed 10/15 registry equality and authorization denial checks."
     }
   ]
 }
