@@ -62,7 +62,7 @@ describe("live voice refreshes durable memory on every turn", () => {
     expect(voiceTurnEvents(null)[0]).toMatchObject({ response: { output_modalities: ["audio"] } });
     const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
     expect(hook).toContain('payload.type === "conversation.item.input_audio_transcription.completed"');
-    expect(hook).toContain("requestRef.current(request, inputIdToRequestId(inputId))");
+    expect(hook).toContain("requestRef.current(request)");
     expect(hook).toContain("spokenOfficeAnswer(output)");
   });
 

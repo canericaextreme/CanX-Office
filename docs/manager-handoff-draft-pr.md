@@ -1,3 +1,5 @@
+> Historical repair: withdrawn by the owner-requested baseline restoration. See docs/elsie-voice-rollback-draft-pr.md.
+
 # Repair Elsie's manager builder handoff
 
 An explicit green CanX Office code-change request now invokes the existing builder submission tool even when the reasoning model returns a conversational answer. A separate preview is not required. A short explicit agreement (such as “Yes, go ahead”) can continue the immediately preceding explicit owner code-change scope; assistant prose never supplies execution scope.

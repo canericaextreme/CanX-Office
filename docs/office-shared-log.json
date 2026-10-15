@@ -297,6 +297,15 @@
       "audience": "office-status",
       "summary": "Repaired realtime barge-in handling and exposed Stop speaking without ending the call. Pending older Office results remain written but no longer restart playback after interruption. Ready for publication; real device acceptance pending.",
       "evidence": "1630 tests in 160 files passed; typecheck, production build and diff check passed. Six new lifecycle cases cover both voice modes, next-turn continuity, delayed results and cancelled tool responses. No connections, credentials, budgets or authentication changed."
+    },
+    {
+      "id": "2026-10-15-elsie-pre-handoff-restoration",
+      "at": "2026-10-15T03:22:52.177733Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "At John's request, restored all application source to the pre-handoff baseline e10dd95 after his report of lost interruption and conversation continuity. PRs 102/103 source changes withdrawn; saved records preserved.",
+      "evidence": "Build 24 (38675160450) originally produced only a shallow-history blocker report. Follow-up used the actual baseline: source diff is empty against e10dd95. All 1614 tests in 159 files, typecheck, production build and diff check passed. Publication and signed-in conversation/interruption/close-reopen acceptance still pending; handoff redesign deferred."
     }
   ]
 }

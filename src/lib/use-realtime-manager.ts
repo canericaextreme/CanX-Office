@@ -39,8 +39,7 @@ export interface DirectToolOutput { ok: boolean; result: string; note: string }
  */
 export async function directToolOutput(
   rawArgs: string,
-  run: ((request: string, requestId?: string) => Promise<string>) | undefined,
-  requestId?: string,
+  run: ((request: string) => Promise<string>) | undefined,
 ): Promise<DirectToolOutput> {
   let request = "";
   try { const parsed = JSON.parse(rawArgs || "{}") as { request?: unknown }; request = typeof parsed.request === "string" ? parsed.request.trim().slice(0, 4000) : ""; }
@@ -48,7 +47,7 @@ export async function directToolOutput(
   if (!run) return { ok: false, result: "", note: "The Office connection is not available. Nothing was checked, saved or changed." };
   if (!request) return { ok: false, result: "", note: "No request was received. Ask John to repeat it. Nothing was saved or changed." };
   try {
-    const result = (await (requestId ? run(request, requestId) : run(request))).trim();
+    const result = (await run(request)).trim();
     if (!result) return { ok: false, result: "", note: "The Office returned no answer. Nothing should be described as saved or changed." };
     return { ok: true, result, note: "Authoritative Office result. Report only what it says." };
   } catch (failure) {
@@ -89,7 +88,7 @@ export function useRealtimeManager(
   accessToken: string,
   team: { name: string; role: string; room: string }[],
   onTranscript: (role: "user" | "assistant", text: string, turnId?: string) => void,
-  onOfficeRequest?: (request: string, requestId?: string) => Promise<string>,
+  onOfficeRequest?: (request: string) => Promise<string>,
   onTurnFailed?: (turnId: string) => void,
   mode: ManagerVoiceMode = "relay",
 ): RealtimeManager {
@@ -112,8 +111,6 @@ export function useRealtimeManager(
   const channelRef = useRef<RTCDataChannel | null>(null);
   const generationRef = useRef(0);
   const activeRef = useRef(false);
-  // Invalidate only playback; an authorised Office action may still finish.
-  const playbackEpochRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const transcriptRef = useRef(onTranscript);
   transcriptRef.current = onTranscript;
@@ -210,7 +207,6 @@ export function useRealtimeManager(
     if (muted) sendEvent({ type: "input_audio_buffer.clear" });
   }, [sendEvent]);
   const interrupt = useCallback(() => {
-    playbackEpochRef.current += 1;
     sendEvent({ type: "response.cancel" });
     sendEvent({ type: "output_audio_buffer.clear" });
     micMutedRef.current = false;
@@ -218,7 +214,6 @@ export function useRealtimeManager(
     setMicMuted(false);
     setPhase("listening");
     setStage("listening");
-    setActivity("Elsie stopped speaking. Listening to you…");
   }, [sendEvent]);
   const say = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -374,29 +369,22 @@ export function useRealtimeManager(
       };
       channel.onclose = () => fail("Elsie's voice connection ended. Press Start conversation to reconnect.");
       let outputPlaying = false;
-      let responseActive = false;
       let answerAwaitingPlayback = false;
       const handledInputs = new Set<string>();
       let currentInputId = "";
-      const requestIds = new Map<string, string>();
-      const inputIdToRequestId = (id: string) => {
-        if (!requestIds.has(id)) requestIds.set(id, crypto.randomUUID());
-        return requestIds.get(id)!;
-      };
       const executeRequest = async (inputId: string, request: string) => {
         if (!requestRef.current || !inputId || inputId !== currentInputId || handledInputs.has(inputId)) return;
         // The completed provider transcript is the sole trigger for the guarded
         // Office adapter. Do not depend on a second model-generated function call:
         // that extra handoff can fail after transcription and leave a turn silent.
         handledInputs.add(inputId);
-        const playbackEpoch = playbackEpochRef.current;
         console.info("[astra-voice]", { stage: "assistant_request_started", turn: inputId });
         setPhase("thinking");
         setStage("thinking");
         setActivity("Elsie heard your request and is preparing an answer…");
         let output = "";
         const requestStartedAt = Date.now();
-        try { output = (await requestRef.current(request, inputIdToRequestId(inputId))).trim(); }
+        try { output = (await requestRef.current(request)).trim(); }
         catch (failure) {
           const known = failure instanceof VoiceTurnError ? failure : null;
           // Safe diagnostics only: stage, HTTP status, timing, retry count (never retried automatically).
@@ -424,7 +412,7 @@ export function useRealtimeManager(
         // blocked or failed speaker can never erase a completed Office reply.
         transcriptRef.current("assistant", output, inputId);
         console.info("[astra-voice]", { stage: "assistant_response_received", turn: inputId });
-        if (!current() || channel.readyState !== "open" || inputId !== currentInputId || playbackEpoch !== playbackEpochRef.current) {
+        if (!current() || channel.readyState !== "open" || inputId !== currentInputId) {
           console.info("[astra-voice]", { stage: "playback_skipped", turn: inputId });
           return;
         }
@@ -454,13 +442,11 @@ export function useRealtimeManager(
       const runDirectTool = async (callId: string, rawArgs: string, turnId: string) => {
         if (!callId || !turnId || turnId !== currentInputId || handledCalls.has(callId)) return;
         handledCalls.add(callId);
-        const playbackEpoch = playbackEpochRef.current;
-        const output = await directToolOutput(rawArgs, requestRef.current, inputIdToRequestId(turnId));
+        const output = await directToolOutput(rawArgs, requestRef.current);
         // Preserve the authoritative result even if playback is interrupted.
         saveDirectAnswer(turnId, output.ok ? output.result : output.note);
         if (!current() || channel.readyState !== "open") return;
         sendEvent({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) } });
-        if (turnId !== currentInputId || playbackEpoch !== playbackEpochRef.current) return;
         sendEvent({ type: "response.create" });
         setActivity(output.ok ? "Office answer received. Elsie is replying…" : "The Office request did not finish. Elsie will say so.");
       };
@@ -501,8 +487,6 @@ export function useRealtimeManager(
           fail(hint);
           return;
         }
-        if (payload.type === "response.created") responseActive = true;
-        if (payload.type === "response.done") responseActive = false;
         if (sessionMode === "direct" && payload.type === "response.created" && payload.response?.id) {
           // A greeting is not an answer to an Office request, even if John
           // starts talking before the greeting's response event arrives.
@@ -521,7 +505,7 @@ export function useRealtimeManager(
               .map(part => part.transcript ?? part.text ?? "").join("\n").trim();
             saveDirectAnswer(turnId, text);
           }
-          for (const item of payload.response?.status === "cancelled" ? [] : payload.response?.output ?? []) {
+          for (const item of payload.response?.output ?? []) {
             if (item.type === "function_call" && (item.name === "submit_office_request" || item.name === "check_codex_builds" || item.name === "check_claude_builds") && item.call_id) {
               setPhase("thinking");
               setActivity("Elsie is checking the Office…");
@@ -538,19 +522,7 @@ export function useRealtimeManager(
           currentInputId = payload.item_id;
           setActivity("Heard your voice. Checking the Office…");
         }
-        if (payload.type === "input_audio_buffer.speech_started") {
-          // Provider VAD flags alone do not clear every queued WebRTC answer.
-          // Stop playback explicitly, keep the microphone and session open,
-          // and prevent a late Office reply from speaking over the new turn.
-          if (outputPlaying || answerAwaitingPlayback || responseActive) {
-            recordVoiceDiag("interruption", sessionMode, "spoke over Elsie");
-            interrupt();
-          } else playbackEpochRef.current += 1;
-          currentInputId = "";
-          outputPlaying = false;
-          responseActive = false;
-          answerAwaitingPlayback = false;
-        }
+        if (payload.type === "input_audio_buffer.speech_started" && outputPlaying) recordVoiceDiag("interruption", sessionMode, "spoke over Elsie");
         if (payload.type === "input_audio_buffer.speech_stopped") speechEndedAt = Date.now();
         if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setStage("hearing"); setActivity("Hearing you speak…"); }
         if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
@@ -675,7 +647,7 @@ export function useRealtimeManager(
       // Keep the watchdog until onopen, so a stalled connection cannot look ready.
       if (!current() || channelRef.current?.readyState === "open") clearTimeout(timeout);
     }
-  }, [accessToken, mintSession, team, teardown, playAudio, sendEvent, interrupt]);
+  }, [accessToken, mintSession, team, teardown, playAudio, sendEvent]);
 
   return { phase, on, error, playbackError, playbackBlocked, activity, stage, resumeAudio, start: () => void start(), stop, micMuted, toggleMic, interrupt, say, mode };
 }

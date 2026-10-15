@@ -131,3 +131,7 @@ The OfficeManager text and realtime voice paths now attach a stable request UUID
 ## Elsie voice interruption — 15 October 2026
 
 A user-reported missing barge-in exposed a client gap: speech-start events only recorded interruption diagnostics, relying on provider cancellation. The realtime client now explicitly cancels the response and clears queued audio on detected barge-in, retains the open microphone/session, and suppresses stale playback from pending Office replies while preserving their written results. Cancelled direct responses do not dispatch new tools. A visible Stop speaking control uses the same interruption path without ending the call. Both live voice modes have lifecycle fixtures; acoustic detection and real device timing still require John's signed-in test. Record-and-reply fallback remains a separate mode.
+
+## Elsie baseline restoration — 15 October 2026
+
+At John's request, the source changes in PRs 102 and 103 are reversed to baseline e10dd95 after his report of worse interruption, lost conversational context after closing/reopening, and continued failed handoff. Earlier dated validation entries remain historical; they do not establish current live behavior. The deterministic handoff override, added request receipts and explicit interruption patch are withdrawn. Existing pre-change voice, room access and saved conversation mechanisms remain. Real-device conversation, interruption and close/reopen memory acceptance is pending; further handoff work is deferred until that baseline is accepted.
