@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runManagerChatWith, sanitizeToolArgs, type ManagerDeps } from "./manager.functions";
 import { builderChoiceFor, directBuildRefusal, taskExecutionRefusal } from "./builder-choice";
 import { isClaudeStatusCommand } from "./codex-status-command";
@@ -11,10 +11,19 @@ const OWNER: OwnerVerification = { ok: true, userId: "u1", email: "owner@example
 const DENIED: OwnerVerification = { ok: false, reason: "mfa_required", message: DENY_MESSAGES["mfa_required"] };
 const noFetch = vi.fn(() => { throw new Error("no paid call expected"); }) as unknown as typeof fetch;
 
+beforeEach(() => { vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co"); vi.stubEnv("CANX_SUPABASE_PUBLISHABLE_KEY", "test-key"); });
+afterEach(() => vi.unstubAllEnvs());
+
 function chatDeps(toolName: string | null, overrides: Partial<ManagerDeps> = {}, toolArgs: Record<string, unknown> = {}) {
   const runBuild = vi.fn().mockResolvedValue({ ok: true, detail: "Accepted", runs: [{ id: 7, state: "queued", title: "b", url: "u" }] });
-  const fetchImpl = vi.fn(async (input: unknown) => {
+  let receiptTask: Record<string, unknown> | null = null;
+  const fetchImpl = vi.fn(async (input: unknown, init?: RequestInit) => {
     const url = String(input);
+    if (url.includes("/rest/v1/manager_tasks")) {
+      if (init?.method === "POST") receiptTask = { ...JSON.parse(String(init.body)), evidence: "", status: "open", updated_at: "initial" };
+      if (init?.method === "PATCH") receiptTask = { ...receiptTask, ...JSON.parse(String(init.body)) };
+      return Response.json(receiptTask ? [receiptTask] : []);
+    }
     if (url.includes("/v1/models/")) return Response.json({});
     if (url.includes("/v1/responses")) return Response.json({ output: toolName ? [{ type: "function_call", name: toolName, arguments: JSON.stringify(toolArgs) }] : [] });
     return Response.json({});
@@ -78,7 +87,7 @@ describe("Elsie builder routing", () => {
   it("sends to Claude only when John named Claude", async () => {
     const h = chatDeps("start_claude_build");
     await runManagerChatWith(h.deps, say("Claude, fix the reception label"));
-    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("claude", "t", "Claude, fix the reception label", undefined);
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("claude", "t", expect.stringContaining("Claude, fix the reception label"), undefined, undefined);
   });
   it("keeps Codex the default and rejects a silent model switch to Claude", async () => {
     const h = chatDeps("start_claude_build");
@@ -87,7 +96,7 @@ describe("Elsie builder routing", () => {
     expect(reply.actionResults[0]).toMatchObject({ name: "start_claude_build", status: "stopped" });
     const c = chatDeps("start_codex_build");
     await runManagerChatWith(c.deps, say("Fix the reception label"));
-    expect(c.runBuild).toHaveBeenCalledExactlyOnceWith("codex", "t", "Fix the reception label", undefined);
+    expect(c.runBuild).toHaveBeenCalledExactlyOnceWith("codex", "t", expect.stringContaining("Fix the reception label"), undefined, undefined);
   });
   it("never dispatches from a discussion or example", async () => {
     const h = chatDeps("start_codex_build");
@@ -114,9 +123,10 @@ describe("Elsie builder routing", () => {
   });
   it("allows only one build attempt even when the provider calls both builders", async () => {
     const h = chatDeps(null);
-    vi.mocked(h.fetchImpl).mockImplementation(async input => String(input).includes("/v1/models/") ? Response.json({}) : Response.json({output:[{type:"function_call",name:"start_claude_build",arguments:"{}"},{type:"function_call",name:"start_codex_build",arguments:"{}"}]}));
+    const original = vi.mocked(h.fetchImpl).getMockImplementation()!;
+    vi.mocked(h.fetchImpl).mockImplementation(async (input, init) => String(input).includes("/v1/responses") ? Response.json({output:[{type:"function_call",name:"start_claude_build",arguments:"{}"},{type:"function_call",name:"start_codex_build",arguments:"{}"}]}) : original(input, init));
     await runManagerChatWith(h.deps, say("Claude, fix the reception label"));
-    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("claude", "t", "Claude, fix the reception label", undefined);
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("claude", "t", expect.stringContaining("Claude, fix the reception label"), undefined, undefined);
   });
 });
 
@@ -175,5 +185,54 @@ describe("task execution with recorded builder", () => {
     await executeTaskWith(h.deps, "t", id, false, "codex");
     expect(h.buildClaude).toHaveBeenCalledOnce();
     expect(h.build).not.toHaveBeenCalled();
+  });
+});
+
+ describe('current builder-draft-first owner rule', () => {
+  const instruction = 'Pass this to the builder: apply cream-colored writing for all of the text in the Research room.';
+  it('accepts the exact recorded cream-writing handoff without changing its scope', async () => {
+    expect(directBuildRefusal(instruction, 'codex')).toBeNull();
+    const h = chatDeps('start_codex_build');
+    await runManagerChatWith(h.deps, say(instruction));
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith('codex', 't', expect.stringContaining(instruction), undefined, undefined);
+  });
+  it.each(['codex', 'claude'] as const)('routes an explicit %s request when the model wrongly repeats the withdrawn preview blocker', async builder => {
+    const text = builder === 'claude' ? 'Claude, apply cream writing to the Research room' : instruction;
+    const h = chatDeps(null);
+    const original = vi.mocked(h.fetchImpl).getMockImplementation()!;
+    vi.mocked(h.fetchImpl).mockImplementation(async (input, init) => String(input).includes('/v1/responses') ? Response.json({ output_text: 'I cannot submit without an outside-GitHub preview.' }) : original(input, init));
+    const r = await runManagerChatWith(h.deps, say(text));
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith(builder, 't', expect.stringContaining(text), undefined, undefined);
+    expect(r.text).toContain('Accepted'); expect(r.text).toContain('queued');
+    expect(r.text).not.toContain('cannot submit');
+  });
+  it.each(['What is happening with the cream writing?', 'Do not apply cream writing to the room yet.', 'How would you apply cream writing?', 'For example, change the room text', 'Change the room text and email a vendor', 'Claude or Codex, change room text'])('does not turn discussion, protected scope or ambiguity into a submission: %s', async text => {
+    const h = chatDeps(null);
+    await runManagerChatWith(h.deps, say(text));
+    expect(h.runBuild).not.toHaveBeenCalled();
+  });
+  it('never restarts an old instruction from history on a conversational follow-up', async () => {
+    const h = chatDeps(null);
+    await runManagerChatWith(h.deps, { accessToken: 't', messages: [{ role: 'user', content: instruction }, { role: 'assistant', content: 'Recorded' }, { role: 'user', content: 'Good morning' }] });
+    expect(h.runBuild).not.toHaveBeenCalled();
+  });
+  it('checks the same saved run when the same owner scope arrives twice', async () => {
+    const h = chatDeps('start_codex_build');
+    await runManagerChatWith(h.deps, say(instruction));
+    await runManagerChatWith(h.deps, say(instruction));
+    expect(h.runBuild).toHaveBeenCalledTimes(2);
+    expect(h.runBuild.mock.calls[1]).toEqual(['codex', 't', undefined, undefined, 7]);
+  });
+  it('includes the actual current room in a spoken this-room request', async () => {
+    const h = chatDeps('start_codex_build');
+    await runManagerChatWith(h.deps, { ...say('Apply cream writing in this room'), currentRoute: '/research' });
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith('codex', 't', expect.stringContaining('(/research)'), undefined, undefined);
+  });
+  it('reports an uncertain result once without a second submission', async () => {
+    const h = chatDeps('start_codex_build'); h.runBuild.mockResolvedValue({ ok: false, detail: 'Timed out; submission unconfirmed. Do not retry.' });
+    const r = await runManagerChatWith(h.deps, say(instruction));
+    expect(h.runBuild).toHaveBeenCalledOnce();
+    expect(r.actionResults[0]?.status).toBe('stopped');
+    expect(r.text).toContain('unconfirmed');
   });
 });

@@ -306,6 +306,15 @@
       "audience": "office-status",
       "summary": "At John's request, restored all application source to the pre-handoff baseline e10dd95 after his report of lost interruption and conversation continuity. PRs 102/103 source changes withdrawn; saved records preserved.",
       "evidence": "Build 24 (38675160450) originally produced only a shallow-history blocker report. Follow-up used the actual baseline: source diff is empty against e10dd95. All 1614 tests in 159 files, typecheck, production build and diff check passed. Publication and signed-in conversation/interruption/close-reopen acceptance still pending; handoff redesign deferred."
+    },
+    {
+      "id": "2026-10-15-elsie-owner-build-rule-corrected",
+      "at": "2026-10-15T03:57:22.043639Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "John withdrew the mandatory outside-GitHub preview prerequisite. Canonical Brain workflow and conflicting historical Brain-plan wording updated with version checks and read back. Server handoff corrected without changing restored voice files; live acceptance reserved for morning.",
+      "evidence": "Owner instruction 14 Oct 20:50 Whitehorse; note aa106842-7fb1-4df2-8693-7bb461e72b11 verified version 63157ba1a1773016be4b0b5c10ee43a5; historical plan note verified version ccb2b36c5a1431d1613685ed94d5a16a. Exact Pass this to the builder: apply wording, stale model refusal, owner/scope receipts, current-room scope, duplicate checks and uncertainty tested. All 1634 tests in 160 files, typecheck, production build and diff check passed. OfficeManager, realtime hook and realtime session configuration unchanged. No paid cream-text build started."
     }
   ]
 }

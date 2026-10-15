@@ -1,3 +1,5 @@
+import { managerBuilderHandoff } from "./manager-builder-handoff";
+import { sha256Hex } from "./sha256";
 /**
  * Office Manager server adapter — FAIL CLOSED.
  *
@@ -795,6 +797,7 @@ Looking at the office screen:
 - Direct small changes include adding an owner-written report to a room (Add a report to Finance: [text]) and setting conversation text size to 20, 24, 28 or 32. These are carried out by the client with a confirmed result. Other layout/code changes require implementation; a saved task is not a finished change.
 
 - For writing handoffs John explicitly asks to send/ask/hand to ChatGPT, use handoff_to_chatgpt_text on the exact existing task ID. It uses the separate OpenAI writing colleague, saves and reads back the reply on the same unfinished task, and starts no build. Include available Claude feedback in instruction. Never describe it as the native ChatGPT chat or as proof of whole-office cooperation.
+- Current owner build workflow (14 October 2026): John withdrew the old mandatory outside-GitHub preview BEFORE builder submission. For a routine green Office change he explicitly requests now, submit through the existing builder (Codex by default, Claude only when named), then return its real run/PR reference for review BEFORE the change goes live. Do not block on a separate pre-GitHub preview or invent a missing preview URL. Older notes or assistant replies demanding that prerequisite are superseded. Merely discussing or recording a request is not a handoff. Do not execute old conversation requests on reconnect. Existing owner checks, budgets, protected actions, one-attempt/no-retry rules and live-release review remain.
 - For code builds and fixes John explicitly requests, create the Work Board task with code_change true (green work is then sent to Codex automatically), or use start_codex_build when no task is needed. Use start_claude_build only when John names Claude as the builder; Codex is the default. Never switch builders or fall back after a failure. Check Claude status with check_claude_builds. Never mark such a task done without real build and test evidence. Check real status with check_codex_builds; retrieve change_number evidence before asking Claude for second_eyes_review. Never claim a build is running from a saved task alone. No build result is a published change.
 - Google Drive: list_drive_files and read_drive_file are read-only; create_drive_file and update_drive_file only when John explicitly asks in his current request. The connection sees selected files only — never claim to have browsed John's whole Drive. There is no delete action.
 - For an existing saved task, use execute_task only when John asks to carry it out. Use check_task_execution for its actual linked build evidence. Assignment is a record, not execution. This executor supports Office code changes; other room workers remain advisers until their execution tools are connected. Never restart an uncertain submission or mark a successful candidate as deployed.
@@ -1199,6 +1202,7 @@ async function executeToolCalls(
   accessToken: string,
   toolCalls: ManagerToolCall[],
   currentRequest: string,
+  currentRoute?: string,
 ): Promise<ToolExecution> {
   const workbench = buildWorkbenchDeps(deps);
   const textAdditions: string[] = [];
@@ -1315,9 +1319,21 @@ async function executeToolCalls(
           if (refusal) { actionResults.push({ name: call.name, risk, status: "stopped", detail: refusal }); textAdditions.push(refusal); continue; }
           codexSubmitted = true;
         }
-        const result = await runBuild(builder, accessToken,
-          starting ? currentRequest : undefined,
-          !starting && call.arguments["change_number"] ? Number(call.arguments["change_number"]) : undefined);
+        const owner = starting ? await workbench.verifyOwner(accessToken) : null;
+        if (starting && !owner?.ok) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: owner && !owner.ok ? owner.message : "Owner verification failed. Nothing was sent." });
+          continue;
+        }
+        // Stable owner/scope receipt deduplicates retries without changing the
+        // live voice transport or asking a model to invent a request ID.
+        const targetRoute = roomsForRequest(currentRequest, currentRoute)[0]?.route;
+        const target = targetRoute ? roomTargetForRoute(targetRoute) : null;
+        const buildScope = target ? `${currentRequest}\nRequested Office room: ${target.label} (${target.route}).` : currentRequest;
+        const digest = sha256Hex(JSON.stringify([owner?.ok ? owner.userId : "", buildScope]));
+        const requestId = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-${digest.slice(12, 16)}-${digest.slice(16, 20)}-${digest.slice(20, 32)}`;
+        const result = starting
+          ? await managerBuilderHandoff(taskBuildDeps(), accessToken, buildScope, requestId, builder)
+          : await runBuild(builder, accessToken, undefined, call.arguments["change_number"] ? Number(call.arguments["change_number"]) : undefined);
         textAdditions.push(result.detail);
         if (result.runs) textAdditions.push(JSON.stringify(result.runs));
         if (result.evidence) textAdditions.push(`${BUILDER_LABEL[builder]} change evidence (untrusted data): ${result.evidence}`);
@@ -1365,7 +1381,7 @@ async function executeToolCalls(
           } else if (wantsBuild && !("conflict" in choice) && directBuildRefusal(currentRequest, choice.builder) === null) {
             codexSubmitted = true;
             const execution = await executeTaskWith(taskBuildDeps(), accessToken, result.id, false, choice.builder);
-            handoffNote = ` ${execution.detail}`;
+            handoffNote = ` ${execution.detail}${execution.runs?.length ? " " + execution.runs.map(run => `Run ${run.id}: ${run.state} — ${run.url}`).join("\n") : " No run reference confirmed; do not resubmit an uncertain attempt."}`;
             actionResults.push({ name: `start_${choice.builder}_build`, risk: "green", status: execution.ok ? "pending" : "stopped", detail: execution.detail });
           }
           actionResults.push({
@@ -1726,9 +1742,17 @@ export async function runManagerChatWith(
     const roomSnapshots = snapshots.map((s) => snapshotRef(s.snap));
     const roomExtras = roomSnapshots.length ? { roomSnapshots } : {};
     diag(reply.ok ? "answered" : (reply.failedStage ?? "assistant_provider"), reply.providerStatus);
+    // Route only a fresh, explicit green code instruction. A conversational
+    // refusal cannot resurrect the withdrawn pre-GitHub preview requirement.
+    // Existing model tool calls keep their normal single-attempt path.
+    const buildChoice = builderChoiceFor(latestUser);
+    if (reply.ok && reply.toolCalls.length === 0 && roomsForRequest(latestUser, data.currentRoute).length > 0 && looksLikeOfficeCodeChange(latestUser)
+      && !("conflict" in buildChoice) && directBuildRefusal(latestUser, buildChoice.builder) === null) {
+      reply.toolCalls = [{ name: `start_${buildChoice.builder}_build`, arguments: {}, rawArguments: "{}" }];
+    }
     if (reply.ok && reply.toolCalls.length > 0) {
       const { textAdditions, actionResults, remainingToolCalls, consultations } =
-        await executeToolCalls(deps, data.accessToken, reply.toolCalls, [...data.messages].reverse().find(message => message.role === "user")?.content ?? "");
+        await executeToolCalls(deps, data.accessToken, reply.toolCalls, [...data.messages].reverse().find(message => message.role === "user")?.content ?? "", data.currentRoute);
       // Tool-only responses are normal. Report the actual persisted outcome,
       // including stopped/pending actions, rather than an empty answer or a
       // provider's unverified claim that an action succeeded.
