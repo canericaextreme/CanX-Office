@@ -34,9 +34,9 @@ describe("ChatGPT Work panel belongs to the companion", () => {
     expect(links).toHaveLength(1);
     const link = links[0]?.[0] ?? "";
     expect(link).toContain('href="https://chatgpt.com/"');
-    expect(link).toContain('target="_blank"');
+    expect(link).toContain('target={isMobile ? "_self" : "_blank"}');
     expect(link).toContain('rel="noopener noreferrer"');
-    expect(link).toContain('aria-label="Open ChatGPT in a new tab"');
+    expect(link).toContain('aria-label={isMobile ? "Open ChatGPT in this tab" : "Open ChatGPT in a new tab"}');
     expect(link).toContain("Open ChatGPT");
     expect(panelSource).toContain('aria-label="CanX Office companion (OpenAI)"');
     expect(panelSource).toContain("CanX Office companion (OpenAI)</h2>");

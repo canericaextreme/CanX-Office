@@ -100,6 +100,8 @@ import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/record
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { useBackgroundScrollLock } from "@/lib/use-background-scroll-lock";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileTalkControl } from "./MobileTalkControl";
+import { useVisibleViewport } from "@/hooks/use-visible-viewport";
 import { useMobileOverlayShield } from "@/lib/use-mobile-overlay-shield";
 import { useTranscriptScrollContainment } from "@/lib/use-transcript-scroll-containment";
 import {
@@ -186,6 +188,7 @@ export function OfficeManager() {
   useBackgroundScrollLock(open && !minimized);
   // On phones the open panel sits inside a full-viewport layer so the office is never a touch target.
   const isMobile = useIsMobile();
+  const visibleViewport = useVisibleViewport(isMobile);
   const mobileShieldActive = isMobile && open && !minimized;
   const mobileShieldRef = useMobileOverlayShield<HTMLDivElement>(mobileShieldActive);
   const [tab, setTab] = useState<Tab>("now");
@@ -1178,7 +1181,7 @@ export function OfficeManager() {
           aria-expanded={false}
           aria-controls="office-manager-panel"
           aria-label="Open Office Manager Elsie"
-          className="fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-2 rounded-xl border border-slate-950 bg-slate-900 px-2 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:text-white"
+          className="canx-manager-launcher fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-2 rounded-xl border border-slate-950 bg-slate-900 px-2 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:text-white"
         >
           <OfficeWorkerIcon /> <span className="whitespace-normal leading-tight">Office Manager Elsie</span>
         </Button>
@@ -1187,7 +1190,7 @@ export function OfficeManager() {
       {open && minimized && (
         <div
           aria-label="Office Manager, minimised"
-          className="fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center rounded-xl border border-slate-950 bg-slate-900 px-1 text-white shadow-lg"
+          className="canx-manager-launcher fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center rounded-xl border border-slate-950 bg-slate-900 px-1 text-white shadow-lg"
         >
           <button
             type="button"
@@ -1215,6 +1218,7 @@ export function OfficeManager() {
       {open && (
         <div
           ref={mobileShieldRef}
+          style={mobileShieldActive ? visibleViewport : undefined}
           data-testid="astra-mobile-overlay"
           data-active={mobileShieldActive ? "true" : "false"}
           className={mobileShieldActive ? "pointer-events-auto fixed inset-0 z-[60] h-screen h-[100svh] h-[100dvh] w-screen overflow-hidden overscroll-none bg-background" : "contents"}
@@ -1222,9 +1226,10 @@ export function OfficeManager() {
         <aside
           ref={panel.ref as React.RefObject<HTMLElement>}
           id="office-manager-panel"
+          data-mobile={mobileShieldActive ? "true" : undefined}
           aria-label="Office Manager"
           hidden={minimized}
-          style={mobileShieldActive ? undefined : fullScreen ? { top: 8, bottom: 8, left: 8, right: 56, width: "auto", height: "auto", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
+          style={mobileShieldActive ? visibleViewport : fullScreen ? { top: 8, bottom: 8, left: 8, right: 56, width: "auto", height: "auto", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
           className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
           } flex-col overflow-hidden overscroll-contain border border-border bg-card shadow-2xl ${
@@ -1332,7 +1337,7 @@ export function OfficeManager() {
           </div>
 
           {tab === "now" && (
-            <>
+            <div className={isMobile ? "canx-manager-conversation" : "contents"}>
               {copyStatus && <p role="status" className="shrink-0 px-3 py-1 text-sm">{copyStatus}</p>}
 
 
@@ -1583,7 +1588,10 @@ export function OfficeManager() {
                 )}
               </div>
 
-              <div className="max-h-[35dvh] shrink-0 overflow-y-auto overscroll-contain border-t border-border bg-card px-3 pb-2">
+              <div data-mobile-composer className="max-h-[35dvh] shrink-0 overflow-y-auto overscroll-contain border-t border-border bg-card px-3 pb-2">
+                {isMobile && <MobileTalkControl verified={!!session.stepUpComplete && !!token}
+                  historyReady={historyReady} on={realtimeManager.on} status={liveState}
+                  onStart={primaryVoiceAction} onStop={realtimeManager.stop} />}
                 <div
                   role="separator" aria-label="Resize writing area" aria-orientation="horizontal"
                   aria-valuemin={60} aria-valuemax={600} aria-valuenow={composerHeight} tabIndex={0}
@@ -1658,12 +1666,12 @@ export function OfficeManager() {
                       aria-pressed={liveVoiceMode === "relay"} disabled={realtimeManager.on} onClick={() => setLiveVoiceMode("relay")}>
                       Standard voice
                     </Button>
-                    <Button type="button" size="sm"
+                    {!isMobile && <Button type="button" size="sm"
                       className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
                       onClick={primaryVoiceAction}
                       disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}>
                       <Mic className="mr-1.5 h-4 w-4 shrink-0" /> Talk to Elsie
-                    </Button>
+                    </Button>}
                     <Button type="button" size="sm" variant={liveVoiceMode === "direct" ? "default" : "outline"}
                       className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
                       aria-pressed={liveVoiceMode === "direct"} disabled={realtimeManager.on} onClick={() => setLiveVoiceMode("direct")}>
@@ -1703,7 +1711,7 @@ export function OfficeManager() {
                 </div>
               </div>
 
-            </>
+            </div>
           )}
 
           {tab === "rooms" && (

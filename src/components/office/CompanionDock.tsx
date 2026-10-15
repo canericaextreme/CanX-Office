@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Minus } from "lucide-react";
 import { COMPANION_OPEN_EVENT } from "@/lib/companion-bridge";
 import { CompanionWorkPanel, type Observation } from "@/components/office/CompanionWorkPanel";
@@ -8,6 +9,16 @@ import { useCompanionPosition } from "@/lib/companion-position";
 import { CHAT_PHASE_LABEL, useRealtimeChat } from "@/lib/use-realtime-chat";
 
 const HIDDEN_KEY = "canx.companion.hidden";
+
+function readHidden() {
+  try { return window.localStorage.getItem(HIDDEN_KEY); } catch { return null; }
+}
+function saveHidden(hidden: boolean) {
+  try {
+    if (hidden) window.localStorage.setItem(HIDDEN_KEY, "1");
+    else window.localStorage.removeItem(HIDDEN_KEY);
+  } catch { /* Keep the launcher usable when browser storage is blocked. */ }
+}
 
 /** Friendly, professional CanX assistant face in the office's own colours. */
 function AssistantFace({ active }: { active: boolean }) {
@@ -49,6 +60,7 @@ function AssistantFace({ active }: { active: boolean }) {
  * gone on reload.
  */
 export function CompanionDock() {
+  const isMobile = useIsMobile();
   const [hidden, setHidden] = useState(false);
   const [workOpen, setWorkOpen] = useState(false);
   const { ref, pos, dragging, onPointerDown, nudge } = useCompanionPosition();
@@ -78,9 +90,9 @@ export function CompanionDock() {
   }, [chat]);
 
   useEffect(() => {
-    setHidden(window.localStorage.getItem(HIDDEN_KEY) === "1");
+    setHidden(readHidden() === "1");
     const reopen = () => {
-      window.localStorage.removeItem(HIDDEN_KEY);
+      saveHidden(false);
       setHidden(false);
     };
     window.addEventListener(COMPANION_OPEN_EVENT, reopen);
@@ -96,7 +108,7 @@ export function CompanionDock() {
         type="button"
         data-testid="canx-companion-tab"
         onClick={() => {
-          window.localStorage.removeItem(HIDDEN_KEY);
+          saveHidden(false);
           setHidden(false);
         }}
         aria-label="Restore the CanX chatbot"
@@ -110,7 +122,7 @@ export function CompanionDock() {
 
   const minimizeCompanion = () => {
     setWorkOpen(false);
-    window.localStorage.setItem(HIDDEN_KEY, "1");
+    saveHidden(true);
     setHidden(true);
   };
 
@@ -158,7 +170,7 @@ export function CompanionDock() {
       aria-label="CanX companion"
       data-canx-no-capture="true"
       data-testid="canx-companion-dock"
-      onPointerDown={onPointerDown}
+      onPointerDown={isMobile ? undefined : onPointerDown}
       onKeyDown={(event) => {
         const step = event.shiftKey ? 40 : 12;
         if (event.key === "ArrowLeft") { event.preventDefault(); nudge(-step, 0); }
@@ -167,7 +179,7 @@ export function CompanionDock() {
         if (event.key === "ArrowDown") { event.preventDefault(); nudge(0, step); }
       }}
       tabIndex={0}
-      title="Drag to move"
+      title={isMobile ? "CanX companion" : "Drag to move"}
       style={pos ? { left: pos.left, top: pos.top } : { left: 16, bottom: 16 }}
       className={`fixed z-40 flex h-36 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-40 sm:w-32 ${
         dragging ? "opacity-90" : ""
@@ -205,10 +217,10 @@ export function CompanionDock() {
 
       <a
         href="https://chatgpt.com/"
-        target="_blank"
+        target={isMobile ? "_self" : "_blank"}
         rel="noopener noreferrer"
         onPointerDown={(event) => event.stopPropagation()}
-        aria-label="Open ChatGPT in a new tab"
+        aria-label={isMobile ? "Open ChatGPT in this tab" : "Open ChatGPT in a new tab"}
         className="flex cursor-pointer min-h-9 w-full items-center justify-center rounded-md border border-slate-500 px-1 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Open ChatGPT

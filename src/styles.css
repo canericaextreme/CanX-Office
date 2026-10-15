@@ -416,3 +416,56 @@
     transition: none;
   }
 }
+
+/* Mobile manager: keyboard-aware viewport, independently scrollable panes. */
+#office-manager-panel[data-mobile="true"] {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+#office-manager-panel[data-mobile="true"] > div:nth-child(-n+2) {
+  flex-wrap: nowrap;
+  max-height: 44px;
+  overflow: auto;
+}
+.canx-manager-conversation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.canx-manager-conversation [aria-label="Conversation with Elsie"] { min-height: 0; }
+.canx-manager-conversation [data-mobile-composer] { min-height: 64px; max-height: 55%; }
+.canx-mobile-talk {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-card);
+  padding: 4px 0;
+}
+.canx-manager-conversation textarea { min-height: 60px; max-height: 24dvh; }
+@media (max-width: 767px), (hover: none) and (pointer: coarse) and (max-width: 1366px) and (max-height: 767px) {
+  .canx-manager-launcher { width: min(44vw, 176px); transform: none; right: max(8px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); }
+  [data-testid="canx-companion-dock"] {
+    left: max(8px, env(safe-area-inset-left)) !important;
+    top: auto !important;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    height: auto;
+    width: min(44vw, 144px);
+    padding: 4px;
+  }
+  [data-testid="canx-companion-dock"] > svg,
+  [data-testid="canx-companion-status-text"] { display: none; }
+  [data-testid="canx-companion-dock"] a { min-height: 44px; }
+  .canx-office-map { padding-bottom: 112px; }
+  .canx-office-map > section { overflow-x: auto; }
+  .canx-office-map > section > div { min-width: 1000px; }
+}
+@media (hover: none) and (pointer: coarse) and (max-width: 1366px) and (orientation: landscape) and (max-height: 767px) {
+  .canx-manager-conversation { flex-direction: row; }
+  .canx-manager-conversation [data-mobile-composer] { width: 42%; max-height: 100%; border-left: 1px solid var(--color-border); }
+  .canx-office-map > section > div { min-width: 1100px; }
+}
+.canx-mobile-map-hint { display: none; }
+@media (max-width: 767px), (hover: none) and (pointer: coarse) and (max-width: 1366px) and (max-height: 767px) {
+  .canx-mobile-map-hint { display: block; margin: 4px 0; font-size: 14px; }
+}

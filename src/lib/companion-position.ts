@@ -59,7 +59,8 @@ export function useCompanionPosition() {
   // First paint: stored position, otherwise the bottom-left resting place.
   useEffect(() => {
     const size = measure();
-    const stored = readStoredPosition(window.localStorage.getItem(COMPANION_POSITION_KEY));
+    let stored: CompanionPosition | null = null;
+    try { stored = readStoredPosition(window.localStorage.getItem(COMPANION_POSITION_KEY)); } catch { /* Storage can be blocked in mobile private browsers. */ }
     setPos(
       clampCompanionPosition(
         stored ?? { left: 16, top: window.innerHeight - size.height - 16 },

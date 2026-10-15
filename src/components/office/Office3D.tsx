@@ -251,7 +251,9 @@ export function Office3D() {
         </p>
       </header>
 
+      <p className="canx-mobile-map-hint">Turn your phone sideways for more room. Swipe across the Office to reach every room.</p>
       <section
+        tabIndex={0}
         aria-label="Interactive circular CanX Office"
         className="mx-auto w-full max-w-[1700px] overflow-hidden rounded-2xl border border-slate-600 bg-[#050913] p-2 shadow-[0_22px_70px_rgba(0,0,0,.68)]"
       >
