@@ -10,6 +10,7 @@
 
 
 ## Office builders
+- Owner workflow update, 14 October 2026: the mandatory outside-GitHub preview before builder submission is withdrawn (canonical owner note aa106842-7fb1-4df2-8693-7bb461e72b11). Elsie may send John's fresh explicit green Office request to the existing builder, Codex by default and Claude only when named, for a draft. Bring back the actual run/PR receipt for review before live release. Saved conversation text is not a task/build receipt, historical instructions are not new execution permission, uncertain submissions are never retried, and a builder success alone is not an approved completed release. This changes the build-order rule, not voice configuration, owner checks, risk gates, budgets or connection permissions.
 - Builder choice comes only from John's current words (`src/lib/builder-choice.ts`): Codex by default, Claude only when named, both named = refuse; direct build tools re-check the actual request, and task execution records `office-task-v2` builder identity (legacy `codex-task-v1` = Codex) with one attempt per request and no fallback. Why: a model tool call must never switch builders or cause duplicate paid builds.
 
 ## Office Skills

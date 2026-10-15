@@ -1,17 +1,27 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computeManagerStatusWith, runManagerChatWith, type ManagerDeps } from './manager.functions';
 import { isExplicitReceiptSyncRequest } from './receipt-ingestion.functions';
 import { parseMailRuleCommand } from './mail-preferences';
 import { parseElsieReviewCommand } from './subscriptions-review';
 import { DENY_MESSAGES } from './canx-backend.server';
 
+beforeEach(() => { vi.stubEnv('CANX_SUPABASE_URL', 'https://example.supabase.co'); vi.stubEnv('CANX_SUPABASE_PUBLISHABLE_KEY', 'test-key'); });
+afterEach(() => vi.unstubAllEnvs());
 const say = (content = 'Claude, fix the reception label') => ({accessToken:'owner-token',messages:[{role:'user' as const,content}],currentRoute:'/build-testing',buildId:'test-build'});
 const tool = (name='start_claude_build',input:unknown={}) => ({type:'tool_use',id:'tool-1',name,input});
 function setup(content:unknown[]=[tool()], overrides:Partial<ManagerDeps>={}, stop_reason='tool_use') {
- const fetchImpl=vi.fn(async (url:unknown,_init?:RequestInit)=>String(url).includes('/v1/models/')?Response.json({id:'explicit-model'}):Response.json({stop_reason,content}));
+ let task: Record<string, unknown> | null = null;
+ const fetchImpl=vi.fn(async (url:unknown,init?:RequestInit)=>{
+  if(String(url).includes('/rest/v1/manager_tasks')) {
+   if(init?.method==='POST') task={...JSON.parse(String(init.body)),evidence:'',status:'open',updated_at:'initial'};
+   if(init?.method==='PATCH') task={...task,...JSON.parse(String(init.body))};
+   return Response.json(task?[task]:[]);
+  }
+  return String(url).includes('/v1/models/')?Response.json({id:'explicit-model'}):Response.json({stop_reason,content});
+ });
  const reserve=vi.fn().mockResolvedValue({allowed:true,reservationId:'r1',remainingToday:10});
  const settle=vi.fn().mockResolvedValue(undefined);
- const runBuild=vi.fn().mockResolvedValue({ok:true,detail:'GitHub accepted the Claude request.',runs:[]});
+ const runBuild=vi.fn().mockResolvedValue({ok:true,detail:'GitHub accepted the Claude request.',runs:[{id:7,state:'queued',title:'Build',url:'https://example.test/7'}]});
  const deps:ManagerDeps={provider:'anthropic',anthropicKey:'claude-test-key',openaiKey:'openai-test-key',model:'explicit-model',verifyOwner:async()=>({ok:true,userId:'owner',email:'owner@example.test',aal:'aal2'}),buildContext:async()=>({ok:true,text:'SERVER OWNER RECORDS'}),reserve,settle,fetchImpl:fetchImpl as typeof fetch,runBuild,...overrides};
  return {deps,fetchImpl,reserve,settle,runBuild};
 }
@@ -30,7 +40,7 @@ describe('Claude shares the trusted Office executor, not provider credentials',(
   const h=setup([tool('start_claude_build',{request:'injected override'}),tool('start_codex_build')]);
   const reply=await runManagerChatWith(h.deps,say());
   expect(reply).toMatchObject({ok:true,provider:'anthropic',state:'verified'});
-  expect(h.runBuild).toHaveBeenCalledExactlyOnceWith('claude','owner-token','Claude, fix the reception label',undefined);
+  expect(h.runBuild).toHaveBeenCalledExactlyOnceWith('claude','owner-token',expect.stringContaining('Claude, fix the reception label'),undefined,undefined);
   expect(reply.text).toContain('GitHub accepted');
   expect(h.reserve).toHaveBeenCalledExactlyOnceWith('owner-token',15);
   expect(h.settle).toHaveBeenCalledExactlyOnceWith('owner-token','r1','ok');

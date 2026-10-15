@@ -26,7 +26,7 @@ const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|su
 // A noun such as "build" or "fix" in a status report is never permission.
 // Accept commands (including polite "Can you fix …?"), not arbitrary mentions.
 const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:claude|codex|elsie)[,:]?\s+)?(?:(?:can|could|would) you\s+)?`;
-const CHANGE = String.raw`(?:build|implement|code|fix|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update)`;
+const CHANGE = String.raw`(?:build|implement|code|fix|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin) (?:the |this |my )?(?:saved |existing )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 
@@ -43,15 +43,17 @@ export function taskExecutionRefusal(request: string): string | null {
  * start_<builder>_build call dispatches. Returns a refusal reason or null.
  */
 export function directBuildRefusal(request: string, builder: OfficeBuilder): string | null {
-  const text = request.trim();
-  const choice = builderChoiceFor(text);
+  // A quoted owner instruction after this explicit handoff prefix is still
+  // the owner's scope. Keep the original request for builder/risk selection.
+  const text = request.trim().replace(/^(?:please\s+)?pass this to (?:the )?(?:builder|codex|claude):\s*/i, "");
+  const choice = builderChoiceFor(request);
   if ("conflict" in choice) return "Your request names both Claude and Codex. Say which one builder should do it; nothing was sent.";
   if (choice.builder !== builder) return `Your request chose ${BUILDER_LABEL[choice.builder]}, so nothing was sent to ${BUILDER_LABEL[builder]}.`;
   if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !BUILD_INTENT.test(text))) return "That was a status question, so no build was started.";
-  if (DISCUSSION.test(text)) return "That reads as discussion or an example, so no build was started.";
+  if (DISCUSSION.test(request)) return "That reads as discussion or an example, so no build was started.";
   if (!BUILD_INTENT.test(text)) return "No explicit Office code change was requested, so no build was started.";
-  if (classifyManagerRisk(`start_${builder}_build`, text) !== "green") return "This request is not green-light work, so no build was started.";
-  const protectedCategory = officeBuildProtectedCategory(text);
+  if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";
+  const protectedCategory = officeBuildProtectedCategory(request);
   if (protectedCategory) return `This request includes a protected action (${protectedCategory}), so no build was started.`;
   return null;
 }
