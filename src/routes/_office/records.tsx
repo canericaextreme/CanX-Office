@@ -21,30 +21,32 @@ export const Route = createFileRoute("/_office/records")({
 
 function Records() {
   return (
-    <RoomShell>
-      <div className="space-y-6">
-        {OFFICE_KNOWLEDGE.map((record) => (
-          <KnowledgeRecordPanel key={record.id} record={record} defaultOpen />
-        ))}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-base">Record classes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
-              <li>Status history — append-only, never overwritten</li>
-              <li>Routing decisions — evidence and authority recorded</li>
-              <li>AI recommendations — kept separate from human decisions</li>
-              <li>Approvals — who, when, scope, expiry</li>
-              <li>Audit exports — portable formats</li>
-            </ul>
-          </CardContent>
-        </Card>
-        <Button disabled>Export sample record pack</Button>
-        <p className="text-xs text-muted-foreground">
-          Exports require a backend to be selected and configured.
-        </p>
-      </div>
-    </RoomShell>
+    <div className="records-room">
+      <RoomShell>
+        <div className="space-y-6">
+          {OFFICE_KNOWLEDGE.map((record) => (
+            <KnowledgeRecordPanel key={record.id} record={record} defaultOpen />
+          ))}
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="text-base">Record classes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+                <li>Status history — append-only, never overwritten</li>
+                <li>Routing decisions — evidence and authority recorded</li>
+                <li>AI recommendations — kept separate from human decisions</li>
+                <li>Approvals — who, when, scope, expiry</li>
+                <li>Audit exports — portable formats</li>
+              </ul>
+            </CardContent>
+          </Card>
+          <Button disabled>Export sample record pack</Button>
+          <p className="text-xs text-muted-foreground">
+            Exports require a backend to be selected and configured.
+          </p>
+        </div>
+      </RoomShell>
+    </div>
   );
 }
