@@ -56,7 +56,9 @@ export interface ToolContentImage { type: "image"; data: string; mimeType: "imag
 export interface ViewResult { content: (ToolContentText | ToolContentImage)[]; isError: boolean }
 const fail = (message: string): ViewResult => ({ content: [{ type: "text", text: message }], isError: true });
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
-const WAIT_MS = 50_000;
+// Some Claude apps give up on a tool call well before 60s (15 Oct 2026: the capture finished but the app showed
+// "tool call failed" and never saw the pending answer), so hand back pending early; the collect call waits again.
+const WAIT_MS = 20_000;
 
 export async function runViewTool(backend: ViewBackend, token: string, name: string, args: Record<string, unknown>, now = Date.now(), content?: ViewContent): Promise<ViewResult> {
   try {
@@ -107,7 +109,7 @@ export async function runViewTool(backend: ViewBackend, token: string, name: str
   } catch (error) {
     // Still being taken: hand back the request id so the next call collects this picture instead of starting another.
     if (error instanceof ViewError && error.code === "capture_timeout" && error.requestId) {
-      return { content: [{ type: "text", text: JSON.stringify({ status: "pending", requestId: error.requestId, note: "The picture is still being taken. No picture is shown. Call view_room again in about 30 seconds with the same route and this requestId to collect it." }) }], isError: false };
+      return { content: [{ type: "text", text: JSON.stringify({ status: "pending", requestId: error.requestId, note: "The picture is still being taken. No picture is shown. Call view_room again in about 20 seconds with the same route and this requestId to collect it." }) }], isError: false };
     }
     // Only our own short messages reach the assistant; nothing from the network or database.
     return fail(error instanceof ViewError ? error.message : "The Office viewing service is unavailable right now. Missing access is not an empty Office.");
@@ -116,7 +118,6 @@ export async function runViewTool(backend: ViewBackend, token: string, name: str
 
 /** Talks to the view service. The assistant's token is forwarded as-is; the service reads the identity from the database. */
 export function httpViewBackend(baseUrl: string, doFetch: typeof fetch = fetch): ViewBackend {
-  // An assistant gives up on a tool call after about 60s, so stop waiting well before that.
   const call = async (token: string, route: string, body: Record<string, unknown>) => {
     const response = await doFetch(`${baseUrl}/${route}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(route === "wait" ? WAIT_MS : 30_000) });
     const json = await response.json().catch(() => ({})) as Record<string, unknown>;
