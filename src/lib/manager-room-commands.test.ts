@@ -3,8 +3,19 @@ import { OFFICE_ROOM_IDENTITIES } from "./office-room-identity";
 import { parseRoomCommand } from "./manager-room-commands";
 
 describe("direct owner room requests", () => {
+  it("opens Legal and routes visual follow-ups to a fresh inspection of the current room", () => {
+    expect(parseRoomCommand("Elsie, show me the Legal room", "/reception")).toMatchObject({ kind: "look", room: { id: "legal" } });
+    for (const question of ["How many cards are there?", "How many blue?", "What colours are the cards?", "Is anything visibly broken?", "Can you make this room more interactive?", "Walk me through this room and help me fix any problems", "What's wrong with this room?"]) {
+      expect(parseRoomCommand(question, "/legal")).toMatchObject({ kind: "look", room: { id: "legal" }, question });
+    }
+    expect(parseRoomCommand("How many cards are in Communications?", "/legal")).toMatchObject({ kind: "look", room: { route: "/communications" } });
+    expect(parseRoomCommand("How many blue?", "/not-a-room")).toBeNull();
+    expect(parseRoomCommand("How many invoices were paid?", "/legal")).toBeNull();
+    expect(parseRoomCommand("Do not count the cards", "/legal")).toBeNull();
+  });
   it.each(OFFICE_ROOM_IDENTITIES)("can inspect $shortLabel without the owner opening it", room => {
     expect(parseRoomCommand(`Check ${room.shortLabel}`, "/")).toMatchObject({ kind: "look", room: { id: room.id, route: room.route } });
+    expect(parseRoomCommand(`Elsie, open the ${room.shortLabel} room and let's work on that`, "/")).toMatchObject({ kind: "look", room: { id: room.id, route: room.route } });
   });
   it.each(["Elsie", "Astra", "Data"])("accepts %s as the manager name", name => {
     expect(parseRoomCommand(`${name}, check Finance`, "/")).toMatchObject({ kind: "look", room: { id: "finance" } });

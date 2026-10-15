@@ -143,6 +143,7 @@ const CORE: OfficeSkill[] = [
     inputs: ["The proposed action", "Approval box records in the live context"],
     steps: [
       "Name the proposed action plainly.",
+      "Standing owner instruction (14 October 2026): routine reversible Office tidying and filing across rooms may proceed during active work without another approval when an existing allowlisted tool supports it and the destination is clear. Preserve originals and verify readback; missing tools must be disclosed. No background service is implied. Spending, subscription changes/cancellation and legal decisions still go to John.",
       "Check it against the boundaries: money, deletion/destructive, legal, safety, ethical, security, publishing, external messages.",
       "If any boundary applies, route it to the approval flow (yellow/red) and do not act.",
       "If none applies and an existing allowlisted tool does it, it may proceed; otherwise say no tool exists.",

@@ -635,6 +635,9 @@ export function OfficeManager() {
       }
       setDelivery(`Opening and checking ${room.shortLabel}…`);
       await router.navigate({ to: room.route });
+      // Reveal the actual workspace. Minimising keeps the existing voice
+      // session alive and leaves the restore control available for typing.
+      setMinimized(true);
       const lookEvidence = await freshRoomEvidence(room.route);
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       if (router.state.location.pathname !== room.route) return out("read_failed", "The room changed before inspection. Please ask again in the intended room.");
@@ -642,7 +645,8 @@ export function OfficeManager() {
       if (!capture.ok) return out("read_failed", capture.message);
       if (router.state.location.pathname !== room.route) return out("read_failed", "The room changed during inspection. No picture was sent.");
       const reply = await observeRoom({ data: { accessToken: token, path: room.route,
-        room: room.label, text: capture.observation.text, image: capture.observation.image } });
+        room: room.label, text: capture.observation.text, image: capture.observation.image, question: command.question } });
+      if (router.state.location.pathname !== room.route) return out("read_failed", "The room changed while I was checking its picture. Ask again for the room now open.");
       if (!reply.ok) return out("read_failed", reply.detail || "The room review did not complete.");
       setRoomReviews(current => ({ ...current, [room.id]: { roomId: room.id as import("@/lib/office-data").RoomId, at: new Date(reply.observedAt).toLocaleString(), text: reply.text, thumbnail: capture.observation.image } }));
       roomOutcomeRef.current = "read";

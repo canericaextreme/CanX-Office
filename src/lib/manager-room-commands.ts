@@ -4,15 +4,26 @@ export const namedOfficeRoom = namedRoomIdentity;
 type RoomDef = OfficeRoomIdentity;
 
 export type RoomCommand =
-  | { kind: "look"; room: RoomDef }
+  | { kind: "look"; room: RoomDef; question?: string }
   | { kind: "report"; room: RoomDef; content: string }
   | { kind: "text-size"; size: number }
   | { kind: "move-panel"; side: "left" | "right" };
 
 /** Direct requests only. Quoted examples, negation and hypothetical requests do not execute. */
 export function parseRoomCommand(request: string, currentPath: string): RoomCommand | null {
-  if (/\b(don['’]?t|do not|never|hypothetical|example|if|would|could you explain|how)\b/i.test(request)) return null;
+  if (/\b(don['’]?t|do not|never|hypothetical|example|if|would|could you explain)\b/i.test(request)) return null;
   const text = request.trim().replace(/^(?:(?:elsie|astra|data)[, ]+)?(?:please\s+)?/i, "");
+  // Visual follow-ups inspect the room open NOW, rather than answering from
+  // an older screenshot or the general room description. They never write.
+  const visualQuestion = (/^(?:how many|count)\b/i.test(text) && /\b(?:cards?|folders?|papers?|shelves|items?|blue|red|yellow|gold|white|gr[ae]y|green|black|visible)\b/i.test(text))
+    || /^(?:what|which) colou?rs?\b/i.test(text)
+    || /^walk me through\b/i.test(text)
+    || /^(?:what|is|are|can you|how can we|check|tell me)\b.*\b(?:visibly|visible|broken|wrong|faults?|confusing|interactive|proactive)\b/i.test(text);
+  if (visualQuestion) {
+    const room = namedOfficeRoom(text) ?? roomIdentityForRoute(currentPath);
+    return room ? { kind: "look", room, question: text } : null;
+  }
+  if (/^how\b/i.test(text)) return null;
   const move = text.match(/^(?:move|put) (?:the |your )?(?:elsie |astra |data |office manager |manager )?(?:window|panel) (?:to |on )?(?:the )?(left|right)(?: side)?[.!]?$/i);
   if (move) return { kind: "move-panel", side: move[1] as "left" | "right" };
   if (/^make (?:the |your )?(?:conversation )?(?:text|font) (?:larger|bigger)[.!]?$/i.test(text)) return { kind: "text-size", size: 28 };
