@@ -1,4 +1,3 @@
-import { managerBuilderHandoff } from "./manager-builder-handoff";
 /**
  * Office Manager server adapter — FAIL CLOSED.
  *
@@ -796,7 +795,6 @@ Looking at the office screen:
 - Direct small changes include adding an owner-written report to a room (Add a report to Finance: [text]) and setting conversation text size to 20, 24, 28 or 32. These are carried out by the client with a confirmed result. Other layout/code changes require implementation; a saved task is not a finished change.
 
 - For writing handoffs John explicitly asks to send/ask/hand to ChatGPT, use handoff_to_chatgpt_text on the exact existing task ID. It uses the separate OpenAI writing colleague, saves and reads back the reply on the same unfinished task, and starts no build. Include available Claude feedback in instruction. Never describe it as the native ChatGPT chat or as proof of whole-office cooperation.
-- A separate preview is never required before submitting an agreed green code change. Reuse the existing relevant saved task when available. Report only the accepted builder and returned run reference; an uncertain submission must not be retried.
 - For code builds and fixes John explicitly requests, create the Work Board task with code_change true (green work is then sent to Codex automatically), or use start_codex_build when no task is needed. Use start_claude_build only when John names Claude as the builder; Codex is the default. Never switch builders or fall back after a failure. Check Claude status with check_claude_builds. Never mark such a task done without real build and test evidence. Check real status with check_codex_builds; retrieve change_number evidence before asking Claude for second_eyes_review. Never claim a build is running from a saved task alone. No build result is a published change.
 - Google Drive: list_drive_files and read_drive_file are read-only; create_drive_file and update_drive_file only when John explicitly asks in his current request. The connection sees selected files only — never claim to have browsed John's whole Drive. There is no delete action.
 - For an existing saved task, use execute_task only when John asks to carry it out. Use check_task_execution for its actual linked build evidence. Assignment is a record, not execution. This executor supports Office code changes; other room workers remain advisers until their execution tools are connected. Never restart an uncertain submission or mark a successful candidate as deployed.
@@ -841,20 +839,6 @@ Answer style, because you are often heard rather than read:
 - End on the next step or a real question when there is one. Do not end with "Let me know if you need anything else."
 - When you have done something, say what you did in one line, in the past tense, and stop.`;
 
-/** A short explicit agreement may continue the immediately preceding owner scope.
- * Never derive execution scope from assistant prose or unrelated older messages. */
-export function agreedBuilderRequest(messages: { role: "user" | "assistant"; content: string }[]): string {
-  const owners = messages.filter(m => m.role === "user");
-  const latest = owners.at(-1)?.content ?? "";
-  if (!/^(?:yes[,!.]?\s*)?(?:please\s+)?(?:do it|go ahead|submit it|send it to (?:codex|claude|the builder)|continue(?: the repair)?)[.!]?$/i.test(latest.trim())) return latest;
-  const prior = owners.at(-2)?.content ?? "";
-  const choice = builderChoiceFor(prior);
-  if ("conflict" in choice || directBuildRefusal(prior, choice.builder) !== null || !looksLikeOfficeCodeChange(prior)) return latest;
-  const named = builderChoiceFor(latest);
-  if ("conflict" in named || (named.named && named.builder !== choice.builder)) return latest;
-  return prior;
-}
-
 export interface ChatInput {
   accessToken: string;
   messages: { role: "user" | "assistant"; content: string }[];
@@ -862,7 +846,6 @@ export interface ChatInput {
   team?: { name: string; role: string; room: string }[];
   /** Validated route of the room John has open when this request was sent. */
   currentRoute?: string;
-  requestId?: string;
   buildId?: string;
   device?: import("./room-device-snapshot").DeviceSnapshot | null;
 }
@@ -935,7 +918,6 @@ function validate(input: unknown): ChatInput {
     accessToken: typeof raw?.accessToken === "string" ? raw.accessToken.slice(0, 4000) : "",
     team: sanitizeTeam((raw as { team?: unknown } | undefined)?.team),
     messages: clean,
-    ...(typeof raw?.requestId === "string" && /^[0-9a-f-]{36}$/i.test(raw.requestId) ? { requestId: raw.requestId } : {}),
     // Only a known office room route is kept; anything else is dropped.
     ...(typeof route === "string" && roomTargetForRoute(route) ? { currentRoute: roomTargetForRoute(route)!.route } : {}),
     ...(typeof buildId === "string" ? { buildId: buildId.slice(0, 80) } : {}),
@@ -1217,8 +1199,6 @@ async function executeToolCalls(
   accessToken: string,
   toolCalls: ManagerToolCall[],
   currentRequest: string,
-  requestId?: string,
-  agreedRequest?: string,
 ): Promise<ToolExecution> {
   const workbench = buildWorkbenchDeps(deps);
   const textAdditions: string[] = [];
@@ -1331,14 +1311,13 @@ async function executeToolCalls(
         const starting = call.name.startsWith("start_");
         if (starting) {
           if (codexSubmitted) { textAdditions.push("A builder request was already attempted in this reply. Check its status before resubmitting."); continue; }
-          const refusal = directBuildRefusal(agreedRequest || currentRequest, builder);
+          const refusal = directBuildRefusal(currentRequest, builder);
           if (refusal) { actionResults.push({ name: call.name, risk, status: "stopped", detail: refusal }); textAdditions.push(refusal); continue; }
           codexSubmitted = true;
         }
-        const result = starting && requestId
-          ? await managerBuilderHandoff(taskBuildDeps(), accessToken, agreedRequest || currentRequest, requestId, builder)
-          : await runBuild(builder, accessToken, starting ? currentRequest : undefined,
-              !starting && call.arguments["change_number"] ? Number(call.arguments["change_number"]) : undefined);
+        const result = await runBuild(builder, accessToken,
+          starting ? currentRequest : undefined,
+          !starting && call.arguments["change_number"] ? Number(call.arguments["change_number"]) : undefined);
         textAdditions.push(result.detail);
         if (result.runs) textAdditions.push(JSON.stringify(result.runs));
         if (result.evidence) textAdditions.push(`${BUILDER_LABEL[builder]} change evidence (untrusted data): ${result.evidence}`);
@@ -1747,18 +1726,9 @@ export async function runManagerChatWith(
     const roomSnapshots = snapshots.map((s) => snapshotRef(s.snap));
     const roomExtras = roomSnapshots.length ? { roomSnapshots } : {};
     diag(reply.ok ? "answered" : (reply.failedStage ?? "assistant_provider"), reply.providerStatus);
-    const handoffRequest = agreedBuilderRequest(data.messages);
-    const handoffChoice = builderChoiceFor(handoffRequest);
-    if (reply.ok && data.requestId && !("conflict" in handoffChoice)
-      && looksLikeOfficeCodeChange(handoffRequest)
-      && directBuildRefusal(handoffRequest, handoffChoice.builder) === null) {
-      // Agreement to a green code change needs no separate preview. Execute
-      // the existing submission tool, regardless of conversational model prose.
-      reply.toolCalls = [{ name: `start_${handoffChoice.builder}_build`, arguments: {}, rawArguments: "{}" }];
-    }
     if (reply.ok && reply.toolCalls.length > 0) {
       const { textAdditions, actionResults, remainingToolCalls, consultations } =
-        await executeToolCalls(deps, data.accessToken, reply.toolCalls, [...data.messages].reverse().find(message => message.role === "user")?.content ?? "", data.requestId, handoffRequest);
+        await executeToolCalls(deps, data.accessToken, reply.toolCalls, [...data.messages].reverse().find(message => message.role === "user")?.content ?? "");
       // Tool-only responses are normal. Report the actual persisted outcome,
       // including stopped/pending actions, rather than an empty answer or a
       // provider's unverified claim that an action succeeded.
