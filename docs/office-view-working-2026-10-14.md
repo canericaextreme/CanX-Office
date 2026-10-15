@@ -26,6 +26,8 @@ The same day, `read_room_information` returned real saved content for `/brain`: 
 - Unchanged and already in place before this work: database migration `20261011012433_office_view_delegation.sql`, the private `office-captures` bucket, viewer accounts and grants, the GitHub dispatch token, and the connector OAuth. None of them were touched.
 
 ## Deployment steps (as done on 14 Oct 2026)
+> **Superseded 15 Oct 2026:** functions now deploy automatically on merge to `main`. See `docs/office-functions-auto-deploy.md`. The manual steps below are history and an emergency fallback only.
+
 1. **Merge the PR into `main`** on GitHub. This alone activates any change to the capture workflow.
 2. **Build the two function files** from the merged commit, in a folder with `esbuild` installed:
    `node scripts/office-view/bundle-functions.mjs <outputFolder>`
