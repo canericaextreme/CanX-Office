@@ -1687,6 +1687,11 @@ export function OfficeManager() {
                     </div>
                   )}
                   {realtimeManager.on && (
+                    <>
+                    <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 px-2.5"
+                      onClick={realtimeManager.interrupt} aria-label="Stop Elsie speaking and keep listening">
+                      <Square className="mr-1.5 h-4 w-4" aria-hidden="true" /> Stop speaking
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1696,6 +1701,7 @@ export function OfficeManager() {
                     >
                       <PhoneOff className="mr-1.5 h-4 w-4" aria-hidden="true" /> End conversation
                     </Button>
+                    </>
                   )}
                   </div>
                   <p role="status" className="mt-2 text-sm">
