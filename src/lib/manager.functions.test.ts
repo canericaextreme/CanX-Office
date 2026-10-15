@@ -670,3 +670,43 @@ describe("ChatGPT writing action dispatch", () => {
     } finally { vi.unstubAllEnvs(); }
   });
 });
+
+ describe('agreed builder handoff through the manager adapter', () => {
+  for (const builder of ['codex', 'claude'] as const) it(`submits the owner scope to ${builder} despite a false preview prerequisite, then checks the same run`, async () => {
+    vi.stubEnv('CANX_SUPABASE_URL', 'https://example.supabase.co');
+    vi.stubEnv('CANX_SUPABASE_PUBLISHABLE_KEY', 'test-key');
+    let row: Record<string, unknown> | null = null;
+    const fetchImpl = vi.fn(async (url: unknown, init?: RequestInit) => {
+      const address = String(url);
+      if (address.includes('/v1/models/')) return Response.json({});
+      if (address.includes('/v1/responses')) return Response.json({ output_text: 'You need a separate preview before I can submit.' });
+      if (address.includes('/rest/v1/manager_tasks')) {
+        if (init?.method === 'POST') row = { ...JSON.parse(String(init.body)), evidence: '', status: 'open', updated_at: 'initial' };
+        if (init?.method === 'PATCH') row = { ...row, ...JSON.parse(String(init.body)) };
+        return Response.json(row ? [row] : []);
+      }
+      if (address.includes('/rpc/log_manager_change')) return Response.json({});
+      throw new Error('Unexpected request');
+    }) as typeof fetch;
+    const runBuild = vi.fn(async () => ({ ok: true, detail: 'Build accepted', runs: [{ id: 42, title: 'Repair', state: 'queued', url: 'https://example.test/42' }] }));
+    const scope = `${builder === 'claude' ? 'Claude, fix' : 'Fix'} the CanX Office search button`;
+    const input = { accessToken: 't', requestId: '12345678-1234-1234-1234-123456789abc', messages: [
+      { role: 'user' as const, content: scope },
+      { role: 'assistant' as const, content: 'You need a separate preview.' },
+      { role: 'user' as const, content: 'Yes, go ahead' },
+    ] };
+    try {
+      const dependencies = deps({ verifyOwner: async () => OWNER, fetchImpl, runBuild });
+      const first = await runManagerChatWith(dependencies, input);
+      expect(first.text).toContain('Run 42: queued');
+      expect(first.text).not.toContain('separate preview');
+      expect(first.actionResults).toMatchObject([{ name: `start_${builder}_build`, status: 'pending' }]);
+      expect(row?.['detail']).toBe(scope);
+      await runManagerChatWith(dependencies, input);
+      expect(runBuild.mock.calls).toEqual([
+        [builder, 't', expect.stringContaining(scope), undefined, undefined],
+        [builder, 't', undefined, undefined, 42],
+      ]);
+    } finally { vi.unstubAllEnvs(); }
+  });
+});
