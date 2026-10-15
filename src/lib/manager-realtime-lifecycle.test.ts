@@ -116,7 +116,7 @@ describe("Astra realtime connection lifecycle", () => {
       { type: "function_call", name: "check_codex_builds", call_id: "c1", arguments: "{}" },
     ] } };
     emit(result); emit(result); await flush();
-    expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection");
+    expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection", expect.any(String));
     expect(transcript).toHaveBeenCalledWith("assistant", "Builder connected. Latest run succeeded. No build was started.", "u1");
     expect(channel.send).toHaveBeenCalledWith(expect.stringContaining('"type":"function_call_output"'));
   });
@@ -133,7 +133,7 @@ describe("Astra realtime connection lifecycle", () => {
       { type: "function_call", name: "submit_office_request", call_id: "c1", arguments: JSON.stringify({ request: "Check builder connection" }) },
     ] } };
     emit(done); emit(done); await flush();
-    expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection");
+    expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection", expect.any(String));
     expect(transcript).not.toHaveBeenCalled();
     emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "Check builder connection" });
     expect(transcript.mock.calls).toEqual([
@@ -303,7 +303,7 @@ describe("Astra realtime connection lifecycle", () => {
     // Duplicate provider events must never repeat an Office request.
     emit({type:"conversation.item.input_audio_transcription.completed", item_id:"u1", transcript:"Put the purchase in approvals"});
     await flush();
-    expect(action).toHaveBeenCalledExactlyOnceWith("Put the purchase in approvals");
+    expect(action).toHaveBeenCalledExactlyOnceWith("Put the purchase in approvals", expect.any(String));
     const sends = channel.send.mock.calls.map(c => String(c[0]));
     expect(sends.filter(s => s.includes('"tool_choice":"none"'))).toHaveLength(1);
     expect(sends.find(s => s.includes('"tool_choice":"none"'))).toContain("approval id a1");
@@ -381,7 +381,7 @@ describe("Astra realtime connection lifecycle", () => {
     emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"Create a task"});
     emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u2",transcript:"Wait, explain first"});
     await flush();
-    expect(action).toHaveBeenCalledExactlyOnceWith("Wait, explain first");
+    expect(action).toHaveBeenCalledExactlyOnceWith("Wait, explain first", expect.any(String));
     const sends = Peer.instances[0]!.channel.send.mock.calls.map(c => String(c[0]));
     expect(sends).toHaveLength(1);
     expect(sends[0]).toContain("Wait, explain first");

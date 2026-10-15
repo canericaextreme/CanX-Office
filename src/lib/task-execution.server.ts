@@ -75,13 +75,13 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   catch { live = { ok: false, detail: 'Submission could not be confirmed. Nothing was retried.' }; }
   const runId = live.runs?.[0]?.id;
   const linked = live.ok && Number.isSafeInteger(runId) && (runId ?? 0) > 0;
-  const next: Execution = { ...pending, state: linked ? 'queued' : 'submission_unconfirmed', ...(linked && runId !== undefined ? { runId } : {}) };
+  const next: Execution = { ...pending, state: linked ? live.runs![0]!.state : 'submission_unconfirmed', ...(linked && runId !== undefined ? { runId } : {}) };
   const saved = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&evidence=eq.${encodeURIComponent(claimText)}&status=not.in.(done,cancelled)`, {
-    status: linked ? 'in_progress' : 'open', evidence: JSON.stringify(next), result: live.detail.slice(0, 2000), updated_at: new Date().toISOString(),
+    status: linked && ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(next.state) ? 'in_progress' : 'open', evidence: JSON.stringify(next), result: live.detail.slice(0, 2000), updated_at: new Date().toISOString(),
   });
   await deps.workbench.rest(token, 'POST', 'rpc/log_manager_change', {
     _owner_id: owner.userId, _action: 'task.execute', _entity: 'manager_tasks', _entity_id: task.id,
     _before: { status: task.status }, _after: { attempt: pending.attempt, builder: chosen, state: next.state, run_id: runId ?? null },
   }).catch(() => undefined);
-  return { ...live, detail: live.detail + (saved.ok && firstRow(saved.data) ? ' Execution evidence saved on the task.' : ' Execution evidence could not be saved; check Build & Testing before any further submission.') };
+  return { ...live, ok: linked && live.ok, detail: live.detail + (saved.ok && firstRow(saved.data) ? ' Execution evidence saved on the task.' : ' Execution evidence could not be saved; check Build & Testing before any further submission.') };
 }

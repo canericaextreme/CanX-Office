@@ -39,7 +39,8 @@ export interface DirectToolOutput { ok: boolean; result: string; note: string }
  */
 export async function directToolOutput(
   rawArgs: string,
-  run: ((request: string) => Promise<string>) | undefined,
+  run: ((request: string, requestId?: string) => Promise<string>) | undefined,
+  requestId?: string,
 ): Promise<DirectToolOutput> {
   let request = "";
   try { const parsed = JSON.parse(rawArgs || "{}") as { request?: unknown }; request = typeof parsed.request === "string" ? parsed.request.trim().slice(0, 4000) : ""; }
@@ -47,7 +48,7 @@ export async function directToolOutput(
   if (!run) return { ok: false, result: "", note: "The Office connection is not available. Nothing was checked, saved or changed." };
   if (!request) return { ok: false, result: "", note: "No request was received. Ask John to repeat it. Nothing was saved or changed." };
   try {
-    const result = (await run(request)).trim();
+    const result = (await (requestId ? run(request, requestId) : run(request))).trim();
     if (!result) return { ok: false, result: "", note: "The Office returned no answer. Nothing should be described as saved or changed." };
     return { ok: true, result, note: "Authoritative Office result. Report only what it says." };
   } catch (failure) {
@@ -88,7 +89,7 @@ export function useRealtimeManager(
   accessToken: string,
   team: { name: string; role: string; room: string }[],
   onTranscript: (role: "user" | "assistant", text: string, turnId?: string) => void,
-  onOfficeRequest?: (request: string) => Promise<string>,
+  onOfficeRequest?: (request: string, requestId?: string) => Promise<string>,
   onTurnFailed?: (turnId: string) => void,
   mode: ManagerVoiceMode = "relay",
 ): RealtimeManager {
@@ -372,6 +373,11 @@ export function useRealtimeManager(
       let answerAwaitingPlayback = false;
       const handledInputs = new Set<string>();
       let currentInputId = "";
+      const requestIds = new Map<string, string>();
+      const inputIdToRequestId = (id: string) => {
+        if (!requestIds.has(id)) requestIds.set(id, crypto.randomUUID());
+        return requestIds.get(id)!;
+      };
       const executeRequest = async (inputId: string, request: string) => {
         if (!requestRef.current || !inputId || inputId !== currentInputId || handledInputs.has(inputId)) return;
         // The completed provider transcript is the sole trigger for the guarded
@@ -384,7 +390,7 @@ export function useRealtimeManager(
         setActivity("Elsie heard your request and is preparing an answer…");
         let output = "";
         const requestStartedAt = Date.now();
-        try { output = (await requestRef.current(request)).trim(); }
+        try { output = (await requestRef.current(request, inputIdToRequestId(inputId))).trim(); }
         catch (failure) {
           const known = failure instanceof VoiceTurnError ? failure : null;
           // Safe diagnostics only: stage, HTTP status, timing, retry count (never retried automatically).
@@ -442,7 +448,7 @@ export function useRealtimeManager(
       const runDirectTool = async (callId: string, rawArgs: string, turnId: string) => {
         if (!callId || !turnId || turnId !== currentInputId || handledCalls.has(callId)) return;
         handledCalls.add(callId);
-        const output = await directToolOutput(rawArgs, requestRef.current);
+        const output = await directToolOutput(rawArgs, requestRef.current, inputIdToRequestId(turnId));
         // Preserve the authoritative result even if playback is interrupted.
         saveDirectAnswer(turnId, output.ok ? output.result : output.note);
         if (!current() || channel.readyState !== "open") return;
