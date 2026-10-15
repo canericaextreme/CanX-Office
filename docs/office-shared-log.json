@@ -288,6 +288,15 @@
       "audience": "office-status",
       "summary": "Recovered build 23 candidate after its voice compatibility test failure; corrected optional callback compatibility and verified the manager adapter for both builders. Ready for publication; signed-in acceptance pending.",
       "evidence": "GitHub Actions run 38671436495; docs/manager-handoff-draft-pr.md; 160 test files / 1624 tests passed, typecheck and production build passed. No paid build retry, credentials, migrations or connection changes."
+    },
+    {
+      "id": "2026-10-15-elsie-barge-in-repair",
+      "at": "2026-10-15T02:55:53.117329Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Repaired realtime barge-in handling and exposed Stop speaking without ending the call. Pending older Office results remain written but no longer restart playback after interruption. Ready for publication; real device acceptance pending.",
+      "evidence": "1630 tests in 160 files passed; typecheck, production build and diff check passed. Six new lifecycle cases cover both voice modes, next-turn continuity, delayed results and cancelled tool responses. No connections, credentials, budgets or authentication changed."
     }
   ]
 }

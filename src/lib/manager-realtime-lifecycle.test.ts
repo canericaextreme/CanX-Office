@@ -443,6 +443,83 @@ describe("Astra's live voice controls", () => {
     expect(sent.map(event => event.type)).toEqual(["input_audio_buffer.clear", "response.cancel", "output_audio_buffer.clear"]);
     expect(hooks.mint).toHaveBeenCalledOnce();
   });
+  it.each(["direct", "relay"] as const)("clears speech on barge-in in %s mode without ending the call", async (mode) => {
+    const track = { stop: stopTrack, enabled: true };
+    getUserMedia.mockResolvedValue({ getTracks: () => [track] });
+    const transcript = vi.fn();
+    const action = vi.fn().mockResolvedValue("Office answer");
+    const voice = useRealtimeManager("token", [], transcript, action, undefined, mode);
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "output_audio_buffer.started" });
+    emit({ type: "input_audio_buffer.speech_started" });
+    expect(channel.send.mock.calls.map(c => JSON.parse(c[0]).type)).toEqual(["response.cancel", "output_audio_buffer.clear"]);
+    expect(track.enabled).toBe(true);
+    expect(stopTrack).not.toHaveBeenCalled();
+    expect(hooks.mint).toHaveBeenCalledOnce();
+    expect(hooks.states[7]).toBe("hearing");
+    // The next spoken question still reaches the existing conversation.
+    emit({ type: "input_audio_buffer.committed", item_id: "next" });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "next", transcript: "Check builder connection" });
+    if (mode === "direct") {
+      emit({ type: "response.created", response: { id: "next-response" } });
+      emit({ type: "response.done", response: { id: "next-response", status: "completed", output: [{ type: "function_call", name: "check_codex_builds", call_id: "next-call" }] } });
+    }
+    await flush();
+    expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection", expect.any(String));
+    expect(transcript).toHaveBeenCalledWith("assistant", "Office answer", "next");
+  });
+  it.each(["direct", "relay"] as const)("preserves a pending Office result but suppresses its old playback after interruption in %s mode", async (mode) => {
+    const pending = deferred<string>();
+    const transcript = vi.fn();
+    const action = vi.fn(() => pending.promise);
+    const voice = useRealtimeManager("token", [], transcript, action, undefined, mode);
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "old" });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "old", transcript: "Check builder connection" });
+    if (mode === "direct") {
+      emit({ type: "response.created", response: { id: "old-response" } });
+      emit({ type: "response.done", response: { id: "old-response", status: "completed", output: [{ type: "function_call", name: "check_codex_builds", call_id: "old-call" }] } });
+    }
+    await flush();
+    expect(action).toHaveBeenCalledOnce();
+    voice.interrupt();
+    pending.resolve("Saved authoritative result"); await flush();
+    expect(transcript).toHaveBeenCalledWith("assistant", "Saved authoritative result", "old");
+    expect(channel.send.mock.calls.map(c => JSON.parse(c[0]).type)).not.toContain("response.create");
+    expect(stopTrack).not.toHaveBeenCalled();
+  });
+  it("does not start a tool from a cancelled direct response", async () => {
+    const action = vi.fn();
+    const voice = useRealtimeManager("token", [], vi.fn(), action, undefined, "direct");
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "old" });
+    emit({ type: "response.created", response: { id: "r1" } });
+    emit({ type: "input_audio_buffer.speech_started" });
+    emit({ type: "response.done", response: { id: "r1", status: "cancelled", output: [{ type: "function_call", name: "submit_office_request", call_id: "cancelled", arguments: '{"request":"Fix the search button"}' }] } });
+    await flush(); expect(action).not.toHaveBeenCalled();
+    expect(stopTrack).not.toHaveBeenCalled();
+  });
+  it("does not speak an old relay answer when new speech starts before its audio is committed", async () => {
+    const pending = deferred<string>();
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, () => pending.promise, undefined, "relay");
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "old" });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "old", transcript: "Check builder connection" });
+    await flush();
+    emit({ type: "input_audio_buffer.speech_started" });
+    pending.resolve("Saved old reply"); await flush();
+    expect(transcript).toHaveBeenCalledWith("assistant", "Saved old reply", "old");
+    expect(channel.send.mock.calls.map(c => JSON.parse(c[0]).type)).not.toContain("response.create");
+  });
   it("tracks actual WebRTC playback until the buffer finishes", async () => {
     const voice = useRealtimeManager("token", [], vi.fn()); voice.start(); await flush();
     const emit = (type:string) => Peer.instances[0]!.channel.onmessage?.({data:JSON.stringify({type})});
