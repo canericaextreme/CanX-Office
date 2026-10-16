@@ -85,3 +85,24 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   }).catch(() => undefined);
   return { ...live, detail: live.detail + (saved.ok && firstRow(saved.data) ? ' Execution evidence saved on the task.' : ' Execution evidence could not be saved; check Build & Testing before any further submission.') };
 }
+
+/** Explicit, owner-authorized queued task release; never a background scheduler.
+ * Uses the scoped SQL claim before the existing idempotent execution path.
+ * Do not invoke while a builder is running or until the claim migration is live.
+ */
+export async function executeQueuedElsieTaskWith(
+  deps: TaskExecutionDeps, token: string, taskId: string, builder: OfficeBuilder,
+  builderIdleVerified: boolean
+): Promise<CodexBuildResult> {
+  if (!builderIdleVerified) return { ok: false, detail: 'Builder idle status unverified; queued work retained.' };
+  const owner = await deps.workbench.verifyOwner(token);
+  if (!owner.ok) return { ok: false, detail: owner.message };
+  if (!/^[0-9a-f-]{36}$/i.test(taskId)) return { ok: false, detail: 'Invalid queued task id.' };
+  // Re-check owner and available evidence rather than trusting a client queue.
+  const data = await deps.workbench.rest<{ ok: boolean; reason?: string }>(
+    token, 'POST', 'rpc/canx_mcp_claim_elsie_task', { _task_id: taskId, _builder: builder }
+  );
+  if (!data.ok || !data.data?.ok)
+    return { ok: false, detail: 'Scoped claim not confirmed: ' + (data.data?.reason ?? data.error ?? 'unavailable') + '. No build was sent.' };
+  return executeTaskWith(deps, token, taskId, false, builder);
+}
