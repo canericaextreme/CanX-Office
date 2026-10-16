@@ -32,3 +32,28 @@ export function selectElsieQueueTask(
     .sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
   return queued.length ? { state: "ready", task: queued[0] } : { state: "empty" };
 }
+
+/** Queue dispatch adapter: an atomic server claim must precede the existing
+ * builder executor. A failed, uncertain or duplicate claim never starts work.
+ * This function must only be invoked by a user-authorized, authenticated
+ * server action with a fresh builder-availability receipt.
+ */
+export async function dispatchSelectedElsieTask(
+  selection: QueueSelection,
+  deps: {
+    claim: (id: string) => Promise<{ ok: boolean; reason?: string }>;
+    execute: (id: string) => Promise<{ ok: boolean; detail: string }>;
+  }
+): Promise<{ submitted: boolean; detail: string }> {
+  if (selection.state !== "ready") return { submitted: false, detail: selection.state === "blocked" ? selection.reason : "No eligible tasks" };
+  let claimed: { ok: boolean; reason?: string };
+  try { claimed = await deps.claim(selection.task.id); }
+  catch { return { submitted: false, detail: "Claim outcome uncertain. No build submitted; inspect saved task." }; }
+  if (!claimed.ok) return { submitted: false, detail: claimed.reason ?? "Task claim rejected" };
+  try {
+    const result = await deps.execute(selection.task.id);
+    return { submitted: result.ok, detail: result.detail };
+  } catch {
+    return { submitted: false, detail: "Builder result uncertain; do not retry this claimed task automatically." };
+  }
+}
