@@ -276,6 +276,14 @@ describe('Elsie Finance handoff to Claude', () => {
     expect(r.text).toContain('finished: success');
     expect(r.text).toContain('Run 8');
     expect(r.actionResults?.[0]?.name).toBe('advance_claude_queue');
+    // Live 16 Oct: the Work Board was read before the queue step, so Elsie saw the
+    // finished task as still in progress. The queue step must run first.
+    const order: string[] = [];
+    const ordered = chatDeps(null, { advanceBuilderQueue: async (builder: 'claude' | 'codex') => { order.push('queue'); return { builder, checked: false, finished: [] as string[], detail: '' }; } });
+    const readBoard = ordered.deps.buildContext;
+    ordered.deps.buildContext = async (...a: Parameters<typeof readBoard>) => { order.push('board'); return readBoard(...a); };
+    await runManagerChatWith(ordered.deps, say('Good morning Elsie'));
+    expect(order).toEqual(['queue', 'queue', 'board']);
     advanceBuilderQueue.mockClear();
     await runManagerChatWith(h.deps, say('Just checking, do not send anything yet'));
     expect(advanceBuilderQueue).not.toHaveBeenCalled();

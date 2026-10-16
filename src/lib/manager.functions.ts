@@ -1721,21 +1721,8 @@ export async function runManagerChatWith(
     );
   }
 
-  // GATE 3 — live office facts, read on the server as the verified owner.
-  // A failed read fails closed: no paid call, and never a fall back to the
-  // early demonstration records.
-  const includeReceiptDetails = latestUserMessageRequestsReceiptReview(data.messages);
-  const context = await deps
-    .buildContext(data.accessToken, verification, includeReceiptDetails)
-    .catch(() => ({
-      ok: false as const,
-      message: "The office records could not be read just now, so no answer was requested.",
-    }));
-  if (!context.ok) {
-    return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
-  }
-
-  // GATE 3a — builder queue. Refresh builds Elsie linked to tasks and, when a
+  // GATE 3a — builder queue, run BEFORE the office facts are read so Elsie's
+  // Work Board snapshot already shows what it changed. Refresh builds Elsie linked to tasks and, when a
   // builder is confirmed idle, start exactly one task John already queued for it.
   // Runs inside this owner-verified request; a failure never blocks the turn.
   const turnRequest = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
@@ -1750,6 +1737,20 @@ export async function runManagerChatWith(
   const queueContext = queueSteps.some(step => step.checked)
     ? "Builder queue step just now [server action, verified owner]: " + queueSteps.filter(step => step.checked).map(step => [...step.finished, step.started ? step.detail + " " + step.started.detail : step.detail].join(" ")).join(" ")
     : "";
+
+  // GATE 3 — live office facts, read on the server as the verified owner.
+  // A failed read fails closed: no paid call, and never a fall back to the
+  // early demonstration records.
+  const includeReceiptDetails = latestUserMessageRequestsReceiptReview(data.messages);
+  const context = await deps
+    .buildContext(data.accessToken, verification, includeReceiptDetails)
+    .catch(() => ({
+      ok: false as const,
+      message: "The office records could not be read just now, so no answer was requested.",
+    }));
+  if (!context.ok) {
+    return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
+  }
 
   // GATE 3b — Elsie continuity, read before any paid call, for the verified
   // owner id only. A failed read degrades honestly: Elsie is told continuity

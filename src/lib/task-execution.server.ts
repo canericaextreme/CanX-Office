@@ -112,6 +112,8 @@ export async function executeQueuedElsieTaskWith(
     return { ok: false, detail: 'Scoped claim not confirmed: ' + (data.data?.reason ?? data.error ?? 'unavailable') + '. No build was sent.' };
   const result = await executeTaskWith(deps, token, taskId, false, builder, true);
   if (!result.ok) await parkUnsentClaim(deps, token, owner.userId, taskId, builder, result.detail);
+  // Sent: the "queued" note no longer describes the task. Best effort; the receipt is already saved.
+  else await deps.workbench.rest(token, 'PATCH', `manager_tasks?id=eq.${encodeURIComponent(taskId)}&owner_id=eq.${encodeURIComponent(owner.userId)}`, { waiting_reason: '' }).catch(() => undefined);
   return result;
 }
 
