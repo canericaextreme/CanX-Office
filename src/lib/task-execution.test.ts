@@ -16,6 +16,19 @@ function setup(overrides: Partial<ManagerTask> = {}) {
   return { deps, rest, build, task: () => task };
 }
 describe('saved task execution', () => {
+  it('rejects a preclaimed task without the exact Elsie claim receipt', async () => {
+    const h = setup({ status: 'in_progress', worker: 'claude', evidence: '[elsie-claim codex other]' });
+    await executeTaskWith(h.deps, 'token', id, false, 'claude', true);
+    expect(h.build).not.toHaveBeenCalled();
+  });
+  it('preclaimed task persists one execution receipt before builder call', async () => {
+    const h = setup({ status: 'in_progress', worker: 'codex', evidence: '[elsie-claim codex ' + id + ']' });
+    const result = await executeTaskWith(h.deps, 'token', id, false, 'codex', true);
+    expect(result.ok).toBe(true);
+    expect(h.build).toHaveBeenCalledOnce();
+    expect(h.rest.mock.calls[1]?.[2]).toContain('status=eq.in_progress');
+  });
+
   it('executes the actual help-text task with an internal builder instruction exactly once', async () => {
     const h = setup({
       title: 'Add Work Board help text explaining assigned-job execution',
