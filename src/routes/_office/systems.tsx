@@ -21,6 +21,22 @@ import {
 } from "@/lib/connections-inventory";
 
 
+// Electric violet visual theme. Keep operational connection status colours unchanged.
+const SYSTEMS_VIOLET = {
+  electric: "#8F00FF",
+  bright: "#B14CFF",
+  purple: "#6400CC",
+  deep: "#30005E",
+  lavender: "#F2E6FF",
+  ink: "#200A39",
+} as const;
+
+const systemsCardStyle = {
+  border: "1px solid #B14CFF80",
+  borderTop: "4px solid #8F00FF",
+  boxShadow: "0 6px 22px #6400CC12",
+} as const;
+
 export const Route = createFileRoute("/_office/systems")({
   head: () => ({
     meta: [
@@ -58,10 +74,24 @@ function Systems() {
 
   return (
     <RoomShell showSample={false}>
-      <div className="space-y-6">
-        <Card className="border-border bg-card">
+      <div className="space-y-7">
+        <header
+          className="rounded-xl border p-6 sm:p-8"
+          style={{
+            borderColor: SYSTEMS_VIOLET.bright,
+            background: `linear-gradient(125deg, ${SYSTEMS_VIOLET.electric} 0%, ${SYSTEMS_VIOLET.purple} 55%, ${SYSTEMS_VIOLET.deep} 100%)`,
+            color: "#FFFFFF",
+          }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-[.2em] text-white/80">CANX OFFICE / SYSTEMS</p>
+          <h1 className="mt-3 font-serif text-3xl font-semibold sm:text-4xl">Systems & connections</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/90">
+            Connection evidence, account ownership, security and service health — shown as verified only when checked.
+          </p>
+        </header>
+        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader>
-            <CardTitle className="text-base">What this office is connected to</CardTitle>
+            <CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>What this office is connected to</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -107,9 +137,9 @@ function Systems() {
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader>
-            <CardTitle className="text-base">Group A — accounts verified in ChatGPT</CardTitle>
+            <CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>Group A — accounts verified in ChatGPT</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm text-foreground">
@@ -118,7 +148,7 @@ function Systems() {
             </p>
             <div className="space-y-2">
               {CHATGPT_SNAPSHOT.map((row) => (
-                <div key={row.service} className="rounded-lg border border-border/50 p-3">
+                <div key={row.service} className="rounded-lg border border-violet-400/30 bg-violet-500/5 p-3">
                   <div className="font-medium">{row.service}</div>
                   <div className="text-xs text-muted-foreground">{row.account}</div>
                 </div>
@@ -127,9 +157,9 @@ function Systems() {
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader>
-            <CardTitle className="text-base">Group B — connections this office needs</CardTitle>
+            <CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>Group B — connections this office needs</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {OFFICE_CONNECTIONS.map((connection) => {
@@ -155,7 +185,7 @@ function Systems() {
                       : "grey";
 
               return (
-                <div key={connection.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3">
+                <div key={connection.id} className="flex items-start justify-between gap-3 rounded-lg border border-violet-400/30 bg-violet-500/5 p-3">
                   <div>
                     <div className="font-medium">{connection.name}</div>
                     <div className="text-xs text-muted-foreground">{connection.purpose}</div>
@@ -181,8 +211,8 @@ function Systems() {
         <BudgetPanel />
 
 
-        <Card className="border-border bg-card">
-          <CardHeader><CardTitle className="text-base">ChatGPT / Elsie connection</CardTitle></CardHeader>
+        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
+          <CardHeader><CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>ChatGPT / Elsie connection</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>Elsie is the Office Manager identity. The Office Manager and companion use separate AI sessions;
               they do not inherit your ChatGPT conversation, memory, or connected tools.</p>
@@ -190,8 +220,8 @@ function Systems() {
               Live voice and actions still require verified owner access; no automatic ChatGPT history bridge is connected.</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardHeader><CardTitle className="text-base">Next connection check</CardTitle></CardHeader>
+        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
+          <CardHeader><CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>Next connection check</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             {signedIn ? (
               <p>The CanX database and your owner sign-in are connected. Check the rows above for any remaining
@@ -227,7 +257,7 @@ function StatePill({ tone }: { tone: Tone }) {
 
 function Row({ name, note, tone }: { name: string; note: string; tone: Tone }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3">
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-violet-400/30 bg-violet-500/5 p-3">
       <div>
         <div className="font-medium">{name}</div>
         <div className="text-xs text-muted-foreground">{note}</div>
