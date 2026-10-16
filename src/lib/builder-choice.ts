@@ -30,7 +30,17 @@ const CHANGE = String.raw`(?:build|implement|code|fix|apply|create|write|add|rem
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin) (?:the |this |my )?(?:saved |existing )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 
-export const requestIsDiscussionOnly = (request: string): boolean => DISCUSSION.test(request);
+/** A direct owner handoff must not be demoted by incidental words in its scope.
+ * Explicit cancellations, hypotheticals and read-only requests remain blocked.
+ */
+export const requestIsDiscussionOnly = (request: string): boolean => {
+  const text = request.trim();
+  const explicitStop = /\\b(?:do not|don't|don’t|no)\\s+(?:build|start|send|submit|execute|run|act|create|save|make changes)\\b|\\b(?:not yet|read[ -]?only|hypothetical(?:ly)?|for example|just (?:asking|checking|discussing|planning))\\b/i;
+  if (explicitStop.test(text)) return true;
+  const explicitHandoff = /^(?:please\\s+)?(?:elsie[,:]?\\s+)?(?:pass|send|hand off|hand over|assign|queue)\\s+(?:this |the |my )?(?:task|job|assignment|request)?\\s*(?:to\\s+claude\\b|to\\s+codex\\b|for\\s+claude\\b|for\\s+codex\\b)/i;
+  if (explicitHandoff.test(text)) return false;
+  return DISCUSSION.test(text);
+};
 
 /** Current owner intent is checked on every build entry point, not model scope. */
 export function taskExecutionRefusal(request: string): string | null {
