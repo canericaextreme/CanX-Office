@@ -4,7 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { RECEIPTS_KIND, RECEIPTS_SCHEMA_VERSION, type FinanceReceipt } from "@/lib/finance-receipts";
 
-vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (options: unknown) => options }));
+// Link is stubbed so Finance can add room links without breaking this test (Claude build 5 failed on that).
+vi.mock("@tanstack/react-router", () => ({
+  createFileRoute: () => (options: unknown) => options,
+  Link: ({ to, children, ...rest }: { to?: string; children?: React.ReactNode } & Record<string, unknown>) => <a href={String(to ?? "")} {...rest}>{children}</a>,
+}));
 vi.mock("@/components/office/RoomShell", () => ({ RoomShell: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 vi.mock("@/components/office/OwnerSignIn", () => ({ OwnerSignIn: () => <div>Owner verified</div> }));
 vi.mock("@/components/office/BudgetPanel", () => ({ BudgetPanel: () => <section>Existing budget controls</section> }));
