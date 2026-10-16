@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Activity, BarChart3, Bot, Clock3, Coins, FolderKanban, ShieldCheck, AlertTriangle, ArrowLeft, Gauge, TrendingUp, RefreshCcw, ChevronRight } from "lucide-react";
 import { RoomSkillsLink } from "@/components/office/RoomSkillsLink";
@@ -21,6 +21,12 @@ const BORDERS: Record<string,string> = {blue:"border-cyan-400/70 shadow-cyan-500
 function AnalyticsRoom(){
   const [selected,setSelected]=useState<string|null>(null);
   const tile=TILES.find(t=>t.id===selected);
+  useEffect(() => {
+    if (!selected) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setSelected(null); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected]);
   return <main className="min-h-screen bg-[#07111a] text-white px-4 py-5 md:px-6">
     <div className="mx-auto max-w-[1500px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
