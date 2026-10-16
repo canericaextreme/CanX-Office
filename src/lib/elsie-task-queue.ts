@@ -30,7 +30,8 @@ export function selectElsieQueueTask(
   const queued = assigned
     .filter(t => t.status === "open" && t.risk === "green" && !/office-task-v2|codex-task-v1|(?:Claude|Codex) handoff|builder-execution/i.test(t.evidence ?? ""))
     .sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
-  return queued.length ? { state: "ready", task: queued[0] } : { state: "empty" };
+  const next = queued[0];
+  return next ? { state: "ready", task: next } : { state: "empty" };
 }
 
 /** Queue dispatch adapter: an atomic server claim must precede the existing
