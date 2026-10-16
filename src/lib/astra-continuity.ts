@@ -122,6 +122,23 @@ export async function recordAstraTurn(
   }).catch(() => ({ ok: false, status: 0, body: null }));
   // Only a readback of both new rows counts as saved.
   if (!insert.ok || rows(insert.body).filter(x => x["owner_id"] === ownerId).length !== 2) return { saved: false, pruned: false };
+  // An owner-scoped rolling recovery excerpt survives pruning and new threads.
+  // It is labelled as an excerpt, never an AI-invented summary, and uses its
+  // own key so approved summaries are not overwritten.
+  const recoveryRows = await rest(
+    `astra_recent_context?select=role,content,created_at&owner_id=eq.${encodeURIComponent(ownerId)}&conversation_key=eq.${ASTRA_CONVERSATION_KEY}&order=created_at.desc&limit=12`,
+  ).catch(() => ({ ok: false, status: 0, body: null as unknown }));
+  if (recoveryRows.ok && Array.isArray(recoveryRows.body)) {
+    const excerpts = rows(recoveryRows.body)
+      .filter(x => x["content"] !== HEALTH_PROBE)
+      .slice(0, 12).reverse()
+      .map(x => (x["role"] === "user" ? "John: " : "Elsie: ") + clean(x["content"], 190));
+    if (excerpts.length) {
+      await recordAstraSummary(rest, ownerId, "office-manager-auto-recovery",
+        "Recent conversation excerpt (not a verified summary): " + excerpts.join(" | ").slice(-1850)
+      ).catch(() => false);
+    }
+  }
   const owner = `owner_id=eq.${encodeURIComponent(ownerId)}`;
   const old = await rest(`astra_recent_context?select=id&${owner}&order=created_at.desc&offset=${RECENT_KEEP_LIMIT}&limit=200`).catch(() => ({ ok: false, status: 0, body: null }));
   if (!old.ok) return { saved: true, pruned: false };
