@@ -104,5 +104,8 @@ export async function executeQueuedElsieTaskWith(
   );
   if (!data.ok || !data.data?.ok)
     return { ok: false, detail: 'Scoped claim not confirmed: ' + (data.data?.reason ?? data.error ?? 'unavailable') + '. No build was sent.' };
-  return executeTaskWith(deps, token, taskId, false, builder);
+  // Claim-first dispatch requires the executor to reuse (not replace) the
+  // persisted claim. Existing executor currently claims a second time.
+  // Fail closed until a single atomic claim+submission path is implemented.
+  return { ok: false, detail: 'Scoped task claimed but builder not dispatched: a single-claim executor is required. Do not retry this task automatically.' };
 }
