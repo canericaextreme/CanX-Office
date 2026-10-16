@@ -16,4 +16,5 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
+      - run: bunx vitest run src/routes/_office/analytics.test.ts
       - run: bun run build
