@@ -91,6 +91,8 @@ describe('Elsie builder queue', () => {
     expect(o.requests()).toHaveLength(1);
     expect(o.tasks.get(a)!.status).toBe('in_progress');
     expect(JSON.parse(o.tasks.get(a)!.evidence)).toMatchObject({ kind: 'office-task-v2', builder: 'claude', runId: 101 });
+    expect(o.tasks.get(a)!.waiting_reason).toBe('');
+    expect(o.tasks.get(b)!.waiting_reason).toMatch(/^Queued for Claude/);
 
     // A second turn while it runs releases nothing more.
     step = await advanceElsieQueueWith(o.deps, 't', 'claude');
