@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { requestIsDiscussionOnly } from "./builder-choice";
+import { requestIsDiscussionOnly, taskExecutionRefusal } from "./builder-choice";
 
 describe("Elsie explicit handoff classification", () => {
   it("accepts an explicit Finance room handoff", () => {
     expect(requestIsDiscussionOnly("Elsie, pass this task to Claude: organize the Finance room and explain the categories")).toBe(false);
     expect(requestIsDiscussionOnly("Queue this job for Claude: improve Finance layout after the current build")).toBe(false);
+  });
+  it("accepts saved-task execution for a direct Claude handoff", () => {
+    expect(taskExecutionRefusal("Elsie, pass this task to Claude: organize the Finance room")).toBeNull();
   });
   it("does not turn protected instructions into dispatches", () => {
     expect(requestIsDiscussionOnly("Elsie, pass this task to Claude, but do not send it yet")).toBe(true);
