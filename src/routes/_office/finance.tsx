@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, BadgeDollarSign, ChevronRight, FileText, Landmark, ReceiptText } from "lucide-react";
 import { RoomShell } from "@/components/office/RoomShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,6 +64,15 @@ const SECTION_LABELS: Record<FinanceSection, string> = {
   receipts: "Receipts",
   tax: "Tax prep",
 };
+
+/**
+ * Card-level section title. Rendered as a real <h3> (under the room's <h1> and
+ * the Finance <h2>) so every section has a clear title for screen readers and
+ * heading navigation; the shared CardTitle is a plain <div>.
+ */
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h3 className="text-base font-semibold leading-none tracking-tight">{children}</h3>;
+}
 
 export function Finance() {
   const owner = useOwnerSession();
@@ -203,6 +212,7 @@ export function Finance() {
         <OwnerSignIn />
         {section === null ? (
           <>
+            <h2 className="text-xl font-semibold">Finance overview</h2>
             <nav aria-label="Finance categories" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {([
                 { id: "income", label: "Income", value: "Unknown", note: "No reconciled income source", icon: BadgeDollarSign, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
@@ -239,7 +249,7 @@ export function Finance() {
 
         {section === "income" && (
           <Card className="border-t-4 border-t-canx-green bg-card">
-            <CardHeader><CardTitle className="text-base">Income records</CardTitle></CardHeader>
+            <CardHeader><SectionTitle>Income records</SectionTitle></CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>No reconciled income records or connected income source are available in Finance.</p>
               <p>Income remains Unknown. Nothing is estimated from receipts or subscription records.</p>
@@ -250,7 +260,7 @@ export function Finance() {
         {section === "expenses" && (
           <>
             <Card className="border-t-4 border-t-finance-teal bg-card">
-              <CardHeader><CardTitle className="text-base">Expense records</CardTitle></CardHeader>
+              <CardHeader><SectionTitle>Expense records</SectionTitle></CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
                 <p>No connected payment source or reconciled expense total is available in Finance.</p>
                 <p>{summary.receipts} receipt{summary.receipts === 1 ? " is" : "s are"} available for review, but receipts are not treated as confirmed expenses.</p>
@@ -262,7 +272,7 @@ export function Finance() {
 
         {section === "tax" && (
           <Card className="border-t-4 border-t-finance-navy bg-card">
-            <CardHeader><CardTitle className="text-base">Tax preparation records</CardTitle></CardHeader>
+            <CardHeader><SectionTitle>Tax preparation records</SectionTitle></CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <p>Tax preparation has not started. This Office does not provide tax advice or determine tax treatment.</p>
               {receipts.length === 0 ? <p>No receipt records are available for tax preparation.</p> : (
@@ -284,7 +294,7 @@ export function Finance() {
         {section === "receipts" && <>
         <Card className="border-t-4 border-t-canx-green bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Receipt inbox — private file import</CardTitle>
+            <SectionTitle>Receipt inbox: import and export</SectionTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -312,7 +322,7 @@ export function Finance() {
         {preview && (
           <Card className="border-primary bg-card">
             <CardHeader>
-              <CardTitle className="text-base">Review before importing — {preview.fileName}</CardTitle>
+              <SectionTitle>Review before importing — {preview.fileName}</SectionTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
@@ -351,7 +361,7 @@ export function Finance() {
 
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Totals by currency</CardTitle>
+            <SectionTitle>Totals by currency</SectionTitle>
           </CardHeader>
           <CardContent>
             {totals.length === 0 ? (
@@ -375,7 +385,7 @@ export function Finance() {
 
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Receipts ({receipts.length})</CardTitle>
+            <SectionTitle>Receipt records ({receipts.length})</SectionTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {receipts.length === 0 ? (
@@ -487,7 +497,7 @@ export function Finance() {
 
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Reconciliation</CardTitle>
+            <SectionTitle>Reconciliation</SectionTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
