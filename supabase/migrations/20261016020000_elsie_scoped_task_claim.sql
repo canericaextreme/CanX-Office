@@ -22,7 +22,9 @@ begin
   if uid is null or _task_id is null or _builder not in ('claude','codex') then
     raise exception 'Invalid task claim';
   end if;
-  -- Serialize all claims per owner and builder, not merely claims on the same task.\n  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(uid::text), pg_catalog.hashtext(_builder));\n  select * into t from public.manager_tasks where id=_task_id and owner_id=uid for update;
+  -- Serialize all claims per owner and builder, not merely claims on the same task.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(uid::text), pg_catalog.hashtext(_builder));
+  select * into t from public.manager_tasks where id=_task_id and owner_id=uid for update;
   if not found then return jsonb_build_object('ok',false,'reason','not_found'); end if;
   if t.status <> 'open' or t.risk <> 'green' or lower(coalesce(t.project,'')) <> 'canx office' then
     return jsonb_build_object('ok',false,'reason','not_eligible');
