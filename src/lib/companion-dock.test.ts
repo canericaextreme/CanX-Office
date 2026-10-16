@@ -30,14 +30,14 @@ describe("compact CanX companion", () => {
     expect(dockSource).toContain("h-36 w-28");
     expect(dockSource).toContain("sm:h-40 sm:w-32");
     expect(dockSource).toContain("canx-companion-drag-handle");
-    expect(dockSource).toContain("onPointerDown={onPointerDown}");
+    expect(dockSource).toContain("onPointerDown={isMobile ? undefined : onPointerDown}");
     // Minimize and the external link must not begin a drag.
     expect(dockSource.match(/onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/g)).toHaveLength(2);
   });
 
   it("offers the requested ChatGPT link without embedding it or showing transcript text", () => {
     expect(dockSource).toContain('href="https://chatgpt.com/"');
-    expect(dockSource).toContain('target="_blank"');
+    expect(dockSource).toContain('target={isMobile ? "_self" : "_blank"}');
     expect(dockSource).toContain('rel="noopener noreferrer"');
     expect(dockSource).not.toContain("window.open");
     expect(dockSource).not.toContain("onClick={toggleChat}");
