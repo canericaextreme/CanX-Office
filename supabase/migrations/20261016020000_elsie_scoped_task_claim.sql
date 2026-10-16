@@ -9,10 +9,16 @@ declare
   t public.manager_tasks%rowtype;
   marker text;
 begin
-  if not canx_private.mcp_work_active() then
-    raise exception 'Office working grant required' using errcode='42501';
+  -- Two existing permitted callers: scoped Office MCP work grant, or the
+  -- verified owner's direct AAL2 session. AAL1, viewers and other users fail.
+  if canx_private.mcp_work_active() then
+    uid := canx_private.mcp_owner();
+  elsif auth.uid() is not null and auth.jwt()->>'aal' = 'aal2'
+    and not (auth.jwt() ? 'client_id') then
+    uid := auth.uid();
+  else
+    raise exception 'Verified owner or Office working grant required' using errcode='42501';
   end if;
-  uid := canx_private.mcp_owner();
   if uid is null or _task_id is null or _builder not in ('claude','codex') then
     raise exception 'Invalid task claim';
   end if;
