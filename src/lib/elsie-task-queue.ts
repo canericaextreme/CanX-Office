@@ -24,7 +24,7 @@ export function selectElsieQueueTask(
   builderIdleVerified: boolean
 ): QueueSelection {
   if (!builderIdleVerified) return { state: "blocked", reason: "Builder availability not verified" };
-  const assigned = tasks.filter(t => t.worker.trim().toLowerCase() === builder);
+  const assigned = tasks.filter(t => [builder, builder === "claude" ? "claude builder" : "codex builder"].includes(t.worker.trim().toLowerCase()));
   if (assigned.some(t => t.status === "in_progress"))
     return { state: "blocked", reason: "Assigned builder has active work" };
   const queued = assigned
