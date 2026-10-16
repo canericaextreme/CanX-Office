@@ -4,6 +4,8 @@ on:
     paths:
       - 'src/lib/builder-choice.ts'
       - 'src/lib/elsie-*.ts'
+      - 'src/lib/astra-continuity.ts'
+      - 'src/lib/manager.functions.ts'
       - 'src/lib/task-execution*.ts'
       - 'supabase/migrations/*elsie*'
       - '.github/workflows/elsie-pr115-validation.yml'
@@ -20,5 +22,5 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
-      - run: bunx vitest run src/lib/elsie-handoff-intent.test.ts src/lib/elsie-task-queue.test.ts src/lib/task-execution.test.ts
+      - run: bunx vitest run src/lib/elsie-handoff-intent.test.ts src/lib/elsie-task-queue.test.ts src/lib/task-execution.test.ts src/lib/astra-continuity.test.ts
       - run: bun run build
