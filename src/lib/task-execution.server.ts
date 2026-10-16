@@ -107,5 +107,5 @@ export async function executeQueuedElsieTaskWith(
   // Claim-first dispatch requires the executor to reuse (not replace) the
   // persisted claim. Existing executor currently claims a second time.
   // Fail closed until a single atomic claim+submission path is implemented.
-  return { ok: false, detail: 'Scoped task claimed but builder not dispatched: a single-claim executor is required. Do not retry this task automatically.' };
+  return { ok: false, detail: 'Queued task claim recorded. Existing builder executor requires a compatible single-claim operation; dispatch withheld.' };
 }
