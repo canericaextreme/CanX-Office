@@ -15,7 +15,7 @@ describe("Elsie queue is fail-closed and ordered",()=>{
     expect(selectElsieQueueTask([b,a],"claude",true)).toMatchObject({state:"ready",task:{id:"a"}});
   });
   it("does not select protected or previously attempted tasks",()=>{
-    expect(selectElsieQueueTask([make("a","open","yellow"),{...make("b"),evidence:"[builder-execution"]}],"claude",true).state).toBe("empty");
+    expect(selectElsieQueueTask([make("a","open","yellow"),{...make("b"),evidence:"[builder-execution]"}],"claude",true).state).toBe("empty");
   });
 });
 
