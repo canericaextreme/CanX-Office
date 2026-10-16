@@ -23,7 +23,7 @@ export const readExecution = (text: string): Execution | null => {
   } catch { return null; }
 };
 
-export async function executeTaskWith(deps: TaskExecutionDeps, token: string, taskId: string, checkOnly = false, builder?: OfficeBuilder): Promise<CodexBuildResult> {
+export async function executeTaskWith(deps: TaskExecutionDeps, token: string, taskId: string, checkOnly = false, builder?: OfficeBuilder, preclaimed = false): Promise<CodexBuildResult> {
   const owner = await deps.workbench.verifyOwner(token);
   if (!owner.ok) return { ok: false, detail: owner.message };
   if (!/^[0-9a-f-]{36}$/i.test(taskId)) return { ok: false, detail: 'Choose a saved task identifier.' };
@@ -32,6 +32,7 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   const task = firstRow<ManagerTask>(read.data);
   if (!read.ok || !task || task.owner_id !== owner.userId) return { ok: false, detail: 'The saved task could not be read for this owner.' };
   const execution = readExecution(task.evidence);
+  if (preclaimed && !task.evidence.includes('[elsie-claim ' + builder + ' ' + taskId + ']')) return { ok: false, detail: 'Missing queued claim receipt.' };
   const pick = (b: OfficeBuilder): BuildFn | undefined => b === 'claude' ? deps.buildClaude : deps.build;
   if (checkOnly) {
     if (!execution?.runId) return { ok: false, detail: 'This task has no verified build link. Assignment alone does not start work. If a previous submission was uncertain, inspect Build & Testing before retrying.' };
@@ -66,10 +67,14 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   // Compare-and-set before dispatch prevents two conversations from executing
   // the same task. A lost response leaves the durable claim, never a retry.
   const claimText = JSON.stringify(pending);
-  const claimed = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&updated_at=eq.${encodeURIComponent(task.updated_at)}&evidence=eq.${encodeURIComponent(task.evidence)}&status=not.in.(done,cancelled)`, {
-    evidence: claimText, result: `Preparing one ${BUILDER_LABEL[chosen]} submission; execution not yet confirmed.`, updated_at: new Date().toISOString(),
-  });
-  if (!claimed.ok || !firstRow(claimed.data)) return { ok: false, detail: 'The execution claim could not be confirmed. Nothing was sent; reload the task before continuing.' };
+  const claimed = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH',
+    path + '&updated_at=eq.' + encodeURIComponent(task.updated_at) +
+    '&evidence=eq.' + encodeURIComponent(task.evidence) +
+    (preclaimed ? '&status=eq.in_progress' : '&status=not.in.(done,cancelled)'), {
+      evidence: claimText, result: 'Preparing one builder submission; execution not yet confirmed.',
+      updated_at: new Date().toISOString(),
+    });
+  if (!claimed.ok || !firstRow(claimed.data)) return { ok: false, detail: 'Execution receipt could not be confirmed. No build sent.' };
   let live: CodexBuildResult;
   try { live = await run(token, request); }
   catch { live = { ok: false, detail: 'Submission could not be confirmed. Nothing was retried.' }; }
@@ -104,8 +109,5 @@ export async function executeQueuedElsieTaskWith(
   );
   if (!data.ok || !data.data?.ok)
     return { ok: false, detail: 'Scoped claim not confirmed: ' + (data.data?.reason ?? data.error ?? 'unavailable') + '. No build was sent.' };
-  // Claim-first dispatch requires the executor to reuse (not replace) the
-  // persisted claim. Existing executor currently claims a second time.
-  // Fail closed until a single atomic claim+submission path is implemented.
-  return { ok: false, detail: 'Queued task claim recorded. Existing builder executor requires a compatible single-claim operation; dispatch withheld.' };
+  return executeTaskWith(deps, token, taskId, false, builder, true);
 }
