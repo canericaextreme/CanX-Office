@@ -236,3 +236,48 @@ describe("task execution with recorded builder", () => {
     expect(r.text).toContain('unconfirmed');
   });
 });
+
+describe('Elsie Finance handoff to Claude', () => {
+  const ask = 'Elsie, pass this task to Claude: organize the Finance room cards into clearer groups';
+  const args = { title: 'Organize the Finance room cards', detail: 'Group the Finance room cards into clearer sections. Layout only.', project: 'CanX Office', worker: 'Claude', risk: 'green', code_change: true };
+  it('sends the task to Claude straight away when Claude is idle, with a run receipt saved on the task', async () => {
+    const h = chatDeps('create_task', {}, args);
+    const original = vi.mocked(h.fetchImpl).getMockImplementation()!;
+    // The stub database assigns the row id on insert, as Supabase does.
+    vi.mocked(h.fetchImpl).mockImplementation(async (input, init) => String(input).includes('/rest/v1/manager_tasks') && init?.method === 'POST'
+      ? original(input, { ...init, body: JSON.stringify({ ...JSON.parse(String(init.body)), id: '22222222-2222-4222-8222-222222222222' }) }) : original(input, init));
+    h.runBuild.mockImplementation(async (_b: string, _t: string, request?: string) => request === undefined
+      ? { ok: true, detail: 'status', runs: [{ id: 6, state: 'success', title: 'old', url: 'u' }] }
+      : { ok: true, detail: 'GitHub accepted the Claude build request.', runs: [{ id: 7, state: 'queued', title: 'b', url: 'https://github.com/x/actions/runs/7' }] });
+    const r = await runManagerChatWith(h.deps, say(ask));
+    const sends = h.runBuild.mock.calls.filter(c => c[2] !== undefined);
+    expect(sends).toHaveLength(1);
+    expect(sends[0]![0]).toBe('claude');
+    expect(sends[0]![2]).toContain('Organize the Finance room cards');
+    expect(r.text).toContain('Run 7');
+  });
+  it('queues instead of interrupting or duplicating a running Claude build', async () => {
+    const h = chatDeps('create_task', {}, args);
+    h.runBuild.mockResolvedValue({ ok: true, detail: 'status', runs: [{ id: 6, state: 'in_progress', title: 'current', url: 'u' }] });
+    const r = await runManagerChatWith(h.deps, say(ask));
+    expect(h.runBuild.mock.calls.filter(c => c[2] !== undefined)).toHaveLength(0);
+    expect(r.text).toMatch(/Queued for Claude at position 1/);
+    expect(r.text).toMatch(/starts automatically/);
+  });
+  it('reports queue progress at the start of the next turn and never on a read-only turn', async () => {
+    const advanceBuilderQueue = vi.fn(async (builder: 'claude' | 'codex') => builder === 'claude'
+      ? { builder, checked: true, finished: ['"Organize the Finance room cards" finished: success.'], started: { taskId: 'x', title: 'Tidy Finance headings', ok: true, detail: 'GitHub accepted the Claude build request. Run 8: u' }, detail: 'Started queued Claude task "Tidy Finance headings".' }
+      : { builder, checked: false, finished: [], detail: 'No Codex queue work.' });
+    const h = chatDeps(null, { advanceBuilderQueue });
+    const original = vi.mocked(h.fetchImpl).getMockImplementation()!;
+    vi.mocked(h.fetchImpl).mockImplementation(async (input, init) => String(input).includes('/v1/responses') ? Response.json({ output_text: 'Good morning John.' }) : original(input, init));
+    const r = await runManagerChatWith(h.deps, say('Good morning Elsie'));
+    expect(advanceBuilderQueue).toHaveBeenCalledTimes(2);
+    expect(r.text).toContain('finished: success');
+    expect(r.text).toContain('Run 8');
+    expect(r.actionResults?.[0]?.name).toBe('advance_claude_queue');
+    advanceBuilderQueue.mockClear();
+    await runManagerChatWith(h.deps, say('Just checking, do not send anything yet'));
+    expect(advanceBuilderQueue).not.toHaveBeenCalled();
+  });
+});

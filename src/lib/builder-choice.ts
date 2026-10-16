@@ -26,11 +26,21 @@ const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|su
 // A noun such as "build" or "fix" in a status report is never permission.
 // Accept commands (including polite "Can you fix …?"), not arbitrary mentions.
 const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:claude|codex|elsie)[,:]?\s+)?(?:(?:can|could|would) you\s+)?`;
-const CHANGE = String.raw`(?:build|implement|code|fix|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update)`;
+const CHANGE = String.raw`(?:build|implement|code|fix|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin) (?:the |this |my )?(?:saved |existing )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 
 const EXPLICIT_HANDOFF = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:this |the |my )?(?:task|job|assignment|request)?\s*(?:to\s+claude\b|to\s+codex\b|for\s+claude\b|for\s+codex\b)/i;
+const HANDOFF_PREFIX = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:it |this |the |my )?(?:task |job |assignment |request )?(?:to|for)\s+(?:the\s+)?(?:builder|claude|codex)(?:\s+(?:next|after (?:the|its) current (?:build|job|task)))?\s*[:,\-–—]\s*/i;
+
+/** The owner's scope after an explicit "pass this task to Claude:" routing prefix.
+ * The prefix only names our internal builder; every other word is still checked.
+ */
+export const stripBuilderHandoffPrefix = (request: string): string => request.trim().replace(HANDOFF_PREFIX, "");
+
+/** John asked to queue the work behind the builder's current job rather than start now. */
+export const requestAsksToQueue = (request: string): boolean =>
+  /^(?:please\s+)?(?:elsie[,:]?\s+)?queue\b/i.test(request.trim()) || /\b(?:after (?:the|its|his|her) current (?:build|job|task)|when (?:claude|codex) (?:is )?(?:free|finishe?s|done)|next in (?:line|the queue))\b/i.test(request);
 
 /** Treat clear handoffs as actions, without overriding explicit stop conditions. */
 export const requestIsDiscussionOnly = (request: string): boolean => {
@@ -54,7 +64,7 @@ export function taskExecutionRefusal(request: string): string | null {
 export function directBuildRefusal(request: string, builder: OfficeBuilder): string | null {
   // A quoted owner instruction after this explicit handoff prefix is still
   // the owner's scope. Keep the original request for builder/risk selection.
-  const text = request.trim().replace(/^(?:please\s+)?pass this to (?:the )?(?:builder|codex|claude):\s*/i, "");
+  const text = stripBuilderHandoffPrefix(request.trim().replace(/^(?:please\s+)?pass this to (?:the )?(?:builder|codex|claude):\s*/i, ""));
   const choice = builderChoiceFor(request);
   if ("conflict" in choice) return "Your request names both Claude and Codex. Say which one builder should do it; nothing was sent.";
   if (choice.builder !== builder) return `Your request chose ${BUILDER_LABEL[choice.builder]}, so nothing was sent to ${BUILDER_LABEL[builder]}.`;
@@ -62,7 +72,7 @@ export function directBuildRefusal(request: string, builder: OfficeBuilder): str
   if (requestIsDiscussionOnly(request)) return "That reads as discussion or an example, so no build was started.";
   if (!BUILD_INTENT.test(text)) return "No explicit Office code change was requested, so no build was started.";
   if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";
-  const protectedCategory = officeBuildProtectedCategory(request);
+  const protectedCategory = officeBuildProtectedCategory(stripBuilderHandoffPrefix(request));
   if (protectedCategory) return `This request includes a protected action (${protectedCategory}), so no build was started.`;
   return null;
 }
