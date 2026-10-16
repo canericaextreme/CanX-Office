@@ -416,3 +416,37 @@
     transition: none;
   }
 }
+
+/* Records only: White Claw-inspired palette; no layout or interaction overrides. */
+.records-room {
+  --background: #292a30; /* charcoal grey */
+  --foreground: #ffffff;
+  --card: #18243d; /* navy */
+  --card-foreground: #ffffff;
+  --primary: #ff4fa3; /* hot pink, with dark text for contrast */
+  --primary-foreground: #18243d;
+  --secondary: #641c3c; /* deep burgundy */
+  --secondary-foreground: #ffffff;
+  --muted: #292a30;
+  --muted-foreground: #d6d8de; /* metallic silver */
+  --accent: #641c3c;
+  --accent-foreground: #ffffff;
+  --border: #aeb4bf;
+  --input: #aeb4bf;
+  --ring: #ff4fa3;
+  color: var(--foreground);
+}
+
+.records-room main {
+  background-image: linear-gradient(135deg, #641c3c33, transparent 45%, #18243d66);
+}
+
+.records-room h1 {
+  color: var(--primary);
+}
+
+/* A stationary silver sheen keeps the metallic effect purely cosmetic. */
+.records-room .bg-card {
+  background-color: var(--card);
+  background-image: linear-gradient(115deg, #d6d8de12, transparent 35%, #ffffff06);
+}
