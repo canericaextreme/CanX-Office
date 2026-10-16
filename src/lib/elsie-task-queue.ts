@@ -17,20 +17,43 @@ export type QueueSelection =
   | { state: "empty" }
   | { state: "ready"; task: ElsieQueuedTask };
 
-/** Fail closed when the builder has not been confirmed free. */
+/** At most this many tasks wait per builder, so unattended spend stays bounded. */
+export const MAX_QUEUED_PER_BUILDER = 3;
+
+/** States in which a builder run is still using the builder. */
+export const ACTIVE_RUN_STATES: ReadonlySet<string> = new Set(["queued", "in_progress", "waiting", "pending", "requested", "running"]);
+
+/** Durable owner authorization written on a task when John queues it for a builder.
+ * Only tasks carrying this marker are ever released without a fresh instruction.
+ */
+export const queueMarker = (builder: "claude" | "codex", at: string): string => `[elsie-queue ${builder} ${at}]`;
+export const hasQueueMarker = (evidence: string | null | undefined, builder: "claude" | "codex"): boolean =>
+  new RegExp(`\\[elsie-queue ${builder} [0-9T:.\\-]+Z\\]`).test(evidence ?? "");
+
+const ATTEMPTED = /office-task-v2|codex-task-v1|(?:Claude|Codex) handoff|builder-execution|elsie-claim/i;
+const assignedTo = (t: ElsieQueuedTask, builder: "claude" | "codex") => t.worker.trim().toLowerCase() === builder;
+
+/** Tasks John queued for this builder that have not been attempted, oldest first. */
+export function queuedTasksFor(tasks: readonly ElsieQueuedTask[], builder: "claude" | "codex"): ElsieQueuedTask[] {
+  return tasks
+    .filter(t => assignedTo(t, builder) && t.status === "open" && t.risk === "green"
+      && hasQueueMarker(t.evidence, builder) && !ATTEMPTED.test(t.evidence ?? ""))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+}
+
+/** Fail closed when the builder has not been confirmed free. Only queued
+ * (owner-authorized) tasks are eligible, so older Work Board tasks that merely
+ * name a builder are never started by the queue.
+ */
 export function selectElsieQueueTask(
   tasks: readonly ElsieQueuedTask[],
   builder: "claude" | "codex",
   builderIdleVerified: boolean
 ): QueueSelection {
   if (!builderIdleVerified) return { state: "blocked", reason: "Builder availability not verified" };
-  const assigned = tasks.filter(t => [builder, builder === "claude" ? "claude builder" : "codex builder"].includes(t.worker.trim().toLowerCase()));
-  if (assigned.some(t => t.status === "in_progress"))
+  if (tasks.some(t => assignedTo(t, builder) && t.status === "in_progress"))
     return { state: "blocked", reason: "Assigned builder has active work" };
-  const queued = assigned
-    .filter(t => t.status === "open" && t.risk === "green" && !/office-task-v2|codex-task-v1|(?:Claude|Codex) handoff|builder-execution/i.test(t.evidence ?? ""))
-    .sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
-  const next = queued[0];
+  const next = queuedTasksFor(tasks, builder)[0];
   return next ? { state: "ready", task: next } : { state: "empty" };
 }
 

@@ -3,6 +3,7 @@ import type { CodexBuildResult } from './codex-builds.server';
 import { firstRow, classifyManagerRisk, type ManagerTask, type WorkbenchDeps } from './manager-work.functions';
 import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from './codex-task-handoff';
 import { BUILDER_LABEL, type OfficeBuilder } from './builder-choice';
+import { ACTIVE_RUN_STATES, MAX_QUEUED_PER_BUILDER, hasQueueMarker, queueMarker, queuedTasksFor, selectElsieQueueTask } from './elsie-task-queue';
 
 type BuildFn = (token: string, request?: string, prNumber?: number, runId?: number) => Promise<CodexBuildResult>;
 interface Execution { kind: 'codex-task-v1' | 'office-task-v2'; builder: OfficeBuilder; attempt: string; runId?: number; state: string; prior: string; }
@@ -109,5 +110,123 @@ export async function executeQueuedElsieTaskWith(
   );
   if (!data.ok || !data.data?.ok)
     return { ok: false, detail: 'Scoped claim not confirmed: ' + (data.data?.reason ?? data.error ?? 'unavailable') + '. No build was sent.' };
-  return executeTaskWith(deps, token, taskId, false, builder, true);
+  const result = await executeTaskWith(deps, token, taskId, false, builder, true);
+  if (!result.ok) await parkUnsentClaim(deps, token, owner.userId, taskId, builder, result.detail);
+  return result;
+}
+
+/** A claim whose task was refused before any submission receipt was written
+ * would otherwise hold the builder "busy" forever. Park it as waiting with the
+ * reason, only while it still carries just the claim (never after a send).
+ */
+async function parkUnsentClaim(deps: TaskExecutionDeps, token: string, ownerId: string, taskId: string, builder: OfficeBuilder, reason: string) {
+  const path = `manager_tasks?id=eq.${encodeURIComponent(taskId)}&owner_id=eq.${encodeURIComponent(ownerId)}`;
+  const read = await deps.workbench.rest<ManagerTask[]>(token, 'GET', path).catch(() => null);
+  const task = read?.ok ? firstRow<ManagerTask>(read.data) : null;
+  if (!task || task.status !== 'in_progress' || readExecution(task.evidence) || !task.evidence.includes(`[elsie-claim ${builder} ${taskId}]`)) return;
+  await deps.workbench.rest(token, 'PATCH', `${path}&status=eq.in_progress&evidence=eq.${encodeURIComponent(task.evidence)}`, {
+    status: 'waiting', waiting_reason: `Queued release stopped before sending: ${reason}`.slice(0, 500), updated_at: new Date().toISOString(),
+  }).catch(() => undefined);
+}
+
+type QueueTask = Pick<ManagerTask, 'id' | 'title' | 'detail' | 'status' | 'risk' | 'worker' | 'evidence' | 'created_at' | 'updated_at' | 'owner_id'>;
+
+async function builderTasks(deps: TaskExecutionDeps, token: string, ownerId: string, builder: OfficeBuilder): Promise<QueueTask[] | null> {
+  const read = await deps.workbench.rest<QueueTask[]>(token, 'GET',
+    `manager_tasks?owner_id=eq.${encodeURIComponent(ownerId)}&worker=ilike.${builder}&status=in.(open,in_progress,waiting)&order=created_at.asc&limit=100`);
+  return read.ok && Array.isArray(read.data) ? read.data : null;
+}
+
+/** Live builder availability: idle only when the run list is readable and no run is active. */
+export async function builderAvailability(deps: TaskExecutionDeps, token: string, builder: OfficeBuilder): Promise<{ idle: boolean; detail: string }> {
+  const run = builder === 'claude' ? deps.buildClaude : deps.build;
+  if (!run) return { idle: false, detail: `${BUILDER_LABEL[builder]} status is not available on this server path.` };
+  const status = await run(token).catch(() => null);
+  if (!status?.ok || !Array.isArray(status.runs)) return { idle: false, detail: `${BUILDER_LABEL[builder]} status could not be read.` };
+  const active = status.runs.find(r => ACTIVE_RUN_STATES.has(String(r.state)));
+  return active ? { idle: false, detail: `${BUILDER_LABEL[builder]} is working on run ${active.id} (${active.state}).` } : { idle: true, detail: `${BUILDER_LABEL[builder]} has no active run.` };
+}
+
+/** Whether a new handoff must wait: John asked to queue it, the builder is busy or
+ * unreadable, Elsie already has linked work for it, or earlier tasks are queued.
+ */
+export async function handoffMustQueue(deps: TaskExecutionDeps, token: string, builder: OfficeBuilder, askedToQueue: boolean): Promise<{ queue: boolean; reason: string }> {
+  if (askedToQueue) return { queue: true, reason: 'You asked to queue it.' };
+  const owner = await deps.workbench.verifyOwner(token);
+  if (!owner.ok) return { queue: true, reason: owner.message };
+  const tasks = await builderTasks(deps, token, owner.userId, builder);
+  if (!tasks) return { queue: true, reason: 'The saved queue could not be read.' };
+  if (tasks.some(t => t.status === 'in_progress')) return { queue: true, reason: `${BUILDER_LABEL[builder]} already has a task in progress.` };
+  if (queuedTasksFor(tasks, builder).length) return { queue: true, reason: `Earlier ${BUILDER_LABEL[builder]} tasks are waiting first.` };
+  const availability = await builderAvailability(deps, token, builder);
+  return availability.idle ? { queue: false, reason: availability.detail } : { queue: true, reason: availability.detail };
+}
+
+/** Save John's explicit handoff in the builder's durable queue without sending it.
+ * The marker is the standing authorization for a later automatic release.
+ */
+export async function queueTaskForBuilderWith(deps: TaskExecutionDeps, token: string, taskId: string, builder: OfficeBuilder): Promise<{ ok: boolean; position?: number; detail: string }> {
+  const owner = await deps.workbench.verifyOwner(token);
+  if (!owner.ok) return { ok: false, detail: owner.message };
+  const tasks = await builderTasks(deps, token, owner.userId, builder);
+  if (!tasks) return { ok: false, detail: 'The saved queue could not be read, so the task was saved but not queued.' };
+  const waiting = queuedTasksFor(tasks, builder).filter(t => t.id !== taskId);
+  if (waiting.length >= MAX_QUEUED_PER_BUILDER) return { ok: false, detail: `${BUILDER_LABEL[builder]} already has ${waiting.length} queued tasks (the limit). The task was saved but not queued.` };
+  const path = `manager_tasks?id=eq.${encodeURIComponent(taskId)}&owner_id=eq.${encodeURIComponent(owner.userId)}`;
+  const read = await deps.workbench.rest<ManagerTask[]>(token, 'GET', path);
+  const task = read.ok ? firstRow<ManagerTask>(read.data) : null;
+  if (!task) return { ok: false, detail: 'The saved task could not be read for this owner.' };
+  if (task.status !== 'open' || task.risk !== 'green') return { ok: false, detail: 'Only open green tasks can be queued.' };
+  if (readExecution(task.evidence) || /office-task-v2|codex-task-v1|(?:Claude|Codex) handoff|elsie-claim/i.test(task.evidence)) return { ok: false, detail: 'This task already has a build attempt, so it was not queued again.' };
+  if (hasQueueMarker(task.evidence, builder)) return { ok: true, position: waiting.length + 1, detail: `Already queued for ${BUILDER_LABEL[builder]}.` };
+  const evidence = (task.evidence ? task.evidence + '\n' : '') + queueMarker(builder, new Date().toISOString());
+  const saved = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&status=eq.open&evidence=eq.${encodeURIComponent(task.evidence)}`, {
+    worker: BUILDER_LABEL[builder], evidence,
+    waiting_reason: `Queued for ${BUILDER_LABEL[builder]}; starts automatically after earlier ${BUILDER_LABEL[builder]} work finishes.`,
+    updated_at: new Date().toISOString(),
+  });
+  if (!saved.ok || !firstRow(saved.data)) return { ok: false, detail: 'The queue position could not be saved; nothing was sent.' };
+  await deps.workbench.rest(token, 'POST', 'rpc/log_manager_change', {
+    _owner_id: owner.userId, _action: 'task.queue', _entity: 'manager_tasks', _entity_id: taskId,
+    _before: { evidence: task.evidence.slice(0, 200) }, _after: { queued_for: builder, position: waiting.length + 1 },
+  }).catch(() => undefined);
+  return { ok: true, position: waiting.length + 1, detail: `Queued for ${BUILDER_LABEL[builder]} at position ${waiting.length + 1}.` };
+}
+
+export interface QueueAdvance { builder: OfficeBuilder; checked: boolean; finished: string[]; started?: { taskId: string; title: string; detail: string; ok: boolean }; detail: string; }
+
+/** One idempotent queue step for a builder, run inside an owner-authenticated request:
+ * refresh linked runs, and when the builder is confirmed idle release exactly one
+ * owner-queued task through the scoped claim. Does nothing (and makes no GitHub
+ * call) when the builder has neither linked work nor queued tasks.
+ */
+export async function advanceElsieQueueWith(deps: TaskExecutionDeps, token: string, builder: OfficeBuilder): Promise<QueueAdvance> {
+  const none = (detail: string, checked = false): QueueAdvance => ({ builder, checked, finished: [], detail });
+  const owner = await deps.workbench.verifyOwner(token);
+  if (!owner.ok) return none(owner.message);
+  let tasks = await builderTasks(deps, token, owner.userId, builder);
+  if (!tasks) return none('Saved queue could not be read.');
+  const linked = tasks.filter(t => t.status === 'in_progress' && readExecution(t.evidence)?.runId);
+  if (!linked.length && !queuedTasksFor(tasks, builder).length) return none(`No ${BUILDER_LABEL[builder]} queue work.`);
+  const finished: string[] = [];
+  for (const t of linked) {
+    const check = await executeTaskWith(deps, token, t.id, true).catch(() => null);
+    const state = check?.runs?.[0]?.state;
+    if (check?.ok && state && !ACTIVE_RUN_STATES.has(state)) finished.push(`"${t.title}" finished: ${state}.${check.detail.match(/Draft change #\d+[^.]*\./)?.[0] ? ' ' + check.detail.match(/Draft change #\d+[^.]*\./)![0] : ''}`);
+  }
+  if (finished.length) tasks = await builderTasks(deps, token, owner.userId, builder);
+  if (!tasks) return { builder, checked: true, finished, detail: 'Saved queue could not be re-read after the status check.' };
+  const availability = await builderAvailability(deps, token, builder);
+  const selection = selectElsieQueueTask(tasks, builder, availability.idle);
+  if (selection.state !== 'ready') {
+    const waiting = queuedTasksFor(tasks, builder).length;
+    const why = selection.state === 'blocked' ? (availability.idle ? selection.reason : availability.detail) : 'nothing queued';
+    return { builder, checked: true, finished, detail: `${BUILDER_LABEL[builder]} queue: ${waiting} waiting; not released (${why}).` };
+  }
+  const task = tasks.find(t => t.id === selection.task.id)!;
+  const outcome = await executeQueuedElsieTaskWith(deps, token, task.id, builder, true);
+  const run = outcome.runs?.[0];
+  return { builder, checked: true, finished,
+    started: { taskId: task.id, title: task.title, ok: outcome.ok, detail: outcome.detail + (run ? ` Run ${run.id}: ${run.url}` : '') },
+    detail: outcome.ok ? `Started queued ${BUILDER_LABEL[builder]} task "${task.title}".` : `Queued ${BUILDER_LABEL[builder]} task "${task.title}" was not started: ${outcome.detail}` };
 }
