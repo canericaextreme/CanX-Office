@@ -28,7 +28,7 @@ export function selectElsieQueueTask(
   if (assigned.some(t => t.status === "in_progress"))
     return { state: "blocked", reason: "Assigned builder has active work" };
   const queued = assigned
-    .filter(t => t.status === "open" && t.risk === "green" && !t.evidence?.includes("[builder-execution"))
+    .filter(t => t.status === "open" && t.risk === "green" && !/(?:\\"kind\\"\\s*:\\s*\\"office-task-v2\\"|\\"kind\\"\\s*:\\s*\\"codex-task-v1\\"|(?:Claude|Codex) handoff|\\[builder-execution)/i.test(t.evidence ?? ""))
     .sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
   return queued.length ? { state: "ready", task: queued[0] } : { state: "empty" };
 }
