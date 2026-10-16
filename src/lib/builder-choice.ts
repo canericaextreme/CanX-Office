@@ -42,7 +42,7 @@ export const requestIsDiscussionOnly = (request: string): boolean => {
 
 /** Current owner intent is checked on every build entry point, not model scope. */
 export function taskExecutionRefusal(request: string): string | null {
-  if (DISCUSSION.test(request)) return "That reads as discussion or a read-only request, so no task was executed.";
+  if (requestIsDiscussionOnly(request)) return "That reads as discussion or a read-only request, so no task was executed.";
   return TASK_INTENT.test(request.trim()) ? null : "No explicit request to execute a saved task was received; nothing was sent.";
 }
 
@@ -58,7 +58,7 @@ export function directBuildRefusal(request: string, builder: OfficeBuilder): str
   if ("conflict" in choice) return "Your request names both Claude and Codex. Say which one builder should do it; nothing was sent.";
   if (choice.builder !== builder) return `Your request chose ${BUILDER_LABEL[choice.builder]}, so nothing was sent to ${BUILDER_LABEL[builder]}.`;
   if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !BUILD_INTENT.test(text))) return "That was a status question, so no build was started.";
-  if (DISCUSSION.test(request)) return "That reads as discussion or an example, so no build was started.";
+  if (requestIsDiscussionOnly(request)) return "That reads as discussion or an example, so no build was started.";
   if (!BUILD_INTENT.test(text)) return "No explicit Office code change was requested, so no build was started.";
   if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";
   const protectedCategory = officeBuildProtectedCategory(request);
