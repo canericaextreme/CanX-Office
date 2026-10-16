@@ -349,6 +349,7 @@ const TOOLS = [
   { type: "function" as const, name: "get_office_connection_plan", description: "Read the same dated Connect the Office checklist shown in Reception. Reports completed setup steps, blockers and the next step; does not test live connections, change authorization or mark anything complete.", parameters: { type: "object", additionalProperties: false, properties: {} } },
   { type: "function" as const, name: "start_codex_build", description: "Send John's explicit current request for an office code build or fix to Codex (the default builder). Use only when John asks to build or change code and has not named Claude, never for discussion or examples. Creates a draft change, never publishes. Do not resubmit an uncertain result.", parameters: { type: "object", additionalProperties: false, properties: {} } },
   { type: "function" as const, name: "start_claude_build", description: "Send John's explicit current request for an office code build or fix to the Claude builder. Use only when John names Claude as the builder in his current request. The server re-checks his words; it never switches builders and never falls back to Codex. Creates a draft change, never publishes.", parameters: { type: "object", additionalProperties: false, properties: {} } },
+  { type: "function" as const, name: "release_next_elsie_task", description: "When John explicitly says to release the next saved queued Claude/Codex task, check live builder run status and execute exactly one eligible owner green CanX Office task. Never release if status unreadable, any run is active, any task is in progress, or a previous attempt exists. No unattended background loop.", parameters: { type: "object", additionalProperties: false, required: ["builder"], properties: { builder: { type: "string", enum: ["claude", "codex"] } } } },
   { type: "function" as const, name: "check_elsie_queue", description: "Read the durable Work Board queue for a named builder. Never sends work, changes tasks, or assumes the builder is idle.", parameters: { type: "object", additionalProperties: false, required: ["builder"], properties: { builder: { type: "string", enum: ["claude", "codex"] } } } },
   { type: "function" as const, name: "execute_task", description: "When John explicitly asks to carry out a saved task, submit its stored scope to the fixed CanX Office builder (Codex unless John names Claude in his current request). Only green Office code changes are supported. Do not use for status questions, examples, research, email or external projects. Already attempted tasks are never retried or sent to the other builder.", parameters: { type: "object", additionalProperties: false, required: ["task_id"], properties: { task_id: { type: "string" } } } },
   { type: "function" as const, name: "check_task_execution", description: "Read the exact GitHub build linked to a saved task, using the builder recorded on that task, and update its evidence. Never starts a build. Successful candidates still require review and deployment verification.", parameters: { type: "object", additionalProperties: false, required: ["task_id"], properties: { task_id: { type: "string" } } } },
@@ -1299,6 +1300,34 @@ async function executeToolCalls(
       if (call.name === "get_office_connection_plan") {
         textAdditions.push(JSON.stringify(readOfficeConnectionPlan()));
         actionResults.push({ name: call.name, risk, status: "done", detail: "Read Reception's dated connection checklist. This is not a live connection test." });
+      } else if (call.name === "release_next_elsie_task") {
+        const builderText = String(call.arguments["builder"] ?? "");
+        const explicitlyRequested = /\b(?:release|dispatch|send|start|execute)\s+(?:the\s+)?next\s+(?:queued\s+)?(?:task|job|assignment)\b/i.test(currentRequest);
+        if (!explicitlyRequested || (builderText !== "claude" && builderText !== "codex")) {
+          actionResults.push({name:call.name, risk:"green", status:"stopped", detail:"Explicit current owner request and one known builder required."});
+          continue;
+        }
+        if (codexSubmitted) { actionResults.push({name:call.name,risk:"green",status:"stopped",detail:"Builder already attempted this turn."}); continue; }
+        const builder = builderText as OfficeBuilder;
+        const status = await runBuild(builder, accessToken);
+        // Never infer idle from a missing status array.
+        const activeStates = new Set(["queued","in_progress","waiting","pending","requested","running"]);
+        const confirmedIdle = status.ok && Array.isArray(status.runs)
+          && status.runs.every(run => !activeStates.has(String(run.state)));
+        const mem = await loadManagerMemoryWith(workbench, accessToken);
+        if (!("ok" in mem && mem.ok)) {
+          actionResults.push({name:call.name,risk:"green",status:"stopped",detail:"Cannot read saved queue."});
+          continue;
+        }
+        const selection = selectElsieQueueTask(mem.tasks,builder,confirmedIdle);
+        if (selection.state !== "ready") {
+          actionResults.push({name:call.name,risk:"green",status:"stopped",detail: selection.state === "blocked" ? selection.reason : "No eligible queued task."});
+          continue;
+        }
+        codexSubmitted = true;
+        const outcome = await executeQueuedElsieTaskWith(taskBuildDeps(),accessToken,selection.task.id,builder,true);
+        textAdditions.push(outcome.detail);
+        actionResults.push({name:call.name,risk:"green",status:outcome.ok?"pending":"stopped",detail:outcome.detail});
       } else if (call.name === "check_elsie_queue") {
         const builder = String(call.arguments["builder"] ?? "");
         const memory = await loadManagerMemoryWith(workbench, accessToken);
