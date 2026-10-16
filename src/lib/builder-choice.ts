@@ -30,12 +30,21 @@ const CHANGE = String.raw`(?:build|implement|code|fix|apply|create|write|add|rem
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin) (?:the |this |my )?(?:saved |existing )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 
-export const requestIsDiscussionOnly = (request: string): boolean => DISCUSSION.test(request);
+const EXPLICIT_HANDOFF = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:this |the |my )?(?:task|job|assignment|request)?\s*(?:to\s+claude\b|to\s+codex\b|for\s+claude\b|for\s+codex\b)/i;
+
+/** Treat clear handoffs as actions, without overriding explicit stop conditions. */
+export const requestIsDiscussionOnly = (request: string): boolean => {
+  const text = request.trim();
+  const explicitStop = /\b(?:do not|don't|don’t|no)\s+(?:build|start|send|submit|execute|run|act|create|save|make changes)\b|\b(?:not yet|read[ -]?only|hypothetical(?:ly)?|for example|just (?:asking|checking|discussing|planning))\b/i;
+  if (explicitStop.test(text)) return true;
+  if (EXPLICIT_HANDOFF.test(text)) return false;
+  return DISCUSSION.test(text);
+};
 
 /** Current owner intent is checked on every build entry point, not model scope. */
 export function taskExecutionRefusal(request: string): string | null {
-  if (DISCUSSION.test(request)) return "That reads as discussion or a read-only request, so no task was executed.";
-  return TASK_INTENT.test(request.trim()) ? null : "No explicit request to execute a saved task was received; nothing was sent.";
+  if (requestIsDiscussionOnly(request)) return "That reads as discussion or a read-only request, so no task was executed.";
+  return (TASK_INTENT.test(request.trim()) || (EXPLICIT_HANDOFF.test(request.trim()) && /\b(?:task|job|assignment)\b/i.test(request))) ? null : "No explicit request to execute a saved task was received; nothing was sent.";
 }
 
 /**
@@ -50,7 +59,7 @@ export function directBuildRefusal(request: string, builder: OfficeBuilder): str
   if ("conflict" in choice) return "Your request names both Claude and Codex. Say which one builder should do it; nothing was sent.";
   if (choice.builder !== builder) return `Your request chose ${BUILDER_LABEL[choice.builder]}, so nothing was sent to ${BUILDER_LABEL[builder]}.`;
   if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !BUILD_INTENT.test(text))) return "That was a status question, so no build was started.";
-  if (DISCUSSION.test(request)) return "That reads as discussion or an example, so no build was started.";
+  if (requestIsDiscussionOnly(request)) return "That reads as discussion or an example, so no build was started.";
   if (!BUILD_INTENT.test(text)) return "No explicit Office code change was requested, so no build was started.";
   if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";
   const protectedCategory = officeBuildProtectedCategory(request);

@@ -23,7 +23,7 @@ export const readExecution = (text: string): Execution | null => {
   } catch { return null; }
 };
 
-export async function executeTaskWith(deps: TaskExecutionDeps, token: string, taskId: string, checkOnly = false, builder?: OfficeBuilder): Promise<CodexBuildResult> {
+export async function executeTaskWith(deps: TaskExecutionDeps, token: string, taskId: string, checkOnly = false, builder?: OfficeBuilder, preclaimed = false): Promise<CodexBuildResult> {
   const owner = await deps.workbench.verifyOwner(token);
   if (!owner.ok) return { ok: false, detail: owner.message };
   if (!/^[0-9a-f-]{36}$/i.test(taskId)) return { ok: false, detail: 'Choose a saved task identifier.' };
@@ -32,6 +32,7 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   const task = firstRow<ManagerTask>(read.data);
   if (!read.ok || !task || task.owner_id !== owner.userId) return { ok: false, detail: 'The saved task could not be read for this owner.' };
   const execution = readExecution(task.evidence);
+  if (preclaimed && !task.evidence.includes('[elsie-claim ' + builder + ' ' + taskId + ']')) return { ok: false, detail: 'Missing queued claim receipt.' };
   const pick = (b: OfficeBuilder): BuildFn | undefined => b === 'claude' ? deps.buildClaude : deps.build;
   if (checkOnly) {
     if (!execution?.runId) return { ok: false, detail: 'This task has no verified build link. Assignment alone does not start work. If a previous submission was uncertain, inspect Build & Testing before retrying.' };
@@ -66,10 +67,14 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   // Compare-and-set before dispatch prevents two conversations from executing
   // the same task. A lost response leaves the durable claim, never a retry.
   const claimText = JSON.stringify(pending);
-  const claimed = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&updated_at=eq.${encodeURIComponent(task.updated_at)}&evidence=eq.${encodeURIComponent(task.evidence)}&status=not.in.(done,cancelled)`, {
-    evidence: claimText, result: `Preparing one ${BUILDER_LABEL[chosen]} submission; execution not yet confirmed.`, updated_at: new Date().toISOString(),
-  });
-  if (!claimed.ok || !firstRow(claimed.data)) return { ok: false, detail: 'The execution claim could not be confirmed. Nothing was sent; reload the task before continuing.' };
+  const claimed = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH',
+    path + '&updated_at=eq.' + encodeURIComponent(task.updated_at) +
+    '&evidence=eq.' + encodeURIComponent(task.evidence) +
+    (preclaimed ? '&status=eq.in_progress' : '&status=not.in.(done,cancelled)'), {
+      evidence: claimText, result: 'Preparing one builder submission; execution not yet confirmed.',
+      updated_at: new Date().toISOString(),
+    });
+  if (!claimed.ok || !firstRow(claimed.data)) return { ok: false, detail: 'Execution receipt could not be confirmed. No build sent.' };
   let live: CodexBuildResult;
   try { live = await run(token, request); }
   catch { live = { ok: false, detail: 'Submission could not be confirmed. Nothing was retried.' }; }
@@ -84,4 +89,25 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
     _before: { status: task.status }, _after: { attempt: pending.attempt, builder: chosen, state: next.state, run_id: runId ?? null },
   }).catch(() => undefined);
   return { ...live, detail: live.detail + (saved.ok && firstRow(saved.data) ? ' Execution evidence saved on the task.' : ' Execution evidence could not be saved; check Build & Testing before any further submission.') };
+}
+
+/** Explicit, owner-authorized queued task release; never a background scheduler.
+ * Uses the scoped SQL claim before the existing idempotent execution path.
+ * Do not invoke while a builder is running or until the claim migration is live.
+ */
+export async function executeQueuedElsieTaskWith(
+  deps: TaskExecutionDeps, token: string, taskId: string, builder: OfficeBuilder,
+  builderIdleVerified: boolean
+): Promise<CodexBuildResult> {
+  if (!builderIdleVerified) return { ok: false, detail: 'Builder idle status unverified; queued work retained.' };
+  const owner = await deps.workbench.verifyOwner(token);
+  if (!owner.ok) return { ok: false, detail: owner.message };
+  if (!/^[0-9a-f-]{36}$/i.test(taskId)) return { ok: false, detail: 'Invalid queued task id.' };
+  // Re-check owner and available evidence rather than trusting a client queue.
+  const data = await deps.workbench.rest<{ ok: boolean; reason?: string }>(
+    token, 'POST', 'rpc/canx_mcp_claim_elsie_task', { _task_id: taskId, _builder: builder }
+  );
+  if (!data.ok || !data.data?.ok)
+    return { ok: false, detail: 'Scoped claim not confirmed: ' + (data.data?.reason ?? data.error ?? 'unavailable') + '. No build was sent.' };
+  return executeTaskWith(deps, token, taskId, false, builder, true);
 }

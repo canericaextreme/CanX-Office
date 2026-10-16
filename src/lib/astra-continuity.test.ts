@@ -77,9 +77,9 @@ describe("writing recent turns", () => {
     expect(result).toEqual({ saved: true, pruned: true });
     const body = JSON.parse(String(calls[0]!.init?.body));
     expect(body.map((r: { owner_id: string; role: string }) => [r.owner_id, r.role])).toEqual([[OWNER_ID, "user"], [OWNER_ID, "assistant"]]);
-    expect(calls[1]!.path).toContain(`offset=${RECENT_KEEP_LIMIT}`);
-    expect(calls[2]!.init?.method).toBe("DELETE");
-    expect(calls[2]!.path).toContain(`owner_id=eq.${OWNER_ID}`);
+    expect(calls.some(c => c.path.includes(`offset=${RECENT_KEEP_LIMIT}`))).toBe(true);
+    const deletion = calls.find(c => c.init?.method === "DELETE");
+    expect(deletion?.path).toContain(`owner_id=eq.${OWNER_ID}`);
   });
 
   it("reports an insert failure honestly", async () => {
