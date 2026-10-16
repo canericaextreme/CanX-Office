@@ -48,7 +48,7 @@ function AnalyticsRoom(){
     {tile && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3" onClick={()=>setSelected(null)}>
       <section role="dialog" aria-modal="true" aria-label={tile.title+" details"} onClick={e=>e.stopPropagation()} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-cyan-400/50 bg-[#091922] p-5 text-white shadow-2xl">
         <button onClick={()=>setSelected(null)} className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:bg-slate-800"><ArrowLeft className="h-4 w-4"/> Back to overview</button>
-        <div className="flex items-center gap-3"><tile.Icon className={"h-8 w-8 "+BORDERS[tile.accent].split(" ").at(-1)}/><h2 className="text-2xl font-bold">{tile.title}</h2></div>
+        <div className="flex items-center gap-3"><tile.Icon className={"h-8 w-8 "+(tile.accent === "blue" ? "text-cyan-300" : tile.accent === "lime" ? "text-lime-300" : "text-orange-300")}/><h2 className="text-2xl font-bold">{tile.title}</h2></div>
         <p className="mt-3 rounded-md bg-orange-400/10 p-3 text-sm text-orange-200">Status: not connected. No invented figures.</p>
         <h3 className="mt-5 font-semibold text-cyan-200">What this means</h3><p className="mt-2 text-sm text-slate-300">This card is one instrument on the Office dashboard. Elsie can explain its purpose and what evidence is missing in simple language.</p>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-200">{tile.details.map(x=><li key={x}>{x}</li>)}</ul>
