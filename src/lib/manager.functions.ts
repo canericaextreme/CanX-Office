@@ -414,7 +414,7 @@ const TOOLS = [
         project: { type: "string" },
         worker: { type: "string" },
         risk: { type: "string", enum: ["green", "yellow", "red"] },
-        code_change: { type: "boolean", description: "True only when John is directly asking for a change to the CanX Office code or screens (for example removing or changing something on a page). Green code changes are sent to Codex automatically; do not also call start_codex_build." },
+        code_change: { type: "boolean", description: "True only when John is directly asking for a change to the CanX Office code or screens (for example removing or changing something on a page). Green code changes are sent to Codex automatically (or Claude when John names Claude); do not also call start_codex_build. For these tasks the detail describes only the screen change: do not list forbidden actions (payments, spending, sending, approvals, publishing); the server already protects them and such words stop the handoff." },
       },
     },
   },
@@ -1430,6 +1430,17 @@ async function executeToolCalls(
           });
           const buildRefusal = wantsBuild && !("conflict" in choice) ? directBuildRefusal(currentRequest, choice.builder) : null;
           if (buildRefusal) handoffNote = ` Saved, but not sent to a builder: ${buildRefusal}`;
+          // John named a builder but the saved task cannot go to it: say exactly why, never stay silent.
+          if (!wantsBuild && !codexSubmitted && !("conflict" in choice) && choice.named
+            && (directBuildRefusal(currentRequest, choice.builder) === null || taskExecutionRefusal(currentRequest) === null)) {
+            const category = officeBuildProtectedCategory(buildText);
+            const why = category
+              ? `the saved task text touches a protected area (${category}), and the safety check refuses that wording even when it only says not to change it. Ask again describing just the screen change, without words like payment, spending, send or approve`
+              : taskRisk !== "green" || classifyManagerRisk("start_codex_build", buildText) !== "green"
+                ? "the task is not green-light work"
+                : "it was not recorded as an Office screen or code change";
+            handoffNote = ` Saved, but not sent to ${BUILDER_LABEL[choice.builder]}: ${why}.`;
+          }
           if (wantsBuild && "conflict" in choice) {
             handoffNote = " Your request named both Claude and Codex, so the task was saved but not sent to a builder.";
           } else if (wantsBuild && !("conflict" in choice) && directBuildRefusal(currentRequest, choice.builder) === null) {
