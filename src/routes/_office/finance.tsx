@@ -82,6 +82,9 @@ export function Finance() {
   const [notice, setNotice] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [section, setSection] = useState<FinanceSection | null>(null);
+  // Whether the private account receipts have been read. Until they have, the
+  // count shown is not the saved count, and saving could replace saved records.
+  const [privateLoad, setPrivateLoad] = useState<"idle" | "loading" | "loaded" | "failed">("idle");
   const sectionHeading = useRef<HTMLHeadingElement>(null);
 
   // Device-only records first. Private account records replace them once the
@@ -92,21 +95,29 @@ export function Finance() {
 
   useEffect(() => {
     if (!owner.shared || !owner.accessToken) return;
+    setPrivateLoad("loading");
+    const failed = (message: string) => { setNotice(message); setPrivateLoad("failed"); };
     void listPrivateReceipts({ data: { accessToken: owner.accessToken } })
       .then((result) => {
         if (!result.ok) {
-          setNotice(result.message || "Your saved receipts could not be read just now. Nothing was changed.");
+          failed(result.message || "Your saved receipts could not be read just now. Nothing was changed.");
           return;
         }
+        setPrivateLoad("loaded");
         if (!result.data) return; // No saved document yet; device records stay.
         const parsed = parseReceiptImport(result.data);
         if (parsed.ok) setReceipts(parsed.receipts);
-        else setNotice("Your saved receipts could not be read. Nothing was changed.");
+        else failed("Your saved receipts could not be read. Nothing was changed.");
       })
-      .catch(() => setNotice("Your saved receipts could not be read just now. Nothing was changed."));
+      .catch(() => failed("Your saved receipts could not be read just now. Nothing was changed."));
   }, [owner.shared, owner.accessToken]);
 
   const persist = async (next: FinanceReceipt[]) => {
+    // Never save over account records this page has not read.
+    if (owner.shared && privateLoad !== "loaded") {
+      setNotice("Your saved receipts have not loaded yet, so nothing was saved. Finish sign-in (authenticator code) and refresh, then try again.");
+      return;
+    }
     setReceipts(next);
     saveDeviceReceipts(next);
     if (owner.shared && owner.accessToken) {
@@ -170,6 +181,7 @@ export function Finance() {
 
   const totals = totalsByCurrency(receipts);
   const summary = reconciliationSummary(receipts);
+  const receiptsUnread = owner.shared && privateLoad !== "loaded";
   const storageLabel = owner.shared
     ? "Saved in your private CanX account"
     : "Saved on this device only — not shared, not backed up";
@@ -213,11 +225,12 @@ export function Finance() {
         {section === null ? (
           <>
             <h2 className="text-xl font-semibold">Finance overview</h2>
+            {privateLoad === "failed" && notice && <p role="alert" className="text-sm text-foreground">{notice}</p>}
             <nav aria-label="Finance categories" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {([
                 { id: "income", label: "Income", value: "Unknown", note: "No reconciled income source", icon: BadgeDollarSign, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
                 { id: "expenses", label: "Expenses", value: "Unknown", note: "No reconciled payment source", icon: Landmark, border: "border-t-finance-teal", iconTone: "bg-finance-teal/10 text-finance-teal" },
-                { id: "receipts", label: "Receipts", value: String(summary.receipts), note: `${summary.needsReview} need review`, icon: ReceiptText, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
+                { id: "receipts", label: "Receipts", value: receiptsUnread ? (privateLoad === "failed" ? "Not loaded" : "Loading…") : String(summary.receipts), note: receiptsUnread ? (privateLoad === "failed" ? "Saved receipts could not be read — open for details" : "Reading your saved receipts") : `${summary.needsReview} need review`, icon: ReceiptText, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
                 { id: "tax", label: "Tax prep", value: "Not started", note: "Records only — no tax advice", icon: FileText, border: "border-t-finance-navy", iconTone: "bg-finance-navy/10 text-finance-navy" },
               ] as const).map((item) => {
                 const Icon = item.icon;
