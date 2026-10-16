@@ -12,11 +12,21 @@ export const BUILDER_LABEL: Record<OfficeBuilder, string> = { codex: "Codex", cl
 
 export type BuilderChoice = { builder: OfficeBuilder; named: boolean } | { conflict: true };
 
-/** Builder John named in his own request. Both named = ask, never guess. */
+/** "Codex only" / "only Claude" marks the one builder; the other name may then appear as a reviewer. */
+const exclusive = (name: string) => new RegExp(String.raw`\b${name}[ -]only\b|\bonly (?:use )?${name}\b`, "i");
+
+/** Builder John named in his own request. Both named = ask, never guess,
+ * unless exactly one is marked "only" (e.g. "Codex only … Claude may review").
+ */
 export function builderChoiceFor(request: string): BuilderChoice {
   const claude = /\bclaude\b/i.test(request);
   const codex = /\bcodex\b/i.test(request);
-  if (claude && codex) return { conflict: true };
+  if (claude && codex) {
+    const claudeOnly = exclusive("claude").test(request);
+    const codexOnly = exclusive("codex").test(request);
+    if (claudeOnly !== codexOnly) return { builder: claudeOnly ? "claude" : "codex", named: true };
+    return { conflict: true };
+  }
   if (claude) return { builder: "claude", named: true };
   if (codex) return { builder: "codex", named: true };
   return { builder: "codex", named: false };
@@ -25,7 +35,7 @@ export function builderChoiceFor(request: string): BuilderChoice {
 const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|suppose|imagine|how (?:would|could|to)|would (?:it|you|claude|codex)|could (?:claude|codex)|should (?:i|we)|read[ -]?only|no changes|no builds|don['’]?t (?:build|start|send|submit|execute|run|act|create|save|make changes)|do not (?:build|start|send|submit|execute|run|act|create|save|make changes)|not yet|just (?:asking|checking|discussing|planning)|explain)\b/i;
 // A noun such as "build" or "fix" in a status report is never permission.
 // Accept commands (including polite "Can you fix …?"), not arbitrary mentions.
-const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:claude|codex|elsie)[,:]?\s+)?(?:(?:can|could|would) you\s+)?`;
+const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|elsie)(?:[ -]only)?[,:]?\s+)?(?:(?:can|could|would) you\s+)?`;
 const CHANGE = String.raw`(?:build|implement|code|fix|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin) (?:the |this |my )?(?:saved |existing )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");

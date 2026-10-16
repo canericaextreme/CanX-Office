@@ -42,6 +42,10 @@ describe("builder choice is John's, never the model's", () => {
     expect(builderChoiceFor("Fix the reception label")).toEqual({ builder: "codex", named: false });
     expect(builderChoiceFor("Have Claude fix the reception label")).toEqual({ builder: "claude", named: true });
     expect(builderChoiceFor("Claude or Codex, fix it")).toEqual({ conflict: true });
+    expect(builderChoiceFor("Codex ONLY: build the Analytics room. Claude may review.")).toEqual({ builder: "codex", named: true });
+    expect(builderChoiceFor("Only Claude: fix the label; Codex is busy")).toEqual({ builder: "claude", named: true });
+    expect(builderChoiceFor("Codex only or Claude only, fix it")).toEqual({ conflict: true });
+    expect(directBuildRefusal("Codex only: build the Analytics room. Claude may review.", "claude")).toMatch(/chose Codex/);
   });
   it("refuses status, questions, examples and protected work", () => {
     expect(directBuildRefusal("Check Claude builds", "claude")).toMatch(/status/);

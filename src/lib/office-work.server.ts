@@ -25,7 +25,7 @@ export async function officeWorkBuildWith(deps:OfficeWorkBuildDeps,token:string,
  if(data.action==='status')return deps.build(data.builder,token,undefined,data.prNumber,data.runId);
  if(data.action==='relay')return deps.relay?deps.relay(token,{requestId:data.requestId,taskId:data.taskId,colleague:data.colleague,message:data.message}):{ok:false,detail:'Colleague relay is not available. Nothing was sent.'};
  if(data.action==='relay_read')return deps.relayRead?deps.relayRead(token,data.taskId):{ok:false,detail:'Colleague relay is not available.'};
- const choice=builderChoiceFor(data.request);if('conflict' in choice)return {ok:false,detail:'Choose one builder; nothing submitted.'};
+ const choice=builderChoiceFor(data.request);if('conflict' in choice)return {ok:false,detail:'Your request names both Claude and Codex. Name one builder, or write "Codex only" or "Claude only"; nothing submitted.'};
  const refusal=directBuildRefusal(data.request,choice.builder);if(refusal)return {ok:false,detail:refusal};
  const claim=await deps.rpc(token,'canx_mcp_claim_build',{_request_id:data.requestId,_builder:choice.builder,_request:data.request}) as {dispatch?:boolean;result?:unknown};
  if(claim.dispatch!==true)return claim.result??{ok:false,detail:'This request was already attempted. Check existing builds; nothing was resubmitted.'};
