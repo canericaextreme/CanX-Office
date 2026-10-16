@@ -281,3 +281,12 @@ describe('Elsie Finance handoff to Claude', () => {
     expect(advanceBuilderQueue).not.toHaveBeenCalled();
   });
 });
+
+describe('Elsie explains a handoff the safety check stopped', () => {
+  it('names the protected wording instead of staying silent (live case 16 Oct)', async () => {
+    const h = chatDeps('create_task', {}, { title: 'Organize Finance room cards into clearer sections', detail: 'Update the Finance room card layout. No financial records, payments, subscriptions, or renewals are to be changed.', project: 'CanX Office', risk: 'green', code_change: true });
+    const r = await runManagerChatWith(h.deps, say('Elsie, pass this task to Claude: organize the Finance room cards into clearer sections'));
+    expect(h.runBuild.mock.calls.filter(c => c[2] !== undefined)).toHaveLength(0);
+    expect(r.text).toMatch(/not sent to Claude: .*protected area \(purchase\)/);
+  });
+});
