@@ -1,0 +1,44 @@
+name: Elsie merge event wake
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  contents: read
+concurrency:
+  group: elsie-merge-wake-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  notify:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Notify existing verified Elsie worker
+        env:
+          ENABLED: ${{ vars.ELSIE_WORKER_ENABLED }}
+          RUNNER_URL: ${{ vars.ELSIE_WORKER_URL }}
+          WORKER_TOKEN: ${{ secrets.ELSIE_WORKER_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        shell: bash
+        run: |
+          if [ "$ENABLED" != "true" ]; then
+            echo "Merge acknowledged; unattended work not yet activated."
+            exit 0
+          fi
+          if [ -z "$RUNNER_URL" ] || [ -z "$WORKER_TOKEN" ] || [ "$REPO" != "canericaextreme/CanX-Office" ]; then
+            echo "::error::Missing scoped worker configuration"
+            exit 1
+          fi
+          case "$RUNNER_URL" in
+            https://*.supabase.co/functions/v1/elsie-extended-worker) ;;
+            *) echo "::error::Unexpected worker address"; exit 1 ;;
+          esac
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ && "$MERGE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::Merge reference invalid"; exit 1
+          fi
+          payload=$(printf '{"mode":"merge","repository":"%s","pr":%s,"sha":"%s"}' "$REPO" "$PR_NUMBER" "$MERGE_SHA")
+          curl --fail-with-body --silent --show-error --max-time 90 --retry 0 -X POST "$RUNNER_URL" \
+            -H "Authorization: Bearer $WORKER_TOKEN" -H "Content-Type: application/json" \
+            --data "$payload" >/dev/null
