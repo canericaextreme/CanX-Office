@@ -1,0 +1,24 @@
+name: CanX documentation smoke validation
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/canx-docs-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate smoke-test fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f docs/automerge-smoke-test.md ]; then
+            grep -Fq '# Guarded auto-merge smoke test' docs/automerge-smoke-test.md
+            grep -Fq 'The smoke test does not authorize' docs/automerge-smoke-test.md
+          fi
+          echo 'Documentation smoke validation passed'
