@@ -54,16 +54,31 @@ describe("live voice refreshes durable memory on every turn", () => {
     expect(readContinuity).not.toHaveBeenCalled();
   });
 
-  it("automatic replies wait for the guarded Office request; interruption stays on", () => {
+  it("automatic replies wait for the guarded Office request; only real words interrupt", () => {
     const td = managerRealtimeSessionBody("gpt-realtime", "x").session.audio.input.turn_detection;
     expect(td.create_response).toBe(false);
-    expect(td.interrupt_response).toBe(true);
+    // 17 Oct: paper shuffling cut Elsie off, so a sound alone never interrupts.
+    expect(td.interrupt_response).toBe(false);
     expect(managerRealtimeSessionBody("gpt-realtime", "x").session.output_modalities).toEqual(["audio"]);
     expect(voiceTurnEvents(null)[0]).toMatchObject({ response: { output_modalities: ["audio"] } });
     const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
     expect(hook).toContain('payload.type === "conversation.item.input_audio_transcription.completed"');
     expect(hook).toContain("requestRef.current(request)");
     expect(hook).toContain("spokenOfficeAnswer(output)");
+  });
+
+  it("a noise between John's words and the answer never silences or drops the answer", () => {
+    const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
+    const transcript = hook.indexOf("latestRequestId = payload.item_id;");
+    // Only a transcribed request becomes the newest one; a noise-only commit does not.
+    expect(transcript).toBeGreaterThan(hook.indexOf('payload.type === "conversation.item.input_audio_transcription.completed") {'));
+    expect(hook.match(/latestRequestId = /g)).toHaveLength(2);
+    expect(hook).toContain("inputId !== latestRequestId || handledInputs.has(inputId)");
+    expect(hook).toContain('channel.readyState !== "open" || inputId !== latestRequestId');
+    // Real words still stop the old answer before the new one is asked.
+    const cancel = hook.indexOf('recordVoiceDiag("interruption", sessionMode, "John spoke over Elsie")');
+    expect(cancel).toBeGreaterThan(-1);
+    expect(cancel).toBeLessThan(transcript);
   });
 
   it("two ordinary turns are each persisted exactly once", () => {

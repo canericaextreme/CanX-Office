@@ -380,8 +380,11 @@ export function useRealtimeManager(
       let answerAwaitingPlayback = false;
       const handledInputs = new Set<string>();
       let currentInputId = "";
+      // Standard voice: the newest request with real words. A noise-only
+      // commit (paper, a cough) must not orphan or silence an answer.
+      let latestRequestId = "";
       const executeRequest = async (inputId: string, request: string) => {
-        if (!requestRef.current || !inputId || inputId !== currentInputId || handledInputs.has(inputId)) return;
+        if (!requestRef.current || !inputId || inputId !== latestRequestId || handledInputs.has(inputId)) return;
         // The completed provider transcript is the sole trigger for the guarded
         // Office adapter. Do not depend on a second model-generated function call:
         // that extra handoff can fail after transcription and leave a turn silent.
@@ -420,7 +423,7 @@ export function useRealtimeManager(
         // blocked or failed speaker can never erase a completed Office reply.
         transcriptRef.current("assistant", output, inputId);
         console.info("[astra-voice]", { stage: "assistant_response_received", turn: inputId });
-        if (!current() || channel.readyState !== "open" || inputId !== currentInputId) {
+        if (!current() || channel.readyState !== "open" || inputId !== latestRequestId) {
           console.info("[astra-voice]", { stage: "playback_skipped", turn: inputId });
           return;
         }
@@ -585,7 +588,17 @@ export function useRealtimeManager(
             if (answer) saveDirectAnswer(payload.item_id, answer);
           }
           console.info("[astra-voice]", { stage: "transcript_received", turn: payload.item_id ?? "unknown" });
-          if (payload.item_id && sessionMode === "relay") void executeRequest(payload.item_id, text);
+          if (payload.item_id && sessionMode === "relay") {
+            // Turn detection no longer cuts Elsie off on any sound. Real words
+            // still interrupt her: stop the old answer, then answer the new one.
+            if (outputPlaying || answerAwaitingPlayback) {
+              sendEvent({ type: "response.cancel" });
+              sendEvent({ type: "output_audio_buffer.clear" });
+              recordVoiceDiag("interruption", sessionMode, "John spoke over Elsie");
+            }
+            latestRequestId = payload.item_id;
+            void executeRequest(payload.item_id, text);
+          }
         }
         // Direct mode: the live model's own spoken words are Elsie's reply.
         // Save each spoken response once, paired with the turn that caused it.

@@ -215,7 +215,9 @@ export function managerRealtimeSessionBody(model: string, instructions: string, 
     // The Office bridge uses a silent function call first, then must speak the
     // guarded result. Pin audio output so a text-only session cannot look live.
     output_modalities: ["audio"],
-    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "high", create_response: false, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } },
+    // interrupt_response is off: on 17 Oct paper shuffling cut Elsie off. The
+    // browser stops her only when John's words are actually transcribed.
+    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "high", create_response: false, interrupt_response: false }, transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } },
     tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Use for every turn, including discussion and hypothetical questions; the server must honor requests not to act. Sending a question here is not authorization for a mutation.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
     tool_choice: "auto",
   } };
