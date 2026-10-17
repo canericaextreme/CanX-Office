@@ -1,0 +1,40 @@
+name: Elsie scheduled work poll
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: elsie-scheduled-work-poll
+  cancel-in-progress: false
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check activation
+        env:
+          RUNNER_URL: ${{ vars.ELSIE_WORKER_URL }}
+          ENABLED: ${{ vars.ELSIE_WORKER_ENABLED }}
+          WORKER_TOKEN: ${{ secrets.ELSIE_WORKER_TOKEN }}
+        shell: bash
+        run: |
+          if [ "$ENABLED" != "true" ]; then
+            echo "Elsie unattended worker is disabled; no action."
+            exit 0
+          fi
+          if [ -z "$RUNNER_URL" ] || [ -z "$WORKER_TOKEN" ]; then
+            echo "::error::Worker authorization is not configured. No action."
+            exit 1
+          fi
+          case "$RUNNER_URL" in
+            https://*.supabase.co/functions/v1/elsie-extended-worker) ;;
+            *) echo "::error::Worker URL not on expected Supabase route"; exit 1 ;;
+          esac
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            --retry 0 \
+            -X POST "$RUNNER_URL" \
+            -H "Authorization: Bearer $WORKER_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"mode":"poll"}' >/dev/null

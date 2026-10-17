@@ -1,0 +1,21 @@
+name: Elsie phase-four scheduler tests
+on:
+  push:
+    branches: [chatgpt/elsie-worker-phase4-20261017]
+  pull_request:
+    paths:
+      - .github/workflows/elsie-scheduled-poll.yml
+      - src/lib/elsie-scheduled-poll.test.ts
+      - .github/workflows/elsie-phase-four-validation.yml
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run src/lib/elsie-scheduled-poll.test.ts src/lib/elsie-runner-admission.test.ts src/lib/elsie-extended-worker.test.ts
+      - run: bun run build
