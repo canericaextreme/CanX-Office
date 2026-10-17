@@ -113,7 +113,7 @@ describe("wiring", () => {
   });
   it("voice submits only the completed transcript for the current spoken turn", () => {
     expect(realtime).toContain('payload.type === "conversation.item.input_audio_transcription.completed"');
-    expect(realtime).toContain("inputId !== currentInputId");
+    expect(realtime).toContain("inputId !== latestRequestId");
     expect(realtime).toContain("handledInputs.has(inputId)");
   });
 });
