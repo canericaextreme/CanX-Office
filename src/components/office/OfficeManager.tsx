@@ -684,7 +684,7 @@ export function OfficeManager() {
       thread.push({ role: "user", content: request });
       // Voice uses the same per-request room read: the route open NOW, not at call start.
       const sentRoute = router.state.location.pathname;
-      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion(), device: collectDeviceSnapshot(sentRoute), labelPositions: readOfficeLabelPositions() } });
+      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion(), device: collectDeviceSnapshot(sentRoute), labelPositions: readOfficeLabelPositions(), voice: true } });
       if (reply.ok && (reply.roomSnapshots?.length || reply.roomReadback?.length)) requestRoomRefresh("elsie-voice-reply");
       const voiceRoomNote = reply.ok ? roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute)) : "";
       // Skip the separate voice save only when the server confirmed its own save.
