@@ -866,7 +866,16 @@ export interface ChatInput {
   device?: import("./room-device-snapshot").DeviceSnapshot | null;
   /** Room-label positions saved on John's device; they set the Synopsis numbering. */
   labelPositions?: import("./office-map").LabelPositions;
+  /** Set by Standard voice: John is listening, so the answer must be short. */
+  voice?: boolean;
 }
+
+/**
+ * 17 Oct: spoken answers took ~12 s because the model wrote a full written
+ * reply. The token cap stays as it is so a long tool call is never cut off.
+ */
+export const VOICE_ANSWER_RULE =
+  "SPOKEN TURN: John is listening, not reading. Answer in one to three short spoken sentences unless he asks for a list or the detail. Lists are names only, with no descriptions unless asked. Never shorten a tool call, an approval or a fact to fit.";
 
 /**
  * Rooms to read fresh for this request: a room John names explicitly comes
@@ -921,7 +930,7 @@ export function teamContextLines(team: { name: string; role: string; room: strin
  * Any `context` field sent by the browser is deliberately dropped here. Office
  * facts are read on the server after the owner is verified.
  */
-function validate(input: unknown): ChatInput {
+export function validate(input: unknown): ChatInput {
   const raw = input as Partial<ChatInput> | undefined;
   const messages = Array.isArray(raw?.messages) ? raw.messages : [];
   const clean = messages
@@ -941,6 +950,7 @@ function validate(input: unknown): ChatInput {
     ...(typeof buildId === "string" ? { buildId: buildId.slice(0, 80) } : {}),
     ...(() => { const d = sanitizeDeviceSnapshot((raw as { device?: unknown } | undefined)?.device); return d ? { device: d } : {}; })(),
     ...(() => { const p = sanitizeLabelPositions((raw as { labelPositions?: unknown } | undefined)?.labelPositions); return p ? { labelPositions: p } : {}; })(),
+    ...((raw as { voice?: unknown } | undefined)?.voice === true ? { voice: true } : {}),
   };
 }
 
@@ -1046,13 +1056,13 @@ async function callOfficeProvider(
       body: JSON.stringify(claude ? {
         model,
         max_tokens: 900,
-        system: `${instructions}\n\n${skillSelection.instructions}`,
+        system: `${instructions}\n\n${skillSelection.instructions}${data.voice ? `\n\n${VOICE_ANSWER_RULE}` : ""}`,
         messages: [liveContextMessage(contextText), ...data.messages.map(m => ({ role: m.role, content: m.content }))],
         tools: TOOLS.map(tool => ({ name: tool.name, description: tool.description, input_schema: tool.parameters })),
       } : {
         model,
         store: false,
-        instructions: `${MANAGER_SYSTEM_PROMPT}\n\n${skillSelection.instructions}`,
+        instructions: `${MANAGER_SYSTEM_PROMPT}\n\n${skillSelection.instructions}${data.voice ? `\n\n${VOICE_ANSWER_RULE}` : ""}`,
         input: [
           liveContextMessage(contextText),
           ...data.messages.map((m) => ({ role: m.role, content: m.content })),
@@ -1750,26 +1760,29 @@ export async function runManagerChatWith(
   // A failed read fails closed: no paid call, and never a fall back to the
   // early demonstration records.
   const includeReceiptDetails = latestUserMessageRequestsReceiptReview(data.messages);
-  const context = await deps
-    .buildContext(data.accessToken, verification, includeReceiptDetails)
-    .catch(() => ({
-      ok: false as const,
-      message: "The office records could not be read just now, so no answer was requested.",
-    }));
-  if (!context.ok) {
-    return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
-  }
-
+  const latestUser = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
+  const previousDocumentRequest = [...data.messages].reverse().slice(1).filter(m => m.role === "user").map(m => m.content).find(t => /[0-9a-f]{8}-[0-9a-f-]{27}/i.test(t)) ?? "";
   // GATE 3b — Elsie continuity, read before any paid call, for the verified
   // owner id only. A failed read degrades honestly: Elsie is told continuity
   // was NOT read and must not claim it; nothing is invented.
-  const continuity: ContinuityRead = deps.readContinuity
-    ? await deps.readContinuity(data.accessToken, verification.userId)
-        .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
-    : { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." };
-  const latestUser = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
-  const previousDocumentRequest = [...data.messages].reverse().slice(1).filter(m => m.role === "user").map(m => m.content).find(t => /[0-9a-f]{8}-[0-9a-f-]{27}/i.test(t)) ?? "";
-  const documents = deps.readDocuments ? await deps.readDocuments(data.accessToken, latestUser, previousDocumentRequest) : { text: "", sources: [], gaps: [] };
+  // The three owner-scoped reads are independent, so they run together
+  // (17 Oct: run one after another they added to every spoken answer's wait).
+  const [context, continuity, documents] = await Promise.all([
+    deps
+      .buildContext(data.accessToken, verification, includeReceiptDetails)
+      .catch(() => ({
+        ok: false as const,
+        message: "The office records could not be read just now, so no answer was requested.",
+      })),
+    (deps.readContinuity
+      ? deps.readContinuity(data.accessToken, verification.userId)
+          .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
+      : Promise.resolve({ ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." })) as Promise<ContinuityRead>,
+    deps.readDocuments ? deps.readDocuments(data.accessToken, latestUser, previousDocumentRequest) : Promise.resolve({ text: "", sources: [], gaps: [] }),
+  ]);
+  if (!context.ok) {
+    return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
+  }
   const persistTurn = async (answer: string): Promise<boolean | undefined> => {
     if (!deps.recordTurn || !answer.trim()) return undefined;
     const saved = await deps.recordTurn(data.accessToken, verification.userId, latestUser, answer).catch(() => null);

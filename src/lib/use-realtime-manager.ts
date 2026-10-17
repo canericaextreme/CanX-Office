@@ -70,8 +70,46 @@ export const DEFAULT_LIVE_VOICE_MODE = "relay" as const;
  * model answer the answer instead of reading it. The current Realtime API's
  * no-context pattern is an empty input plus the exact text in instructions.
  */
+// Record footers ("Source: …", "Skill used: …") stay in the written answer;
+// reading them aloud only lengthened every spoken reply.
+const SPOKEN_FOOTER = /^(?:sources?|skill used|room data checked|verification)\b[^:\n]{0,40}:/i;
+export function spokenText(text: string) {
+  const lines = text.trim().split("\n");
+  while (lines.length > 1 && (SPOKEN_FOOTER.test(lines.at(-1)!.trim()) || !lines.at(-1)!.trim())) lines.pop();
+  return lines.join("\n").trim();
+}
+
+// 17 Oct: a paper rustle transcribed as "呃" got a paid Office answer and
+// helped trip the per-minute AI limit. English words or numbers are required.
+export function hasSpokenWords(text: string) {
+  return /[a-z0-9]/i.test(text);
+}
+
+// A short, quiet two-note sound played on this device the moment Elsie takes
+// a request, so John knows he was heard while the Office prepares the answer.
+// It is not speech and needs no network call; failure is silent.
+export function playHeardChime() {
+  try {
+    const Ctor = typeof window === "undefined" ? undefined
+      : window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    const ctx = new Ctor();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.04;
+    gain.connect(ctx.destination);
+    [660, 880].forEach((hz, i) => {
+      const tone = ctx.createOscillator();
+      tone.frequency.value = hz;
+      tone.connect(gain);
+      tone.start(ctx.currentTime + i * 0.12);
+      tone.stop(ctx.currentTime + i * 0.12 + 0.1);
+    });
+    setTimeout(() => void ctx.close().catch(() => {}), 600);
+  } catch { /* no sound is not an error */ }
+}
+
 export function spokenOfficeAnswer(text: string) {
-  const answer = text.trim().slice(0, 12000);
+  const answer = spokenText(text).slice(0, 12000);
   return {
     type: "response.create",
     response: {
@@ -398,6 +436,7 @@ export function useRealtimeManager(
         console.info("[astra-voice]", { stage: "assistant_request_started", turn: inputId });
         setPhase("thinking");
         setStage("thinking");
+        playHeardChime();
         setActivity("Elsie heard your request and is preparing an answer…");
         let output = "";
         const requestStartedAt = Date.now();
@@ -560,7 +599,7 @@ export function useRealtimeManager(
         if (payload.type === "conversation.item.input_audio_transcription.completed") hearing.transcriptAt = Date.now();
         // Previously ignored: a failed transcription left the turn silent.
         if (sessionMode === "relay" && payload.item_id && (payload.type === "conversation.item.input_audio_transcription.failed"
-          || (payload.type === "conversation.item.input_audio_transcription.completed" && !(typeof payload.transcript === "string" && payload.transcript.trim())))) {
+          || (payload.type === "conversation.item.input_audio_transcription.completed" && !(typeof payload.transcript === "string" && hasSpokenWords(payload.transcript))))) {
           heard.set(payload.item_id, "empty");
           settleWaiting();
         }
@@ -603,6 +642,11 @@ export function useRealtimeManager(
         }
         const text = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
         if (!text) return;
+        // Standard voice: a sound with no words is neither saved nor answered.
+        if (sessionMode === "relay" && payload.type === "conversation.item.input_audio_transcription.completed" && !hasSpokenWords(text)) {
+          recordVoiceDiag("interruption", sessionMode, "ignored a sound with no words");
+          return;
+        }
         if (payload.type === "conversation.item.input_audio_transcription.completed") {
           setStage("recognized");
           setActivity("Heard: " + text.slice(0, 140));
