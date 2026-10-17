@@ -434,6 +434,23 @@ describe("Astra realtime connection lifecycle", () => {
     expect(types.slice(-2)).toEqual(["response.cancel", "output_audio_buffer.clear"]);
   });
 
+  it("an error after Elsie stops her own answer does not hang up", async () => {
+    const voice = useRealtimeManager("token", [], vi.fn(), vi.fn().mockResolvedValue("Long answer")); voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed",item_id:"u1"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"Tell me about Finance"});
+    await flush();
+    emit({type:"input_audio_buffer.committed",item_id:"u2"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u2",transcript:"Stop, go to Legal"});
+    const types = channel.send.mock.calls.map(c => (JSON.parse(String(c[0])) as { type: string }).type);
+    expect(types).toContain("response.cancel");
+    expect(types).not.toContain("output_audio_buffer.clear");
+    emit({type:"error",error:{code:"invalid_value"}});
+    expect(stopTrack).not.toHaveBeenCalled();
+    expect(hooks.states[1]).toBe(true);
+  });
+
   it("does not run a voice tool without a transcribed user request", async () => {
     const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
     voice.start(); await flush();

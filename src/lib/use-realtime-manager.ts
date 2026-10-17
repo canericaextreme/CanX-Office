@@ -85,29 +85,6 @@ export function hasSpokenWords(text: string) {
   return /[a-z0-9]/i.test(text);
 }
 
-// A short, quiet two-note sound played on this device the moment Elsie takes
-// a request, so John knows he was heard while the Office prepares the answer.
-// It is not speech and needs no network call; failure is silent.
-export function playHeardChime() {
-  try {
-    const Ctor = typeof window === "undefined" ? undefined
-      : window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return;
-    const ctx = new Ctor();
-    const gain = ctx.createGain();
-    gain.gain.value = 0.04;
-    gain.connect(ctx.destination);
-    [660, 880].forEach((hz, i) => {
-      const tone = ctx.createOscillator();
-      tone.frequency.value = hz;
-      tone.connect(gain);
-      tone.start(ctx.currentTime + i * 0.12);
-      tone.stop(ctx.currentTime + i * 0.12 + 0.1);
-    });
-    setTimeout(() => void ctx.close().catch(() => {}), 600);
-  } catch { /* no sound is not an error */ }
-}
-
 export function spokenOfficeAnswer(text: string) {
   const answer = spokenText(text).slice(0, 12000);
   return {
@@ -415,6 +392,9 @@ export function useRealtimeManager(
       };
       channel.onclose = () => fail("Elsie's voice connection ended. Press Start conversation to reconnect.");
       let outputPlaying = false;
+      // When Elsie stops her own answer, the provider may reply with an error
+      // (nothing left to cancel or clear). That must never end the call.
+      let interruptedAt = 0;
       let answerAwaitingPlayback = false;
       const handledInputs = new Set<string>();
       let currentInputId = "";
@@ -436,7 +416,9 @@ export function useRealtimeManager(
         console.info("[astra-voice]", { stage: "assistant_request_started", turn: inputId });
         setPhase("thinking");
         setStage("thinking");
-        playHeardChime();
+        // No sound here: on 17 Oct the old "heard you" chime was picked up by
+        // the microphone, transcribed as "Oh."/"No.", and replaced John's real
+        // question, so its answer was typed but never spoken.
         setActivity("Elsie heard your request and is preparing an answer…");
         let output = "";
         const requestStartedAt = Date.now();
@@ -533,6 +515,10 @@ export function useRealtimeManager(
           // These command/turn errors do not invalidate the connection. Do not
           // repeat an office action or create a replacement paid session.
           if (code === "conversation_already_has_active_response" || code === "response_cancel_not_active") return;
+          if (interruptedAt && Date.now() - interruptedAt < 3000 && code !== "rate_limit_exceeded" && code !== "insufficient_quota") {
+            recordVoiceDiag("interruption", sessionMode, "provider " + (code ?? "unknown") + " after stopping an answer");
+            return;
+          }
           recordVoiceDiag("failure", sessionMode, "provider " + (code ?? "unknown"));
           if (code === "input_audio_buffer_commit_empty") {
             setPhase("listening");
@@ -661,8 +647,9 @@ export function useRealtimeManager(
             // Turn detection no longer cuts Elsie off on any sound. Real words
             // still interrupt her: stop the old answer, then answer the new one.
             if (outputPlaying || answerAwaitingPlayback) {
+              interruptedAt = Date.now();
               sendEvent({ type: "response.cancel" });
-              sendEvent({ type: "output_audio_buffer.clear" });
+              if (outputPlaying) sendEvent({ type: "output_audio_buffer.clear" });
               recordVoiceDiag("interruption", sessionMode, "John spoke over Elsie");
             }
             if (!heard.has(payload.item_id)) committedOrder.push(payload.item_id);
