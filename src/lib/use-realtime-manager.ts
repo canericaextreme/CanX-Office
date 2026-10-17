@@ -57,6 +57,14 @@ export async function directToolOutput(
 }
 
 /**
+ * Voice mode a new conversation starts in. "relay" (Standard voice) sends every
+ * spoken turn to the Office, which reads memory, the Synopsis and tasks. The
+ * "direct" preview lets a separate voice model answer on its own with a small
+ * memory; John's 17 Oct test showed it guessing rooms and forgetting.
+ */
+export const DEFAULT_LIVE_VOICE_MODE = "relay" as const;
+
+/**
  * Realtime is the speaker here, not the Office reasoner. Keep the confirmed
  * Office answer out of a user-message input: putting it there makes the voice
  * model answer the answer instead of reading it. The current Realtime API's

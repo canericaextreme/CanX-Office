@@ -87,7 +87,7 @@ import { PROVENANCE_LABELS, loadNotes, saveNotes, type OfficeNote } from "@/lib/
 import { useOwnerSession } from "@/lib/owner-session";
 import { speakManagerText, transcribeManagerAudio } from "@/lib/manager-voice.functions";
 import { useManagerVoice } from "@/lib/use-manager-voice";
-import { useRealtimeManager } from "@/lib/use-realtime-manager";
+import { DEFAULT_LIVE_VOICE_MODE, useRealtimeManager } from "@/lib/use-realtime-manager";
 import { voiceTurnOutcome, VoiceTurnError } from "@/lib/voice-turn-outcome";
 import {
   approvalSubmissionNotice,
@@ -658,7 +658,9 @@ export function OfficeManager() {
   };
   const roomCommandRef = useRef(runRoomCommand);
   roomCommandRef.current = runRoomCommand;
-  const [liveVoiceMode, setLiveVoiceMode] = useState<"relay" | "direct">("direct");
+  // Standard voice by default: every spoken turn is answered by the Office
+  // (memory, Synopsis, tasks). The preview's separate voice model guessed.
+  const [liveVoiceMode, setLiveVoiceMode] = useState<"relay" | "direct">(DEFAULT_LIVE_VOICE_MODE);
   const realtimeManager = useRealtimeManager(token, managerTeam, saveSpokenMessage,
     useCallback(async (request: string) => {
       if (requestsConversationSave(request)) return saveConversationNow();
@@ -1672,6 +1674,9 @@ export function OfficeManager() {
                       Live voice (preview)
                     </Button>
                   </div>
+                  {liveVoiceMode === "relay" && !realtimeManager.on && (
+                    <p className="w-full text-xs text-muted-foreground">Standard voice: the Office answers every spoken turn from your saved records and memory, so there is a short pause before each answer.</p>
+                  )}
                   {liveVoiceMode === "direct" && !realtimeManager.on && (
                     <p className="w-full text-xs text-muted-foreground">Live voice: Elsie hears your voice directly and replies straight away. Office records, saving and changes still go through the protected Office checks.</p>
                   )}
