@@ -1,0 +1,2 @@
+import {describe,it,expect} from "vitest";import {readFileSync} from "node:fs";
+describe("Elsie answers recall questions from durable context",()=>{it("tells Elsie to use saved turns before asking owner to repeat",()=>{const s=readFileSync("src/lib/manager.functions.ts","utf8");expect(s).toContain("use the owner-scoped Recent turns and RECONNECT RECOVERY records");expect(s).toContain("Do NOT claim generically that you have no memory");expect(s).toContain("verified run receipt");});});
