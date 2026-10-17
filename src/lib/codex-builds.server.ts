@@ -1,5 +1,6 @@
 /** Server-only GitHub build bridge. No credentials or owner tokens enter job inputs. */
 import type { OwnerVerification } from './canx-backend.server';
+import { buildChangeStatus } from './build-change-status';
 import { newBuildGitHubTrace, traceBuildGitHubRequest, readBuildGitHubJson, buildGitHubFailure, buildGitHubHttpFailure, type BuildGitHubTrace } from './build-github-diagnostic';
 export const CODEX_REPO = 'canericaextreme/CanX-Office';
 export const CODEX_WORKFLOW = 'canx-codex.yml';
@@ -47,13 +48,13 @@ export async function codexBuildsWith(deps: CodexBuildDeps, token: string, reque
       const url = `https://github.com/${CODEX_REPO}/actions/runs/${runId}`;
       let detail = `Task build ${runId}: ${state}.`;
       if (state === 'success') {
-        detail += ' Candidate typecheck, tests and build passed. Review and deployment remain unverified.';
+        let pr: { number?: unknown; merged_at?: unknown; state?: unknown } | undefined;
         const prs = await api(deps, `/pulls?state=all&head=canericaextreme:codex/office-${runId}&per_page=10`, trace);
         if (prs.ok) {
           const body = await readBuildGitHubJson(prs, trace);
-          const pr = Array.isArray(body) ? body.find(p => p.head?.ref === `codex/office-${runId}` && p.head?.repo?.full_name === CODEX_REPO) : undefined;
-          if (pr && Number.isSafeInteger(pr.number)) detail += ` Draft change #${pr.number}: https://github.com/${CODEX_REPO}/pull/${pr.number}.`;
+          pr = Array.isArray(body) ? body.find(p => p.head?.ref === `codex/office-${runId}` && p.head?.repo?.full_name === CODEX_REPO) : undefined;
         }
+        detail += buildChangeStatus(pr, CODEX_REPO);
       }
       return { ok: true, detail, runs: [{ id: runId, title: plain(run.display_title), state, url }] };
     }
