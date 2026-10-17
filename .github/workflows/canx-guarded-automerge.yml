@@ -1,0 +1,60 @@
+name: CanX guarded routine auto-merge
+
+# Scheduler is independent of ChatGPT sessions. This is a limited first stage:
+# it only considers owner-reviewed, explicitly opted-in documentation-only PRs.
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+concurrency:
+  group: canx-guarded-automerge
+  cancel-in-progress: false
+
+jobs:
+  merge-reviewed-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect candidates and merge only eligible reviewed docs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const {owner, repo} = context.repo;
+            const pulls = await github.paginate(github.rest.pulls.list, {owner, repo, state:'open', per_page:100});
+            for (const pr of pulls) {
+              if (pr.draft || pr.base.ref !== 'main') continue;
+              if (!pr.labels.some(l => l.name === 'canx:auto-merge')) continue;
+              const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number:pr.number, per_page:100});
+              // Only documentation changes: the first stage intentionally does not merge app code,
+              // workflows, policy, security, permissions or deployments.
+              if (!files.length || !files.every(f => f.filename.startsWith('docs/') && f.filename.endsWith('.md') && !/(security|auth|policy|billing|legal|deploy|secrets|credential)/i.test(f.filename))) {
+                core.notice(`PR #${pr.number}: not documentation-only allowlist`); continue;
+              }
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {owner, repo, pull_number:pr.number, per_page:100});
+              const latest = new Map();
+              for (const review of reviews) latest.set(review.user.login, review.state);
+              const approved = [...latest].some(([who,state]) => state === 'APPROVED' && who !== pr.user.login);
+              if (!approved || [...latest].some(([,state]) => state === 'CHANGES_REQUESTED')) continue;
+              const checks = await github.paginate(github.rest.checks.listForRef, {owner, repo, ref:pr.head.sha, per_page:100}, r=>r.data.check_runs);
+              const required = checks.filter(c=>c.name !== 'merge-reviewed-docs');
+              if (!required.length || required.some(c=>c.status !== 'completed' || !['success','neutral','skipped'].includes(c.conclusion))) continue;
+              const statuses = await github.rest.repos.getCombinedStatusForRef({owner,repo,ref:pr.head.sha});
+              if (statuses.data.total_count && statuses.data.state !== 'success') continue;
+              // Respect server-side branch protections, review gates and expected head SHA.
+              try {
+                const current = await github.rest.pulls.get({owner,repo,pull_number:pr.number});
+                if (current.data.head.sha !== pr.head.sha || current.data.mergeable !== true) continue;
+                await github.rest.pulls.merge({owner,repo,pull_number:pr.number,sha:pr.head.sha,merge_method:'merge'});
+                core.notice(`Merged reviewed documentation PR #${pr.number}`);
+              } catch (e) {
+                core.warning(`PR #${pr.number} blocked: ${e.message}`);
+              }
+            }
