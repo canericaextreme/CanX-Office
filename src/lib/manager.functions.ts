@@ -67,6 +67,7 @@ import { brainIndexForModel, requestNeedsBrain } from "./brain-index";
 import { registerForModel } from "./project-register";
 import { locatorsForModel } from "./project-locator";
 import { sanitizeDeviceSnapshot } from "./room-device-snapshot";
+import { SYNOPSIS_REQUEST, sanitizeLabelPositions, synopsisForModel } from "./synopsis-context";
 import { routeSkillsForRoom } from "./office-skills";
 import { handoffTextWith } from "./text-colleague-handoff";
 import { saveManagerBrainWith } from "./manager-brain-save";
@@ -863,6 +864,8 @@ export interface ChatInput {
   currentRoute?: string;
   buildId?: string;
   device?: import("./room-device-snapshot").DeviceSnapshot | null;
+  /** Room-label positions saved on John's device; they set the Synopsis numbering. */
+  labelPositions?: import("./office-map").LabelPositions;
 }
 
 /**
@@ -937,6 +940,7 @@ function validate(input: unknown): ChatInput {
     ...(typeof route === "string" && roomTargetForRoute(route) ? { currentRoute: roomTargetForRoute(route)!.route } : {}),
     ...(typeof buildId === "string" ? { buildId: buildId.slice(0, 80) } : {}),
     ...(() => { const d = sanitizeDeviceSnapshot((raw as { device?: unknown } | undefined)?.device); return d ? { device: d } : {}; })(),
+    ...(() => { const p = sanitizeLabelPositions((raw as { labelPositions?: unknown } | undefined)?.labelPositions); return p ? { labelPositions: p } : {}; })(),
   };
 }
 
@@ -1825,7 +1829,8 @@ export async function runManagerChatWith(
         if (reg) projectContext += "\n" + locatorsForModel(reg.locators, reg.tasksReadAt);
       }
     }
-    const contextWithTeam = [queueContext, "", documents.text, "", roomContext, "", brainContext, "", projectContext, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
+    const synopsisContext = synopsisForModel(data.labelPositions ?? null, SYNOPSIS_REQUEST.test(latestUser));
+    const contextWithTeam = [queueContext, "", documents.text, "", roomContext, "", brainContext, "", projectContext, "", synopsisContext, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
       "\n",
     );
     // The receipt describes the exact context this answer was built from, so
