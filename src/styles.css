@@ -416,3 +416,23 @@
     transition: none;
   }
 }
+
+/* Room colours (17 Oct 2026): RoomColourScope tints cards, borders, links and
+   main buttons with the room's palette colour. Cards keep their dark body so the
+   coloured status text designed for the dark theme stays readable. */
+.room-colour {
+  --card: color-mix(in oklab, var(--room-bright) 16%, var(--room-base-card));
+  --border: color-mix(in oklab, var(--room-bright) 55%, var(--room-base-border));
+  --primary: var(--room-soft);
+  --primary-foreground: var(--room-button);
+  --ring: var(--room-soft);
+}
+.room-colour [class~="bg-card"] {
+  border-top: 4px solid var(--room-bright);
+  box-shadow: 0 10px 28px -18px var(--room-bright);
+}
+.room-colour [class~="bg-card"] [class~="bg-card"] {
+  border-top-width: 1px;
+  border-top-color: var(--border);
+  box-shadow: none;
+}

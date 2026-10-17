@@ -3,7 +3,9 @@
 import { OfficeFiles } from "@/components/office/OfficeFiles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Download, Plus, RotateCcw, Save, Trash2, Upload } from "lucide-react";
+import { Download, MessagesSquare, Plus, RotateCcw, Save, Trash2, Upload } from "lucide-react";
+import { RoomColourBanner, RoomColourScope } from "@/components/office/RoomColour";
+import { ROOM_COLOURS } from "@/lib/office-room-colours";
 import { useServerFn } from "@tanstack/react-start";
 import { useOwnerSession } from "@/lib/owner-session";
 import { loadSharedRoundTable, saveSharedRoundTable } from "@/lib/records.functions";
@@ -38,6 +40,8 @@ import {
   type RoleBrief,
 } from "@/lib/round-table-rehearsal";
 
+
+const COLOUR = ROOM_COLOURS["/round-table"]!;
 
 export const Route = createFileRoute("/_office/round-table")({
   head: () => ({
@@ -213,6 +217,8 @@ function RoundTablePage() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-6">
+        <RoomColourBanner colour={COLOUR} number={null} title="Round Table" purpose="Meeting agenda, notes, decisions, owners and due dates." icon={MessagesSquare} headingLevel="h2" />
+        <RoomColourScope colour={COLOUR}>
         <header className="mb-6 border-b border-border pb-5">
           <div className="flex flex-wrap items-center gap-2">
             <OfficeFiles room="round-table" /><h1 className="text-2xl font-semibold text-foreground">Monday round table — draft</h1>
@@ -635,6 +641,7 @@ function RoundTablePage() {
             </Button>
           </CardContent>
         </Card>
+        </RoomColourScope>
       </div>
     </main>
   );
