@@ -72,7 +72,7 @@ export const DEFAULT_LIVE_VOICE_MODE = "relay" as const;
  */
 // Record footers ("Source: …", "Skill used: …") stay in the written answer;
 // reading them aloud only lengthened every spoken reply.
-const SPOKEN_FOOTER = /^(?:sources?|skill used|room data checked|verification)\b[^:\n]{0,40}:/i;
+const SPOKEN_FOOTER = /^(?:sources?|skill used|selected skill|room data checked|verification)\b[^:\n]{0,40}:/i;
 export function spokenText(text: string) {
   const lines = text.trim().split("\n");
   while (lines.length > 1 && (SPOKEN_FOOTER.test(lines.at(-1)!.trim()) || !lines.at(-1)!.trim())) lines.pop();

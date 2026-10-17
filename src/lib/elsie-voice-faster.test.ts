@@ -86,6 +86,8 @@ describe("what Elsie says aloud", () => {
     expect(spokenText(written)).toBe("Reception is fresh.\n\nThe Claude button task is open.");
     expect(JSON.stringify(spokenOfficeAnswer(written))).not.toContain("Skill used");
     expect(spokenText("Selected skill: x")).toBe("Selected skill: x");
+    // Live 17 Oct 20:46: Elsie's footer reads "Selected skill: …", which was still spoken.
+    expect(spokenText("The Work Board has forty-one saved tasks.\n\nSelected skill: Office Manager — Skill Router version one point zero point zero.")).toBe("The Work Board has forty-one saved tasks.");
   });
 
   it("a sound with no words is not an Office request", () => {
