@@ -35,7 +35,7 @@ jobs:
               const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number:pr.number, per_page:100});
               // Only documentation changes: the first stage intentionally does not merge app code,
               // workflows, policy, security, permissions or deployments.
-              if (!files.length || !files.every(f => /^docs\\/(?!.*(?:security|auth|policy|billing|legal|deploy|secrets|credential)).*\\.md$/i.test(f.filename))) {
+              if (!files.length || !files.every(f => f.filename.startsWith('docs/') && f.filename.endsWith('.md') && !/(security|auth|policy|billing|legal|deploy|secrets|credential)/i.test(f.filename))) {
                 core.notice(`PR #${pr.number}: not documentation-only allowlist`); continue;
               }
               const reviews = await github.paginate(github.rest.pulls.listReviews, {owner, repo, pull_number:pr.number, per_page:100});
