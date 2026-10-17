@@ -1,4 +1,6 @@
-# CanX Office — Continuous execution and controlled auto-merge policy (proposed)
+# CanX Office — Continuous execution and controlled auto-merge policy
+
+Implemented by the CanX merge robot: see docs/canx-merge-robot.md.
 
 Owner direction: a previously authorized task must be driven through building, verification, eligible merging, deployment, and outcome reporting without asking the owner to repeatedly say "continue." This policy is intended to be implemented in Elsie's authoritative operating rules and the Office's persistent task runner. A text policy alone does not implement runtime automation.
 

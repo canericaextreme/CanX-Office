@@ -32,3 +32,7 @@ John explicitly requested automatic publication after every completed CanX Offic
 
 ## Owner-only connection shutdown — 4 October 2026
 Only John may turn off either Claude or ChatGPT/Codex once connected. Neither colleague may disable, revoke, remove, replace, or sever the other's Office access on its own initiative. Changes to either connection's enablement, credentials, routing, or removal require John's explicit instruction for that change; ordinary coding or standing publication authorisation does not authorise shutdown. Build candidates affecting these controls must remain proposals until that owner instruction is present. Do not claim the Office can disable the external ChatGPT or Claude account.
+
+## Routine pull requests merge themselves — CanX merge robot (issue #142, 17 Oct 2026)
+- For John-authorized routine work: open the PR into `main`, mark it ready and add the label `canx:auto-merge`. The robot merges after `pr-checks` and every other check pass and the other AI company approves the exact commit. Rules: `scripts/automerge/policy.mjs`; plain explanation: `docs/canx-merge-robot.md`.
+- Do not label PRs that change money, legal, sign-in, permissions, secrets, workflows, database, or delete things; the robot sends those to John anyway. Merged is not live: still publish, verify and write the Brain note.
