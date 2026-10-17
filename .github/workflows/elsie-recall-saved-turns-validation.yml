@@ -1,0 +1,20 @@
+name: Elsie recall validation
+on:
+  pull_request:
+    paths:
+      - src/components/office/OfficeManager.tsx
+      - src/lib/conversation-recap.ts
+      - src/lib/conversation-recap.test.ts
+      - .github/workflows/elsie-recall-saved-turns-validation.yml
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run
+      - run: bun run build

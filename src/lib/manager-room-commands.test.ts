@@ -28,6 +28,13 @@ describe("direct owner room requests", () => {
   it.each(["Do not check Finance", "How would you check Finance?", 'Example: "check Finance"', "Delete all reports", "Approve spending", "Check an unknown room"])("does not execute %s", request => {
     expect(parseRoomCommand(request, "/")).toBeNull();
   });
+  it("opens a room when the request starts with a misheard name or a filler word (17 Oct)", () => {
+    expect(parseRoomCommand("Kirby, open me the safe highways room and let's talk about it.", "/reception")).toMatchObject({ kind: "look", room: { id: "safe-highways" } });
+    expect(parseRoomCommand("Okay, so, open the Finance room", "/")).toMatchObject({ kind: "navigate", room: { id: "finance" } });
+    expect(parseRoomCommand("Elsie, please check Legal", "/")).toMatchObject({ kind: "look", room: { id: "legal" } });
+    expect(parseRoomCommand("Finance, what's in it?", "/")).toBeNull();
+    expect(parseRoomCommand("Kirby, don't open Finance", "/")).toBeNull();
+  });
   it("keeps the report destination separate from its literal text", () => {
     expect(parseRoomCommand("Add a report to Finance: Check subscriptions tomorrow.", "/")).toMatchObject({ kind: "report", room: { id: "finance" }, content: "Check subscriptions tomorrow." });
     expect(parseRoomCommand("Add a report to the current room saying Road work starts Monday", "/safe-highways")).toMatchObject({ kind: "report", room: { id: "safe-highways" }, content: "Road work starts Monday" });

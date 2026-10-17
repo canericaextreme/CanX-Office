@@ -13,9 +13,26 @@ export type RoomCommand =
   | RoomNavigationCommand;
 
 /** Direct requests only. Quoted examples, negation and hypothetical requests do not execute. */
+/**
+ * Drops spoken lead-ins before the command: the manager's name (also as the
+ * transcriber mishears it, e.g. "Kirby," on 17 Oct), "okay", "so", "please".
+ * A leading room name is kept, so "Finance, ..." never loses its room.
+ */
+function withoutLeadIn(request: string): string {
+  let text = request.trim();
+  for (let i = 0; i < 4; i++) {
+    const filler = text.match(/^(?:okay|ok|so|now|hey|alright|all right|right|yeah|well|um|uh|please)\b[,.!]?\s*/i);
+    const name = text.match(/^(?:(?:elsie|astra|data)\b[,.!]?\s*|([a-z][a-z'’]{1,14})[,!]\s+)/i);
+    if (filler?.[0]) text = text.slice(filler[0].length);
+    else if (name?.[0] && !(name[1] && namedOfficeRoom(name[1]))) text = text.slice(name[0].length);
+    else break;
+  }
+  return text;
+}
+
 export function parseRoomCommand(request: string, currentPath: string): RoomCommand | null {
   if (/\b(don['’]?t|do not|never|hypothetical|example|if|would|could you explain)\b/i.test(request)) return null;
-  const text = request.trim().replace(/^(?:(?:elsie|astra|data)[, ]+)?(?:please\s+)?/i, "");
+  const text = withoutLeadIn(request);
   const navigation = parseRoomNavigation(text);
   if (navigation) return navigation;
   // Visual follow-ups inspect the room open NOW, rather than answering from

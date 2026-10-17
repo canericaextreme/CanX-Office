@@ -14,6 +14,9 @@
 - No background monitor exists (`HEALTH_SCHEDULE.configured = false`); do not present checks as continuous until a real owner-authorised scheduler exists. Why: signed-in checks need owner MFA.
 - Populated room components are exported (e.g. `SavedFileList`) and covered by fixture-render tests. Why: empty-state tests missed the Brain tooltip crash.
 
+## Supabase functions deploy by merge — standard since 15 Oct 2026
+- `office-mcp`, `office-view` and `office-consent` ship only by merging to `main`; `.github/workflows/office-functions-deploy.yml` deploys changed bundles, keeps Verify JWT, and never touches secrets. Do not ask John to paste code into the Supabase dashboard. Details: `docs/office-functions-auto-deploy.md`.
+
 ## Detailed rules
 - Shared operational status/log: read `docs/claude-access-stage1.md`. Append authorised evidence to `docs/office-shared-log.json`; preserve earlier entries and exclude credentials and private archive contents. Use the common status contract rather than treating configuration as verified live access. Stage 2–4 await John's separate approval.
 - Subscriptions/billing, Office builders, Office Skills, room snapshots, Brain/project register and Google Drive rules: see `src/lib/AGENTS.md`.
