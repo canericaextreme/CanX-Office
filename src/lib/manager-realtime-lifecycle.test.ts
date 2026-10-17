@@ -387,6 +387,53 @@ describe("Astra realtime connection lifecycle", () => {
     expect(sends[0]).toContain("Wait, explain first");
   });
 
+  it("a noise before the words are transcribed does not drop John's request (17 Oct paper shuffling)", async () => {
+    const action = vi.fn().mockResolvedValue("Here is the answer");
+    const voice = useRealtimeManager("token", [], vi.fn(), action); voice.start(); await flush();
+    const emit = (data: unknown) => Peer.instances[0]!.channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed",item_id:"u1"});
+    emit({type:"input_audio_buffer.committed",item_id:"noise"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"Read the synopsis list"});
+    await flush();
+    expect(action).not.toHaveBeenCalled();
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"noise",transcript:""});
+    await flush();
+    expect(action).toHaveBeenCalledExactlyOnceWith("Read the synopsis list");
+    const sends = Peer.instances[0]!.channel.send.mock.calls.map(c => String(c[0]));
+    expect(sends).toHaveLength(1);
+    expect(sends[0]).toContain("Here is the answer");
+  });
+
+  it("a noise while the Office is answering does not silence the answer", async () => {
+    const answer = deferred<string>();
+    const voice = useRealtimeManager("token", [], vi.fn(), vi.fn(() => answer.promise)); voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed",item_id:"u1"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"What were you building?"});
+    await flush();
+    emit({type:"input_audio_buffer.committed",item_id:"noise"});
+    emit({type:"conversation.item.input_audio_transcription.failed",item_id:"noise"});
+    answer.resolve("The Finance headings build"); await flush();
+    const spoken = channel.send.mock.calls.map(c => String(c[0])).filter(v => v.includes('"tool_choice":"none"'));
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0]).toContain("The Finance headings build");
+  });
+
+  it("real words over Elsie stop her answer before the new request runs", async () => {
+    const voice = useRealtimeManager("token", [], vi.fn(), vi.fn().mockResolvedValue("Long answer")); voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({data:JSON.stringify(data)});
+    emit({type:"input_audio_buffer.committed",item_id:"u1"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u1",transcript:"Tell me about Finance"});
+    await flush();
+    emit({type:"output_audio_buffer.started"});
+    emit({type:"input_audio_buffer.committed",item_id:"u2"});
+    emit({type:"conversation.item.input_audio_transcription.completed",item_id:"u2",transcript:"Stop, go to Legal"});
+    const types = channel.send.mock.calls.map(c => (JSON.parse(String(c[0])) as { type: string }).type);
+    expect(types.slice(-2)).toEqual(["response.cancel", "output_audio_buffer.clear"]);
+  });
+
   it("does not run a voice tool without a transcribed user request", async () => {
     const action = vi.fn(); const voice = useRealtimeManager("token", [], vi.fn(), action);
     voice.start(); await flush();

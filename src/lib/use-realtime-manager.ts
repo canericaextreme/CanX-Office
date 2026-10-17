@@ -383,6 +383,12 @@ export function useRealtimeManager(
       // Standard voice: the newest request with real words. A noise-only
       // commit (paper, a cough) must not orphan or silence an answer.
       let latestRequestId = "";
+      // Every committed audio turn in order, and what its transcript held.
+      // A request waits while a later turn is still being transcribed: real
+      // words there replace it, an empty or failed transcript lets it run.
+      const committedOrder: string[] = [];
+      const heard = new Map<string, "pending" | "words" | "empty">();
+      const waiting = new Map<string, string>();
       const executeRequest = async (inputId: string, request: string) => {
         if (!requestRef.current || !inputId || inputId !== latestRequestId || handledInputs.has(inputId)) return;
         // The completed provider transcript is the sole trigger for the guarded
@@ -434,6 +440,16 @@ export function useRealtimeManager(
         }
         answerAwaitingPlayback = true;
         setActivity("Answer ready. Waiting for Elsie to speak…");
+      };
+      const settleWaiting = () => {
+        for (const [inputId, request] of [...waiting]) {
+          const later = committedOrder.slice(committedOrder.indexOf(inputId) + 1).map(id => heard.get(id));
+          if (later.includes("words")) { waiting.delete(inputId); continue; }
+          if (later.includes("pending")) continue;
+          waiting.delete(inputId);
+          latestRequestId = inputId;
+          void executeRequest(inputId, request);
+        }
       };
       const handledCalls = new Set<string>();
       const writtenTurns = new Set<string>();
@@ -529,6 +545,10 @@ export function useRealtimeManager(
             }
           }
         }
+        if (sessionMode === "relay" && payload.type === "input_audio_buffer.committed" && payload.item_id && !heard.has(payload.item_id)) {
+          committedOrder.push(payload.item_id);
+          heard.set(payload.item_id, "pending");
+        }
         if (payload.type === "input_audio_buffer.committed" && payload.item_id) {
           currentInputId = payload.item_id;
           setActivity("Heard your voice. Checking the Office…");
@@ -539,6 +559,11 @@ export function useRealtimeManager(
         if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
         if (payload.type === "conversation.item.input_audio_transcription.completed") hearing.transcriptAt = Date.now();
         // Previously ignored: a failed transcription left the turn silent.
+        if (sessionMode === "relay" && payload.item_id && (payload.type === "conversation.item.input_audio_transcription.failed"
+          || (payload.type === "conversation.item.input_audio_transcription.completed" && !(typeof payload.transcript === "string" && payload.transcript.trim())))) {
+          heard.set(payload.item_id, "empty");
+          settleWaiting();
+        }
         if (payload.type === "conversation.item.input_audio_transcription.failed") {
           hearing.transcriptAt = Date.now();
           recordVoiceDiag("failure", sessionMode, "transcription failed");
@@ -596,8 +621,10 @@ export function useRealtimeManager(
               sendEvent({ type: "output_audio_buffer.clear" });
               recordVoiceDiag("interruption", sessionMode, "John spoke over Elsie");
             }
-            latestRequestId = payload.item_id;
-            void executeRequest(payload.item_id, text);
+            if (!heard.has(payload.item_id)) committedOrder.push(payload.item_id);
+            heard.set(payload.item_id, "words");
+            waiting.set(payload.item_id, text);
+            settleWaiting();
           }
         }
         // Direct mode: the live model's own spoken words are Elsie's reply.

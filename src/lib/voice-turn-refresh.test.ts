@@ -67,18 +67,11 @@ describe("live voice refreshes durable memory on every turn", () => {
     expect(hook).toContain("spokenOfficeAnswer(output)");
   });
 
-  it("a noise between John's words and the answer never silences or drops the answer", () => {
+  it("only a transcribed request can replace the one in progress", () => {
     const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
-    const transcript = hook.indexOf("latestRequestId = payload.item_id;");
-    // Only a transcribed request becomes the newest one; a noise-only commit does not.
-    expect(transcript).toBeGreaterThan(hook.indexOf('payload.type === "conversation.item.input_audio_transcription.completed") {'));
-    expect(hook.match(/latestRequestId = /g)).toHaveLength(2);
     expect(hook).toContain("inputId !== latestRequestId || handledInputs.has(inputId)");
     expect(hook).toContain('channel.readyState !== "open" || inputId !== latestRequestId');
-    // Real words still stop the old answer before the new one is asked.
-    const cancel = hook.indexOf('recordVoiceDiag("interruption", sessionMode, "John spoke over Elsie")');
-    expect(cancel).toBeGreaterThan(-1);
-    expect(cancel).toBeLessThan(transcript);
+    expect(hook.match(/latestRequestId = /g)).toHaveLength(2);
   });
 
   it("two ordinary turns are each persisted exactly once", () => {
