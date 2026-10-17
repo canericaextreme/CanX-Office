@@ -5,9 +5,9 @@ export interface WorkerRequest { mode: string; repository?:string; pr?:number; s
 export function validateWorkerRequest(value: unknown): {ok:true;request:WorkerRequest}|{ok:false;status:number;reason:string}{
  if(!value||typeof value!=="object")return{ok:false,status:400,reason:"Malformed body"};
  const data=value as Record<string,unknown>;
- if(data.mode!=="merge"&&data.mode!=="poll")return{ok:false,status:400,reason:"Unknown event"};
- if(data.mode==="merge"&&!(data.repository==="canericaextreme/CanX-Office"&&Number.isSafeInteger(data.pr)&&Number(data.pr)>0&&typeof data.sha==="string"&&/^[a-f0-9]{40}$/i.test(data.sha)))return{ok:false,status:400,reason:"Invalid merge reference"};
- return{ok:true,request:data as WorkerRequest};
+ if(data['mode']!=="merge"&&data['mode']!=="poll")return{ok:false,status:400,reason:"Unknown event"};
+ if(data['mode']==="merge"&&!(data['repository']==="canericaextreme/CanX-Office"&&Number.isSafeInteger(data['pr'])&&Number(data['pr'])>0&&typeof data['sha']==="string"&&/^[a-f0-9]{40}$/i.test(data['sha'])))return{ok:false,status:400,reason:"Invalid merge reference"};
+ return {ok:true,request:{mode:data['mode'] as string,...(typeof data['repository']==='string'?{repository:data['repository']}:{}),...(typeof data['pr']==='number'?{pr:data['pr']}:{}),...(typeof data['sha']==='string'?{sha:data['sha']}:{})}};
 }
 /** Fail-closed until durable job grants/leases and provider reservations are verified. */
 export function workerActivationState(config:{enabled:boolean;scopedGrantVerified:boolean;ledgerVerified:boolean;leaseVerified:boolean}){
