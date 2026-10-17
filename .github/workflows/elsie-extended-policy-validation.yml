@@ -17,5 +17,5 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
-      - run: bunx vitest run src/lib/elsie-extended-work.test.ts src/lib/elsie-task-queue.test.ts
+      - run: bunx vitest run src/lib/elsie-extended-work.test.ts src/lib/elsie-extended-worker.test.ts src/lib/elsie-task-queue.test.ts
       - run: bun run build
