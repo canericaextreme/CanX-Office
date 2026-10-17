@@ -682,7 +682,7 @@ export function OfficeManager() {
       if (reply.ok && (reply.roomSnapshots?.length || reply.roomReadback?.length)) requestRoomRefresh("elsie-voice-reply");
       const voiceRoomNote = reply.ok ? roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute)) : "";
       // Skip the separate voice save only when the server confirmed its own save.
-      if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);
+      if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request, reply.text ?? "");
       // A failure detail is never returned as if it were Elsie's answer.
       const outcome = voiceTurnOutcome(reply);
       if (outcome.kind === "failure") throw new VoiceTurnError(outcome.stage, outcome.message, outcome.status);

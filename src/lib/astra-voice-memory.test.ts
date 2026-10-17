@@ -71,6 +71,16 @@ describe("voice turns are persisted once", () => {
     expect(p.feed("assistant", "Nothing else.")).not.toBeNull();
   });
 
+  it("skips the spoken copy when live voice reworded the request (17 Oct double saves)", () => {
+    const p = new VoiceTurnPairer();
+    // Live records 03:27 UTC: the tool sent a tidy rewording, the transcript kept John's words.
+    p.feed("user", "Let's have a, tell me all the rooms in the office, starting with reception and going clockwise.", "item_1");
+    p.markServerSaved("Tell me all the rooms in the office starting with Reception and going clockwise.", "Starting at Reception, the rooms are listed.");
+    expect(p.feed("assistant", "Starting at Reception, the rooms are listed.\n\nYou were in Analytics; this answer is about Reception.", "item_1")).toBeNull();
+    p.feed("user", "And the next one?", "item_2");
+    expect(p.feed("assistant", "A different answer.", "item_2")).toEqual({ user: "And the next one?", answer: "A different answer." });
+  });
+
   it("keeps overlapping provider turns paired to their own request", () => {
     const p = new VoiceTurnPairer();
     p.feed("user", "first", "u1");
@@ -83,7 +93,7 @@ describe("voice turns are persisted once", () => {
     const src = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
     expect(src).toContain("voicePairerRef.current.feed(role, content, providerTurnId)");
     // Only a readback-confirmed server save may suppress the separate voice save.
-    expect(src).toContain("if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);");
+    expect(src).toContain("if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request, reply.text ?? \"\");");
   });
 
   it("server saves a voice turn once for the verified owner with readback", async () => {

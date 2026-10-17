@@ -129,7 +129,7 @@ describe("outbox: persistence only, no duplicates, no action replay", () => {
     const flush = src.slice(src.indexOf("const flushCheckpoints"), src.indexOf("const queueTurn"));
     expect(flush).toContain("appendCheckpoint(");
     expect(flush).not.toMatch(/sendChat|roomCommandRef|requestApproval|realtimeManager/);
-    expect(src).toContain("if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request);");
+    expect(src).toContain("if (reply.ok && reply.persisted === true) voicePairerRef.current.markServerSaved(request, reply.text ?? \"\");");
     expect(src).toContain("modelThread(messagesRef.current)");
     expect(src).toContain("not saved in CanX Brain");
   });
