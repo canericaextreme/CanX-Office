@@ -38,6 +38,7 @@ import { parseRoomCommand, roomReportSource } from "@/lib/manager-room-commands"
 import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { readOfficeLabelPositions } from "@/lib/office-map";
 import { isSynopsisListRequest, synopsisListAnswer } from "@/lib/synopsis-context";
+import { isRecallRequest, recapFromMessages } from "@/lib/conversation-recap";
 import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -604,6 +605,11 @@ export function OfficeManager() {
     if (isSynopsisListRequest(request)) {
       roomOutcomeRef.current = "display";
       return synopsisListAnswer(readOfficeLabelPositions());
+    }
+    // "What did we just talk about?" is read back from the saved turns, not retold by a model.
+    if (isRecallRequest(request)) {
+      roomOutcomeRef.current = "display";
+      return recapFromMessages(messagesRef.current, request);
     }
     const command = parseRoomCommand(request, router.state.location.pathname);
     if (!command) return null;
