@@ -24,6 +24,8 @@ export interface SnapshotRequest {
   device?: import("./room-device-snapshot").DeviceSnapshot | null;
   rest: SnapshotRest;
   now?: () => Date;
+  /** Analytics builder-run reader; tests inject one, production uses the Office server's GitHub read connection. */
+  github?: import("./analytics-overview.server").GitHubRead | null;
 }
 
 const MAX_ITEMS = 6;
@@ -195,6 +197,21 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       const senders = prefs && Array.isArray(prefs["senders"]) ? (prefs["senders"] as Row[]) : [];
       const messages = prefs && Array.isArray(prefs["messages"]) ? (prefs["messages"] as Row[]) : [];
       return result(def, { count: senders.length + messages.length, items: senders.slice(0, MAX_ITEMS).map((s) => `${text(s["action"], 10)} ${text(s["sender"], 120)}`), latestAt: updated, detail: `${senders.length} sender rule(s), ${messages.length} single-email choice(s)` });
+    }
+    case "analytics": {
+      const { readAnalyticsRawWith, officeGitHubReader } = await import("./analytics-overview.server");
+      const { buildAnalyticsOverview, analyticsForModel } = await import("./analytics-overview");
+      const raw = await readAnalyticsRawWith({ config: req.config, token: req.token, aal: req.aal, rest: req.rest, github: req.github !== undefined ? req.github : officeGitHubReader(process.env["CANX_CODEX_GITHUB_TOKEN"]), ...(req.now ? { now: req.now } : {}) });
+      const overview = buildAnalyticsOverview(raw);
+      const read = overview.sources.filter((s) => s.status === "read").length;
+      const notRead = overview.sources.filter((s) => s.status !== "read");
+      return result(def, {
+        status: read ? "read" : "failed",
+        count: read,
+        items: analyticsForModel(overview),
+        detail: `${read} of ${overview.sources.length} measurement sources read${notRead.length ? `; not read: ${notRead.map((s) => `${s.label} (${s.status === "denied" ? "needs two-step" : s.status})`).join(", ")}` : ""}; every reading below was taken at this snapshot's checked time`,
+        analytics: overview,
+      });
     }
     default:
       return failed(def, "no reader exists for this source");

@@ -30,6 +30,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 20 | Future | — | Reserved | Reserved by John |
 | — | Brain | Eight-shelf filing, active memory metadata, versioned shared log; shared descriptions/routes | Decision History, Brain (3) | Corrected against saved eight-shelf plan; signed-in owner upload/filing/count and actual Elsie acknowledgment acceptance pending |
 | — | Projects | project register, tasks | Projects (4) | External repos/deployments not connected |
+| — | Analytics | analytics measurements: tasks, approvals, change log, AI budget meter and call log, Finance totals and project register (two-step), Office builder run lists | Built-in Analytics explainer (not a registry skill) | Provider credit/billing, Lovable credits, build cost, review time and who pressed a direct build are not measured (17 Oct 2026, docs/analytics-room-release.md) |
 
 ## Build handoff (what Elsie can build with)
 - Exists in code: Elsie's `start_codex_build`, `execute_task` (green Office code tasks), `check_codex_builds`, `check_task_execution` → GitHub Actions `canx-codex.yml` on `canericaextreme/CanX-Office` (`main`). The job runs Codex, then typecheck/tests/build, and opens a **draft change** only. Elsie never merges, publishes or deploys.
@@ -37,7 +38,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 - Difference from this builder: this assistant edits the Lovable project directly. Elsie works only through the GitHub draft-change pipeline above and does not have this assistant's access.
 
 ## Readiness levels (4 Oct 2026)
-Installed = instructions present · Connected = every input readable · Executable = a real Elsie action runs it · Blocked = a named input is missing. Executable today: Skill Router, Owner Decision Filter, Daily Office Review ("check all the rooms", saved as an Office Health room report), and the eight Subscriptions/Finance procedures ("follow all the skills in the Subscriptions room", saved as a Subscriptions room report). Research Source Check and Security Incident Triage are blocked (no web/standards search, no security-event feed). Gaps with no approved definition: Analytics, Family Continuity instructions.
+Installed = instructions present · Connected = every input readable · Executable = a real Elsie action runs it · Blocked = a named input is missing. Executable today: Skill Router, Owner Decision Filter, Daily Office Review ("check all the rooms", saved as an Office Health room report), and the eight Subscriptions/Finance procedures ("follow all the skills in the Subscriptions room", saved as a Subscriptions room report). Research Source Check and Security Incident Triage are blocked (no web/standards search, no security-event feed). Gaps with no approved definition in the skills registry: Analytics (John defined the room in Brain notes on 16 Oct 2026; it uses a built-in explainer, not a registry skill), Family Continuity instructions.
 
 ## Open next tasks
 1. Shared storage for the Office Team roster and Idea Lab scores (would need a schema change, so John must approve).

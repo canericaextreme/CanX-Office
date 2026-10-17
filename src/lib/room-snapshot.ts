@@ -15,13 +15,14 @@
 
 import { OFFICE_ROOM_IDENTITIES, cleanRoute } from "./office-room-identity";
 import { OFFICE_SKILLS, ROOM_SKILL_MAP, SKILLS_REGISTRY_VERSION, skillsForRoute } from "./office-skills";
+import { ANALYTICS_ELSIE_PROCEDURE, type AnalyticsOverview } from "./analytics-overview";
 
 export const SNAPSHOT_CONTRACT = "canx-room-snapshot/1";
 
 export type SourceKind = "live" | "device" | "static";
 export type LiveSourceKey =
   | "legal-filings" | "files" | "reports" | "tasks" | "approvals" | "changes" | "notes" | "decisions"
-  | "brain-memory" | "brain-index" | "project-register" | "round-tables" | "finance-receipts" | "subscriptions" | "mail-evidence" | "mail-preferences";
+  | "brain-memory" | "brain-index" | "project-register" | "round-tables" | "finance-receipts" | "subscriptions" | "mail-evidence" | "mail-preferences" | "analytics";
 
 export interface SourceDef {
   key: string;
@@ -75,7 +76,7 @@ const ROOM_SOURCES: Record<string, SourceDef[]> = {
   "/family-continuity": [stat("skills-registry", "Office Skills registry", "Written into the app (versioned).")],
   "/research": [],
   "/round-table": [live("round-tables", "Round table records")],
-  "/analytics": [live("tasks", "Work Board tasks"), live("approvals", "Approval box")],
+  "/analytics": [live("analytics", "Analytics measurements (Work Board, approvals, AI meter, builder runs, projects, Finance totals)")],
 };
 
 function buildTargets(): RoomTarget[] {
@@ -157,6 +158,8 @@ export interface SourceResult {
   items: string[];
   latestAt: string | null;
   detail: string;
+  /** Analytics room only: the structured measurements the room draws, from the same read Elsie gets as text. */
+  analytics?: AnalyticsOverview;
 }
 
 export interface RoomSnapshot {
@@ -247,6 +250,7 @@ export function snapshotForModel(s: RoomSnapshot, why: "current" | "named"): str
     `Instruction-ready skills here: ${s.skills.ready.map((k) => `${k.name} v${k.version}`).join(", ") || "none (office-wide rules only)"}.`,
     ...(s.actions.length > 1 ? [GENERAL_ROOM_PROCEDURE] : []),
     `Actions that really exist here: ${s.actions.map((a) => a.label).join("; ")}. Anything else is unsupported — say so plainly.`,
+    ...(s.route === "/analytics" ? [ANALYTICS_ELSIE_PROCEDURE] : []),
     ...(s.limits.length ? [`Limits: ${s.limits.join(" ")}`] : []),
   ];
   return lines.join("\n");

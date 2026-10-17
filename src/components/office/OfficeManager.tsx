@@ -1123,7 +1123,7 @@ export function OfficeManager() {
       const id = typeof detail.id === "string" && /^[a-z0-9-]{1,60}$/i.test(detail.id) ? detail.id : newHandoffId();
       setHandoff({
         id,
-        source: detail.source === "work_discussion" ? "work_discussion" : "screen_observation",
+        source: detail.source === "work_discussion" || detail.source === "room_button" ? detail.source : "screen_observation",
         status: "drafted",
         detail: "",
         canResend: false,
