@@ -1,0 +1,129 @@
+# CanX Office function auto-deploy (approved by John 15 Oct 2026). Standard for every AI: ship office-mcp,
+# office-view and office-consent by merging to main, never by pasting code into the Supabase dashboard.
+# Builds the same single-file bundles as scripts/office-view/bundle-functions.mjs (esbuild pinned to the version that
+# reproduces the hand-deployed files byte for byte), deploys only the functions whose bundle changed since the last
+# successful run, keeps each function's current "Verify JWT" setting, and never reads or writes function secrets.
+# Needs one repository secret: SUPABASE_ACCESS_TOKEN. Undo = revert the PR on main; this workflow redeploys the old code.
+name: CanX Office functions deploy
+run-name: CanX Office functions deploy ${{ github.run_number }}
+on:
+  push:
+    branches: [main]
+    paths:
+      - supabase/functions/office-mcp/**
+      - supabase/functions/office-view/**
+      - supabase/functions/office-consent/**
+      - src/lib/**
+      - scripts/office-view/bundle-functions.mjs
+      - .github/workflows/office-functions-deploy.yml
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: "Leave empty to deploy only what changed. Or name functions to redeploy, e.g. office-mcp office-view"
+        required: false
+        type: string
+permissions: {}
+concurrency:
+  group: canx-office-functions-deploy
+  cancel-in-progress: false
+env:
+  PROJECT_REF: gmsjjiprtulxojhkmbqb
+  FUNCTIONS: office-mcp office-view office-consent
+  ESBUILD_VERSION: 0.28.2
+  SUPABASE_CLI_VERSION: 2.118.0
+  # What was live before this workflow existed (hand-deployed from ad069a1, docs/office-view-working-2026-10-14.md).
+  FIRST_BASELINE: ad069a10646f4ee6f4eee71a5258efd566a8d9dc
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install pinned build and deploy tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/tools"
+          cd "$RUNNER_TEMP/tools"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "esbuild@$ESBUILD_VERSION" "supabase@$SUPABASE_CLI_VERSION" >/dev/null
+          echo "$RUNNER_TEMP/tools/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Pick the comparison point
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/office-functions-deploy.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
+          base=${base:-$FIRST_BASELINE}
+          echo "Comparing $GITHUB_SHA against last deployed commit $base"
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - name: Build bundles (new and last deployed)
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          ln -s "$RUNNER_TEMP/tools/node_modules" node_modules
+          node scripts/office-view/bundle-functions.mjs "$RUNNER_TEMP/new"
+          git worktree add --detach "$RUNNER_TEMP/base-src" "$BASE_SHA"
+          ln -s "$RUNNER_TEMP/tools/node_modules" "$RUNNER_TEMP/base-src/node_modules"
+          (cd "$RUNNER_TEMP/base-src" && node scripts/office-view/bundle-functions.mjs "$RUNNER_TEMP/old")
+      - name: Decide what to deploy
+        id: plan
+        env:
+          REQUESTED: ${{ inputs.functions }}
+        run: |
+          deploy=""
+          for f in $FUNCTIONS; do
+            new=$(sha256sum "$RUNNER_TEMP/new/$f.js" | cut -d' ' -f1)
+            old=$(sha256sum "$RUNNER_TEMP/old/$f.js" 2>/dev/null | cut -d' ' -f1)
+            echo "$f: new $new, last deployed ${old:-none}"
+            if [ -n "$REQUESTED" ]; then
+              case " $REQUESTED " in *" $f "*) deploy="$deploy $f" ;; esac
+            elif [ "$new" != "$old" ]; then
+              deploy="$deploy $f"
+            fi
+          done
+          for r in $REQUESTED; do
+            case " $FUNCTIONS " in *" $r "*) ;; *) echo "::error::$r is not one of: $FUNCTIONS"; exit 1 ;; esac
+          done
+          echo "Deploying:${deploy:- nothing}"
+          echo "list=${deploy# }" >> "$GITHUB_OUTPUT"
+      - name: Deploy and verify
+        if: steps.plan.outputs.list != ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          LIST: ${{ steps.plan.outputs.list }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::The SUPABASE_ACCESS_TOKEN repository secret is not set, so nothing was deployed. Add it, then re-run this job."
+            exit 1
+          fi
+          api="https://api.supabase.com/v1/projects/$PROJECT_REF/functions"
+          info() { curl -sSf -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$api/$1"; }
+          echo "## Office functions deployed from ${GITHUB_SHA:0:7}" >> "$GITHUB_STEP_SUMMARY"
+          for f in $LIST; do
+            # Only update functions that already exist, and keep their current JWT setting.
+            before=$(info "$f") || { echo "::error::$f could not be read from Supabase (missing function or bad token). Not deployed."; exit 1; }
+            jwt=$(jq -r '.verify_jwt' <<<"$before"); v0=$(jq -r '.version' <<<"$before")
+            [ "$jwt" = true ] || [ "$jwt" = false ] || { echo "::error::$f has no readable verify_jwt setting. Not deployed."; exit 1; }
+            work="$RUNNER_TEMP/deploy-$f"
+            mkdir -p "$work/supabase/functions/$f"
+            cp "$RUNNER_TEMP/new/$f.js" "$work/supabase/functions/$f/index.ts"
+            printf 'project_id = "%s"\n\n[functions.%s]\nverify_jwt = %s\n' "$PROJECT_REF" "$f" "$jwt" > "$work/supabase/config.toml"
+            flag=""; [ "$jwt" = false ] && flag="--no-verify-jwt"
+            supabase functions deploy "$f" --project-ref "$PROJECT_REF" --use-api --workdir "$work" $flag
+            after=$(info "$f")
+            jwt1=$(jq -r '.verify_jwt' <<<"$after"); v1=$(jq -r '.version' <<<"$after")
+            sha=$(sha256sum "$RUNNER_TEMP/new/$f.js" | cut -d' ' -f1)
+            [ "$jwt1" = "$jwt" ] || { echo "::error::$f Verify JWT changed from $jwt to $jwt1"; exit 1; }
+            [ "$v1" -gt "$v0" ] || { echo "::error::$f version did not go up ($v0 -> $v1)"; exit 1; }
+            echo "::notice title=$f deployed::version $v0 -> $v1, verify_jwt $jwt kept, bundle sha256 $sha, commit $GITHUB_SHA"
+            echo "- **$f**: version $v0 → $v1, Verify JWT $jwt (unchanged), bundle sha256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
+          done
