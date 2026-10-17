@@ -24,3 +24,6 @@
 
 ## Boundaries
 No purchases/upgrades, no GitHub merges or live deployment without required approval; no changing Finance permissions or Safe Highways systems. Cloud scheduling is not guaranteed by a GitHub Actions tick unless durable scoped identity, budget reservations and idempotent execution exist. Preserve task and artifact history.
+
+## Schema candidate prepared (not installed)
+The proposed `supabase/migrations/20261017013000_elsie_extended_sessions.sql` adds owner-readable, non-client-writable sessions and append-only events with ten-hour boundaries. It does not grant unattended authentication or start a scheduler. Owner stop/pausing and exact task binding are covered by pure logic and tests. Do not apply the migration until an independently reviewed enrollment/stop RPC and worker lease service are available; a table by itself is not the working system.
