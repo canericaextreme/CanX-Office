@@ -1,0 +1,21 @@
+name: Elsie extended-work policy validation
+on:
+  push:
+    branches: [chatgpt/elsie-ten-hour-orchestrator-20261016]
+  pull_request:
+    paths:
+      - src/lib/elsie-extended-work.ts
+      - src/lib/elsie-extended-work.test.ts
+      - .github/workflows/elsie-extended-policy-validation.yml
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run src/lib/elsie-extended-work.test.ts src/lib/elsie-extended-worker.test.ts src/lib/elsie-extended-session.test.ts src/lib/elsie-task-queue.test.ts
+      - run: bun run build
