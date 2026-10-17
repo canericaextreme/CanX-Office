@@ -2686,13 +2686,8 @@
      "kind": "live"
     },
     {
-     "key": "tasks",
-     "label": "Work Board tasks",
-     "kind": "live"
-    },
-    {
-     "key": "approvals",
-     "label": "Approval box",
+     "key": "analytics",
+     "label": "Analytics measurements (Work Board, approvals, AI meter, builder runs, projects, Finance totals)",
      "kind": "live"
     }
    ],

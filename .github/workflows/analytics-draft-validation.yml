@@ -1,0 +1,24 @@
+name: Analytics draft validation
+on:
+  pull_request:
+    paths:
+      - src/routes/_office/analytics.tsx
+      - src/routes/_office/-analytics.test.tsx
+      - src/lib/analytics-overview*.ts
+      - src/lib/room-snapshot*.ts
+      - src/lib/companion-bridge.ts
+      - src/components/office/OfficeManager.tsx
+      - .github/workflows/analytics-draft-validation.yml
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      # Full suite: the Analytics source feeds the shared room snapshot that every room and Elsie use.
+      - run: bunx vitest run
+      - run: bun run build

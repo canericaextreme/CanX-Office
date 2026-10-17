@@ -21,7 +21,7 @@ export function openCompanion() {
 export const MANAGER_HANDOFF_EVENT = "canx:manager-handoff";
 export const HANDOFF_STATUS_EVENT = "canx:manager-handoff-status";
 
-export type HandoffSource = "screen_observation" | "work_discussion";
+export type HandoffSource = "screen_observation" | "work_discussion" | "room_button";
 
 export interface ManagerHandoff {
   /** Sanitized, bounded text. Never an image, never a secret. */
@@ -36,6 +36,7 @@ export interface ManagerHandoff {
 export const HANDOFF_SOURCE_LABEL: Record<HandoffSource, string> = {
   screen_observation: "Office Work assistant — one screen snapshot (text only)",
   work_discussion: "Office Work assistant — selected written discussion",
+  room_button: "A room button you pressed — question text only",
 };
 
 /**

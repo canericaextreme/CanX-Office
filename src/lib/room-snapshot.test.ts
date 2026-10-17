@@ -50,7 +50,8 @@ describe("room coverage", () => {
       const snap = await read(t.route, fakeRest({}));
       for (const s of snap.sources) expect(s.detail, `${t.route}:${s.key}`).not.toMatch(/no reader/);
       const hasDevice = t.sources.some((x) => x.kind === "device");
-      expect(snap.overall, t.route).toBe(hasDevice ? "partial" : "fresh");
+      // Analytics carries builder runs too; with no GitHub read connection in tests it is honestly partial.
+      expect(snap.overall, t.route).toBe(hasDevice || t.route === "/analytics" ? "partial" : "fresh");
     }
   });
   it("Future stays reserved: no ready skill, read-only action, no invented worker", () => {
