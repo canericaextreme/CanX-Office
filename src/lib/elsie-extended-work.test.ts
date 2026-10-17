@@ -1,0 +1,21 @@
+import { describe,expect,it } from "vitest";
+import { decideExtendedWork,type ExtendedWorkSnapshot } from "./elsie-extended-work";
+const valid: ExtendedWorkSnapshot={now:"2026-10-16T12:00:00Z",sessionStartedAt:"2026-10-16T10:00:00Z",sessionExpiresAt:"2026-10-16T20:00:00Z",authorized:true,leaseOwned:true,ownerSessionValid:true,budgetCheckedAt:"2026-10-16T11:59:00Z",dailyBudgetRemainingCents:250,estimatedNextBuildCents:200,builderIdleVerified:true,inFlight:0,queued:2,taskGreen:true,hasOwnerQueueMarker:true,taskAlreadyAttempted:false,needsMergeOrDeploymentApproval:false,highRisk:false,statusReadSucceeded:true};
+const decide=(v:Partial<ExtendedWorkSnapshot>={})=>decideExtendedWork({...valid,...v});
+describe("Elsie extended-work authorization and budget policy",()=>{
+ it("releases a verified affordable green task in the window",()=>expect(decide().state).toBe("release"));
+ it("ends at ten hours",()=>expect(decide({now:valid.sessionExpiresAt}).state).toBe("stop"));
+ it("rejects excessively long windows",()=>expect(decide({sessionExpiresAt:"2026-10-17T00:01:00Z"}).state).toBe("stop"));
+ it("does not dispatch without owner authorization",()=>expect(decide({authorized:false}).state).toBe("stop"));
+ it("does not dispatch on an invalid owner session",()=>expect(decide({ownerSessionValid:false}).state).toBe("stop"));
+ it("refuses to guess missing budget",()=>expect(decide({dailyBudgetRemainingCents:null}).state).toBe("stop"));
+ it("blocks stale budget data",()=>expect(decide({budgetCheckedAt:"2026-10-16T11:40:00Z"}).state).toBe("stop"));
+ it("blocks insufficient budget",()=>expect(decide({dailyBudgetRemainingCents:199}).state).toBe("stop"));
+ it("blocks active builders",()=>expect(decide({inFlight:1}).state).toBe("wait"));
+ it("blocks unavailable builder state",()=>expect(decide({statusReadSucceeded:false}).state).toBe("wait"));
+ it("blocks a duplicate attempted task",()=>expect(decide({taskAlreadyAttempted:true}).state).toBe("wait"));
+ it("blocks a non-queued task",()=>expect(decide({hasOwnerQueueMarker:false}).state).toBe("wait"));
+ it("holds the queue at three",()=>expect(decide({queued:4}).state).toBe("stop"));
+ it("waits for exclusive lease",()=>expect(decide({leaseOwned:false}).state).toBe("wait"));
+ it("stops on merges or protected actions",()=>{expect(decide({needsMergeOrDeploymentApproval:true}).state).toBe("stop");expect(decide({highRisk:true}).state).toBe("stop");});
+});
