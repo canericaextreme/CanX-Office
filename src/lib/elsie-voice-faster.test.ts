@@ -98,11 +98,9 @@ describe("what Elsie says aloud", () => {
     expect(hook).toContain('sessionMode === "relay" && payload.type === "conversation.item.input_audio_transcription.completed" && !hasSpokenWords(text)');
   });
 
-  it("John hears a short sound the moment a request is taken", () => {
+  it("no sound is played when a request is taken (the chime was heard as words)", () => {
     const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
-    const start = hook.indexOf('stage: "assistant_request_started"');
-    const call = hook.indexOf("playHeardChime();", start);
-    expect(call).toBeGreaterThan(start);
-    expect(call).toBeLessThan(hook.indexOf("await requestRef.current(request)", start));
+    expect(hook).not.toContain("playHeardChime");
+    expect(hook).not.toContain("createOscillator");
   });
 });
