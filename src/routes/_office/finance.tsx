@@ -251,28 +251,29 @@ export function Finance() {
                   </span>
                 </div>
               </div>
-              <div className="h-1 bg-[var(--bank-gold)]" />
+              <div className="bank-stripe h-1.5" />
             </header>
             {privateLoad === "failed" && notice && <p role="alert" className="rounded-md border border-[var(--bank-amber)]/40 bg-[var(--bank-amber-soft)] px-4 py-3 text-sm text-foreground">{notice}</p>}
             <nav aria-label="Finance categories" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {([
-                { id: "income", label: "Income", value: "Unknown", note: "No reconciled income source", icon: BadgeDollarSign },
-                { id: "expenses", label: "Expenses", value: "Unknown", note: "No reconciled payment source", icon: Landmark },
-                { id: "receipts", label: "Receipts", value: receiptsUnread ? (privateLoad === "failed" ? "Not loaded" : "Loading…") : String(summary.receipts), note: receiptsUnread ? (privateLoad === "failed" ? "Saved receipts could not be read — open for details" : "Reading your saved receipts") : `${summary.needsReview} need review`, icon: ReceiptText },
-                { id: "tax", label: "Tax prep", value: "Not started", note: "Records only — no tax advice", icon: FileText },
+                { id: "income", label: "Income", value: "Unknown", note: "No reconciled income source", icon: BadgeDollarSign, tone: "emerald" },
+                { id: "expenses", label: "Expenses", value: "Unknown", note: "No reconciled payment source", icon: Landmark, tone: "ruby" },
+                { id: "receipts", label: "Receipts", value: receiptsUnread ? (privateLoad === "failed" ? "Not loaded" : "Loading…") : String(summary.receipts), note: receiptsUnread ? (privateLoad === "failed" ? "Saved receipts could not be read — open for details" : "Reading your saved receipts") : `${summary.needsReview} need review`, icon: ReceiptText, tone: "sapphire" },
+                { id: "tax", label: "Tax prep", value: "Not started", note: "Records only — no tax advice", icon: FileText, tone: "amber" },
               ] as const).map((item, index) => {
                 const Icon = item.icon;
                 return (
                   <Button key={item.id} type="button" variant="outline" onClick={() => openSection(item.id)}
                     aria-label={`Open ${item.label}: ${item.value}. ${item.note}`}
-                    className="group h-auto min-h-36 w-full flex-col items-stretch justify-start gap-0 overflow-hidden whitespace-normal rounded-lg border-border bg-card p-0 text-left shadow-sm transition-shadow hover:bg-card hover:shadow-md">
-                    <span className="flex items-center justify-between border-b border-border bg-[var(--bank-paper)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[.18em] text-muted-foreground">
+                    data-tone={item.tone}
+                    className="bank-account group h-auto min-h-36 w-full flex-col items-stretch justify-start gap-0 overflow-hidden whitespace-normal rounded-lg border-border bg-card p-0 text-left shadow-sm transition-shadow hover:bg-card hover:shadow-md">
+                    <span className="bank-account-band flex items-center justify-between px-4 py-2 text-[10px] font-semibold uppercase tracking-[.18em]">
                       <span>Account {String(index + 1).padStart(2, "0")}</span>
-                      <Icon className="h-4 w-4 text-[var(--bank-gold-text)]" aria-hidden />
+                      <Icon className="h-4 w-4" aria-hidden />
                     </span>
                     <span className="block px-4 pb-4 pt-3">
                       <span className="block text-sm font-semibold text-foreground">{item.label}</span>
-                      <span className="bank-serif bank-figure mt-1 block text-3xl font-semibold text-[var(--bank-navy)]">{item.value}</span>
+                      <span className="bank-serif bank-figure bank-account-figure mt-1 block text-3xl font-semibold">{item.value}</span>
                       <span className="mt-2 flex items-end justify-between gap-2 text-xs text-muted-foreground">
                         <span>{item.note}</span>
                         <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden />
@@ -303,9 +304,9 @@ export function Finance() {
                   </thead>
                   <tbody>
                     {months.map((m) => (
-                      <tr key={`${m.month}|${m.currency}`} className="border-t border-border">
+                      <tr key={`${m.month}|${m.currency}`} className="border-t border-border even:bg-[var(--bank-paper)]">
                         <th scope="row" className="px-4 py-2.5 text-left font-medium text-foreground sm:px-5">{monthName(m.month)}</th>
-                        <td className="px-2 py-2.5 text-muted-foreground">{currencyLabel(m.currency)}</td>
+                        <td className="px-2 py-2.5"><span className="bank-currency" data-currency={m.currency}>{currencyLabel(m.currency)}</span></td>
                         <td className="bank-figure px-2 py-2.5 text-right">{m.count}</td>
                         <td className="bank-figure px-4 py-2.5 text-right font-semibold text-[var(--bank-navy)] sm:px-5">{money(m.total)}</td>
                       </tr>
@@ -328,7 +329,7 @@ export function Finance() {
         )}
 
         {section === "income" && (
-          <Card className="bank-card">
+          <Card className="bank-card" data-tone="emerald">
             <CardHeader><SectionTitle>Income records</SectionTitle></CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>No reconciled income records or connected income source are available in Finance.</p>
@@ -339,7 +340,7 @@ export function Finance() {
 
         {section === "expenses" && (
           <>
-            <Card className="bank-card">
+            <Card className="bank-card" data-tone="ruby">
               <CardHeader><SectionTitle>Expense records</SectionTitle></CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
                 <p>No connected payment source or reconciled expense total is available in Finance.</p>
@@ -351,7 +352,7 @@ export function Finance() {
         )}
 
         {section === "tax" && (
-          <Card className="bank-card">
+          <Card className="bank-card" data-tone="amber">
             <CardHeader><SectionTitle>Tax preparation records</SectionTitle></CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <p>Tax preparation has not started. This Office does not provide tax advice or determine tax treatment.</p>
@@ -372,7 +373,7 @@ export function Finance() {
         )}
 
         {section === "receipts" && <>
-        <Card className="bank-card">
+        <Card className="bank-card" data-tone="sapphire">
           <CardHeader>
             <SectionTitle>Receipt inbox: import and export</SectionTitle>
           </CardHeader>
@@ -439,7 +440,7 @@ export function Finance() {
           </Card>
         )}
 
-        <Card className="bank-card">
+        <Card className="bank-card" data-tone="sapphire">
           <CardHeader>
             <SectionTitle>Totals by currency</SectionTitle>
           </CardHeader>
@@ -449,7 +450,7 @@ export function Finance() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {totals.map((t) => (
-                  <div key={t.currency} className="rounded-md border border-border border-l-4 border-l-[var(--bank-gold)] bg-[var(--bank-paper)] p-3">
+                  <div key={t.currency} data-currency={t.currency} className="bank-currency-tile rounded-md border border-border border-l-4 bg-[var(--bank-paper)] p-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[.14em] text-muted-foreground">{currencyLabel(t.currency)}</div>
                     <div className="bank-serif bank-figure mt-1 text-2xl font-semibold text-[var(--bank-navy)]">{t.total === null ? "Unknown" : t.total.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">{t.count} receipt{t.count === 1 ? "" : "s"}</div>
@@ -463,7 +464,7 @@ export function Finance() {
           </CardContent>
         </Card>
 
-        <Card className="bank-card">
+        <Card className="bank-card" data-tone="sapphire">
           <CardHeader>
             <SectionTitle>Receipt records ({receipts.length})</SectionTitle>
           </CardHeader>
@@ -576,7 +577,7 @@ export function Finance() {
           </CardContent>
         </Card>
 
-        <Card className="bank-card">
+        <Card className="bank-card" data-tone="sapphire">
           <CardHeader>
             <SectionTitle>Reconciliation</SectionTitle>
           </CardHeader>

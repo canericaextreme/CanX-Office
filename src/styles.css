@@ -506,3 +506,28 @@ main:has(.finance-bank) [data-slot="card"] {
     linear-gradient(120deg, var(--bank-deep) 0%, var(--bank-navy) 60%, #16365f 100%);
 }
 .finance-bank .bank-card { border-top: 3px solid var(--bank-navy); box-shadow: 0 1px 2px rgb(11 37 69 / 0.06); }
+
+/* Finance jewel tones (17 Oct 2026, John: "add color"). Each account has its own
+   colour; white text on every band keeps at least 4.5:1 contrast. */
+.finance-bank [data-tone="emerald"] { --tone: #0f7b55; --tone-soft: #e3f4ec; }
+.finance-bank [data-tone="ruby"] { --tone: #a3203a; --tone-soft: #fbe7eb; }
+.finance-bank [data-tone="sapphire"] { --tone: #1d4fc4; --tone-soft: #e6edfc; }
+.finance-bank [data-tone="amber"] { --tone: #a35c00; --tone-soft: #fcf0dc; }
+.finance-bank .bank-account { border-bottom: 4px solid var(--tone); }
+.finance-bank .bank-account-band { background: var(--tone); color: #ffffff; }
+.finance-bank .bank-account-figure { color: var(--tone); }
+.finance-bank .bank-account:hover { background: var(--tone-soft); }
+.finance-bank .bank-card[data-tone] { border-top-color: var(--tone); }
+.finance-bank .bank-card[data-tone] h3 { color: var(--tone); }
+.finance-bank .bank-stripe {
+  background: linear-gradient(90deg, #0f7b55 0 25%, #1d4fc4 25% 50%, #a3203a 50% 75%, #b08d57 75% 100%);
+}
+.finance-bank .bank-currency {
+  display: inline-block; border-radius: 9999px; padding: 0.1rem 0.55rem;
+  font-size: 0.75rem; font-weight: 600; background: #eceae4; color: #3f4654;
+}
+.finance-bank .bank-currency[data-currency="USD"] { background: #e3f4ec; color: #0b5e41; }
+.finance-bank .bank-currency[data-currency="CAD"] { background: #fbe7eb; color: #8a1a30; }
+.finance-bank .bank-currency-tile { border-left-color: #8c8f99; }
+.finance-bank .bank-currency-tile[data-currency="USD"] { border-left-color: #0f7b55; }
+.finance-bank .bank-currency-tile[data-currency="CAD"] { border-left-color: #a3203a; }
