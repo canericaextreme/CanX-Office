@@ -1,0 +1,22 @@
+name: Elsie task resume validation
+on:
+  pull_request:
+    paths:
+      - src/lib/task-receipt.ts
+      - src/lib/task-receipt.test.ts
+      - src/lib/task-execution.server.ts
+      - src/lib/elsie-reconnect-brief.ts
+      - src/lib/elsie-reconnect-brief.test.ts
+      - .github/workflows/elsie-task-resume-validation.yml
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run
+      - run: bun run build

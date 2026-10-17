@@ -3,6 +3,7 @@ import type { CodexBuildResult } from './codex-builds.server';
 import { firstRow, classifyManagerRisk, type ManagerTask, type WorkbenchDeps } from './manager-work.functions';
 import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from './codex-task-handoff';
 import { BUILDER_LABEL, type OfficeBuilder } from './builder-choice';
+import { splitLeadingJson } from './task-receipt';
 import { ACTIVE_RUN_STATES, MAX_QUEUED_PER_BUILDER, hasQueueMarker, queueMarker, queuedTasksFor, selectElsieQueueTask } from './elsie-task-queue';
 
 type BuildFn = (token: string, request?: string, prNumber?: number, runId?: number) => Promise<CodexBuildResult>;
@@ -17,7 +18,8 @@ export interface TaskExecutionDeps {
 /** Legacy codex-task-v1 receipts are always Codex. */
 export const readExecution = (text: string): Execution | null => {
   try {
-    const x = JSON.parse(text);
+    // Relay notes may follow the receipt; read the leading object only.
+    const x = JSON.parse(splitLeadingJson(text).json ?? text);
     if (x?.kind === 'codex-task-v1') return { ...x, builder: 'codex' };
     if (x?.kind === 'office-task-v2' && (x.builder === 'codex' || x.builder === 'claude')) return x;
     return null;
@@ -48,7 +50,7 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
     // Successful candidates await review, not a claim that the Office changed.
     const saved = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&evidence=eq.${encodeURIComponent(task.evidence)}&status=not.in.(done,cancelled)`, {
       status: active ? 'in_progress' : 'open', result: live.detail.slice(0, 2000),
-      evidence: JSON.stringify({ ...execution, state }), updated_at: new Date().toISOString(),
+      evidence: JSON.stringify({ ...execution, state }) + splitLeadingJson(task.evidence).tail, updated_at: new Date().toISOString(),
     });
     return { ...live, detail: live.detail + (saved.ok && firstRow(saved.data) ? ' Task evidence updated; completion remains unverified.' : ' Task record was not updated; it may have changed during this check.') };
   }

@@ -10,3 +10,24 @@ describe("Elsie reconnect recovery",()=>{
  it("never invents missing history",()=>{const s=elsieReconnectBrief([],[],"2026-10-17T00:04Z");expect(s).toContain("No recent saved conversation");expect(s).toContain("No readable unfinished tasks");});
  it("excludes done tasks",()=>{const s=elsieReconnectBrief([], [{id:"2",title:"Finished",detail:"",worker:"claude",status:"done",updated_at:"2026-10-17"}],"2026-10-17");expect(s).not.toContain("Finished");});
 });
+
+describe("Elsie resumes an interrupted build safely", () => {
+  const receipt = JSON.stringify({ kind: "office-task-v2", builder: "claude", attempt: "a1", state: "queued", prior: "", runId: 38851382385 });
+  const relayed = receipt + " [colleague-relay 6bca6abf-dfaf-478c-ae6a-ec94560c66ef claimed chatgpt 2026-10-16T05:00:49.349Z]";
+  const tasks = [
+    { id: "00000000-0000-0000-0000-000000000001", title: "Newer idea", detail: "", status: "open", worker: "", updated_at: "2026-10-17T02:00Z", evidence: "" },
+    { id: "b4ed13d8-947d-a59c-880d-f83f9befba36", title: "Tidy Finance headings", detail: "", status: "in_progress", worker: "", updated_at: "2026-10-16T05:00Z", evidence: relayed },
+  ];
+  it("names the task id and the saved receipt, even after a relay note was appended", () => {
+    const s = elsieReconnectBrief([], tasks, "2026-10-17T03:00Z");
+    expect(s).toContain("task b4ed13d8-947d-a59c-880d-f83f9befba36");
+    expect(s).toContain("build receipt: Claude, run 38851382385, saved state queued");
+    expect(s.indexOf("Tidy Finance headings")).toBeLessThan(s.indexOf("Newer idea"));
+    expect(s).toContain("call check_task_execution with its task id");
+    expect(s).toContain("never call execute_task");
+  });
+  it("tells Elsie never to resubmit an unconfirmed submission", () => {
+    const s = elsieReconnectBrief([], [{ ...tasks[1]!, evidence: JSON.stringify({ kind: "office-task-v2", builder: "codex", attempt: "a2", state: "submission_unconfirmed", prior: "" }) }], "x");
+    expect(s).toContain("Codex, no run link, saved state submission_unconfirmed (submission unconfirmed: check Build & Testing; never resubmit)");
+  });
+});
