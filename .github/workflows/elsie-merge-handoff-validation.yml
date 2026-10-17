@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - src/lib/elsie-merge-handoff.ts
-      - src/lib/elsie-merge-handoff.test.ts
+      - src/lib/elsie-merge-handoff.test.ts src/lib/elsie-merge-wake.test.ts
       - .github/workflows/elsie-merge-handoff-validation.yml
 jobs:
   validate:
