@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { USAGE_PAGE, clearGitHubRunCache, officeGitHubReader, readAnalyticsRawWith, type AnalyticsRest } from "./analytics-overview.server";
+import { USAGE_PAGE, clearAnalyticsRawCache, clearGitHubRunCache, readAnalyticsRawShared, officeGitHubReader, readAnalyticsRawWith, type AnalyticsRest } from "./analytics-overview.server";
 import { readRoomSnapshotWith } from "./room-snapshot.server";
 import { roomTargetForRoute, snapshotForModel } from "./room-snapshot";
 
@@ -65,6 +65,31 @@ describe("Analytics reader", () => {
     expect(api.series).toEqual([]);
     expect(o.cards.find((c) => c.id === "health")!.headline.value).toBe("1 of 9 sources read just now");
     expect(o.cards.find((c) => c.id === "health")!.headline.tone).toBe("warn");
+  });
+
+  it("shares one read for 20 seconds per sign-in, never across sign-ins", async () => {
+    clearAnalyticsRawCache();
+    const { rest, calls } = fakeRest();
+    let t = 0;
+    const req = { config, token: TOKEN, aal: "aal2", rest, github: null, now: NOW };
+    await readAnalyticsRawShared(req, () => t);
+    const n = calls.length;
+    await readAnalyticsRawShared(req, () => t);
+    expect(calls.length).toBe(n);
+    await readAnalyticsRawShared({ ...req, token: `${TOKEN}x` }, () => t);
+    expect(calls.length).toBe(2 * n);
+    t = 21_000;
+    await readAnalyticsRawShared(req, () => t);
+    expect(calls.length).toBe(3 * n);
+  });
+
+  it("labels a viewer's hidden Top Three sources as not shared, not as failures", async () => {
+    const { rest } = fakeRest([], true);
+    const raw = await readAnalyticsRawWith({ config, token: TOKEN, aal: "viewer", viewerRooms: ["/analytics"], rest, github, now: NOW });
+    const { buildAnalyticsOverview } = await import("./analytics-overview");
+    const m = buildAnalyticsOverview(raw).cards.find((c) => c.id === "actions")!.metrics.find((x) => x.label === "Sources not read for this list")!;
+    expect(m.state).toBe("not-shared");
+    expect(m.note).toContain("Not shared with this viewer");
   });
 
   it("refuses to count a call log that may have been cut off by the row cap", async () => {

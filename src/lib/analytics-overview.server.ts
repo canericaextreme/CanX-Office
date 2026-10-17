@@ -156,6 +156,26 @@ export async function readAnalyticsRawWith(req: AnalyticsRequest, ownerId: strin
   return { now, aal: req.aal, tasks, approvals, changes, budget, usage, finance, projects, builds: { claude, codex } };
 }
 
+const RAW_CACHE_MS = 20_000;
+const rawCache = new Map<string, { until: number; value: Promise<AnalyticsRaw> }>();
+
+/**
+ * Shares one Analytics read between the room, its access bar and Elsie when they ask within 20 seconds with the
+ * same sign-in. Keyed by the caller's own token, so nobody ever sees another sign-in's readings.
+ */
+export function readAnalyticsRawShared(req: AnalyticsRequest, now: () => number = Date.now): Promise<AnalyticsRaw> {
+  const key = `${req.aal}|${(req.viewerRooms ?? []).join(",")}|${req.token}`;
+  const t = now();
+  for (const [k, v] of rawCache) if (v.until <= t) rawCache.delete(k);
+  const hit = rawCache.get(key);
+  if (hit) return hit.value;
+  const value = readAnalyticsRawWith(req);
+  rawCache.set(key, { until: t + RAW_CACHE_MS, value });
+  return value;
+}
+/** Test hook: forget shared Analytics reads. */
+export const clearAnalyticsRawCache = () => rawCache.clear();
+
 /** The Office server's existing read-only GitHub connection (same credential the build panels use), or null. */
 const GITHUB_CACHE_MS = 60_000;
 const githubCache = new Map<string, { until: number; value: Promise<{ ok: boolean; status: number; body: unknown }> }>();

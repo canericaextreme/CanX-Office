@@ -633,10 +633,13 @@ function actionsCard(raw: AnalyticsRaw, cards: AnalyticsCard[]): AnalyticsCard {
   const headline: Metric = top.length
     ? live("Most important right now", top[0]!.title, top[0]!.source, top[0]!.at, "warn")
     : live("Most important right now", "Nothing urgent in the sources read", "Every source read for this room", at, "good");
-  const unread = [raw.approvals.status, raw.tasks.status, raw.budget.status].filter((s) => s !== "read").length;
+  const unreadStatuses = [raw.approvals.status, raw.tasks.status, raw.budget.status].filter((s) => s !== "read");
+  const unread = unreadStatuses.length;
+  // A failure wins; otherwise the list says honestly that the gap is a sign-in or sharing restriction.
+  const unreadState = stateOfUnread(unreadStatuses.find((s) => s === "failed") ?? unreadStatuses[0] ?? "failed");
   return {
     id: "actions", title: "Top Three Actions", subtitle: "What needs John's attention", accent: "orange", headline,
-    metrics: [headline, ...(unread ? [unmeasured("Sources not read for this list", `${unread} of the sources this list depends on could not be read, so something important may be missing.`, "failed", "This Analytics read")] : [])],
+    metrics: [headline, ...(unread ? [unmeasured("Sources not read for this list", `${unread} of the 3 sources this list depends on (approvals, Work Board, AI meter) ${unreadState === "failed" ? "could not be read" : `were not available: ${STATE_LABEL[unreadState]}`}, so something important may be missing.`, unreadState, "This Analytics read")] : [])],
     series: [], items: top.map((t, i) => ({ label: `${i + 1}. ${t.title}`, detail: `${t.detail}${t.detail ? " · " : ""}source: ${t.source}`, tone: t.priority <= 2 ? "alert" : "warn" })),
     attention: top.map((t) => t.title),
     recommendation: top.length ? `Start with: ${top[0]!.title}.` : "Nothing urgent. Showing an alert here never creates an approval, payment or build.",
@@ -714,9 +717,10 @@ const MODEL_LINE_MAX = 1600;
 /** Bounded lines for Elsie's room snapshot: every card, its readings, source and state. Attention and recommendation are always kept whole. */
 export function analyticsForModel(o: AnalyticsOverview): string[] {
   return o.cards.map((c) => {
+    // Recommendation first so a long attention list can never push it out.
     const tail = [
-      c.attention.length ? `Needs attention: ${c.attention.slice(0, 4).join(" ")}` : "Needs attention: nothing in this read.",
       `Room's recommendation: ${c.recommendation}`,
+      c.attention.length ? `Needs attention: ${c.attention.slice(0, 4).join(" ")}` : "Needs attention: nothing in this read.",
     ].join(" | ").slice(0, 700);
     const items = c.items.slice(0, 6).map((i) => `• ${i.label} — ${i.detail}`);
     const join = (metrics: string[]) => [`CARD ${c.title}`, ...metrics, ...items].join(" | ");
