@@ -301,7 +301,7 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
       const base = await astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId);
       const { readElsieReconnectBrief } = await import("./elsie-reconnect-brief");
       const recovery = await readElsieReconnectBrief((path) => backend.restRequest(config, token, path), ownerId, new Date().toISOString());
-      return { ...base, text: base.text + "\\n\\n" + recovery };
+      return { ...base, text: base.text + "\n\n" + recovery };
     },
     readDocuments: async (token, request, previous) => {
       const { readDocumentContext } = await import("./document-knowledge");
