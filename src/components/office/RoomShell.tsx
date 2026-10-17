@@ -2,6 +2,8 @@ import { OfficeFiles } from "./OfficeFiles";
 import { RoomSkillsLink } from "./RoomSkillsLink";
 import { SampleBadge } from "./SampleBadge";
 import { roomIdentityForRoute } from "@/lib/office-room-identity";
+import { roomColourForRoute } from "@/lib/office-room-colours";
+import { RoomColourBanner, RoomColourScope } from "./RoomColour";
 import { useRouterState } from "@tanstack/react-router";
 
 interface RoomShellProps {
@@ -23,6 +25,35 @@ export function RoomShell({
   // Exact identity only: an unknown page never borrows Reception's label or files.
   const room = roomIdentityForRoute(pathname);
 
+  // Rooms still plain get their palette colour; rooms with their own makeover have none.
+  const colour = roomColourForRoute(room?.route);
+  const heading = title ?? room?.label ?? "Office page";
+  const body = (
+    <>
+      {room && showFiles && <OfficeFiles room={room.id} collapseList={room.id === "brain"} />}
+      {pathname !== "/skills" && <RoomSkillsLink route={pathname} />}
+      {children}
+    </>
+  );
+
+  if (colour) {
+    return (
+      <main className="min-h-screen bg-background">
+        <div className="mx-auto max-w-6xl px-4 py-6">
+          <RoomColourBanner
+            colour={colour}
+            number={room?.number ?? null}
+            title={heading}
+            purpose={purpose ?? room?.purpose ?? ""}
+            icon={room?.icon}
+            extra={showSample ? <SampleBadge /> : null}
+          />
+          <RoomColourScope colour={colour}>{body}</RoomColourScope>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-4 py-6">
@@ -33,7 +64,7 @@ export function RoomShell({
                 <room.icon className="h-6 w-6" style={{ color: room.color }} aria-hidden="true" />
               )}
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                {title ?? room?.label ?? "Office page"}
+                {heading}
               </h1>
               {showSample && <SampleBadge />}
             </div>
@@ -42,9 +73,7 @@ export function RoomShell({
             </p>
           </div>
         </div>
-        {room && showFiles && <OfficeFiles room={room.id} collapseList={room.id === "brain"} />}
-        {pathname !== "/skills" && <RoomSkillsLink route={pathname} />}
-        {children}
+        {body}
       </div>
     </main>
   );
