@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { clockwiseOfficeRooms, OFFICE_MAP_ROOMS } from "./office-map";
-import { SYNOPSIS_REQUEST, sanitizeLabelPositions, synopsisForModel } from "./synopsis-context";
+import { SYNOPSIS_REQUEST, isSynopsisListRequest, sanitizeLabelPositions, synopsisForModel, synopsisListAnswer } from "./synopsis-context";
 
 const numbered = (text: string) => text.split("\n").filter((l) => /^- \d+\. /.test(l)).map((l) => l.replace(/^- \d+\. /, "").split(":")[0]);
 
@@ -49,5 +49,50 @@ describe("Synopsis list in Elsie's context", () => {
     expect(server).toContain("sanitizeLabelPositions(");
     const browser = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
     expect(browser.match(/labelPositions: readOfficeLabelPositions\(\)/g)).toHaveLength(2);
+  });
+});
+
+describe("reading the Synopsis list without a model", () => {
+  it("recognises the list requests John made by voice on 17 Oct", () => {
+    for (const q of [
+      "Tell me all the rooms in the office starting with Reception and going clockwise.",
+      "Let's have a, tell me all the rooms in the office, starting with reception and going clockwise.",
+      "No, no, no, no, no, that's all over the place. Go start at reception and go clockwise.",
+      "List all the rooms in the office starting from Reception and going clockwise in the correct order.",
+      "Okay, give me, give me the list on the synopsis list.",
+      "Read the exact Synopsis list, starting at Reception and going clockwise, in the correct order.",
+      "Read the synopsis list from one to nineteen that we have.",
+    ]) expect(isSynopsisListRequest(q)).toBe(true);
+  });
+
+  it("leaves single-room and comparison questions to the Office reasoner", () => {
+    for (const q of ["Okay, and does that match with what's on the synopsis?", "What does the synopsis say about Finance?", "How is Finance doing?", "Don't read the synopsis list yet."])
+      expect(isSynopsisListRequest(q)).toBe(false);
+  });
+
+  it("numbers the 19 map rooms exactly like the menu and keeps the other pages unnumbered", () => {
+    const answer = synopsisListAnswer(null);
+    const lines = answer.split("\n").filter((l) => /^\d+\. /.test(l));
+    expect(lines.map((l) => l.replace(/^\d+\. /, ""))).toEqual(clockwiseOfficeRooms({}).map((r) => r.label));
+    expect(lines).toHaveLength(19);
+    expect(lines[0]).toBe("1. Reception");
+    expect(answer).toContain("First, unnumbered: Elsie — Office Manager.");
+    expect(answer).toContain("Centre and control wall: CanX Brain, Analytics Control Wall.");
+    expect(answer).toMatch(/Other Office pages: .*Round Table\./);
+  });
+
+  it("follows John's saved label positions", () => {
+    const reception = OFFICE_MAP_ROOMS.find((r) => r.route === "/reception")!;
+    const positions = sanitizeLabelPositions({ "20": { x: reception.x + 0.5, y: reception.y + 0.5 } })!;
+    const answer = synopsisListAnswer(positions);
+    const list = answer.split("\n").filter((l) => /^\d+\. /.test(l)).map((l) => l.replace(/^\d+\. /, ""));
+    expect(list).toEqual(clockwiseOfficeRooms(positions).map((r) => r.label));
+  });
+
+  it("answers before any room inspection or paid Office call, for typed and spoken requests", () => {
+    const manager = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
+    const reader = manager.indexOf("isSynopsisListRequest(request)");
+    expect(reader).toBeGreaterThan(-1);
+    expect(reader).toBeLessThan(manager.indexOf("const command = parseRoomCommand(request"));
   });
 });

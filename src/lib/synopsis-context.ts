@@ -44,3 +44,31 @@ export function synopsisForModel(positions: LabelPositions | null, withTexts: bo
     withTexts ? "" : "Synopsis texts omitted for this request; they are sent when John asks about the Synopsis or the room list.",
   ].filter(Boolean).join("\n");
 }
+
+/**
+ * John asks to hear the whole Synopsis list or the rooms in clockwise order.
+ * These are answered word for word from the menu itself, never by a model:
+ * on 17 Oct the reasoner recited the unordered room directory instead.
+ * A question about one room, or whether something matches, is not a list request.
+ */
+export function isSynopsisListRequest(text: string): boolean {
+  const t = text.trim();
+  if (!t || /\b(?:don['’]?t|do not|never)\b/i.test(t) || !SYNOPSIS_REQUEST.test(t)) return false;
+  return /\b(?:list|read|recite|go (?:through|around|round)|walk|all|every|order|numbered|clockwise|one|1|start(?:ing)? (?:at|with|from))\b/i.test(t);
+}
+
+/** The Synopsis menu as John sees it, numbered exactly like the menu. */
+export function synopsisListAnswer(positions: LabelPositions | null): string {
+  const tour = officeTour(positions ?? {});
+  const names = (group: string) => tour.filter((stop) => stop.group === group).map((stop) => stop.label);
+  const numbered = names("clockwise").map((label, index) => `${index + 1}. ${label}`);
+  return [
+    `Here is the Synopsis list, read straight from the Office menu${positions ? " using the room positions saved on this device" : ""}.`,
+    `First, unnumbered: ${names("office-manager").join(", ")}.`,
+    `Clockwise from Reception:`,
+    ...numbered,
+    `Centre and control wall: ${names("centre").join(", ")}.`,
+    `Other Office pages: ${names("other").join(", ")}.`,
+    "Ask about any room to hear its synopsis.",
+  ].join("\n");
+}

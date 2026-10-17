@@ -37,6 +37,7 @@ import { observeCurrentRoom } from "@/lib/manager-observe.functions";
 import { parseRoomCommand, roomReportSource } from "@/lib/manager-room-commands";
 import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { readOfficeLabelPositions } from "@/lib/office-map";
+import { isSynopsisListRequest, synopsisListAnswer } from "@/lib/synopsis-context";
 import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -598,8 +599,13 @@ export function OfficeManager() {
     return `Room data checked ${new Date(sn.checkedAt).toLocaleTimeString()} (${sn.overall}, reference ${sn.fingerprint})${missing.length ? `; not read: ${missing.join(", ")}` : ""}.`;
   };
   const runRoomCommand = async (request: string): Promise<string | null> => {
-    const command = parseRoomCommand(request, router.state.location.pathname);
     roomOutcomeRef.current = null;
+    // The Synopsis list is read from the menu itself, never from a model guess.
+    if (isSynopsisListRequest(request)) {
+      roomOutcomeRef.current = "display";
+      return synopsisListAnswer(readOfficeLabelPositions());
+    }
+    const command = parseRoomCommand(request, router.state.location.pathname);
     if (!command) return null;
     const out = (o: RoomOutcome, text: string) => { roomOutcomeRef.current = o; return text; };
     if (!session.stepUpComplete || !token) return out("blocked", "Complete owner verification before changing or inspecting a room.");
