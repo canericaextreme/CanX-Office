@@ -223,6 +223,32 @@ describe("receipt aggregation and privacy", () => {
     expect(result.text).toContain("CAD: 125.50 across 2 receipts");
   });
 
+  it("counts email-ingested receipts too, so Elsie matches the Finance room (12 vs 15 fix)", async () => {
+    const ingested = [
+      { id: "g1", vendor: "Lovable Labs", description: "", orderNumber: "", date: "", subtotal: null, tax: null, total: 100.8, currency: "USD", currencySymbol: "$", category: "", reviewStatus: "needs-review", paymentStatus: "unknown", businessUsePercent: null, notes: "", sourceMessageIds: ["ing-1"], sourceUrl: "", duplicateCount: 1, sourceEmailText: "" },
+      // Same source message as a saved receipt: merged, never counted twice.
+      { ...receiptDoc.receipts[0], id: "g2" },
+    ];
+    const result = await buildLiveOfficeContext(request(rest({ ...FULL, finance_receipts: { ok: true, body: [{ doc: receiptDoc, ingested_receipts: ingested }] } })));
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.text).toContain("Receipts filed: 5");
+    expect(result.text).toContain("Needing review: 3");
+    expect(result.text).not.toContain("could not be read, so these counts may be low");
+  });
+
+  it("falls back to saved receipts and says so when ingested receipts cannot be read", async () => {
+    const read = vi.fn(async (_c: unknown, _t: unknown, path: string) => {
+      if (path.startsWith("finance_receipts?select=doc,ingested_receipts")) return { ok: false, status: 400, body: null };
+      const key = Object.keys(FULL).find((k) => path.startsWith(k));
+      const hit = key ? FULL[key as keyof typeof FULL] : { ok: false, body: null };
+      return { ok: hit.ok, status: hit.ok ? 200 : 500, body: hit.body };
+    }) as unknown as RestImpl;
+    const result = await buildLiveOfficeContext(request(read));
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.text).toContain("Receipts filed: 4");
+    expect(result.text).toContain("Email-ingested receipts could not be read, so these counts may be low.");
+  });
+
   it("includes only the approved fields with friendly labels for a receipt review", async () => {
     const reviewDoc = {
       ...receiptDoc,

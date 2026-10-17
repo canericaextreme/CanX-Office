@@ -19,8 +19,8 @@ describe("Finance owner sign-in gate", () => {
 
   it("gives every Finance section a clear, real heading", () => {
     // Overview and opened-section titles are <h2>; each card section is an <h3>.
-    expect(source).toContain('<h2 className="text-xl font-semibold">Finance overview</h2>');
-    expect(source).toContain('<h3 className="text-base font-semibold leading-none tracking-tight">{children}</h3>');
+    expect(source).toMatch(/<h2 className="bank-serif[^"]*">Finance overview<\/h2>/);
+    expect(source).toMatch(/<h3 className="bank-serif[^"]*">\{children\}<\/h3>/);
     // The shared CardTitle renders a plain <div>, so Finance no longer uses it for section titles.
     expect(source).not.toContain("<CardTitle");
     for (const title of [
@@ -35,6 +35,8 @@ describe("Finance owner sign-in gate", () => {
     ]) {
       expect(source).toContain(`<SectionTitle>${title}</SectionTitle>`);
     }
+    // The monthly cost summary on the overview is a real <h3> too.
+    expect(source).toContain('id="finance-monthly"');
     // The receipt list title no longer duplicates the opened "Receipts" section heading.
     expect(source).not.toContain("Receipts ({receipts.length})");
   });

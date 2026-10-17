@@ -436,3 +436,73 @@
   border-top-color: var(--border);
   box-shadow: none;
 }
+
+/* Finance room bank look (17 Oct 2026): ivory statement paper, navy and a gold
+   rule, like a private-banking statement. The whole Finance page switches to
+   this light palette so every shared control (cards, inputs, buttons, the
+   budget panel and sign-in) stays readable without its own colours. */
+main:has(.finance-bank),
+.finance-bank {
+  color-scheme: light;
+  --bank-navy: #0b2545;
+  --bank-deep: #061a33;
+  --bank-gold: #b08d57;
+  --bank-gold-text: #7a5c2e;
+  --bank-gold-soft: #e9dcc0;
+  --bank-paper: #f7f4ec;
+  --bank-amber: #8a5300;
+  --bank-amber-soft: #fbf0d9;
+  --bank-green: #1f6b4a;
+  --bank-green-soft: #e3f1e9;
+  --background: #f4f1e8;
+  --foreground: #13243d;
+  --card: #ffffff;
+  --card-foreground: #13243d;
+  --popover: #ffffff;
+  --popover-foreground: #13243d;
+  --muted: #efebe1;
+  --muted-foreground: #4a5568;
+  --secondary: #efebe1;
+  --secondary-foreground: #13243d;
+  --accent: #efe6d2;
+  --accent-foreground: #13243d;
+  --border: #d9d2c3;
+  --input: #bfb6a3;
+  --primary: #0b2545;
+  --primary-foreground: #ffffff;
+  --ring: #b08d57;
+  /* Re-point the theme colours here; at :root they were fixed to the dark values. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  background: var(--background);
+  color: var(--foreground);
+}
+/* Statement paper is solid, not the see-through glass used in other rooms. */
+main:has(.finance-bank) .bg-card,
+main:has(.finance-bank) [data-slot="card"] {
+  background-color: var(--card);
+  backdrop-filter: none;
+}
+.finance-bank .bank-serif { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; }
+.finance-bank .bank-figure { font-variant-numeric: tabular-nums lining-nums; }
+.finance-bank .bank-masthead {
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.06) 0 1px, transparent 1px 100%) 0 0 / 14px 14px,
+    linear-gradient(120deg, var(--bank-deep) 0%, var(--bank-navy) 60%, #16365f 100%);
+}
+.finance-bank .bank-card { border-top: 3px solid var(--bank-navy); box-shadow: 0 1px 2px rgb(11 37 69 / 0.06); }
