@@ -16,6 +16,12 @@ describe("Elsie's room-navigation command", () => {
       "Show the Brain on my screen.",
       "Could you pull up Analytics on the screen?",
       "Open /approvals on the desk",
+      // Bare "open" only moves the screen too: no picture, no paid review.
+      "Open the Safe Highways room",
+      "Elsie, open the Blueprint room.",
+      "open me the Safe Highways room",
+      "Go to Finance",
+      "Go into the Records room",
     ]) {
       expect(parseRoomCommand(request, "/")?.kind).toBe("navigate");
     }
@@ -47,6 +53,7 @@ describe("Elsie's room-navigation command", () => {
       "Switch to Spanish",
       "Take me through how approvals work",
       "Open a discussion about pricing",
+      "Go to sleep",
     ]) {
       expect(parseRoomNavigation(request)).toBeNull();
     }
@@ -87,6 +94,12 @@ describe("Elsie's room-navigation command", () => {
   it("keeps read-only inspection and other commands on their own paths", () => {
     expect(parseRoomCommand("Elsie, show me the Legal room", "/")?.kind).toBe("look");
     expect(parseRoomCommand("Check Finance", "/")?.kind).toBe("look");
+    expect(parseRoomCommand("Open the Legal room and tell me what you see", "/")?.kind).toBe(
+      "look",
+    );
+    expect(parseRoomCommand("Go into the subscription watch room and check it", "/")?.kind).toBe(
+      "look",
+    );
     expect(parseRoomCommand("Elsie, open the Finance room and let's work on that", "/")?.kind).toBe(
       "look",
     );

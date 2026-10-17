@@ -25,6 +25,8 @@ const DISPLAY_TARGET =
 // Verbs that only ever mean "move the screen", with or without a display target.
 const NAV_ONLY_VERB =
   /^(?:(?:can|could|will) you )?(?:navigate|take me|bring me|switch(?: over)?|jump|move the (?:desk|screen|display))(?: over)? (?:to|into)\b/i;
+// A bare "open the X room" also only moves the screen; the paid look needs a look word.
+const BARE_OPEN = /^(?:(?:can|could|will) you )?(?:open(?: up)?|go (?:to|into))\b/i;
 const OPEN_VERB =
   /^(?:(?:can|could|will) you )?(?:open(?: up)?|go(?: to| into)?|show|pull up|put up|bring up|display)\b/i;
 // A web address is refused whenever it is asked to be opened.
@@ -72,7 +74,7 @@ export function parseRoomNavigation(request: string): RoomNavigationCommand | nu
       reason: "external",
       message: roomNavigationRefusal("external"),
     };
-  if (!navOnly && !(display && open)) return null;
+  if (!navOnly && !(display && open) && !BARE_OPEN.test(text)) return null;
   const target = text
     .replace(DISPLAY_TARGET, " ")
     .replace(NAV_ONLY_VERB, "")
