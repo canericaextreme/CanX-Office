@@ -1,0 +1,21 @@
+name: Elsie phase-two budget validation
+on:
+  push:
+    branches: [chatgpt/elsie-extended-runner-phase2-20261016]
+  pull_request:
+    paths:
+      - src/lib/elsie-daily-budget.ts
+      - src/lib/elsie-daily-budget.test.ts
+      - .github/workflows/elsie-phase-two-validation.yml
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run src/lib/elsie-daily-budget.test.ts src/lib/elsie-extended-work.test.ts src/lib/elsie-extended-worker.test.ts src/lib/elsie-extended-session.test.ts
+      - run: bun run build
