@@ -1,0 +1,54 @@
+# CanX merge robot (issue #142, replaces the hourly canx-guarded-automerge workflow, which never ran).
+# Merges routine, owner-authorized pull requests (label canx:auto-merge) once checks are green and an AI
+# from the other company has reviewed the exact commit. Rules: scripts/automerge/policy.mjs. How it works for
+# John: docs/canx-merge-robot.md. It always runs main's copy of the rules, never a pull request's copy.
+# Off switch: set repository variable CANX_MERGE_ROBOT_ENABLED to false. Reviewer off switch: CANX_AI_REVIEW_ENABLED=false.
+name: CanX merge robot
+run-name: CanX merge robot (${{ github.event_name }})
+on:
+  workflow_run:
+    workflows: ['CanX PR checks']
+    types: [completed]
+  pull_request_target:
+    types: [labeled, ready_for_review, reopened, synchronize]
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number (leave empty to check every labelled one)
+        required: false
+        type: string
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  statuses: write
+  checks: read
+  actions: write
+concurrency:
+  group: canx-merge-robot
+  cancel-in-progress: false
+jobs:
+  auto-merge:
+    name: auto-merge
+    if: vars.CANX_MERGE_ROBOT_ENABLED != 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: scripts/automerge
+      - name: Check and merge eligible pull requests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_REVIEW_MODEL: ${{ vars.CANX_ANTHROPIC_REVIEW_MODEL }}
+          OPENAI_REVIEW_MODEL: ${{ vars.CANX_OPENAI_REVIEW_MODEL }}
+          AI_REVIEW_ENABLED: ${{ vars.CANX_AI_REVIEW_ENABLED }}
+          DAILY_REVIEW_CAP: ${{ vars.CANX_AI_REVIEW_DAILY_CAP }}
+        run: node scripts/automerge/run.mjs
