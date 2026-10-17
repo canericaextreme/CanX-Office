@@ -6,7 +6,7 @@ import { selectElsieQueueTask, type ElsieQueuedTask } from "./elsie-task-queue";
  * fresh budget reservations, builder status and the existing guarded executor.
  */
 export interface ElsieWorkTickDeps {
-  readSnapshot: () => Promise<ExtendedWorkSnapshot>;
+  readSnapshot: () => Promise<ExtendedWorkSnapshot & { eligibleTaskId: string }>;
   readTasks: () => Promise<readonly ElsieQueuedTask[]>;
   claimAndDispatch: (taskId: string) => Promise<{ submitted: boolean; detail: string }>;
   recordOutcome: (outcome: ElsieWorkTickResult) => Promise<void>;
@@ -27,6 +27,8 @@ export async function runElsieWorkTick(builder: "claude" | "codex", deps: ElsieW
       const selection = selectElsieQueueTask(await deps.readTasks(), builder, snap.builderIdleVerified);
       if (selection.state !== "ready") {
         result = { state: "waiting", reason: selection.state === "empty" ? "No queued work" : selection.reason };
+      } else if (selection.task.id !== snap.eligibleTaskId) {
+        result = { state: "uncertain", reason: "Queue choice differs from the task checked by the budget and authorization gate" };
       } else {
         // No automatic retry after a failed/uncertain dispatch; the existing
         // atomic task claim is the only supported path.
