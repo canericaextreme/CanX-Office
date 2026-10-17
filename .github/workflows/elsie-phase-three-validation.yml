@@ -1,0 +1,21 @@
+name: Elsie phase-three scheduler validation
+on:
+  push:
+    branches: [chatgpt/elsie-runner-phase3-20261016]
+  pull_request:
+    paths:
+      - src/lib/elsie-runner-admission.ts
+      - src/lib/elsie-runner-admission.test.ts
+      - .github/workflows/elsie-phase-three-validation.yml
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run src/lib/elsie-runner-admission.test.ts src/lib/elsie-daily-budget.test.ts src/lib/elsie-extended-work.test.ts src/lib/elsie-extended-worker.test.ts src/lib/elsie-extended-session.test.ts
+      - run: bun run build
