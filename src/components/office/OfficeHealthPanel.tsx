@@ -26,6 +26,11 @@ export function OfficeHealthPanel() {
         </p>
         <p className="text-sm text-muted-foreground">Version checked: {version}. A working sign-in page or database connection alone never counts as healthy. Results are saved on this device only.</p>
         <p className="text-sm text-muted-foreground">{HEALTH_SCHEDULE.label} {HEALTH_SCHEDULE.reason}</p>
+        <div className="rounded-lg border p-3 text-sm space-y-2">
+          <p className="font-medium">Task queue maintenance — recurring run not configured</p>
+          <p>The Work Board reviews loaded tasks for missing projects and inactivity, and separates finished records from active work. Automatic completion, cancellation and project assignment are not enabled. A reliable daily or weekly run needs a scheduler and a verified maintenance policy.</p>
+          <Button asChild variant="outline" size="sm"><Link to="/work-board">Review task queue</Link></Button>
+        </div>
         <ol className="space-y-3">
           {POST_PUBLISH_ROOM_CHECKS.map((c) => {
             const r = latest(c.id);

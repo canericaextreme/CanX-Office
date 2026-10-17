@@ -315,6 +315,15 @@
       "audience": "office-status",
       "summary": "John withdrew the mandatory outside-GitHub preview prerequisite. Canonical Brain workflow and conflicting historical Brain-plan wording updated with version checks and read back. Server handoff corrected without changing restored voice files; live acceptance reserved for morning.",
       "evidence": "Owner instruction 14 Oct 20:50 Whitehorse; note aa106842-7fb1-4df2-8693-7bb461e72b11 verified version 63157ba1a1773016be4b0b5c10ee43a5; historical plan note verified version ccb2b36c5a1431d1613685ed94d5a16a. Exact Pass this to the builder: apply wording, stale model refusal, owner/scope receipts, current-room scope, duplicate checks and uncertainty tested. All 1634 tests in 160 files, typecheck, production build and diff check passed. OfficeManager, realtime hook and realtime session configuration unchanged. No paid cream-text build started."
+    },
+    {
+      "id": "2026-10-17-task-queue-maintenance-preparation",
+      "at": "2026-10-17T22:08:39Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Added loaded-task queue review and finished-record visibility toggle. Automatic daily/weekly cleanup remains unimplemented: scheduler work is outside this task scope. No saved tasks changed, no publication or production verification.",
+      "evidence": "src/lib/task-queue-maintenance.ts; src/components/office/TaskQueueReview.tsx; docs/task-queue-maintenance.md. Local fixture checks only."
     }
   ]
 }

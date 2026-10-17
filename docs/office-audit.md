@@ -17,7 +17,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 06 | Records | notes, decisions | Brain jobs, Provenance Check | — |
 | 07 | Blueprint | static | Layout Change Record | No automatic visual comparison |
 | 08 | Systems | change log, static connections | Security (3), Settings (4), Incident Triage | No access-log/security feed; no credential rotation tool |
-| 09 | Office Health | change log, device room checks | Office Health Summary, Daily Review, Incident Triage | No background monitor |
+| 09 | Office Health | change log, device room checks | Office Health Summary, Daily Review, Incident Triage | Loaded-task queue review on Work Board; no recurring cleanup or background monitor (see docs/task-queue-maintenance.md) |
 | 10 | Communications | billing-email evidence | Outreach (4), Marketing Review | No general inbox reader; no send tool; no campaign analytics |
 | 11 | Legal | files, reports only | Legal (4) | No legal research or counsel connection |
 | 12 | Subscriptions | subscriptions, mail evidence, mail rules | Subscriptions (4), Finance (4) | No vendor usage data; no exact receipt linkage |

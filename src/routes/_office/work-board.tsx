@@ -20,6 +20,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { DEFAULT_TEAM, loadTeam, type TeamMember } from "@/lib/office-team";
 import { taskExecutionEvidence } from "@/lib/task-execution-evidence";
+import { TaskQueueReview } from "@/components/office/TaskQueueReview";
+import { isFinishedTask } from "@/lib/task-queue-maintenance";
 
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
@@ -119,6 +121,7 @@ function WorkBoard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [showFinished, setShowFinished] = useState(false);
 
   const tasks = memory?.tasks ?? null;
   const assignments = memory?.assignments ?? [];
@@ -232,7 +235,15 @@ function WorkBoard() {
 
           {tasks && tasks.length === 0 && <p className="text-sm text-muted-foreground">No records yet.</p>}
 
-          {tasks?.map((task) => {
+          {tasks && <>
+            <TaskQueueReview tasks={tasks} />
+            <Button variant="outline" size="sm" onClick={() => setShowFinished(value => !value)}>
+              {showFinished ? "Hide finished tasks" : `Show finished tasks (${tasks.filter(isFinishedTask).length})`}
+            </Button>
+            {!showFinished && tasks.length > 0 && tasks.every(isFinishedTask) && <p className="text-sm">No unfinished tasks in the loaded list. Finished records are available above.</p>}
+          </>}
+
+          {tasks?.filter(task => showFinished || !isFinishedTask(task)).map((task) => {
             const taskAssignments = assignments.filter((a) => a.task_id === task.id);
             const edit = editing[task.id];
             const status = taskStatus(task);
