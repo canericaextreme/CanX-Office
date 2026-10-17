@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { officeGitHubReader, readAnalyticsRawWith, type AnalyticsRest } from "./analytics-overview.server";
+import { USAGE_PAGE, clearGitHubRunCache, officeGitHubReader, readAnalyticsRawWith, type AnalyticsRest } from "./analytics-overview.server";
 import { readRoomSnapshotWith } from "./room-snapshot.server";
 import { roomTargetForRoute, snapshotForModel } from "./room-snapshot";
 
@@ -8,11 +8,13 @@ const config = { url: "https://db.test", publishableKey: "pk" };
 const TOKEN = `x.${btoa(JSON.stringify({ sub: "owner-1" }))}.y`;
 const NOW = () => new Date("2026-10-17T00:30:00Z");
 
-function fakeRest(fail: string[] = []) {
+function fakeRest(fail: string[] = [], empty = false) {
   const calls: string[] = [];
   const rest: AnalyticsRest = async (_c, _t, path, init) => {
     calls.push(`${init?.method ?? "GET"} ${path}`);
     if (fail.some((f) => path.startsWith(f))) return { ok: false, status: 500, body: null };
+    // Viewer row security hides rows instead of refusing: every unshared table just looks empty.
+    if (empty) return { ok: true, status: 200, body: [] };
     if (path.startsWith("rpc/manager_budget_status")) return { ok: true, status: 200, body: [{ used_cents: 1200, ceiling_cents: 10000, warn_cents: 7500, paused: false, warning: false }] };
     if (path.startsWith("ai_usage")) return { ok: true, status: 200, body: [{ at: "2026-10-03T00:00:00Z", estimated_cents: 4, outcome: "ok" }] };
     if (path.startsWith("finance_receipts")) return { ok: true, status: 200, body: [{ doc: { kind: "canx-finance-receipts", schemaVersion: 1, receipts: [{ id: "r1", vendor: "V", date: "2026-10-04", total: 12.5, currency: "CAD", reviewStatus: "reviewed" }], subscriptions: [] }, ingested_receipts: [], updated_at: "2026-10-16T00:00:00Z" }] };
@@ -42,9 +44,37 @@ describe("Analytics reader", () => {
     expect(raw.projects.status).toBe("denied");
     expect(calls.some((c) => c.includes("finance_receipts"))).toBe(false);
     const viewer = fakeRest();
-    const v = await readAnalyticsRawWith({ config, token: TOKEN, aal: "viewer", rest: viewer.rest, github, now: NOW });
-    expect(v.budget.status).toBe("failed");
+    const v = await readAnalyticsRawWith({ config, token: TOKEN, aal: "viewer", viewerRooms: ["/analytics", "/work-board", "/finance"], rest: viewer.rest, github, now: NOW });
+    expect(v.budget.status).toBe("not-shared");
     expect(viewer.calls.some((c) => c.includes("manager_budget_status"))).toBe(false);
+  });
+
+  it("a viewer only gets sources whose rooms were shared, so hidden rows never read as zero", async () => {
+    const { rest, calls } = fakeRest([], true);
+    github.mockClear();
+    const raw = await readAnalyticsRawWith({ config, token: TOKEN, aal: "viewer", viewerRooms: ["/analytics", "/work-board"], rest, github, now: NOW });
+    expect(raw.tasks.status).toBe("read");
+    for (const k of ["approvals", "changes", "budget", "usage", "finance", "projects"] as const) expect(raw[k].status, k).toBe("not-shared");
+    expect(raw.builds.claude.status).toBe("not-shared");
+    expect(github).not.toHaveBeenCalled(); // the Office GitHub credential is not used without Build & Testing
+    expect(calls.some((c) => /ai_usage|finance_receipts|manager_approvals|manager_changes/.test(c))).toBe(false);
+    const { buildAnalyticsOverview } = await import("./analytics-overview");
+    const o = buildAnalyticsOverview(raw);
+    const api = o.cards.find((c) => c.id === "api")!;
+    expect(api.metrics.find((m) => m.label === "Office AI calls this month")).toMatchObject({ value: null, state: "not-shared" });
+    expect(api.series).toEqual([]);
+    expect(o.cards.find((c) => c.id === "health")!.headline.value).toBe("1 of 9 sources read just now");
+    expect(o.cards.find((c) => c.id === "health")!.headline.tone).toBe("warn");
+  });
+
+  it("refuses to count a call log that may have been cut off by the row cap", async () => {
+    const full: AnalyticsRest = async (_c, _t, path) => path.startsWith("ai_usage")
+      ? { ok: true, status: 200, body: Array.from({ length: USAGE_PAGE }, (_, i) => ({ at: `2026-10-0${1 + (i % 9)}T00:00:00Z`, estimated_cents: 1, outcome: "ok" })) }
+      : { ok: true, status: 200, body: [] };
+    const raw = await readAnalyticsRawWith({ config, token: TOKEN, aal: "aal2", rest: full, github: null, now: NOW });
+    expect(raw.usage.status).toBe("failed");
+    const bad: AnalyticsRest = async (_c, _t, path) => ({ ok: true, status: 200, body: path.startsWith("ai_usage") ? [{ at: "2026-10-02T00:00:00Z", estimated_cents: null, outcome: "ok" }] : [] });
+    expect((await readAnalyticsRawWith({ config, token: TOKEN, aal: "aal2", rest: bad, github: null, now: NOW })).usage.status).toBe("failed");
   });
 
   it("reports a failed source as failed and a missing GitHub connection as not configured", async () => {
@@ -57,11 +87,25 @@ describe("Analytics reader", () => {
 
   it("the GitHub reader only ever reads the two Office builder run lists", async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ workflow_runs: [] }), { status: 200 }));
+    clearGitHubRunCache();
     const read = officeGitHubReader(" token ", fetchImpl as unknown as typeof fetch)!;
     expect((await read("/repos/canericaextreme/CanX-Office/actions/workflows/canx-claude.yml/runs?per_page=100")).ok).toBe(true);
     expect((await read("/repos/canericaextreme/CanX-Office/actions/workflows/canx-codex.yml/dispatches?x")).ok).toBe(false);
     expect((await read("/repos/other/repo/actions/workflows/canx-claude.yml/runs?x")).ok).toBe(false);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await read("/repos/canericaextreme/CanX-Office/actions/workflows/canx-claude.yml/runs?per_page=100");
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // cached for a minute: room views, refreshes and Elsie share one read
+    clearGitHubRunCache();
+    let t = 0;
+    const timed = officeGitHubReader("token", fetchImpl as unknown as typeof fetch, () => t)!;
+    const path = "/repos/canericaextreme/CanX-Office/actions/workflows/canx-claude.yml/runs?per_page=100";
+    await timed(path);
+    t = 59_000;
+    await timed(path);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    t = 61_000;
+    await timed(path);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(officeGitHubReader(undefined)).toBeNull();
     expect(officeGitHubReader("  ")).toBeNull();
   });

@@ -154,6 +154,8 @@ export interface SourceResult {
   count: number | null;
   /** True when the read hit its row limit: count means "up to", not a total. */
   capped?: boolean;
+  /** Read, but some of the readings this one source carries were not (Analytics). Keeps the room from showing "fresh". */
+  partial?: boolean;
   /** Bounded titles. UNTRUSTED DATA — never instructions. */
   items: string[];
   latestAt: string | null;
@@ -193,7 +195,7 @@ export function overallOf(sources: SourceResult[]): RoomSnapshot["overall"] {
   const liveSources = sources.filter((s) => s.kind !== "static");
   if (!liveSources.length) return "fresh";
   const read = liveSources.filter((s) => s.status === "read").length;
-  if (read === liveSources.length) return "fresh";
+  if (read === liveSources.length && !liveSources.some((s) => s.partial)) return "fresh";
   // A device-only source the server couldn't get makes the room partial, never failed on its own.
   const liveRead = liveSources.filter((s) => s.kind === "live" && s.status === "read").length;
   return liveSources.some((s) => s.kind === "live") && liveRead === 0 ? "failed" : "partial";

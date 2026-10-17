@@ -51,8 +51,8 @@ describe("Analytics measurements come only from real readings", () => {
 
   it("splits Elsie Work Board handoffs from direct builds without guessing who pressed them", () => {
     const s = cardOf(o.cards, "sources");
-    expect(s.headline.value).toBe("3 via Elsie · 5 direct"); // two receipts + one plain Codex handoff line; 7 runs minus runs 102 and 103
-    expect(s.metrics[0]?.value).toBe("3");
+    expect(s.headline.value).toBe("2 via Elsie · 5 direct"); // runs 102 and 103 are on Work Board receipts; the other 5 of 7 runs are not
+    expect(s.metrics[0]?.value).toBe("3"); // handoffs on record: two receipts + one plain Codex handoff line with no run
     expect(s.metrics.find((m) => m.label.startsWith("Builds started directly"))?.value).toBe("5");
     expect(s.metrics.find((m) => m.label === "Started by John personally")?.state).toBe("not-measured");
   });
@@ -73,6 +73,46 @@ describe("Analytics measurements come only from real readings", () => {
     expect(p.metrics.find((m) => m.label === "Percent complete")?.value).toBeNull();
     expect(p.items.find((i) => i.label.startsWith("Safe Highways"))?.detail).toBe("Next: Audit public app");
     expect(p.items.find((i) => i.label === "Idea Garage")?.detail).toBe("Not in the project register");
+  });
+});
+
+describe("One builder unread never shows as zero", () => {
+  const o = buildAnalyticsOverview(fixtureRaw({ builds: { claude: fixtureRaw().builds.claude, codex: fail } }));
+
+  it("draws no side-by-side chart and no combined totals", () => {
+    const b = cardOf(o.cards, "builders");
+    expect(b.series).toEqual([]);
+    expect(b.headline.note).toContain("not a comparison");
+    expect(b.attention.join(" ")).toContain("Codex's runs were not read");
+    expect(cardOf(o.cards, "sources").headline).toMatchObject({ value: null, state: "failed" });
+    const time = cardOf(o.cards, "time");
+    expect(time.headline.value).toBeNull();
+    expect(time.metrics.find((m) => m.label.startsWith("Failed build attempts"))?.value).toBeNull();
+    expect(time.series).toEqual([]);
+  });
+});
+
+describe("Money edge cases", () => {
+  it("uses the Whitehorse month for the chart, so the 1st of the month in UTC never shows an empty new month", () => {
+    // 2026-11-01 03:00 UTC is still 31 October in Whitehorse.
+    const o = buildAnalyticsOverview(fixtureRaw({ now: new Date("2026-11-01T03:00:00Z") }));
+    const pts = cardOf(o.cards, "money").series[0]!.points;
+    expect(pts[pts.length - 1]!.label).toBe("10/26");
+  });
+
+  it("counts a renewal due today in Whitehorse as today, even after UTC midnight", () => {
+    // 2026-10-20 05:00 UTC is 22:00 on 19 October in Whitehorse: Supabase (renews 2026-10-20) is tomorrow.
+    const o = buildAnalyticsOverview(fixtureRaw({ now: new Date("2026-10-20T05:00:00Z") }));
+    expect(cardOf(o.cards, "money").items.find((i) => i.label.startsWith("Supabase"))?.detail).toMatch(/^in 1 day/);
+    const late = buildAnalyticsOverview(fixtureRaw({ now: new Date("2026-10-21T01:00:00Z") })); // 18:00 on 20 Oct locally
+    expect(cardOf(late.cards, "money").items.find((i) => i.label.startsWith("Supabase"))?.detail).toMatch(/^today/);
+  });
+
+  it("never colours the ceiling comparison as an alert, because it counts every receipt", () => {
+    const o = buildAnalyticsOverview(fixtureRaw());
+    const left = cardOf(o.cards, "money").metrics.find((m) => m.label.startsWith("Room left"))!;
+    expect(left.label).toContain("all filed receipts");
+    expect(left.tone).not.toBe("alert");
   });
 });
 
@@ -122,6 +162,12 @@ describe("Elsie gets the same readings with an explanation procedure", () => {
     expect(lines[2]).toContain("2,500 of 10,000 estimated cents (25%) [Estimate; source Office AI budget meter");
     expect(lines[1]).toContain("Office monthly running-cost ceiling: C$500.00 [Policy limit");
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(1600);
+  });
+
+  it("always keeps each card's attention and recommendation whole, even for long cards", () => {
+    for (const [i, c] of o.cards.entries()) expect(lines[i], c.id).toContain(`Room's recommendation: ${c.recommendation}`);
+    expect(lines[1]).toContain("Needs attention:");
+    expect(lines[0]).toContain("Change log"); // Health lists every source, not just the first eight readings
   });
 
   it("stays identical for identical data, so the room fingerprint does not churn", () => {

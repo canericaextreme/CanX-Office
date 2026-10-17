@@ -6,6 +6,9 @@
  * read-only GitHub connection. Every source reports its own status; a failed
  * read stays "failed", never empty. Nothing is written, no AI is called and no
  * build is started. Finance and the project register need two-step (AAL2).
+ * A read-only viewer only gets sources whose room John shared with it: viewer row
+ * security hides rows instead of refusing, so an unshared table would look empty,
+ * and empty must never be shown as a measured zero.
  */
 import type { BackendConfig } from "./canx-backend.server";
 import type { AnalyticsRaw, BudgetStatus, BuildRun, FinanceData, ProjectRow, Read, Row, UsageRow } from "./analytics-overview";
@@ -20,6 +23,8 @@ export interface AnalyticsRequest {
   rest: AnalyticsRest;
   /** Read-only GitHub reader for the Office repository, or null when no server credential is configured. */
   github: GitHubRead | null;
+  /** For a read-only viewer: the rooms John shared with it (from the verified grant). Ignored for the owner. */
+  viewerRooms?: readonly string[];
   now?: () => Date;
 }
 
@@ -37,9 +42,19 @@ async function rows(req: AnalyticsRequest, path: string): Promise<Read<Row[]>> {
 
 const twoStep = (aal: string) => aal === "aal2" || aal === "viewer";
 
+/** Viewer only: a "not-shared" result when any room this source depends on was not shared with the viewer. */
+function notSharedFor(req: AnalyticsRequest, rooms: string[]): Read<never> | null {
+  if (req.aal !== "viewer") return null;
+  const missing = rooms.filter((r) => !(req.viewerRooms ?? []).includes(r));
+  return missing.length ? { status: "not-shared", detail: `John has not shared ${missing.join(" and ")} with this read-only viewer` } : null;
+}
+const VIEWER_NEVER = (what: string): Read<never> => ({ status: "not-shared", detail: `the ${what} is never shared with a read-only viewer` });
+/** Most rows one PostgREST read returns; a full page means the log may be cut off. */
+export const USAGE_PAGE = 1000;
+
 async function readBudget(req: AnalyticsRequest, ownerId: string | null): Promise<Read<BudgetStatus>> {
   // The meter is keyed by the owner's id; a read-only viewer token would ask about the wrong account and get a misleading 0.
-  if (req.aal === "viewer") return failed("not available to the read-only viewer");
+  if (req.aal === "viewer") return VIEWER_NEVER("AI budget meter");
   if (!ownerId) return failed("owner id unavailable");
   const res = await req.rest(req.config, req.token, "rpc/manager_budget_status", { method: "POST", body: JSON.stringify({ _owner_id: ownerId }) }).catch(() => null);
   const row = res?.ok ? (Array.isArray(res.body) ? res.body[0] : res.body) as Row | undefined : undefined;
@@ -50,14 +65,21 @@ async function readBudget(req: AnalyticsRequest, ownerId: string | null): Promis
 }
 
 async function readUsage(req: AnalyticsRequest, now: Date): Promise<Read<UsageRow[]>> {
+  // ai_usage has no viewer read policy at all.
+  if (req.aal === "viewer") return VIEWER_NEVER("AI call log");
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-  const r = await rows(req, `ai_usage?select=at,estimated_cents,outcome&at=gte.${encodeURIComponent(start)}&order=at.asc&limit=5000`);
+  const r = await rows(req, `ai_usage?select=at,estimated_cents,outcome&at=gte.${encodeURIComponent(start)}&order=at.desc&limit=${USAGE_PAGE}`);
   if (r.status !== "read") return r;
-  return { status: "read", at: r.at, data: r.data.map((u) => ({ at: text(u["at"], 40), cents: typeof u["estimated_cents"] === "number" ? u["estimated_cents"] : 0, outcome: text(u["outcome"], 20) })).filter((u) => u.at) };
+  // A full page may be cut off by the database's row cap; partial counts are never shown as complete ones.
+  if (r.data.length >= USAGE_PAGE) return failed(`the call log has ${USAGE_PAGE} or more calls this month, more than one read returns, so counts would be incomplete`);
+  if (r.data.some((u) => typeof u["estimated_cents"] !== "number")) return failed("a call log row had no readable cost estimate");
+  return { status: "read", at: r.at, data: r.data.map((u) => ({ at: text(u["at"], 40), cents: u["estimated_cents"] as number, outcome: text(u["outcome"], 20) })).filter((u) => u.at).reverse() };
 }
 
 async function readFinance(req: AnalyticsRequest): Promise<Read<FinanceData>> {
   if (!twoStep(req.aal)) return { status: "denied", detail: "needs two-step verification" };
+  const gate = notSharedFor(req, ["/finance"]);
+  if (gate) return gate;
   // Same normalisation as the Finance room: saved doc receipts + email-ingested receipts, de-duplicated.
   let r = await rows(req, "finance_receipts?select=doc,ingested_receipts,updated_at&order=created_at.desc&limit=1");
   let ingestedReadable = true;
@@ -78,6 +100,9 @@ async function readFinance(req: AnalyticsRequest): Promise<Read<FinanceData>> {
 
 async function readProjects(req: AnalyticsRequest): Promise<Read<ProjectRow[]>> {
   if (!twoStep(req.aal)) return { status: "denied", detail: "needs two-step verification" };
+  // The register joins saved project notes with Work Board tasks.
+  const gate = notSharedFor(req, ["/projects", "/work-board"]);
+  if (gate) return gate;
   const { readLocatorsWith } = await import("./project-register.functions");
   const loc = await readLocatorsWith((p, i) => req.rest(req.config, req.token, p, i)).catch(() => null);
   if (!loc) return failed();
@@ -85,6 +110,9 @@ async function readProjects(req: AnalyticsRequest): Promise<Read<ProjectRow[]>> 
 }
 
 async function readRuns(req: AnalyticsRequest, workflow: string): Promise<Read<BuildRun[]>> {
+  // The Office GitHub credential is only used for a viewer that was shown Build & Testing.
+  const gate = notSharedFor(req, ["/build-testing"]);
+  if (gate) return gate;
   if (!req.github) return { status: "not-configured", detail: "the Office server has no GitHub read connection configured" };
   const res = await req.github(`/repos/${OFFICE_REPO}/actions/workflows/${workflow}/runs?per_page=100&event=workflow_dispatch`).catch(() => null);
   const list = res?.ok && res.body && typeof res.body === "object" ? (res.body as Row)["workflow_runs"] : null;
@@ -113,10 +141,11 @@ function ownerIdFromToken(token: string): string | null {
 export async function readAnalyticsRawWith(req: AnalyticsRequest, ownerId: string | null = ownerIdFromToken(req.token)): Promise<AnalyticsRaw> {
   const now = req.now?.() ?? new Date();
   const safe = <T>(p: Promise<Read<T>>): Promise<Read<T>> => p.catch(() => failed());
+  const gated = (room: string, path: string) => notSharedFor(req, [room]) ?? rows(req, path);
   const [tasks, approvals, changes, budget, usage, finance, projects, claude, codex] = await Promise.all([
-    safe(rows(req, "manager_tasks?select=id,title,status,risk,worker,project,evidence,waiting_reason,created_at,updated_at&order=updated_at.desc&limit=500")),
-    safe(rows(req, "manager_approvals?select=title,status,created_at&order=created_at.desc&limit=200")),
-    safe(rows(req, "manager_changes?select=action,entity,at&entity=neq.manager_conversation&order=at.desc&limit=30")),
+    safe(Promise.resolve(gated("/work-board", "manager_tasks?select=id,title,status,risk,worker,project,evidence,waiting_reason,created_at,updated_at&order=updated_at.desc&limit=500"))),
+    safe(Promise.resolve(gated("/approvals", "manager_approvals?select=title,status,created_at&order=created_at.desc&limit=200"))),
+    safe(Promise.resolve(gated("/build-testing", "manager_changes?select=action,entity,at&entity=neq.manager_conversation&order=at.desc&limit=30"))),
     safe(readBudget(req, ownerId)),
     safe(readUsage(req, now)),
     safe(readFinance(req)),
@@ -128,17 +157,34 @@ export async function readAnalyticsRawWith(req: AnalyticsRequest, ownerId: strin
 }
 
 /** The Office server's existing read-only GitHub connection (same credential the build panels use), or null. */
-export function officeGitHubReader(token: string | undefined, fetchImpl: typeof fetch = fetch): GitHubRead | null {
+const GITHUB_CACHE_MS = 60_000;
+const githubCache = new Map<string, { until: number; value: Promise<{ ok: boolean; status: number; body: unknown }> }>();
+
+export function officeGitHubReader(token: string | undefined, fetchImpl: typeof fetch = fetch, now: () => number = Date.now): GitHubRead | null {
   const credential = token?.trim();
   if (!credential) return null;
   return async (path) => {
     // Only Actions run lists for the Office repository are ever read here.
     if (!new RegExp(`^/repos/${OFFICE_REPO}/actions/workflows/canx-(claude|codex)\\.yml/runs\\?`).test(path)) return { ok: false, status: 400, body: null };
-    const res = await fetchImpl(`https://api.github.com${path}`, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(10_000),
-      headers: { "User-Agent": "CanX-Office-analytics", Accept: "application/vnd.github+json", Authorization: `Bearer ${credential}`, "X-GitHub-Api-Version": "2026-03-10" },
-    });
-    return { ok: res.ok, status: res.status, body: res.ok ? await res.json().catch(() => null) : null };
+    // Every room view, refresh and Elsie request reads this; one GitHub read per minute per list is plenty.
+    const hit = githubCache.get(path);
+    if (hit && hit.until > now()) return hit.value;
+    const value = fetchRuns(path, credential, fetchImpl);
+    githubCache.set(path, { until: now() + GITHUB_CACHE_MS, value });
+    const res = await value.catch(() => null);
+    if (!res?.ok) githubCache.delete(path);
+    if (!res) throw new Error("GitHub could not be reached");
+    return res;
   };
+}
+/** Test hook: forget cached GitHub run lists. */
+export const clearGitHubRunCache = () => githubCache.clear();
+
+async function fetchRuns(path: string, credential: string, fetchImpl: typeof fetch) {
+  const res = await fetchImpl(`https://api.github.com${path}`, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(10_000),
+    headers: { "User-Agent": "CanX-Office-analytics", Accept: "application/vnd.github+json", Authorization: `Bearer ${credential}`, "X-GitHub-Api-Version": "2026-03-10" },
+  });
+  return { ok: res.ok, status: res.status, body: res.ok ? await res.json().catch(() => null) : null };
 }

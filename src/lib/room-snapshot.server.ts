@@ -26,6 +26,8 @@ export interface SnapshotRequest {
   now?: () => Date;
   /** Analytics builder-run reader; tests inject one, production uses the Office server's GitHub read connection. */
   github?: import("./analytics-overview.server").GitHubRead | null;
+  /** Read-only viewer only: the rooms John shared with it (verified grant). */
+  viewerRooms?: readonly string[];
 }
 
 const MAX_ITEMS = 6;
@@ -201,15 +203,18 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
     case "analytics": {
       const { readAnalyticsRawWith, officeGitHubReader } = await import("./analytics-overview.server");
       const { buildAnalyticsOverview, analyticsForModel } = await import("./analytics-overview");
-      const raw = await readAnalyticsRawWith({ config: req.config, token: req.token, aal: req.aal, rest: req.rest, github: req.github !== undefined ? req.github : officeGitHubReader(process.env["CANX_CODEX_GITHUB_TOKEN"]), ...(req.now ? { now: req.now } : {}) });
+      const raw = await readAnalyticsRawWith({ config: req.config, token: req.token, aal: req.aal, rest: req.rest, github: req.github !== undefined ? req.github : officeGitHubReader(process.env["CANX_CODEX_GITHUB_TOKEN"]), ...(req.viewerRooms ? { viewerRooms: req.viewerRooms } : {}), ...(req.now ? { now: req.now } : {}) });
       const overview = buildAnalyticsOverview(raw);
       const read = overview.sources.filter((s) => s.status === "read").length;
       const notRead = overview.sources.filter((s) => s.status !== "read");
+      const why = (s: string) => (s === "denied" ? "needs two-step" : s === "not-shared" ? "not shared with this viewer" : s);
       return result(def, {
         status: read ? "read" : "failed",
+        // One source carries nine readings: any unread one makes the room partial, never "fresh".
+        ...(read && notRead.length ? { partial: true } : {}),
         count: read,
         items: analyticsForModel(overview),
-        detail: `${read} of ${overview.sources.length} measurement sources read${notRead.length ? `; not read: ${notRead.map((s) => `${s.label} (${s.status === "denied" ? "needs two-step" : s.status})`).join(", ")}` : ""}; every reading below was taken at this snapshot's checked time`,
+        detail: `${read} of ${overview.sources.length} measurement sources read${notRead.length ? `; not read: ${notRead.map((s) => `${s.label} (${why(s.status)})`).join(", ")}` : ""}; every reading below was taken at this snapshot's checked time`,
         analytics: overview,
       });
     }

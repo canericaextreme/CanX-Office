@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Activity, AlertTriangle, ArrowLeft, Bot, ChevronRight, Clock3, Coins, FolderKanban, Gauge, GitBranch, Loader2, MessageCircle, RefreshCcw, ShieldCheck, TrendingUp } from "lucide-react";
@@ -27,6 +27,7 @@ const STATE_CHIP: Record<MetricState, string> = {
   "not-measured": "border-dashed border-slate-500 text-slate-300",
   "awaiting-verification": "border-dashed border-amber-400/70 text-amber-200",
   "needs-two-step": "border-orange-400/70 bg-orange-400/10 text-orange-200",
+  "not-shared": "border-dashed border-slate-500 text-slate-300",
   failed: "border-orange-500/80 bg-orange-500/15 text-orange-200",
 };
 
@@ -125,10 +126,24 @@ export function CardDetail({ card, onClose, canAsk }: { card: AnalyticsCard; onC
   const Icon = ICONS[card.id];
   const guide = CARD_GUIDE[card.id];
   const closeRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => { closeRef.current?.focus(); }, []);
+  // Focus moves into the dialog and returns to the card that opened it on close.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    return () => opener?.focus();
+  }, []);
+  // Keep Tab inside the open dialog.
+  const trapTab = (e: ReactKeyboardEvent<HTMLElement>) => {
+    if (e.key !== "Tab") return;
+    const items = [...e.currentTarget.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]")];
+    const first = items[0], last = items[items.length - 1];
+    if (!first || !last) return;
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3" onClick={onClose}>
-      <section role="dialog" aria-modal="true" aria-label={`${card.title} details`} onClick={(e) => e.stopPropagation()}
+      <section role="dialog" aria-modal="true" aria-label={`${card.title} details`} onClick={(e) => e.stopPropagation()} onKeyDown={trapTab}
         className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-sky-400/40 bg-[#0c1218] p-5 text-white shadow-2xl">
         <button ref={closeRef} type="button" onClick={onClose} className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-500 px-3 py-2 text-sm hover:bg-slate-800"><ArrowLeft className="h-4 w-4" aria-hidden /> Back to overview</button>
         <div className="flex items-center gap-3"><Icon className={`h-7 w-7 ${ACCENT[card.accent].text}`} aria-hidden /><h2 className="text-2xl font-bold">{card.title}</h2></div>

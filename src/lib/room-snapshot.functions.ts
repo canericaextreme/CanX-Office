@@ -29,7 +29,7 @@ export const getRoomSnapshot = createServerFn({ method: "POST" })
     if (!verified.ok) return { ok: false, code: "auth", message: verified.message };
     const { readRoomSnapshotWith } = await import("./room-snapshot.server");
     const { sanitizeDeviceSnapshot } = await import("./room-device-snapshot");
-    const snapshot = await readRoomSnapshotWith({ config, token: data.accessToken, aal: verified.aal, target, buildId: data.buildId, device: sanitizeDeviceSnapshot(data.device), rest: backend.restRequest });
+    const snapshot = await readRoomSnapshotWith({ config, token: data.accessToken, aal: verified.aal, target, buildId: data.buildId, device: sanitizeDeviceSnapshot(data.device), rest: backend.restRequest, ...(verified.aal === "viewer" ? { viewerRooms: verified.viewer?.rooms ?? [] } : {}) });
     return { ok: true, snapshot };
   });
 
