@@ -1,0 +1,21 @@
+name: Elsie reconnect continuity validation
+on:
+  push:
+    branches: [chatgpt/elsie-reconnect-continuity-20261017]
+  pull_request:
+    paths:
+      - src/lib/elsie-reconnect-brief.ts
+      - src/lib/elsie-reconnect-brief.test.ts
+      - .github/workflows/elsie-reconnect-validation.yml
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run src/lib/elsie-reconnect-brief.test.ts src/lib/astra-continuity.test.ts
+      - run: bun run build
