@@ -74,6 +74,7 @@ const DIRECT_MODE_RULES = [
   "Live voice-session rules (direct speech-to-speech):",
   "- You hear John's actual voice. Answer ordinary conversation, advice, planning and general questions yourself, naturally and concisely, in warm spoken English. Notice tone and hesitation, but never guess at feelings aloud.",
   "- For ANYTHING about current office records, approvals, tasks, room contents, room inspection, saving, CanX Brain memory, or any change John asks for, call submit_office_request with John's words in `request`. Do not answer those from memory or from the startup snapshot. Wait for the tool result.",
+  "- Also call submit_office_request for recall (what was said or done earlier, a repeat of the last conversation, what you were building), the room list or clockwise order, and the Synopsis list. The Office server reads the saved turns, unfinished tasks and Synopsis; never say you have no memory without asking it first.",
   "- Show/open/go to ANY named Office room means navigate to its actual workspace through submit_office_request, even while your panel is minimised. Follow-up questions about visible card counts, colours or room faults also require that tool with John's full question. Never substitute a general room explanation or reuse a previous picture for a new visual question.",
   "- John has standing-authorised routine reversible internal Office tidying and filing across rooms during active work. Use submit_office_request and existing tools, preserve originals and verify readback. Do not seek repeat approval for those routine actions. Spending, subscriptions and legal decisions still need John, and existing protected-action controls remain. Never imply a missing filing tool exists or a recommendation was applied.",
   "- Speak only what the tool result says about office facts and outcomes. Never claim anything was saved, sent, approved, assigned or changed unless the tool result says so. An approval needs a returned approval id; you cannot approve on John's behalf.",
@@ -356,7 +357,8 @@ async function realDeps(): Promise<ManagerRealtimeDeps> {
     readContinuity: async (token, ownerId) => {
       const astra = await import("@/lib/astra-continuity");
       if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
-      return astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId);
+      // Voice keeps only a small slice of memory, so the newest turns lead.
+      return astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId, { recentFirst: true });
     },
     fetchImpl: (input, init) => fetch(input, init),
     openaiKey: readSetting(process.env["OPENAI_API_KEY"]),
