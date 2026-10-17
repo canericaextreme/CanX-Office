@@ -1,0 +1,21 @@
+name: Elsie phase six checks
+on:
+  push:
+    branches: [chatgpt/elsie-merge-trigger-phase6-20261017]
+  pull_request:
+    paths:
+      - .github/workflows/elsie-merge-event-wake.yml
+      - src/lib/elsie-merge-event-wake.test.ts
+      - .github/workflows/elsie-phase-six-validation.yml
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bunx vitest run src/lib/elsie-merge-event-wake.test.ts src/lib/elsie-merge-wake.test.ts src/lib/elsie-worker-request.test.ts
+      - run: bun run build
