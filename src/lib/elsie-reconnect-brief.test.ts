@@ -27,7 +27,7 @@ describe("Elsie resumes an interrupted build safely", () => {
     expect(s).toContain("never call execute_task");
   });
   it("tells Elsie never to resubmit an unconfirmed submission", () => {
-    const s = elsieReconnectBrief([], [{ ...tasks[1], evidence: JSON.stringify({ kind: "office-task-v2", builder: "codex", attempt: "a2", state: "submission_unconfirmed", prior: "" }) }], "x");
+    const s = elsieReconnectBrief([], [{ ...tasks[1]!, evidence: JSON.stringify({ kind: "office-task-v2", builder: "codex", attempt: "a2", state: "submission_unconfirmed", prior: "" }) }], "x");
     expect(s).toContain("Codex, no run link, saved state submission_unconfirmed (submission unconfirmed: check Build & Testing; never resubmit)");
   });
 });
