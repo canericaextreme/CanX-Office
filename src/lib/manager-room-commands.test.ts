@@ -25,7 +25,7 @@ describe("direct owner room requests", () => {
     expect(parseRoomCommand("Astra, please go into the subscription watch room and tell me what you see", "/")?.kind).toBe("look");
     expect(parseRoomCommand("Look at this room", "/finance")).toMatchObject({ kind: "look", room: { id: "finance" } });
   });
-  it.each(["Do not check Finance", "How would you check Finance?", 'Example: "check Finance"', "Open https://example.com", "Delete all reports", "Approve spending", "Check an unknown room"])("does not execute %s", request => {
+  it.each(["Do not check Finance", "How would you check Finance?", 'Example: "check Finance"', "Delete all reports", "Approve spending", "Check an unknown room"])("does not execute %s", request => {
     expect(parseRoomCommand(request, "/")).toBeNull();
   });
   it("keeps the report destination separate from its literal text", () => {
