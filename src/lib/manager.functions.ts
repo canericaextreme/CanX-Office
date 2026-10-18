@@ -30,6 +30,7 @@ import { parseMailRuleCommand, type MailRuleCommand } from "@/lib/mail-preferenc
 import { parseElsieReviewCommand } from "@/lib/subscriptions-review";
 import { parseSubscriptionsSkillAuditCommand } from "@/lib/subscriptions-skill-audit";
 import { formatOfficeAudit, parseOfficeAuditCommand } from "@/lib/office-audit";
+import { isOfficeMaintenanceRequest } from "./office-maintenance";
 import { runMailRuleCommandWith } from "@/lib/mail-rule-command";
 import { protectedCategoryOf } from "@/lib/protected-actions";
 import { buildVerificationReceipt, type VerificationReceipt } from "@/lib/manager-verification";
@@ -1961,6 +1962,18 @@ async function handleOfficeRequest(data: ChatInput, provider: "openai" | "anthro
     // Raw conversation is temporary. Only an explicit save creates a Brain note.
     const latestRequest = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
     const request = data;
+    if (isOfficeMaintenanceRequest(latestRequest)) {
+      const { runOfficeMaintenance } = await import("./office-maintenance.server");
+      const out = await runOfficeMaintenance(data.accessToken, data.buildId ?? "unknown");
+      let recordLine = "";
+      if (out.ok) {
+        const rec = await import("./skill-run-record.server");
+        const saved = await rec.saveSkillRunRecord({ accessToken: data.accessToken, roomId: "reception", title: "Office maintenance intake", detail: out.message });
+        recordLine = rec.skillRunRecordLine(saved, "Reception");
+      }
+      return { ok: out.ok, code: out.ok ? "ok" : "context_unavailable", provider: "none", state: "configured_unverified", model: null,
+        text: out.ok ? `${out.message}\n${recordLine}` : "", ...(out.ok ? {} : { detail: out.message }), toolCalls: [], actionResults: [] };
+    }
     const mailCommand = parseMailRuleCommand(latestRequest);
     if (mailCommand) return runMailRuleCommand(data.accessToken, mailCommand);
     const reviewCommand = parseElsieReviewCommand(latestRequest);
