@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Work Board receipt display repair — 17 October 2026
+
+An owner-scoped waiting task carried a valid Claude `office-task-v2` receipt followed by appended notes. Execution/reconnect readers supported this format, but Work Board's display helper parsed the entire evidence string as JSON and returned no receipt. This hid the build link, exposed the raw evidence text and removed the form's read-only receipt guard. The display now uses the existing validated `readBuildReceipt` helper. Legacy Codex receipts and uncertain-submission warnings remain supported, and malformed/unknown receipts do not gain invented build links. No saved task is changed. Regression fixtures fail on the previous helper and pass after the correction; 70 related tests, typecheck, new-file lint and production build passed. Published signed-in acceptance remains unverified.
+
 Stage 1 Claude access (5 Oct 2026): `getOfficeStatus` provides owner-verified GET-only project/task metadata and the portable `docs/office-shared-log.json` operational log. The Claude panel displays this source without calling an AI or dispatching a build. Private archive bodies and arbitrary saved notes are excluded. Server connection configuration is explicitly unverified until a live check. Later Claude adapters and automatic logging are not installed by this stage. See `docs/claude-access-stage1.md`; signed-in live acceptance remains pending.
 
 Baseline 4 Oct 2026 (UTC). Source of truth in code: `src/lib/office-map.ts`, `src/lib/room-snapshot.ts`, `src/lib/office-skills.ts`, `src/lib/office-audit.ts`.
