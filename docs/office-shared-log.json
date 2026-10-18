@@ -333,6 +333,15 @@
       "audience": "office-status",
       "summary": "Prepared a Work Board display repair after a fresh owner-scoped task read confirmed a Claude build receipt followed by notes. The old display parser hid its link and removed the form read-only guard; the candidate reuses the validated receipt reader. No task or archived record changed.",
       "evidence": "src/lib/task-execution-evidence.ts; regression fixtures reproduce the saved-record shape without private note text. Old helper fails 4 regression cases; corrected helper and related suites pass 70 tests. Typecheck, new-file lint and production build passed. Not live-verified."
+    },
+    {
+      "id": "2026-10-17-actionable-approval-inbox",
+      "at": "2026-10-18T02:06:02Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared owner-requested approval navigation repair: explicit Open details, separate pending/history, exact-request links from Owner Desk and approval notices, existing owner-only decision path retained. No real approval decisions taken.",
+      "evidence": "Seven new UI regressions plus related server tests pass (35 related tests); full suite 1827 tests in 187 files passed, typecheck, targeted lint and production build passed. No owner decisions taken. Publication and signed-in desktop/mobile acceptance tracked separately. Claude owns room-reading reliability; daily maintenance remains outside this change."
     }
   ]
 }
