@@ -4,6 +4,24 @@
 
 An owner-scoped waiting task carried a valid Claude `office-task-v2` receipt followed by appended notes. Execution/reconnect readers supported this format, but Work Board's display helper parsed the entire evidence string as JSON and returned no receipt. This hid the build link, exposed the raw evidence text and removed the form's read-only receipt guard. The display now uses the existing validated `readBuildReceipt` helper. Legacy Codex receipts and uncertain-submission warnings remain supported, and malformed/unknown receipts do not gain invented build links. No saved task is changed. Regression fixtures fail on the previous helper and pass after the correction; 70 related tests, typecheck, new-file lint and production build passed. Published signed-in acceptance remains unverified.
 
+## Brain room network view — data check and blocked draft, 18 October 2026
+
+John asked for a live three.js view in the Brain room: one dot for each room, a spark that travels between rooms when work moves, stage colours (brainstorming, strategizing, building, stale/stalled, completed), the same activity shown as fixed charts in Analytics, and a way for Elsie to describe the board aloud on request. Draft only, Claude builder, US$2 cap. **Nothing was built in this run. This entry records the data check and what is blocking the work.**
+
+What room-status tracking exists today:
+- Room identity: `office-room-identity.ts` (map rooms 01–20 plus Brain, Projects, Skills, Round Table and Analytics). This is enough to place one dot for each room.
+- Snapshot sources per room (`room-snapshot.ts`). These are counts read when a room is opened. They are not a stage, and they have no history.
+- Projects: one fixed `room` per imported record (`project-register.ts`). John's saved plan (`project-locator.ts`) adds `room` and `stage` using `unknown | planned | building | blocked | testing | ready | market | completed`. Only the latest plan is kept.
+- Work Board tasks link to projects by UUID. They do not record a room-to-room route.
+
+What is missing:
+1. **Per-room stage.** No record holds a stage for each room. The plan stages do not match the requested ones: brainstorming and strategizing do not exist, "planned" is the closest match, and "stale/stalled" would have to be worked out from "blocked" plus age. John needs to approve how the old stages map to the new ones.
+2. **Movement history.** No record says that work moved from room A to room B, or when. A plan save replaces the room, so earlier moves are lost. Sparks and Analytics history charts need an append-only event record. The options are a new table (a database migration, which needs John's approval) or new owner-scoped `office_notes` rows with a new source label, compare-and-save and readback (a new write path). Neither is authorised in this run.
+3. **three.js is not installed** (`package.json`). Adding it is a dependency change and was outside this run's limits. A lighter fallback is possible: a 2D SVG or canvas network built from existing packages. It would still need the event data from point 2 before it could show movement.
+4. **Elsie narration.** Elsie could describe the board only from a snapshot source like the ones above, such as an added `/brain` live source. The narration must say "no movement data recorded" rather than make up activity. Voice output reuses the existing session; no voice settings change.
+
+Next steps, all needing John's decision: (a) approve the stage list and how old stages map to it; (b) choose event storage (migration or office_notes rows); (c) approve adding `three` or accept the 2D fallback. Then build the event recorder, then the Brain view, then the fixed Analytics charts and the Elsie snapshot source, each with fixture-render tests. Device testing would be needed for animation performance on John's phone and laptop.
+
 Stage 1 Claude access (5 Oct 2026): `getOfficeStatus` provides owner-verified GET-only project/task metadata and the portable `docs/office-shared-log.json` operational log. The Claude panel displays this source without calling an AI or dispatching a build. Private archive bodies and arbitrary saved notes are excluded. Server connection configuration is explicitly unverified until a live check. Later Claude adapters and automatic logging are not installed by this stage. See `docs/claude-access-stage1.md`; signed-in live acceptance remains pending.
 
 Baseline 4 Oct 2026 (UTC). Source of truth in code: `src/lib/office-map.ts`, `src/lib/room-snapshot.ts`, `src/lib/office-skills.ts`, `src/lib/office-audit.ts`.
