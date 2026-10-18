@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Maintenance follow-through candidate — 17 October 2026
+
+`Run office maintenance` adds owner/MFA-verified active-request intake: fresh live-source failures become deduplicated diagnostic tasks assigned to Elsie, with content readback and a saved Reception summary. Ordinary audits remain read-only. Existing and closed tasks are preserved, including Claude's ongoing build-record reconciliation. Device-only, missing or stale checks remain unverified; access denials require owner attention. No builder dispatch, repair, background scheduling or live release is established. See `docs/office-maintenance-loop.md` for the implemented boundary and remaining production-worker requirements.
+
 Stage 1 Claude access (5 Oct 2026): `getOfficeStatus` provides owner-verified GET-only project/task metadata and the portable `docs/office-shared-log.json` operational log. The Claude panel displays this source without calling an AI or dispatching a build. Private archive bodies and arbitrary saved notes are excluded. Server connection configuration is explicitly unverified until a live check. Later Claude adapters and automatic logging are not installed by this stage. See `docs/claude-access-stage1.md`; signed-in live acceptance remains pending.
 
 Baseline 4 Oct 2026 (UTC). Source of truth in code: `src/lib/office-map.ts`, `src/lib/room-snapshot.ts`, `src/lib/office-skills.ts`, `src/lib/office-audit.ts`.

@@ -324,6 +324,15 @@
       "audience": "office-status",
       "summary": "John requested equal Claude/ChatGPT build access. Fixed the stale hard-coded buildPermission=false in the live database status response to report the current working grant. Both Claude clients and ChatGPT already had enabled office-work-v1 grants.",
       "evidence": "Live migration 20261018000946; get_office_status returned buildPermission=true. Isolated SQL tests passed for both identities, metadata-only denial and revocation. Original false introduced by dcf1c58 on 8 Oct during read-only MCP setup; retained by identity isolation. Actual Claude status bridge succeeds; no paid build dispatched. Builder routing remains a separate owner-directed control."
+    },
+    {
+      "id": "2026-10-17-maintenance-intake-candidate",
+      "at": "2026-10-18T01:37:23Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared an active-request maintenance intake candidate: owner-verified saved-data checks create deduplicated diagnostic tasks for Elsie and preserve existing work. No background worker, paid dispatch, repair or publication is claimed. Claude retains historical build-record cleanup.",
+      "evidence": "src/lib/office-maintenance.ts; src/lib/office-maintenance.server.ts; docs/office-maintenance-loop.md. Local full suite: 185 files, 1825 tests passed; typecheck, new-module lint and production build passed. Not live-verified."
     }
   ]
 }
