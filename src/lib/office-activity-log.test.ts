@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { finishActivity, listActivity, startActivity, toWorkEvents } from "./office-activity-log";
+import {
+  finishActivity,
+  listActivity,
+  startActivity,
+  toWorkEvents,
+  updateActivityRoom,
+} from "./office-activity-log";
 import { animatingEvents, loadWorkFeed } from "./work-activity";
 
 // Minimal browser stand-in: these records live in this device's storage.
@@ -24,7 +30,6 @@ describe("office activity log", () => {
     store.clear();
   });
 
-
   it("records nothing until real work starts", () => {
     expect(listActivity()).toEqual([]);
     const feed = loadWorkFeed();
@@ -34,7 +39,11 @@ describe("office activity log", () => {
   });
 
   it("shows a running record only while the work is actually running", () => {
-    startActivity({ taskId: "t1", title: "Claude second eyes — CanX Opportunity Scout", cellId: "systems" });
+    startActivity({
+      taskId: "t1",
+      title: "Claude second eyes — CanX Opportunity Scout",
+      cellId: "systems",
+    });
     const feed = loadWorkFeed();
     expect(feed.connected).toBe(true);
     expect(animatingEvents(feed, { reducedMotion: false })).toHaveLength(1);
@@ -49,7 +58,9 @@ describe("office activity log", () => {
     startActivity({ taskId: "t2", title: "Claude second eyes", cellId: "systems" });
     const feed = loadWorkFeed();
     expect(animatingEvents(feed, { reducedMotion: true })).toHaveLength(0);
-    expect(animatingEvents(feed, { reducedMotion: false, now: Date.now() + 600_000 })).toHaveLength(0);
+    expect(animatingEvents(feed, { reducedMotion: false, now: Date.now() + 600_000 })).toHaveLength(
+      0,
+    );
   });
 
   it("marks a failed review as failed and still", () => {
@@ -59,4 +70,17 @@ describe("office activity log", () => {
     expect(animatingEvents(feed, { reducedMotion: false })).toHaveLength(0);
     expect(toWorkEvents(listActivity())[0]?.sample).toBeUndefined();
   });
+});
+
+it("preserves actual room handoffs and does not revive completed tasks", () => {
+  store.clear();
+  startActivity({ taskId: "move", title: "Work", roomId: "brain", stage: "brainstorming" });
+  updateActivityRoom("move", "systems", "building");
+  updateActivityRoom("move", "systems", "building");
+  expect(listActivity()[0]?.handoffs).toHaveLength(1);
+  expect(listActivity()[0]?.handoffs?.[0]).toMatchObject({ from: "brain", to: "systems" });
+  finishActivity("move", "completed");
+  updateActivityRoom("move", "brain", "strategizing");
+  expect(listActivity()[0]?.roomId).toBe("systems");
+  expect(listActivity()[0]?.state).toBe("completed");
 });

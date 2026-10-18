@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Brain network draft — 18 October 2026
+
+Unpublished device-only room/stage/handoff tracking and an SVG all-room board now feed static Analytics bars and an unsent Elsie narration hook. Existing real review producers identify Systems; other workflows remain uninstrumented. Three.js is missing and dependency changes are forbidden for this task. No shared feed, automatic speech, production checks or room health verification is claimed. See `docs/brain-office-network-draft.md`.
+
 ## Work Board receipt display repair — 17 October 2026
 
 An owner-scoped waiting task carried a valid Claude `office-task-v2` receipt followed by appended notes. Execution/reconnect readers supported this format, but Work Board's display helper parsed the entire evidence string as JSON and returned no receipt. This hid the build link, exposed the raw evidence text and removed the form's read-only receipt guard. The display now uses the existing validated `readBuildReceipt` helper. Legacy Codex receipts and uncertain-submission warnings remain supported, and malformed/unknown receipts do not gain invented build links. No saved task is changed. Regression fixtures fail on the previous helper and pass after the correction; 70 related tests, typecheck, new-file lint and production build passed. Published signed-in acceptance remains unverified.

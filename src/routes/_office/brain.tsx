@@ -1,3 +1,4 @@
+import { OfficeNetwork } from "@/components/office/OfficeNetwork";
 import { BrainHub } from "@/components/office/BrainHub";
 import { BrainDocuments } from "@/components/office/BrainDocuments";
 import { createFileRoute } from "@tanstack/react-router";
@@ -24,6 +25,7 @@ function Brain() {
   return (
     <RoomShell showFiles={false} showSample={false}>
       <div className="space-y-6">
+        <OfficeNetwork />
         <BrainHub />
         <div id="brain-documents"><BrainDocuments /></div>
         <div id="brain-memory"><BrainMemory /></div>

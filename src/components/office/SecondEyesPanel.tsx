@@ -150,7 +150,7 @@ export function SecondEyesPanel() {
     setIncomplete(null);
     // Movement in the office is allowed only while this real request runs.
     const taskId = `claude-review-${Date.now()}`;
-    startActivity({ taskId, title: `Claude second eyes — ${input.subject}`, cellId: "systems" });
+    startActivity({ taskId, title: `Claude second eyes — ${input.subject}`, cellId: "systems", roomId: "systems", stage: "strategizing" });
     try {
       const reply = await review({
         data: {

@@ -45,7 +45,7 @@ export function ClaudeReviewPanel() {
     setBusy(true);
     // Recorded only because a real review is being submitted right now.
     const taskId = `claude-review-${Date.now()}`;
-    startActivity({ taskId, title: input.activityTitle, cellId: "systems" });
+    startActivity({ taskId, title: input.activityTitle, cellId: "systems", roomId: "systems", stage: "strategizing" });
     try {
       const result = await ask({
         data: {

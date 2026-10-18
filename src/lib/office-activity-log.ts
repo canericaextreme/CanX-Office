@@ -17,6 +17,13 @@ const MAX_RECORDS = 40;
 
 export const ACTIVITY_SOURCE = "CanX Office — this device";
 
+export type ActivityStage = "brainstorming" | "strategizing" | "building" | "stalled" | "completed";
+export interface RoomHandoff {
+  from: string;
+  to: string;
+  at: string;
+}
+
 export type ActivityOutcome = "completed" | "failed" | "cancelled";
 
 export interface ActivityRecord {
@@ -24,6 +31,9 @@ export interface ActivityRecord {
   title: string;
   /** Brain record this work belongs to. */
   cellId?: string;
+  roomId?: string;
+  stage?: ActivityStage;
+  handoffs?: RoomHandoff[];
   startedAt: string;
   lastHeartbeat: string;
   state: "running" | ActivityOutcome;
@@ -47,14 +57,14 @@ function isRecord(value: unknown): value is ActivityRecord {
   const item = value as Partial<ActivityRecord> | null;
   return Boolean(
     item &&
-      typeof item.taskId === "string" &&
-      typeof item.title === "string" &&
-      typeof item.startedAt === "string" &&
-      typeof item.lastHeartbeat === "string" &&
-      (item.state === "running" ||
-        item.state === "completed" ||
-        item.state === "failed" ||
-        item.state === "cancelled"),
+    typeof item.taskId === "string" &&
+    typeof item.title === "string" &&
+    typeof item.startedAt === "string" &&
+    typeof item.lastHeartbeat === "string" &&
+    (item.state === "running" ||
+      item.state === "completed" ||
+      item.state === "failed" ||
+      item.state === "cancelled"),
   );
 }
 
@@ -72,12 +82,20 @@ export function listActivity(): ActivityRecord[] {
 }
 
 /** Called at the moment real work is actually submitted. */
-export function startActivity(input: { taskId: string; title: string; cellId?: string }): ActivityRecord {
+export function startActivity(input: {
+  taskId: string;
+  title: string;
+  cellId?: string;
+  roomId?: string;
+  stage?: ActivityStage;
+}): ActivityRecord {
   const now = new Date().toISOString();
   const record: ActivityRecord = {
     taskId: input.taskId,
     title: input.title,
     ...(input.cellId ? { cellId: input.cellId } : {}),
+    ...(input.roomId ? { roomId: input.roomId } : {}),
+    ...(input.stage ? { stage: input.stage } : {}),
     startedAt: now,
     lastHeartbeat: now,
     state: "running",
@@ -130,4 +148,27 @@ export function subscribeActivity(listener: () => void): () => void {
     window.removeEventListener(EVENT, listener);
     window.removeEventListener("storage", listener);
   };
+}
+
+/** Explicit producer hook: call only after real work reports its room/stage.
+ * Same-room calls are heartbeats; different-room calls preserve handoff evidence.
+ */
+export function updateActivityRoom(
+  taskId: string,
+  roomId: string,
+  stage: Exclude<ActivityStage, "completed">,
+): void {
+  if (typeof window === "undefined") return;
+  const now = new Date().toISOString();
+  write(
+    read().map((item) => {
+      if (item.taskId !== taskId || item.state !== "running") return item;
+      const handoffs =
+        item.roomId && item.roomId !== roomId
+          ? [...(item.handoffs ?? []), { from: item.roomId, to: roomId, at: now }].slice(-40)
+          : item.handoffs;
+      return { ...item, roomId, stage, lastHeartbeat: now, ...(handoffs ? { handoffs } : {}) };
+    }),
+  );
+  notify();
 }
