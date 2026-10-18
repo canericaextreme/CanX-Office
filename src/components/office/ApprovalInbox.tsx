@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import type { ManagerApproval } from "@/lib/manager-work.functions";
@@ -22,15 +22,27 @@ export function ApprovalInbox({
 }) {
   const [opened, setOpened] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const handledFocus = useRef<string | null>(null);
   const pending = approvals.filter((item) => item.status === "pending");
   const history = approvals.filter((item) => item.status !== "pending");
 
   useEffect(() => {
+    if (!focusedId) {
+      handledFocus.current = null;
+      return;
+    }
+    if (handledFocus.current === focusedId) return;
     const item = approvals.find((item) => approvalAnchor(item.id) === focusedId);
     if (!item) return;
+    handledFocus.current = focusedId;
     setOpened(item.id);
     if (item.status !== "pending") setShowHistory(true);
   }, [focusedId, approvals]);
+
+  useEffect(() => {
+    const item = approvals.find((item) => item.id === opened);
+    if (item && item.status !== "pending") setShowHistory(true);
+  }, [opened, approvals]);
 
   useEffect(() => {
     if (!opened || approvalAnchor(opened) !== focusedId) return;

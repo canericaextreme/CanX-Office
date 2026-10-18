@@ -32,6 +32,52 @@ const previous: ManagerApproval = {
 afterEach(cleanup);
 
 describe("owner approval inbox", () => {
+  it("preserves the card John opened or closed when records refresh under an old link", () => {
+    const other = { ...pending, id: "pending-2", title: "Another request" };
+    const props = {
+      busy: null,
+      canDecide: true,
+      onDecide: vi.fn(),
+      focusedId: approvalAnchor(pending.id),
+    };
+    const view = render(<ApprovalInbox {...props} approvals={[pending, other]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open details: Another request" }));
+    view.rerender(<ApprovalInbox {...props} approvals={[{ ...pending }, { ...other }]} />);
+    expect(
+      screen
+        .getByRole("button", { name: "Close details: Another request" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Open details: Review the Office draft" })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "Close details: Another request" }));
+    view.rerender(<ApprovalInbox {...props} approvals={[{ ...pending }, { ...other }]} />);
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    view.rerender(
+      <ApprovalInbox
+        {...props}
+        approvals={[pending, other]}
+        focusedId={approvalAnchor(other.id)}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Close details: Another request" })).toBeTruthy();
+  });
+  it("opens a linked request once it arrives after an initially empty read", () => {
+    const props = {
+      busy: null,
+      canDecide: true,
+      onDecide: vi.fn(),
+      focusedId: approvalAnchor(pending.id),
+    };
+    const view = render(<ApprovalInbox {...props} approvals={[]} />);
+    view.rerender(<ApprovalInbox {...props} approvals={[pending]} />);
+    expect(
+      screen.getByRole("button", { name: "Close details: Review the Office draft" }),
+    ).toBeTruthy();
+  });
   it("opens details without deciding, then sends only the explicit decision", () => {
     const onDecide = vi.fn(async () => {});
     render(
