@@ -31,3 +31,24 @@ The Build & Testing panel now also offers "Run an Office request with Claude". T
 This path reuses the Office server's existing `ANTHROPIC_API_KEY` and deliberately selected `ANTHROPIC_MODEL` settings used by Claude reviews. It does not read/copy the GitHub Actions or Vault key. The panel's "Check Claude Office connection" is an authenticated model check, without a paid message. Missing settings or refused credentials stop the connection honestly. Paid requests reserve a 15-cent estimate using the existing Office budget/rate controls; this does not change the US$2 builder cap or account billing controls. No settings, secrets or workflows were changed.
 
 Installed source and tests do not establish signed-in live connection health. External ChatGPT tools, Claude's external account permissions and service OAuth connections do not transfer to either Office assistant. Neither assistant gains permission to disable the other or bypass owner approvals.
+
+## Build permission status repair (17 October 2026)
+
+The live `canx_private.mcp_office_status()` function still returned the literal
+`buildPermission: false` from the original read-only MCP setup (commit `dcf1c58`,
+8 October), even after working access was installed. This was misleading status,
+not a Claude-only disable switch. The native bridge status check succeeded, and
+both Claude clients and ChatGPT already held enabled `office-work-v1` grants.
+
+Migration `20261018000946_office_build_permission_status.sql` now reports
+`canx_private.mcp_work_active()`, so a valid working client sees true and a
+metadata-only client sees false. Session, owner, consent and revocation checks
+remain mandatory. The live MCP read returned true after application; isolated
+SQL fixtures cover both companies, downgraded grants and revocation. No paid
+build was dispatched by this repair.
+
+This status field is not consumed by the server's builder-choice function.
+Unnamed requests currently default to Codex; explicit Claude requests choose
+Claude, without fallback. Therefore the stale false value does not establish
+why a particular historical request went to Codex. Elsie's broader routing
+policy is separate from this permission-status repair.

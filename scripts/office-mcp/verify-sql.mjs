@@ -144,6 +144,7 @@ try {
  // Dedicated identities fixture. Existing legacy tests above run unchanged.
  await db.exec(`create table canx_private.office_view_grants(viewer_user_id uuid);`);
  await db.exec(await readFile(new URL("../../supabase/migrations/20261011031034_office_assistant_identity_isolation.sql",import.meta.url),"utf8"));
+ await db.exec(await readFile(new URL("../../supabase/migrations/20261018000946_office_build_permission_status.sql",import.meta.url),"utf8"));
  const chatAgent='00000000-0000-4000-8000-000000000021',claudeAgent='00000000-0000-4000-8000-000000000022';
  const claudeClient='00000000-0000-4000-8000-000000000023',claudeSession='00000000-0000-4000-8000-000000000024';
  await db.exec(`insert into auth.users(id,raw_app_meta_data,email_confirmed_at) values('${chatAgent}','{"canx_owner_id":"${uid}","canx_assistant":"chatgpt"}',now()),('${claudeAgent}','{"canx_owner_id":"${uid}","canx_assistant":"claude"}',now());
@@ -174,6 +175,18 @@ try {
  const claudeJwt={...base,sub:claudeAgent,client_id:claudeClient,session_id:claudeSession};
  await claims(chatJwt);
  assert.equal(await active(),true);assert.equal(await work(),true);
+ const buildPermission=async()=> (await db.query("select public.canx_mcp_office_status() as status")).rows[0].status.buildPermission;
+ assert.equal(await buildPermission(),true);
+ await claims(claudeJwt);assert.equal(await buildPermission(),true);
+ await db.exec('reset role');
+ await db.exec("update canx_private.office_mcp_clients set permission='operational-metadata-read'");
+ await db.exec('set role authenticated');
+ assert.equal(await buildPermission(),false);
+ await claims(chatJwt);assert.equal(await buildPermission(),false);
+ await db.exec('reset role');
+ await db.exec("update canx_private.office_mcp_clients set permission='office-work-v1'");
+ await db.exec('set role authenticated');
+ assert.equal(await buildPermission(),true);
  assert.equal((await db.query('select public.canx_mcp_owner() as r')).rows[0].r,uid);
  assert.deepEqual((await db.query('select * from public.canx_view_whoami(false)')).rows,[{owner_id:uid,assistant:'chatgpt'}]);
  assert.equal((await db.query('select public.is_verified_owner() as r')).rows[0].r,false);
