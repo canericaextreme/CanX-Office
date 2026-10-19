@@ -1,5 +1,21 @@
 # CanX Office — whole-office wiring checklist
 
+## Live Brain view — 19 October 2026
+
+The Brain room has a new **Live Brain view**, beside the shelf map. It is a three.js picture of the whole Office with the Brain in the middle. Each room sits in its office-map place. A spark travels between rooms for every recorded move, and rooms glow while work is active there. The view uses five stage colours: brainstorming, strategizing, building, completed and stalled.
+
+**Source.** The append-only `office_work_events` logbook (migration 20261019021500), owner-only. The database recorder (migration 20261019040000) adds a line whenever a `manager_tasks` row changes status or worker, or a project plan changes room or stage. Rooms come from the team member's home room (`office-team.ts`), and builders are filed under Build & Testing. A starting-point line was added once for each task that was still active.
+
+**New room source.** Brain → `brain-view` (live). Elsie reads it as text through the room snapshot. Read-only viewers get "denied", not an empty logbook.
+
+**Analytics.** Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
+
+**Needs you.** Under the view, a list of what is waiting on John: approval-box requests, tasks on hold (with their reason) and work with no change for 7 days. Each item has Approve, Archive and Ask Elsie. Every action is confirmed first and uses the existing owner-checked Office actions. Archive never deletes.
+
+**Shared history.** Elsie, Claude and ChatGPT can read `office_work_events` through `read_office_records` (migration 20261019050000), read-only. Elsie's `brain-view` source now includes task names and the Needs-you list.
+
+**Not yet verified.** The live view has not been opened signed in on a phone or laptop on the published build. Live updates depend on Supabase realtime with John's sign-in, and fall back to a check every minute. Nothing records "brainstorming" except open Ideas & Research tasks.
+
 ## Work Board receipt display repair — 17 October 2026
 
 An owner-scoped waiting task carried a valid Claude `office-task-v2` receipt followed by appended notes. Execution/reconnect readers supported this format, but Work Board's display helper parsed the entire evidence string as JSON and returned no receipt. This hid the build link, exposed the raw evidence text and removed the form's read-only receipt guard. The display now uses the existing validated `readBuildReceipt` helper. Legacy Codex receipts and uncertain-submission warnings remain supported, and malformed/unknown receipts do not gain invented build links. No saved task is changed. Regression fixtures fail on the previous helper and pass after the correction; 70 related tests, typecheck, new-file lint and production build passed. Published signed-in acceptance remains unverified.
