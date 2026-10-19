@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOwnerSession } from "@/lib/owner-session";
 import { SUPABASE_SETUP_URL } from "@/lib/connections-inventory";
 
-export function OwnerSignIn() {
+export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
   const session = useOwnerSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,11 +34,11 @@ export function OwnerSignIn() {
 
   return (
     <Card className="border-border bg-card">
-      <CardHeader>
+      <CardHeader className={compact ? "sr-only" : undefined}>
         <CardTitle className="text-base">Owner sign-in</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{session.message}</p>
+      <CardContent className={compact ? "space-y-2 p-2" : "space-y-3"}>
+        {!compact && <p className="text-sm text-muted-foreground">{session.message}</p>}
 
         {!session.configured && (
           <div className="rounded-lg border border-border/60 bg-secondary/40 p-3 text-sm">
@@ -62,7 +62,7 @@ export function OwnerSignIn() {
             <Input
               type="email"
               value={email}
-              placeholder="Owner email"
+              placeholder={compact ? undefined : "Owner email"}
               aria-label="Owner email"
               onChange={(event) => setEmail(event.target.value)}
             />
@@ -70,7 +70,7 @@ export function OwnerSignIn() {
               <Input
                 type={showPassword ? "text" : "password"}
                 value={password}
-                placeholder="Password"
+                placeholder={compact ? undefined : "Password"}
                 aria-label="Password"
                 autoComplete="current-password"
                 className="pr-12"
@@ -94,13 +94,11 @@ export function OwnerSignIn() {
 
         {session.state === "mfa_required" && (
           <div className="space-y-2">
-            <p className="text-sm text-foreground">
-              Enter the six-digit code from your authenticator app to finish signing in.
-            </p>
+            {!compact && <p className="text-sm text-foreground">Enter the six-digit code from your authenticator app to finish signing in.</p>}
             <Input
               inputMode="numeric"
               value={code}
-              placeholder="123456"
+              placeholder={compact ? undefined : "123456"}
               aria-label="Six digit code"
               onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
             />

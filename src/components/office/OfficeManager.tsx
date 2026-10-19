@@ -1,6 +1,7 @@
 "use client";
 
 import { OfficeFiles } from "./OfficeFiles";
+import { ElsieAuthenticator } from "./ElsieAuthenticator";
 import { VoiceDiagnosticsPanel } from "./VoiceDiagnosticsPanel";
 import { recordVoiceDiag } from "@/lib/voice-diagnostics";
 
@@ -254,7 +255,7 @@ export function OfficeManager() {
     setTextSize(size);
     try { localStorage.setItem("canx-manager-text-size", String(size)); } catch { /* Optional preference. */ }
   };
-  const [composerHeight, setComposerHeight] = useState(120);
+  const [composerHeight, setComposerHeight] = useState(60);
   const [composerCollapsed, setComposerCollapsed] = useState(true);
   const dividerDrag = useRef<{ y: number; height: number } | null>(null);
   const resizeComposer = (height: number) => {
@@ -264,9 +265,6 @@ export function OfficeManager() {
   const [error, setError] = useState<string | null>(null);
   /** Plain-language problem with speaking aloud, shown on the compact companion. */
   const [speechError, setSpeechError] = useState<string | null>(null);
-  const [mfaCode, setMfaCode] = useState("");
-  const [mfaBusy, setMfaBusy] = useState(false);
-  const [mfaError, setMfaError] = useState<string | null>(null);
 
   const [notes, setNotes] = useState<OfficeNote[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1249,6 +1247,7 @@ export function OfficeManager() {
               : "h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] max-w-[calc(100vw-16px)] resize rounded-xl"
           }`}
         >
+          <ElsieAuthenticator />
           <div className="canx-elsie-toolbar flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
               {...(isMobile ? {} : panel.handleProps)}
@@ -1300,12 +1299,10 @@ export function OfficeManager() {
                     {status.connected
                       ? `AI connected — OpenAI (${status.model}).`
                       : status.state === "auth_unavailable"
-                        ? status.keyPresent
-                          ? "AI blocked — a key is present but unusable without verified owner sign-in with two-step verification. Nothing here is an AI answer."
-                          : "AI not connected — verified owner sign-in with two-step verification is required first. Nothing here is an AI answer."
+                        ? "Authenticator required"
                         : status.state === "configured_unverified"
-                          ? "AI configured but unverified — no live check has passed. Nothing here is an AI answer."
-                          : "AI not connected. Nothing here is an AI answer."}
+                          ? "Connection unverified"
+                          : "Not connected"}
                   </span>
                 )}
               </div>
@@ -1364,13 +1361,6 @@ export function OfficeManager() {
                 aria-live="polite"
                 style={{ fontSize: textSize, lineHeight: 1.5 }}
               >
-                {messages.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Talk to Elsie about today's priorities, your projects, or the next task. Ask Elsie
-                    to create or assign work, then check the Work Board. Spending and protected
-                    actions still need your approval.
-                  </p>
-                )}
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -1420,6 +1410,8 @@ export function OfficeManager() {
                   </div>
                 ))}
               <div className="border-t border-border pt-3">
+                <details className="mb-2">
+                  <summary className="cursor-pointer py-2 text-sm">Conversation saving</summary>
                 <section data-testid="astra-continuity-status" aria-label="Conversation continuity" className="mb-3 space-y-1 rounded-md border border-border p-2 text-xs">
                   <p className="font-semibold text-foreground">Last conversation (not CanX Brain)</p>
                   {deviceNote && <p className="text-muted-foreground">{deviceNote}</p>}
@@ -1438,13 +1430,13 @@ export function OfficeManager() {
 
                 <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <input type="checkbox" checked={autoMemory} onChange={event => setAutoMemory(event.target.checked)} />
-                  Save useful discussion automatically during this session
+                  Automatic saving
                 </label>
                 <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus === MEMORY_NOTICE && !autoMemory ? "Automatic saving is paused. Use Save conversation to preserve useful discussion before closing." : historyStatus}</p>
-                {autoMemory && historyStatus !== MEMORY_NOTICE && <p className="mb-2 text-xs text-muted-foreground">{MEMORY_NOTICE}</p>}
                 <Button size="sm" variant="outline" className="mb-2" disabled={savingSummary || busy || !session.stepUpComplete || !token} onClick={() => void saveConversationNow()}>
                   {savingSummary ? "Saving summary…" : "Save conversation"}
                 </Button>
+                </details>
                 <p role="status" aria-live="polite" className="mb-2 text-base">{delivery || (draft.trim() ? "Draft — not sent yet." : "")}</p>
                 {handoff && (
                   <section
@@ -1491,51 +1483,6 @@ export function OfficeManager() {
                               ? "Elsie is listening — just speak naturally."
                               : "Talk with Elsie"}
                   </p>
-                  {(session.signedIn || session.state === "mfa_required") && !session.stepUpComplete && (
-                    <div className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
-                      <p className="text-sm font-semibold text-foreground">
-                        Confirm your authenticator to talk with Elsie
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Enter the current six-digit code from your authenticator app. This completes
-                        the secure owner sign-in for this session.
-                      </p>
-                      <div className="flex gap-2">
-                        <Input
-                          inputMode="numeric"
-                          autoComplete="one-time-code"
-                          value={mfaCode}
-                          placeholder="123456"
-                          aria-label="Six-digit authenticator code for Elsie"
-                          onChange={(event) =>
-                            setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                          }
-                        />
-                        <Button
-                          disabled={mfaBusy || mfaCode.length !== 6}
-                          onClick={() => {
-                            setMfaBusy(true);
-                            setMfaError(null);
-                            void session.submitMfaCode(mfaCode).then((problem) => {
-                              if (problem) setMfaError(problem);
-                              else {
-                                setMfaCode("");
-                                setError(null);
-                              }
-                              setMfaBusy(false);
-                            });
-                          }}
-                        >
-                          <ShieldCheck className="mr-1.5 h-4 w-4" /> Verify
-                        </Button>
-                      </div>
-                      {mfaError && (
-                        <p role="alert" className="text-xs text-destructive">
-                          {mfaError}
-                        </p>
-                      )}
-                    </div>
-                  )}
                   {!realtimeManager.on && <Button variant="outline" onClick={() => {
                     managerVoice.unlockPlayback();
                     void speakAnswer("speaker-check", VOICE_CHECK_SENTENCE);
@@ -1622,7 +1569,7 @@ export function OfficeManager() {
                   }}
                 ><span className="h-1.5 w-20 rounded-full bg-muted-foreground" /></div>
                 <div className="flex items-center justify-between gap-2 pb-1">
-                  <span className="text-sm">Drag divider: more reading or writing space</span>
+
                   <Button size="sm" variant="outline" onClick={() => setComposerCollapsed(value => !value)}>
                     {composerCollapsed ? "Show text box" : "Hide text box"}
                   </Button>
@@ -1632,11 +1579,11 @@ export function OfficeManager() {
                   {!composerCollapsed && <div className="relative">
                   <Textarea
                     ref={inputRef}
-                    rows={4}
+                    rows={2}
                     value={draft}
-                    className="min-h-[120px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
+                    className="min-h-[60px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
                     style={{ fontSize: textSize, height: composerHeight }}
-                    placeholder="Type or paste your message here…"
+
                     aria-label="Message the Office Manager"
                     onChange={(event) => {
                       const next = event.target.value;
@@ -1686,12 +1633,6 @@ export function OfficeManager() {
                       Live voice (preview)
                     </Button>
                   </div>
-                  {liveVoiceMode === "relay" && !realtimeManager.on && (
-                    <p className="w-full text-xs text-muted-foreground">Standard voice: the Office answers every spoken turn from your saved records and memory, so there is a short pause before each answer.</p>
-                  )}
-                  {liveVoiceMode === "direct" && !realtimeManager.on && (
-                    <p className="w-full text-xs text-muted-foreground">Live voice: Elsie hears your voice directly and replies straight away. Office records, saving and changes still go through the protected Office checks.</p>
-                  )}
                   {realtimeManager.error && !realtimeManager.on && !voiceMode && (
                     <Button type="button" variant="outline" className="h-11 w-full" onClick={startVoiceMode}>
                       Live audio unavailable — use record-and-reply voice instead
@@ -1716,9 +1657,7 @@ export function OfficeManager() {
                     </Button>
                   )}
                   </div>
-                  <p role="status" className="mt-2 text-sm">
-                    {!session.stepUpComplete ? "Verify your authenticator above to enable text and voice." : !historyReady ? "Loading conversation — controls will be ready shortly." : realtimeManager.phase === "connecting" ? "Connecting microphone…" : realtimeManager.on ? "Voice conversation is active. Press End conversation when you are done." : "Ready: type a message or choose Talk to Elsie."}
-                  </p>
+
                 </div>
               </div>
 
