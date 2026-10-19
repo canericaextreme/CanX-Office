@@ -14,6 +14,7 @@ vi.mock("@tanstack/react-start", () => ({ useServerFn: () => snapshotFn }));
 vi.mock("@/lib/room-snapshot.functions", () => ({ getRoomSnapshot: vi.fn() }));
 vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => session }));
 vi.mock("@/components/office/OfficeFiles", () => ({ OfficeFiles: ({ room }: { room: string }) => <section>Files for {room}</section> }));
+vi.mock("@/components/office/BrainActivityCharts", () => ({ BrainActivityCharts: ({ viewer }: { viewer?: boolean }) => <section>Work through the Office{viewer ? " (viewer)" : ""}</section> }));
 vi.mock("@/components/office/RoomSkillsLink", () => ({ RoomSkillsLink: ({ route }: { route: string }) => <a href="/skills">Skills for {route}</a> }));
 import { AnalyticsBoard, Route } from "./analytics";
 
@@ -30,6 +31,9 @@ describe("Analytics room keeps existing access", () => {
   it("keeps the room's Files panel and Skills link", () => {
     expect(source).toContain('<OfficeFiles room="analytics" />');
     expect(source).toContain('<RoomSkillsLink route="/analytics" />');
+  });
+  it("shows the work charts from the live Brain view's logbook", () => {
+    expect(source).toContain("<BrainActivityCharts viewer={!!session.viewer} />");
   });
 });
 

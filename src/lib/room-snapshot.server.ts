@@ -93,6 +93,24 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       for (const l of loc.locators) stages[l.stage] = (stages[l.stage] ?? 0) + 1;
       return result(def, { count: loc.locators.length, items: [...Object.entries(stages).map(([k, v]) => `stage ${k}: ${v}`), ...loc.locators.slice(0, 15).map((l) => `${l.project.name} [${l.project.projectId.slice(0, 8)}] · ${l.stage} · next: ${l.nextMove}`)], latestAt: loc.tasksReadAt, detail: `metadata + John's plans + Work Board${loc.tasksReadAt ? "" : " (tasks NOT read)"}; stage unknown means not verified` });
     }
+    case "brain-view": {
+      // Owner-only logbook: a read-only viewer would see nothing, so say so rather than report "no work".
+      if (req.aal === "viewer") return result(def, { status: "denied", detail: "the work logbook is owner-only" });
+      const { readBrainEventsWith } = await import("./brain-view.functions");
+      const { buildBrainView, brainViewForModel } = await import("./brain-view");
+      const { BRAIN_VIEW_ROUTES } = await import("./brain-view-layout");
+      const read = await readBrainEventsWith((p, i) => req.rest(req.config, req.token, p, i));
+      if (!read) return failed(def);
+      const now = req.now?.() ?? new Date();
+      const view = buildBrainView(read.rows, BRAIN_VIEW_ROUTES, now, "live");
+      return result(def, {
+        count: view.items.length,
+        ...(read.capped ? { capped: true } : {}),
+        items: brainViewForModel(view, now).split("\n"),
+        latestAt: view.events.at(-1)?.at ?? null,
+        detail: `${view.events.length} logbook line(s), ${view.sparks.length} room move(s)${read.capped ? "; most recent lines only" : ""}`,
+      });
+    }
     case "brain-index": {
       const { readBrainIndexWith } = await import("./brain-index.server");
       const { countByShelf, SHELF_LABELS } = await import("./brain-shelves");
