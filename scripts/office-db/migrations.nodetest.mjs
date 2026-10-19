@@ -1,4 +1,4 @@
-// Run: node --test scripts/office-db/migrations.test.mjs
+// Run: node --test scripts/office-db/migrations.nodetest.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { plan, isOnHold, buildApplySql, readMigrationFiles, parseFileName } from "./migrations.mjs";

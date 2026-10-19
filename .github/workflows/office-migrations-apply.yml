@@ -4,7 +4,7 @@
 # Applies only migration files NEWER than the newest change already live, skips held files
 # ("-- Draft only" first line or a "-- canx:hold" line) and anything already recorded, runs each file
 # in one transaction with its history record, and stops at the first failure.
-# Rules and tests: scripts/office-db/migrations.mjs, scripts/office-db/migrations.test.mjs.
+# Rules and tests: scripts/office-db/migrations.mjs, scripts/office-db/migrations.nodetest.mjs.
 # Uses the existing repository secret SUPABASE_ACCESS_TOKEN (same one the functions deploy uses).
 # Database PRs still go to John: the merge robot never auto-merges database or workflow changes.
 name: CanX Office database changes
@@ -48,7 +48,7 @@ jobs:
         with:
           node-version: '22'
       - name: Safety tests
-        run: node --test scripts/office-db/migrations.test.mjs
+        run: node --test scripts/office-db/migrations.nodetest.mjs
       - name: Apply approved database changes
         shell: bash
         env:
