@@ -1491,7 +1491,7 @@ export function OfficeManager() {
                               ? "Elsie is listening — just speak naturally."
                               : "Talk with Elsie"}
                   </p>
-                  {session.signedIn && !session.stepUpComplete && (
+                  {(session.signedIn || session.state === "mfa_required") && !session.stepUpComplete && (
                     <div className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3">
                       <p className="text-sm font-semibold text-foreground">
                         Confirm your authenticator to talk with Elsie

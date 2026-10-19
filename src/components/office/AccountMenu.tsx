@@ -32,13 +32,14 @@ export function AccountMenu() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2" aria-label="Owner sign-in and authenticator">
-          <LogIn className="h-4 w-4" aria-hidden="true" /> Sign in
+          {session.state === "mfa_required" ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <LogIn className="h-4 w-4" aria-hidden="true" />}
+          {session.state === "mfa_required" ? "Code" : "Sign in"}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>CanX owner account</DialogTitle>
-          <DialogDescription>Sign in to access your saved Office records.</DialogDescription>
+          <DialogDescription>{session.state === "mfa_required" ? "Enter your six-digit authenticator code to talk with Elsie." : "Sign in, then enter your authenticator code to talk with Elsie."}</DialogDescription>
         </DialogHeader>
         <OwnerSignIn />
       </DialogContent>
