@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Work Board decisions waiting on John — 19 October 2026
+
+The Work Board now opens its task list with a "John — N items need your decision" panel: pending Approval Box requests, tasks on hold (status `waiting`) and yellow-risk tasks John has not yet approved or declined. Each such card has a yellow outline, a "John — review needed" tag, the saved reason, and Approve / Decline buttons that confirm first. A "Show only what needs me" filter hides everything else. Buttons use only the existing owner-checked actions: Approval Box requests use `decideManagerApproval`; a task decision is recorded as a linked approval (`requestManagerApproval` + `decideManagerApproval`), then an on-hold task resumes with `updateManagerTask` (title, detail, project and risk unchanged) or a declined task is cancelled with `cancelManagerTask`, keeping its earlier result word for word. Red tasks get no Approve button. Nothing auto-decides, deletes, builds, merges or publishes. No server, database or permission change. Signed-in owner acceptance on desktop and phone remains unverified.
+
 ## Live Brain view — 19 October 2026
 
 The Brain room has a new **Live Brain view**, beside the shelf map. It is a three.js picture of the whole Office with the Brain in the middle. Each room sits in its office-map place. A spark travels between rooms for every recorded move, and rooms glow while work is active there. The view uses five stage colours: brainstorming, strategizing, building, completed and stalled.
