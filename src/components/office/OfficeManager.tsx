@@ -1194,7 +1194,7 @@ export function OfficeManager() {
           aria-expanded={false}
           aria-controls="office-manager-panel"
           aria-label="Open Office Manager Elsie"
-          className="fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-2 rounded-xl border border-slate-950 bg-slate-900 px-2 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:text-white"
+          className="canx-elsie-launcher fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-2 rounded-xl border border-slate-950 bg-slate-900 px-2 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:text-white"
         >
           <OfficeWorkerIcon /> <span className="whitespace-normal leading-tight">Office Manager Elsie</span>
         </Button>
@@ -1203,7 +1203,7 @@ export function OfficeManager() {
       {open && minimized && (
         <div
           aria-label="Office Manager, minimised"
-          className="fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center rounded-xl border border-slate-950 bg-slate-900 px-1 text-white shadow-lg"
+          className="canx-elsie-launcher fixed bottom-4 right-0 z-40 flex h-12 w-44 translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center rounded-xl border border-slate-950 bg-slate-900 px-1 text-white shadow-lg"
         >
           <button
             type="button"
@@ -1249,7 +1249,7 @@ export function OfficeManager() {
               : "h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] max-w-[calc(100vw-16px)] resize rounded-xl"
           }`}
         >
-          <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
+          <div className="canx-elsie-toolbar flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
             <div
               {...(isMobile ? {} : panel.handleProps)}
               className="mr-1 flex cursor-move touch-none select-none items-center rounded-md p-1.5 text-muted-foreground hover:bg-background active:bg-secondary"
@@ -1321,7 +1321,7 @@ export function OfficeManager() {
             </Button>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+          <div className="canx-elsie-links flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
             <Button asChild variant="outline" size="sm">
               <Link to="/work-board" onClick={() => setMinimized(true)}>Work Board</Link>
             </Button>
@@ -1599,7 +1599,7 @@ export function OfficeManager() {
                 )}
               </div>
 
-              <div className="max-h-[35dvh] shrink-0 overflow-y-auto overscroll-contain border-t border-border bg-card px-3 pb-2">
+              <div className="canx-elsie-composer max-h-[35dvh] shrink-0 overflow-y-auto overscroll-contain border-t border-border bg-card px-3 pb-2">
                 <div
                   role="separator" aria-label="Resize writing area" aria-orientation="horizontal"
                   aria-valuemin={60} aria-valuemax={600} aria-valuenow={composerHeight} tabIndex={0}
@@ -1667,7 +1667,7 @@ export function OfficeManager() {
                     {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Send className="h-5 w-5" aria-hidden="true" />}
                   </Button>
                   </div>}
-                  <div className="mt-2 flex flex-wrap gap-2" aria-label="Message and voice controls">
+                  <div className="canx-elsie-voice-controls mt-2 flex flex-wrap gap-2" aria-label="Message and voice controls">
                   <div className="grid w-full grid-cols-3 items-center gap-2">
                     <Button type="button" size="sm" variant={liveVoiceMode === "relay" ? "default" : "outline"}
                       className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
