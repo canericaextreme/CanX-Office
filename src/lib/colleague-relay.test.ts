@@ -71,6 +71,16 @@ describe('colleague relay', () => {
     const g = fixture(); g.rest.mockImplementation(async (_t, m, p) => p.startsWith('office_notes') ? { ok: true, data: [note] } : m === 'PATCH' ? { ok: true, data: [] } : { ok: true, data: [{ ...base }] });
     expect((await relayToColleagueWith(g.deps, input())).ok).toBe(false); expect(g.fetchImpl).not.toHaveBeenCalled();
   });
+  it('gives the colleague the latest Claude and ChatGPT handoffs as labelled data', async () => {
+    const f = fixture(); const orig = f.rest.getMockImplementation()!;
+    f.rest.mockImplementation(async (...a: Parameters<typeof orig>) => a[2].includes('id=eq.handoff-latest-chatgpt')
+      ? { ok: true, data: [{ id: 'handoff-latest-chatgpt', title: 'Voice chat', detail: 'John wants Approve and Decline on the card.', updated_at: '2026-10-18T16:40:00Z' }] }
+      : orig(...a));
+    expect((await relayToColleagueWith(f.deps, input())).ok).toBe(true);
+    const sent = JSON.parse((f.fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(sent.messages[0].content).toContain('ChatGPT [updated 2026-10-18T16:40:00Z] Voice chat: John wants Approve and Decline');
+    expect(sent.messages[0].content).toContain("not John's approval");
+  });
   it('labels a missing direction note instead of inventing one', async () => {
     const f = fixture(); const orig = f.rest.getMockImplementation()!;
     f.rest.mockImplementation(async (...a: Parameters<typeof orig>) => a[2].startsWith('office_notes') ? { ok: true, data: [] } : orig(...a));
