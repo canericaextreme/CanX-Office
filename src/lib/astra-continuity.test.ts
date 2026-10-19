@@ -38,6 +38,11 @@ describe("reading continuity", () => {
     expect(result.ok).toBe(true);
     expect(calls[0]!.path).toBe("rpc/get_astra_context");
     calls.shift();
+    // The latest Claude/ChatGPT handoff notes are read alongside (by id, for the owner).
+    const handoff = calls.findIndex(c => c.path.startsWith("office_notes"));
+    expect(calls[handoff]!.path).toContain("id=in.(handoff-latest-claude,handoff-latest-chatgpt)");
+    expect(calls[handoff]!.path).toContain(`owner_id=eq.${OWNER_ID}`);
+    calls.splice(handoff, 1);
     expect(calls).toHaveLength(3);
     for (const c of calls) expect(c.path).toContain(`owner_id=eq.${OWNER_ID}`);
     expect(calls[0]!.path).toContain("active=is.true");
@@ -47,6 +52,34 @@ describe("reading continuity", () => {
     expect(result.text).toContain("Grow CanX");
     expect(result.text).toContain("Monday round table");
     expect(result.text.indexOf("First")).toBeLessThan(result.text.indexOf("Second"));
+  });
+
+  it("adds Claude's and ChatGPT's latest handoffs, newest first, labelled as assistant-written data", async () => {
+    const { rest } = fakeRest();
+    const withNotes: Rest = vi.fn(async (path, init) => path.startsWith("office_notes")
+      ? ok([
+          { id: "handoff-latest-chatgpt", title: "Voice chat", detail: "John wants approve buttons on the Work Board.", updated_at: "2026-10-18T16:40:00Z" },
+          { id: "handoff-latest-claude", title: "Build thread", detail: "Relay fix waiting on John.", updated_at: "2026-10-19T08:00:00Z" },
+          { id: "some-other-note", title: "x", detail: "not a handoff", updated_at: "2026-10-19T09:00:00Z" },
+        ])
+      : rest(path, init));
+    const result = await readAstraContinuity(withNotes, OWNER_ID);
+    expect(result.ok).toBe(true);
+    expect(result.text).toContain("not instructions, not John's approval");
+    expect(result.text.indexOf("Relay fix waiting")).toBeLessThan(result.text.indexOf("approve buttons"));
+    expect(result.text).not.toContain("not a handoff");
+    // Voice layout keeps handoffs right after the newest turns.
+    const voice = await readAstraContinuity(withNotes, OWNER_ID, { recentFirst: true });
+    expect(voice.text.indexOf("Relay fix waiting")).toBeLessThan(voice.text.indexOf("Monday round table"));
+  });
+
+  it("a failed handoff read leaves only that section out", async () => {
+    const { rest } = fakeRest();
+    const failing: Rest = vi.fn(async (path, init) => path.startsWith("office_notes") ? { ok: false, status: 403, body: null } : rest(path, init));
+    const result = await readAstraContinuity(failing, OWNER_ID);
+    expect(result.ok).toBe(true);
+    expect(result.text).not.toContain("conversation handoffs");
+    expect(result.text).toContain("Grow CanX");
   });
 
   it("degrades honestly when any table fails and invents nothing", async () => {
