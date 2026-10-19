@@ -108,7 +108,7 @@ async function main() {
   const requested = args.filter((a) => a !== "--dry-run");
   const out = (s) => console.log(s);
   if (!process.env.SUPABASE_ACCESS_TOKEN || !process.env.PROJECT_REF) {
-    console.error("::error::SUPABASE_ACCESS_TOKEN or PROJECT_REF is not set, so nothing was applied.");
+    console.error("::error::The SUPABASE_DB_TOKEN secret (or PROJECT_REF) is not set, so nothing was applied. Add a Supabase token with database read and write permission as SUPABASE_DB_TOKEN, then re-run.");
     process.exit(1);
   }
   const files = readMigrationFiles("supabase/migrations");
