@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Work Board decisions waiting on John — 19 October 2026
+
+The Work Board now opens its task list with a "John — N items need your decision" panel: pending Approval Box requests, tasks on hold (status `waiting`) and yellow-risk tasks John has not yet approved or declined. Each such card has a yellow outline, a "John — review needed" tag, the saved reason, and Approve / Decline buttons that confirm first. A "Show only what needs me" filter hides everything else. Buttons use only the existing owner-checked actions: Approval Box requests use `decideManagerApproval`; a task decision is recorded as a linked approval (`requestManagerApproval` + `decideManagerApproval`), then an on-hold task resumes with `updateManagerTask` (title, detail, project and risk unchanged) or a declined task is cancelled with `cancelManagerTask`, keeping its earlier result word for word. Red tasks get no Approve button. Nothing auto-decides, deletes, builds, merges or publishes. No server, database or permission change. Signed-in owner acceptance on desktop and phone remains unverified.
+
 ## Work Board receipt display repair — 17 October 2026
 
 An owner-scoped waiting task carried a valid Claude `office-task-v2` receipt followed by appended notes. Execution/reconnect readers supported this format, but Work Board's display helper parsed the entire evidence string as JSON and returned no receipt. This hid the build link, exposed the raw evidence text and removed the form's read-only receipt guard. The display now uses the existing validated `readBuildReceipt` helper. Legacy Codex receipts and uncertain-submission warnings remain supported, and malformed/unknown receipts do not gain invented build links. No saved task is changed. Regression fixtures fail on the previous helper and pass after the correction; 70 related tests, typecheck, new-file lint and production build passed. Published signed-in acceptance remains unverified.

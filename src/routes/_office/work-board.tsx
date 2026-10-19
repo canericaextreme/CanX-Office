@@ -20,6 +20,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { DEFAULT_TEAM, loadTeam, type TeamMember } from "@/lib/office-team";
 import { taskExecutionEvidence } from "@/lib/task-execution-evidence";
+import { WorkBoardDecision } from "@/components/office/WorkBoardDecision";
+import { decisionsForJohn, type DecisionItem } from "@/lib/work-board-decisions";
 
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
@@ -90,7 +92,7 @@ function when(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleString();
 }
 
-function WorkBoard() {
+export function WorkBoard() {
   const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } = useManagerMemory();
   const createTask = useServerFn(createManagerTask);
   const assignTask = useServerFn(assignManagerTask);
@@ -119,11 +121,22 @@ function WorkBoard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [onlyMine, setOnlyMine] = useState(false);
 
   const tasks = memory?.tasks ?? null;
   const assignments = memory?.assignments ?? [];
   const approvals = memory?.approvals ?? [];
-  const pendingApprovals = approvals.filter((a) => a.status === "pending");
+  // Everything waiting on John: Approval Box requests, tasks on hold and unapproved yellow tasks.
+  const decisions = tasks ? decisionsForJohn(tasks, approvals) : [];
+  const decisionFor: Record<string, DecisionItem> = {};
+  for (const item of decisions) if (item.kind !== "approval") decisionFor[item.id] = item;
+  const approvalDecisions = decisions.filter((item) => item.kind === "approval");
+  const shownTasks = onlyMine ? tasks?.filter((task) => decisionFor[task.id]) : tasks;
+  const decided = (message: string) => {
+    setProblem(null);
+    setNotice(message);
+    refresh();
+  };
   // Tasks that came from, or are covered by, an approval you granted.
   const approvedOn: Record<string, string> = {};
   for (const approval of approvals) {
@@ -205,15 +218,76 @@ function WorkBoard() {
             </p>
           )}
 
-          {pendingApprovals.length > 0 && (
-            <p role="status" className="rounded-md border border-canx-yellow/60 p-2 text-xs text-canx-yellow">
-              {pendingApprovals.length === 1
-                ? "1 item is waiting for your approval."
-                : `${pendingApprovals.length} items are waiting for your approval.`}{" "}
-              <Link to="/approvals" className="underline">
-                Open the Approval Box
-              </Link>
-            </p>
+          {isOwner && tasks && (
+            <section
+              aria-labelledby="needs-john-heading"
+              className={
+                decisions.length > 0
+                  ? "rounded-lg border-2 border-canx-yellow bg-canx-yellow/10 p-3"
+                  : "rounded-lg border border-canx-green/60 p-3"
+              }
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="needs-john-heading" className={decisions.length > 0 ? "text-base font-semibold text-canx-yellow" : "text-sm text-canx-green"}>
+                  {decisions.length === 0
+                    ? "Nothing is waiting on you right now."
+                    : decisions.length === 1
+                      ? "John — 1 item needs your decision"
+                      : `John — ${decisions.length} items need your decision`}
+                </h2>
+                {decisions.length > 0 && (
+                  <Button
+                    variant={onlyMine ? "default" : "outline"}
+                    className="h-11"
+                    aria-pressed={onlyMine}
+                    onClick={() => setOnlyMine((v) => !v)}
+                  >
+                    {onlyMine ? "Show all tasks" : `Show only what needs me (${decisions.length})`}
+                  </Button>
+                )}
+              </div>
+              {decisions.length > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Each one has Approve and Decline on its card, marked “John — review needed”. Every button asks you to confirm first.
+                </p>
+              )}
+              {decisions.some((item) => item.kind !== "approval") && (
+                <ul className="mt-2 space-y-1 text-sm">
+                  {decisions
+                    .filter((item) => item.kind !== "approval")
+                    .map((item) => (
+                      <li key={item.id}>
+                        <a className="underline" href={`#task-${item.id}`}>
+                          Open details: {item.title}
+                        </a>
+                      </li>
+                    ))}
+                </ul>
+              )}
+              {approvalDecisions.map((item) => (
+                <div key={item.id} className="mt-3 rounded-lg border-2 border-canx-yellow bg-card p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">John — review needed</span>
+                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Approval Box request</span>
+                    <span className="font-medium">{item.title}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{item.why}</p>
+                  {item.kind === "approval" && item.approval.cost_cents != null && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Estimated cost: {(item.approval.cost_cents / 100).toFixed(2)}
+                    </p>
+                  )}
+                  <WorkBoardDecision item={item} accessToken={accessToken} onDone={decided} />
+                </div>
+              ))}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Past decisions stay in the{" "}
+                <Link to="/approvals" className="underline">
+                  Approval Box history
+                </Link>
+                .
+              </p>
+            </section>
           )}
 
           {loading && !tasks && <p className="text-sm text-muted-foreground">Loading your task list…</p>}
@@ -232,13 +306,25 @@ function WorkBoard() {
 
           {tasks && tasks.length === 0 && <p className="text-sm text-muted-foreground">No records yet.</p>}
 
-          {tasks?.map((task) => {
+          {shownTasks?.map((task) => {
+            const needs = decisionFor[task.id];
             const taskAssignments = assignments.filter((a) => a.task_id === task.id);
             const edit = editing[task.id];
             const status = taskStatus(task);
             return (
-              <div key={task.id} className="rounded-lg border border-border/50 p-3">
+              <div
+                key={task.id}
+                id={`task-${task.id}`}
+                className={
+                  needs
+                    ? "scroll-mt-24 rounded-lg border-2 border-canx-yellow bg-canx-yellow/5 p-3 shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-canx-yellow)_25%,transparent)]"
+                    : "scroll-mt-24 rounded-lg border border-border/50 p-3"
+                }
+              >
                 <div className="flex flex-wrap items-center gap-2">
+                  {needs && (
+                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">John — review needed</span>
+                  )}
                   <StatusBadge tone={status.tone} label={status.label} />
                   <span className="font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
@@ -250,7 +336,19 @@ function WorkBoard() {
                     </span>
                   )}
                 </div>
-                {status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>}
+                {needs ? (
+                  <>
+                    <p className="mt-2 text-sm">
+                      <span className="font-semibold text-canx-yellow">
+                        {needs.kind === "on-hold" ? "Why it is waiting: " : "Why you are asked: "}
+                      </span>
+                      {needs.why}
+                    </p>
+                    <WorkBoardDecision item={needs} accessToken={accessToken} onDone={decided} />
+                  </>
+                ) : (
+                  status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>
+                )}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
                   <div>
                     <dt className="inline font-medium">Project: </dt>
