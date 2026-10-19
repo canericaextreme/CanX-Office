@@ -27,6 +27,9 @@ function OfficeInterior() {
           viewMode={hydrated ? mode : "3d"}
           onToggleView={() => setMode(mode === "3d" ? "simple" : "3d")}
         />
+        {!readOnlyViewer && <p className="canx-mobile-orientation-hint" data-canx-no-capture="true">
+          For a wider Office, turn your phone sideways. Enable Auto rotate if it stays upright.
+        </p>}
         {/* The only element an office observation may look at. */}
         <div className="flex-1 pb-20" data-canx-office-view="true">
           <RoomAccessBar />

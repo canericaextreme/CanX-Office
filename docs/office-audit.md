@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie phone layout — 19 October 2026
+
+Touch-device CSS keeps the Elsie launcher fully visible, the toolbar on one horizontally scrolling row, and the transcript shrinkable on short landscape screens. The composer puts the existing voice controls before expanded writing content and keeps the three-button voice row sticky while the composer scrolls. Phone safe-area padding protects controls around cutouts. Portrait mode offers a rotation hint; the site does not claim to override Android's rotation lock. Voice handlers, providers, prompts, memory, authentication and desktop styling are unchanged. Signed-in Android acceptance remains pending.
+
 ## Work Board decisions waiting on John — 19 October 2026
 
 The Work Board now opens its task list with a "John — N items need your decision" panel: pending Approval Box requests, tasks on hold (status `waiting`) and yellow-risk tasks John has not yet approved or declined. Each such card has a yellow outline, a "John — review needed" tag, the saved reason, and Approve / Decline buttons that confirm first. A "Show only what needs me" filter hides everything else. Buttons use only the existing owner-checked actions: Approval Box requests use `decideManagerApproval`; a task decision is recorded as a linked approval (`requestManagerApproval` + `decideManagerApproval`), then an on-hold task resumes with `updateManagerTask` (title, detail, project and risk unchanged) or a declined task is cancelled with `cancelManagerTask`, keeping its earlier result word for word. Red tasks get no Approve button. Nothing auto-decides, deletes, builds, merges or publishes. No server, database or permission change. Signed-in owner acceptance on desktop and phone remains unverified.
