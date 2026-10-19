@@ -277,6 +277,44 @@ export function totalsByCurrency(receipts: FinanceReceipt[]): CurrencyTotal[] {
     .sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
+export interface MonthlyTotal {
+  /** "YYYY-MM", or "undated" when the receipt has no usable date. */
+  month: string;
+  currency: string;
+  count: number;
+  /** null when at least one receipt in the group has no total. */
+  total: number | null;
+}
+
+/**
+ * Receipt totals per calendar month, newest first, one row per currency.
+ * Same money rules as totalsByCurrency: currencies never mix and receipts
+ * marked "Not a business receipt" are left out. These are receipts on file,
+ * not confirmed bank charges.
+ */
+export function monthlyTotals(receipts: FinanceReceipt[]): MonthlyTotal[] {
+  const groups = new Map<string, MonthlyTotal>();
+  for (const receipt of receipts) {
+    if (receipt.reviewStatus === "excluded") continue;
+    const month = /^\d{4}-\d{2}-\d{2}$/.test(receipt.date) ? receipt.date.slice(0, 7) : "undated";
+    const currency = currencyKey(receipt);
+    const key = `${month}|${currency}`;
+    const group = groups.get(key) ?? { month, currency, count: 0, total: 0 };
+    group.count += 1;
+    if (receipt.total === null) group.total = null;
+    else if (group.total !== null) group.total = Math.round((group.total + receipt.total) * 100) / 100;
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => {
+    if (a.month !== b.month) {
+      if (a.month === "undated") return 1;
+      if (b.month === "undated") return -1;
+      return b.month.localeCompare(a.month);
+    }
+    return a.currency.localeCompare(b.currency);
+  });
+}
+
 export function reconciliationSummary(receipts: FinanceReceipt[]) {
   return {
     receipts: receipts.length,

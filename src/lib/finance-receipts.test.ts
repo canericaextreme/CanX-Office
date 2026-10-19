@@ -4,6 +4,7 @@ import {
   duplicateKeys,
   MAX_IMPORT_BYTES,
   mergeReceipts,
+  monthlyTotals,
   parseReceiptImport,
   reconciliationSummary,
   totalsByCurrency,
@@ -153,5 +154,30 @@ describe("totals", () => {
     expect(reconciliationSummary([])).toEqual({ receipts: 0, sourceMessages: 0, needsReview: 0, reconciled: 0 });
     const summary = reconciliationSummary([receipt({ duplicateCount: 3 })]);
     expect(summary).toEqual({ receipts: 1, sourceMessages: 3, needsReview: 1, reconciled: 0 });
+  });
+});
+
+describe("monthlyTotals", () => {
+  it("groups by month and currency, newest first, undated last, excluded left out", () => {
+    const rows = monthlyTotals([
+      receipt({ id: "a", date: "2026-08-03", total: 10.1, currency: "USD" }),
+      receipt({ id: "b", date: "2026-08-20", total: 0.2, currency: "USD" }),
+      receipt({ id: "c", date: "2026-08-20", total: 5, currency: "CAD" }),
+      receipt({ id: "d", date: "2026-09-01", total: 7, currency: null }),
+      receipt({ id: "e", date: "", total: 3, currency: "USD" }),
+      receipt({ id: "f", date: "2026-09-02", total: 900, currency: "USD", reviewStatus: "excluded" }),
+    ]);
+    expect(rows).toEqual([
+      { month: "2026-09", currency: "UNKNOWN", count: 1, total: 7 },
+      { month: "2026-08", currency: "CAD", count: 1, total: 5 },
+      { month: "2026-08", currency: "USD", count: 2, total: 10.3 },
+      { month: "undated", currency: "USD", count: 1, total: 3 },
+    ]);
+  });
+
+  it("makes a month's total unknown, never zero, when one receipt has no amount", () => {
+    expect(monthlyTotals([receipt({ id: "a", total: null }), receipt({ id: "b", total: 4 })])).toEqual([
+      { month: "2026-09", currency: "CAD", count: 2, total: null },
+    ]);
   });
 });

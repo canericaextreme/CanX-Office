@@ -23,8 +23,10 @@ import { brainMemoryContext } from "./brain-memory-context";
 import {
   PAYMENT_LABELS,
   REVIEW_LABELS,
+  mergeReceipts,
   parseReceiptImport,
   reconciliationSummary,
+  toExportDocument,
   totalsByCurrency,
   type FinanceReceipt,
 } from "@/lib/finance-receipts";
@@ -279,11 +281,22 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
     return { ok: false, message: "The meeting records could not be read just now, so no answer was requested." };
   }
 
-  const receiptsResponse = await rest(
+  // Same records as the Finance room: saved doc receipts plus email-ingested
+  // receipts, de-duplicated. Reading the doc alone undercounted (12 vs 15).
+  let ingestedReadable = true;
+  let receiptsResponse = await rest(
     config,
     token,
-    "finance_receipts?select=doc&order=created_at.desc&limit=1",
+    "finance_receipts?select=doc,ingested_receipts&order=created_at.desc&limit=1",
   ).catch(() => null);
+  if (!receiptsResponse?.ok) {
+    ingestedReadable = false;
+    receiptsResponse = await rest(
+      config,
+      token,
+      "finance_receipts?select=doc&order=created_at.desc&limit=1",
+    ).catch(() => null);
+  }
   if (!receiptsResponse?.ok) {
     return { ok: false, message: "The finance records could not be read just now, so no answer was requested." };
   }
@@ -316,13 +329,22 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const workbench = await readWorkbench(config, token, rest);
   const roomCatalogue = staticRoomCatalogue();
 
-  const receiptRows = Array.isArray(receiptsResponse.body) ? (receiptsResponse.body as Array<{ doc?: unknown }>) : [];
+  const receiptRows = Array.isArray(receiptsResponse.body)
+    ? (receiptsResponse.body as Array<{ doc?: unknown; ingested_receipts?: unknown }>)
+    : [];
   const doc = receiptRows[0]?.doc ?? null;
-  const docJson = doc ? JSON.stringify(doc) : null;
-  const parsedReceiptDocument = docJson ? parseReceiptImport(docJson) : null;
-  if (request.includeReceiptDetails && parsedReceiptDocument && !parsedReceiptDocument.ok) {
+  const savedDocument = doc ? parseReceiptImport(JSON.stringify(doc)) : null;
+  if (request.includeReceiptDetails && savedDocument && !savedDocument.ok) {
     return { ok: false, message: "The finance records could not be read just now, so no answer was requested." };
   }
+  const ingestedRows = Array.isArray(receiptRows[0]?.ingested_receipts) ? (receiptRows[0]!.ingested_receipts as FinanceReceipt[]) : [];
+  const ingestedDocument = ingestedRows.length ? parseReceiptImport(JSON.stringify(toExportDocument(ingestedRows))) : null;
+  const allReceipts = mergeReceipts(
+    savedDocument?.ok ? savedDocument.receipts : [],
+    ingestedDocument?.ok ? ingestedDocument.receipts : [],
+  ).merged;
+  const docJson = allReceipts.length ? JSON.stringify(toExportDocument(allReceipts)) : null;
+  const parsedReceiptDocument = docJson ? parseReceiptImport(docJson) : null;
   const finance = summariseReceiptDocument(docJson);
 
   const totals = finance.totalsByCurrency.length
@@ -358,6 +380,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
       `- Needing review: ${finance.needsReview}`,
       `- Reconciled: ${finance.reconciled}`,
       `- Totals by original currency: ${totals}`,
+      ...(ingestedReadable ? [] : ["- Email-ingested receipts could not be read, so these counts may be low."]),
       request.includeReceiptDetails
         ? "- Approved vendor, date, total, currency, category, status, business-use and source-count fields follow. Stored ids, descriptions, order numbers, subtotals, tax, notes, source evidence, import times, owner identity, raw receipt data and payment-account details remain withheld."
         : "- Vendor names, individual amounts, order numbers, links, message ids and email text are deliberately withheld.",
