@@ -1299,9 +1299,7 @@ export function OfficeManager() {
                     {status.connected
                       ? `AI connected — OpenAI (${status.model}).`
                       : status.state === "auth_unavailable"
-                        ? status.keyPresent
-                          ? "AI blocked — a key is present but unusable without verified owner sign-in with two-step verification. Nothing here is an AI answer."
-                          : "AI not connected — verified owner sign-in with two-step verification is required first. Nothing here is an AI answer."
+                        ? "Authenticator required"
                         : status.state === "configured_unverified"
                           ? "Connection unverified"
                           : "Not connected"}
@@ -1412,6 +1410,8 @@ export function OfficeManager() {
                   </div>
                 ))}
               <div className="border-t border-border pt-3">
+                <details className="mb-2">
+                  <summary className="cursor-pointer py-2 text-sm">Conversation saving</summary>
                 <section data-testid="astra-continuity-status" aria-label="Conversation continuity" className="mb-3 space-y-1 rounded-md border border-border p-2 text-xs">
                   <p className="font-semibold text-foreground">Last conversation (not CanX Brain)</p>
                   {deviceNote && <p className="text-muted-foreground">{deviceNote}</p>}
@@ -1430,13 +1430,13 @@ export function OfficeManager() {
 
                 <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <input type="checkbox" checked={autoMemory} onChange={event => setAutoMemory(event.target.checked)} />
-                  Save useful discussion automatically during this session
+                  Automatic saving
                 </label>
                 <p role="status" className="mb-2 text-xs text-muted-foreground">{historyStatus === MEMORY_NOTICE && !autoMemory ? "Automatic saving is paused. Use Save conversation to preserve useful discussion before closing." : historyStatus}</p>
-                {autoMemory && historyStatus !== MEMORY_NOTICE && <p className="mb-2 text-xs text-muted-foreground">{MEMORY_NOTICE}</p>}
                 <Button size="sm" variant="outline" className="mb-2" disabled={savingSummary || busy || !session.stepUpComplete || !token} onClick={() => void saveConversationNow()}>
                   {savingSummary ? "Saving summary…" : "Save conversation"}
                 </Button>
+                </details>
                 <p role="status" aria-live="polite" className="mb-2 text-base">{delivery || (draft.trim() ? "Draft — not sent yet." : "")}</p>
                 {handoff && (
                   <section
