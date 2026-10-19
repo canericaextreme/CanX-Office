@@ -14,6 +14,9 @@
 - No background monitor exists (`HEALTH_SCHEDULE.configured = false`); do not present checks as continuous until a real owner-authorised scheduler exists. Why: signed-in checks need owner MFA.
 - Populated room components are exported (e.g. `SavedFileList`) and covered by fixture-render tests. Why: empty-state tests missed the Brain tooltip crash.
 
+## Database changes apply by merge — standard since 18 Oct 2026
+- An approved migration in `supabase/migrations` goes live by merging to `main`. `.github/workflows/office-migrations-apply.yml` applies only files newer than the newest live change, skips held files (first line `-- Draft only` or a `-- canx:hold` line) and anything already recorded, and runs each file in one transaction with its history record. Do not ask John to paste SQL into the Supabase dashboard, and do not rely on chat approval boxes. Mark a migration `-- canx:hold` if it must merge without going live. Rules and tests: `scripts/office-db/`. Why: the Supabase connector auto-cancelled the approved work-event migration three times.
+
 ## Supabase functions deploy by merge — standard since 15 Oct 2026
 - `office-mcp`, `office-view` and `office-consent` ship only by merging to `main`; `.github/workflows/office-functions-deploy.yml` deploys changed bundles, keeps Verify JWT, and never touches secrets. Do not ask John to paste code into the Supabase dashboard. Details: `docs/office-functions-auto-deploy.md`.
 

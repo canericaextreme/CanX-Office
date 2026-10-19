@@ -26,4 +26,4 @@ jobs:
       - run: bunx vitest run
       - run: bun run build
       - name: Merge robot rule tests
-        run: node --test scripts/automerge/*.nodetest.mjs
+        run: node --test scripts/automerge/*.nodetest.mjs scripts/office-db/*.nodetest.mjs

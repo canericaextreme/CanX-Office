@@ -1,0 +1,65 @@
+# CanX Office database changes apply by merge (approved by John 18 Oct 2026). Same standard as
+# office-functions-deploy.yml: merging an approved change to main is the approval; nobody pastes SQL
+# into the Supabase dashboard, and nothing depends on a chat approval box.
+# Applies only migration files NEWER than the newest change already live, skips held files
+# ("-- Draft only" first line or a "-- canx:hold" line) and anything already recorded, runs each file
+# in one transaction with its history record, and stops at the first failure.
+# Rules and tests: scripts/office-db/migrations.mjs, scripts/office-db/migrations.nodetest.mjs.
+# Uses the existing repository secret SUPABASE_ACCESS_TOKEN (same one the functions deploy uses).
+# Database PRs still go to John: the merge robot never auto-merges database or workflow changes.
+name: CanX Office database changes
+run-name: CanX Office database changes ${{ github.run_number }}
+on:
+  push:
+    branches: [main]
+    paths:
+      - supabase/migrations/**
+      - scripts/office-db/**
+      - .github/workflows/office-migrations-apply.yml
+  workflow_dispatch:
+    inputs:
+      files:
+        description: "Optional: exact migration file names to apply on purpose (space separated). Held files are still skipped."
+        required: false
+        type: string
+      dry_run:
+        description: "Only show the plan; change nothing"
+        required: false
+        type: boolean
+        default: false
+permissions: {}
+concurrency:
+  group: canx-office-migrations-apply
+  cancel-in-progress: false
+env:
+  PROJECT_REF: gmsjjiprtulxojhkmbqb
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Safety tests
+        run: node --test scripts/office-db/migrations.nodetest.mjs
+      - name: Apply approved database changes
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FILES: ${{ inputs.files }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -- $FILES
+          if [ "$DRY_RUN" = "true" ]; then set -- --dry-run "$@"; fi
+          node scripts/office-db/migrations.mjs "$@" | tee "$RUNNER_TEMP/out.txt"
+          {
+            echo "## Office database changes from ${GITHUB_SHA:0:7}"
+            grep -E '^(Plan:|::notice|::warning)' "$RUNNER_TEMP/out.txt" | sed -E 's/^::(notice|warning) title=([^:]+)::/- **\2**: /; s/^Plan:/- **Plan:**/'
+          } >> "$GITHUB_STEP_SUMMARY"
