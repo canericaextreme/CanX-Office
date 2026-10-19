@@ -4,10 +4,15 @@ import {
   STAGE_COLOURS,
   STAGE_DISPLAY_ORDER,
   STAGE_LABELS,
+  needsYou,
+  namesById,
   recentSparks,
   stageTotals,
   type BrainNode,
+  type BrainView,
 } from "@/lib/brain-view";
+import { useOwnerSession } from "@/lib/owner-session";
+import { BrainNeedsYou } from "./BrainNeedsYou";
 import { brainRoomLabel, brainViewRooms } from "@/lib/brain-view-layout";
 import { sendManagerHandoff } from "@/lib/companion-bridge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,8 +65,19 @@ function StageLegend() {
   );
 }
 
-function RoomBubble({ node, at }: { node: BrainNode | undefined; at: SceneHover }) {
+function RoomBubble({
+  node,
+  at,
+  view,
+  names,
+}: {
+  node: BrainNode | undefined;
+  at: SceneHover;
+  view: BrainView;
+  names: Map<string, string>;
+}) {
   const route = at.route;
+  const here = view.items.filter((it) => it.room === route && it.stage !== "completed").slice(0, 4);
   const parts = node
     ? STAGE_DISPLAY_ORDER.filter((st) => node.byStage[st]).map(
         (st) => `${node.byStage[st]} ${STAGE_LABELS[st].toLowerCase()}`,
@@ -78,6 +94,22 @@ function RoomBubble({ node, at }: { node: BrainNode | undefined; at: SceneHover 
         {node && node.active ? `${node.active} active` : "Nothing active here"}
         {parts.length ? ` · ${parts.join(", ")}` : ""}
       </div>
+      {here.length ? (
+        <ul className="mt-1 space-y-0.5">
+          {here.map((it) => (
+            <li key={it.id} className="flex items-start gap-1.5 text-foreground">
+              <span
+                aria-hidden
+                className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ background: STAGE_COLOURS[it.stage] }}
+              />
+              <span className="line-clamp-2">
+                {names.get(it.id) ?? `${it.kind} ${it.id.slice(0, 8)}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -89,7 +121,13 @@ function RoomBubble({ node, at }: { node: BrainNode | undefined; at: SceneHover 
 export function BrainLiveView({ state: injected }: { state?: BrainViewState } = {}) {
   const own = useBrainView({ live: !injected });
   const state = injected ?? own;
-  const { view, status, message, mode, arrivals, readAt, capped } = state;
+  const { view, status, message, mode, arrivals, readAt, capped, tasks, approvals, reload } = state;
+  const session = useOwnerSession();
+  const names = useMemo(() => namesById(tasks ?? []), [tasks]);
+  const needs = useMemo(
+    () => (tasks && approvals ? needsYou(view, tasks, approvals, new Date()) : null),
+    [view, tasks, approvals],
+  );
   const reducedMotion = useReducedMotion();
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<BrainLiveScene | null>(null);
@@ -179,7 +217,12 @@ export function BrainLiveView({ state: injected }: { state?: BrainViewState } = 
           aria-label={`Live Brain view. ${busyRooms.length ? busyRooms.map((n) => `${roomLabel(n.room)}: ${n.active} active`).join("; ") : "No active work recorded."}`}
         >
           {hover ? (
-            <RoomBubble node={view.nodes.find((n) => n.room === hover.route)} at={hover} />
+            <RoomBubble
+              node={view.nodes.find((n) => n.room === hover.route)}
+              at={hover}
+              view={view}
+              names={names}
+            />
           ) : null}
           {sceneState === "no-webgl" || sceneState === "failed" ? (
             <p className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground">
@@ -229,6 +272,13 @@ export function BrainLiveView({ state: injected }: { state?: BrainViewState } = 
                 ))}
               </ul>
             ) : null}
+            <BrainNeedsYou
+              items={needs}
+              tasks={tasks ?? []}
+              token={session.accessToken}
+              canAct={!session.viewer}
+              onDone={reload}
+            />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
                 Stalled means waiting, or no change for 7 days.
@@ -241,7 +291,7 @@ export function BrainLiveView({ state: injected }: { state?: BrainViewState } = 
                 className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
                 onClick={() =>
                   sendManagerHandoff({
-                    text: "Explain what's happening in the live Brain view right now: which rooms have active work, what moved recently, and what is stalled. Use only the work logbook.",
+                    text: "Explain what's happening in the live Brain view right now: which rooms have active work and what each item is, what moved recently, what is stalled, and what needs me to approve or archive. Use the work logbook and Work Board.",
                     room: "brain",
                     path: "/brain",
                     source: "room_button",

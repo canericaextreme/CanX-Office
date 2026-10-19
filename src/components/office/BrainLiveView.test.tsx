@@ -78,6 +78,9 @@ const ready = (over: Partial<BrainViewState> = {}): BrainViewState => ({
   capped: false,
   mode: "live",
   arrivals: [],
+  tasks: [],
+  approvals: [],
+  reload: () => undefined,
   ...over,
 });
 

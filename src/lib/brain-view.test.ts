@@ -5,7 +5,11 @@ import {
   STAGE_COLOURS,
   STAGE_DISPLAY_ORDER,
   STALL_AFTER_MS,
+  approvalInfoFromRow,
+  brainContextForModel,
   brainViewForModel,
+  needsYou,
+  taskInfoFromRow,
   buildBrainView,
   effectiveStage,
   movesPerDay,
@@ -261,5 +265,99 @@ describe("layout and the database recorder stay in step", () => {
       expect(sql).toContain(`WHEN '${m.name.toLowerCase()}' THEN '${routeFor(m.roomId)}'`);
       expect(BRAIN_VIEW_ROUTES).toContain(routeFor(m.roomId));
     }
+  });
+});
+
+describe("Needs you and names", () => {
+  const view = buildBrainView(
+    [
+      ev({
+        subject_id: "w1",
+        to_room: "/build-testing",
+        to_stage: "stalled",
+        occurred_at: hoursAgo(20),
+      }),
+      ev({
+        subject_id: "q1",
+        to_room: "/systems",
+        to_stage: "strategizing",
+        occurred_at: hoursAgo(24 * 9),
+      }),
+    ],
+    BRAIN_VIEW_ROUTES,
+    NOW,
+    "live",
+  );
+  const tasks = [
+    taskInfoFromRow({
+      id: "w1",
+      title: "Finance headings",
+      detail: "d",
+      project: "",
+      status: "waiting",
+      worker: "claude",
+      waiting_reason: "Draft #122 needs review",
+      risk: "green",
+      updated_at: hoursAgo(20),
+    })!,
+    taskInfoFromRow({
+      id: "q1",
+      title: "Rotate keys",
+      status: "open",
+      worker: "systems & security",
+      waiting_reason: "",
+      risk: "yellow",
+      updated_at: hoursAgo(24 * 9),
+    })!,
+    taskInfoFromRow({
+      id: "f1",
+      title: "Fresh task",
+      status: "open",
+      worker: "office manager",
+      waiting_reason: "",
+      risk: "green",
+      updated_at: hoursAgo(2),
+    })!,
+  ];
+  const approvals = [
+    approvalInfoFromRow({
+      id: "a1",
+      title: "Buy domain",
+      detail: "For Trails",
+      cost_cents: 1500,
+      risk: "yellow",
+      created_at: hoursAgo(1),
+      task_id: null,
+    })!,
+  ];
+
+  it("lists approvals first, then holds with their reason, then work quiet for a week", () => {
+    const n = needsYou(view, tasks, approvals, NOW);
+    expect(n.map((x) => [x.kind, x.id])).toEqual([
+      ["approval", "a1"],
+      ["waiting", "w1"],
+      ["quiet", "q1"],
+    ]);
+    expect(n[1]).toMatchObject({ room: "/build-testing", why: "On hold: Draft #122 needs review" });
+    expect(n[2]!.why).toMatch(/no change for 9 days/);
+    expect(n.some((x) => x.id === "f1")).toBe(false);
+  });
+
+  it("keeps each task's saved text exactly, for a safe resume", () => {
+    expect(tasks[0]!.saved).toEqual({ title: "Finance headings", detail: "d", project: "" });
+  });
+
+  it("gives Elsie names and what needs John, quoted as data", () => {
+    const text = brainContextForModel(view, NOW, { tasks, approvals });
+    expect(text).toContain('/build-testing · stalled · "Finance headings"');
+    expect(text).toContain("Needs John (3)");
+    expect(text).toContain('[approval] "Buy domain"');
+    expect(text).toContain("cost 1500¢");
+  });
+
+  it("tells Elsie when names couldn't be read, instead of guessing", () => {
+    expect(brainContextForModel(view, NOW, { tasks: null, approvals: null })).toMatch(
+      /Work Board could not be read/,
+    );
   });
 });

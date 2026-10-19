@@ -20,9 +20,9 @@ const LIVE = [
 
 const repo = readMigrationFiles("supabase/migrations");
 
-test("against the real repo and live history, only the new work-event recorder is applied", () => {
+test("against the real repo and live history, only the new recorder and assistant read access are applied", () => {
   const p = plan(repo, LIVE);
-  assert.deepEqual(p.apply.map((f) => f.file), ["20261019040000_office_work_event_recorder.sql"]);
+  assert.deepEqual(p.apply.map((f) => f.file), ["20261019040000_office_work_event_recorder.sql", "20261019050000_office_work_events_assistant_read.sql"]);
 });
 
 test("Elsie's held extended-sessions file is never applied automatically", () => {
@@ -38,12 +38,12 @@ test("older files already live under other dates are not re-run", () => {
 
 test("a held file stays held even when asked for by name", () => {
   const p = plan(repo, LIVE, ["20261017013000_elsie_extended_sessions.sql"]);
-  assert.equal(p.apply.length, 1); // only the newer recorder
+  assert.equal(p.apply.length, 2); // only the two newer files
   assert.ok(p.skipped.some((s) => s.file.includes("elsie_extended_sessions") && /hold/.test(s.reason)));
 });
 
 test("nothing is applied twice", () => {
-  const after = [...LIVE, { version: "20261019040000", name: "office_work_event_recorder" }];
+  const after = [...LIVE, { version: "20261019040000", name: "office_work_event_recorder" }, { version: "20261019050000", name: "office_work_events_assistant_read" }];
   assert.equal(plan(repo, after).apply.length, 0);
 });
 

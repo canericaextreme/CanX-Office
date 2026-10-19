@@ -96,17 +96,21 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
     case "brain-view": {
       // Owner-only logbook: a read-only viewer would see nothing, so say so rather than report "no work".
       if (req.aal === "viewer") return result(def, { status: "denied", detail: "the work logbook is owner-only" });
-      const { readBrainEventsWith } = await import("./brain-view.functions");
-      const { buildBrainView, brainViewForModel } = await import("./brain-view");
+      const { readBrainEventsWith, readBrainWorkWith } = await import("./brain-view.functions");
+      const { buildBrainView, brainContextForModel, taskInfoFromRow, approvalInfoFromRow } = await import("./brain-view");
       const { BRAIN_VIEW_ROUTES } = await import("./brain-view-layout");
-      const read = await readBrainEventsWith((p, i) => req.rest(req.config, req.token, p, i));
+      const rest = (p: string, i?: RequestInit) => req.rest(req.config, req.token, p, i);
+      const [read, work] = await Promise.all([readBrainEventsWith(rest), readBrainWorkWith(rest)]);
       if (!read) return failed(def);
       const now = req.now?.() ?? new Date();
       const view = buildBrainView(read.rows, BRAIN_VIEW_ROUTES, now, "live");
       return result(def, {
         count: view.items.length,
         ...(read.capped ? { capped: true } : {}),
-        items: brainViewForModel(view, now).split("\n"),
+        items: brainContextForModel(view, now, {
+          tasks: work.tasks ? work.tasks.map((r) => taskInfoFromRow(r)).filter((x) => x !== null) : null,
+          approvals: work.approvals ? work.approvals.map((r) => approvalInfoFromRow(r)).filter((x) => x !== null) : null,
+        }).split("\n"),
         latestAt: view.events.at(-1)?.at ?? null,
         detail: `${view.events.length} logbook line(s), ${view.sparks.length} room move(s)${read.capped ? "; most recent lines only" : ""}`,
       });

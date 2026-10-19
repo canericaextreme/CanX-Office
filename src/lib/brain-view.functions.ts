@@ -55,11 +55,84 @@ export async function readBrainEventsWith(
   return { rows, capped: rows.length >= BRAIN_EVENTS_LIMIT };
 }
 
+export const BRAIN_TASKS_QUERY =
+  "manager_tasks?select=id,title,detail,project,status,worker,waiting_reason,risk,updated_at&status=in.(open,in_progress,waiting)&order=updated_at.desc&limit=300";
+export const BRAIN_APPROVALS_QUERY =
+  "manager_approvals?select=id,title,detail,cost_cents,risk,created_at,task_id&status=eq.pending&order=created_at.asc&limit=50";
+
+/** Plain-text task line for the browser. */
+export type BrainTaskRow = {
+  id: string;
+  title: string;
+  detail: string;
+  project: string;
+  status: string;
+  worker: string;
+  waiting_reason: string;
+  risk: string;
+  updated_at: string;
+};
+export type BrainApprovalRow = {
+  id: string;
+  title: string;
+  detail: string;
+  cost_cents: number | null;
+  risk: string;
+  created_at: string;
+  task_id: string | null;
+};
+
+const toTaskRow = (r: Record<string, unknown>): BrainTaskRow => ({
+  id: str(r["id"], 80),
+  title: str(r["title"], 300),
+  detail: str(r["detail"], 2000),
+  project: str(r["project"], 160),
+  status: str(r["status"], 20),
+  worker: str(r["worker"], 160),
+  waiting_reason: str(r["waiting_reason"], 300),
+  risk: str(r["risk"], 10),
+  updated_at: str(r["updated_at"], 40),
+});
+const toApprovalRow = (r: Record<string, unknown>): BrainApprovalRow => ({
+  id: str(r["id"], 80),
+  title: str(r["title"], 300),
+  detail: str(r["detail"], 600),
+  cost_cents:
+    typeof r["cost_cents"] === "number" && Number.isFinite(r["cost_cents"])
+      ? (r["cost_cents"] as number)
+      : null,
+  risk: str(r["risk"], 10),
+  created_at: str(r["created_at"], 40),
+  task_id: opt(r["task_id"]),
+});
+
+/** Active Work Board tasks and pending approvals, for names and the Needs-you list. null = that read failed (never guessed). */
+export async function readBrainWorkWith(
+  rest: BrainViewRest,
+): Promise<{ tasks: BrainTaskRow[] | null; approvals: BrainApprovalRow[] | null }> {
+  const [t, a] = await Promise.all([
+    rest(BRAIN_TASKS_QUERY).catch(() => null),
+    rest(BRAIN_APPROVALS_QUERY).catch(() => null),
+  ]);
+  return {
+    tasks:
+      t?.ok && Array.isArray(t.body)
+        ? (t.body as Array<Record<string, unknown>>).map(toTaskRow)
+        : null,
+    approvals:
+      a?.ok && Array.isArray(a.body)
+        ? (a.body as Array<Record<string, unknown>>).map(toApprovalRow)
+        : null,
+  };
+}
+
 export type BrainViewResult =
   | {
       ok: true;
       rows: BrainEventRow[];
       capped: boolean;
+      tasks: BrainTaskRow[] | null;
+      approvals: BrainApprovalRow[] | null;
       readAt: string;
       live: { url: string; key: string };
     }
@@ -78,7 +151,8 @@ export const getBrainView = createServerFn({ method: "POST" })
     if (!config) return { ok: false, message: b.DENY_MESSAGES.backend_not_configured };
     const owner = await b.verifyOwner(data.accessToken);
     if (!owner.ok) return { ok: false, message: owner.message };
-    const read = await readBrainEventsWith((p, i) => b.restRequest(config, data.accessToken, p, i));
+    const rest: BrainViewRest = (p, i) => b.restRequest(config, data.accessToken, p, i);
+    const [read, work] = await Promise.all([readBrainEventsWith(rest), readBrainWorkWith(rest)]);
     if (!read)
       return {
         ok: false,
@@ -89,6 +163,8 @@ export const getBrainView = createServerFn({ method: "POST" })
       ok: true,
       rows: read.rows,
       capped: read.capped,
+      tasks: work.tasks,
+      approvals: work.approvals,
       readAt: new Date().toISOString(),
       live: { url: config.url, key: config.publishableKey },
     };

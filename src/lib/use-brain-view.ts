@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getBrainView, toBrainEventRow, type BrainEventRow } from "./brain-view.functions";
+import {
+  approvalInfoFromRow,
+  taskInfoFromRow,
+  type BrainApprovalInfo,
+  type BrainTaskInfo,
+} from "./brain-view";
 import { buildBrainView, parseBrainEvent, type BrainEvent, type BrainView } from "./brain-view";
 import { BRAIN_VIEW_ROUTES } from "./brain-view-layout";
 import { useOwnerSession } from "./owner-session";
@@ -17,6 +23,12 @@ export interface BrainViewState {
   mode: BrainLiveMode;
   /** Lines that arrived after the first read, oldest first — the view animates these. */
   arrivals: BrainEvent[];
+  /** Active Work Board tasks (names, holds). null = the Work Board could not be read. */
+  tasks: BrainTaskInfo[] | null;
+  /** Approval-box requests waiting for John. null = could not be read. */
+  approvals: BrainApprovalInfo[] | null;
+  /** Re-read everything now (after John approves or archives something). */
+  reload: () => void;
 }
 
 const POLL_MS = 60_000;
@@ -38,6 +50,9 @@ export function useBrainView(opts: { live?: boolean } = {}): BrainViewState {
   const [mode, setMode] = useState<BrainLiveMode>("off");
   const [arrivals, setArrivals] = useState<BrainEvent[]>([]);
   const [tick, setTick] = useState(0);
+  const [tasks, setTasks] = useState<BrainTaskInfo[] | null>(null);
+  const [approvals, setApprovals] = useState<BrainApprovalInfo[] | null>(null);
+  const reloadRef = useRef<() => void>(() => undefined);
   const seen = useRef(new Set<string>());
   const first = useRef(true);
 
@@ -52,6 +67,7 @@ export function useBrainView(opts: { live?: boolean } = {}): BrainViewState {
     let active = true;
     let channel: { unsubscribe: () => unknown } | null = null;
     let poll: ReturnType<typeof setInterval> | null = null;
+    let refreshSoon: ReturnType<typeof setTimeout> | null = null;
     seen.current = new Set();
     first.current = true;
 
@@ -76,6 +92,18 @@ export function useBrainView(opts: { live?: boolean } = {}): BrainViewState {
         }
       }
       setRows(r.rows);
+      setTasks(
+        r.tasks
+          ? r.tasks.map((x) => taskInfoFromRow(x)).filter((x): x is BrainTaskInfo => x !== null)
+          : null,
+      );
+      setApprovals(
+        r.approvals
+          ? r.approvals
+              .map((x) => approvalInfoFromRow(x))
+              .filter((x): x is BrainApprovalInfo => x !== null)
+          : null,
+      );
       setReadAt(r.readAt);
       setCapped(r.capped);
       setStatus("ready");
@@ -131,6 +159,9 @@ export function useBrainView(opts: { live?: boolean } = {}): BrainViewState {
               setRows((prev) => [row, ...prev]);
               setArrivals((a) => [...a, e].slice(-50));
               setReadAt(new Date().toISOString());
+              // A move means a task changed: refresh names and the Needs-you list shortly after.
+              if (refreshSoon) clearTimeout(refreshSoon);
+              refreshSoon = setTimeout(() => void load(false), 1500);
             },
           )
           .subscribe((s: string) => {
@@ -147,6 +178,7 @@ export function useBrainView(opts: { live?: boolean } = {}): BrainViewState {
     const reload = () => {
       void load(false);
     };
+    reloadRef.current = reload;
     window.addEventListener("canx:workbench-changed", reload);
     const stalledClock = setInterval(() => setTick((n) => n + 1), POLL_MS);
     return () => {
@@ -154,6 +186,8 @@ export function useBrainView(opts: { live?: boolean } = {}): BrainViewState {
       window.removeEventListener("canx:workbench-changed", reload);
       clearInterval(stalledClock);
       if (poll) clearInterval(poll);
+      if (refreshSoon) clearTimeout(refreshSoon);
+      reloadRef.current = () => undefined;
       try {
         channel?.unsubscribe();
       } catch {
@@ -174,5 +208,6 @@ export function useBrainView(opts: { live?: boolean } = {}): BrainViewState {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, status, tick],
   );
-  return { status, message, view, readAt, capped, mode, arrivals };
+  const reload = useMemo(() => () => reloadRef.current(), []);
+  return { status, message, view, readAt, capped, mode, arrivals, tasks, approvals, reload };
 }

@@ -14,6 +14,24 @@ function fakeRest(events: unknown[] | "fail") {
       return events === "fail"
         ? { ok: false, status: 500, body: null }
         : { ok: true, status: 200, body: events };
+    if (path.startsWith("manager_tasks"))
+      return {
+        ok: true,
+        status: 200,
+        body: [
+          {
+            id: "a",
+            title: "Plan the seniors app",
+            detail: "",
+            project: "",
+            status: "in_progress",
+            worker: "Projects Lead",
+            waiting_reason: "",
+            risk: "green",
+            updated_at: "2026-10-19T03:00:00Z",
+          },
+        ],
+      };
     return { ok: true, status: 200, body: [] };
   };
   return { rest, calls };
@@ -68,7 +86,15 @@ describe("Elsie's live Brain view source", () => {
       now: NOW,
     });
     const src = snap.sources.find((s) => s.key === "brain-view")!;
-    expect(calls.every((c) => c.startsWith("GET office_work_events"))).toBe(true);
+    // Read-only: the logbook, the Work Board (names) and the approval box, nothing written.
+    expect(calls.every((c) => c.startsWith("GET "))).toBe(true);
+    expect(calls.some((c) => c.startsWith("GET office_work_events"))).toBe(true);
+    expect(calls.some((c) => c.startsWith("GET manager_tasks"))).toBe(true);
+    expect(
+      calls.some((c) => c.startsWith("GET manager_approvals") && c.includes("status=eq.pending")),
+    ).toBe(true);
+    expect(src.items.join("\n")).toContain('/projects · building · "Plan the seniors app"');
+    expect(src.items.join("\n")).toContain("Nothing needs John right now.");
     expect(src.status).toBe("read");
     expect(src.items.join("\n")).toContain("/projects: 1 active");
     expect(src.items.join("\n")).toContain("task /idea-garage → /projects (building)");
