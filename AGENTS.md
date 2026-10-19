@@ -30,11 +30,11 @@ John authorises GitHub saving and publication of completed owner-requested CanX 
 - Finish every completed CanX Office change by running checks appropriate to the change, committing and pushing to the connected `canericaextreme/CanX-Office` branch, confirming Lovable has synced that commit, then publishing project `52572715-7d7c-4c7a-85cb-96664ada3394` to the existing `https://canx-office.lovable.app` address. Do not ask again for ordinary publication already authorised here.
 - Reconcile GitHub and publication daily. Publish checked completed updates; stage failures with exact blockers. Later private-preview instructions override publication.
 - Preserve user records, secrets, budgets, authentication and rollback history. No force pushes, secret exposure, new spending, provider subscriptions, database migrations or unrelated changes are authorised by this release policy.
-- Record the source commit and deployment result. A pending deployment is not a successful publication. Publishing and signed-in functional verification are separate: do not mark health or voice verified merely because publication succeeds.
+- Record commit and deployment result; pending is not published. Publication never verifies signed-in health or voice.
 - Evening release checks are not continuous health monitoring; owner/MFA verification remains mandatory.
 
 ## Development entrance
-- Only development builds may bypass the OfficeGate presentation screen; never fabricate a session or bypass data/action checks. Why: preview browsing must not open production records or permissions.
+- Skip OfficeGate during the build period; restore it when John finishes. Never bypass records/actions. Why: sign-in-free browsing is not authentication.
 
 ## Owner-only connection shutdown — 4 October 2026
 Only John may authorise changes to Claude or ChatGPT/Codex enablement, credentials, routing or removal. Neither assistant may sever the other's access. Ordinary coding/publication does not authorise this; affected candidates remain proposals. The Office cannot disable external accounts. Why: connection control belongs to John.

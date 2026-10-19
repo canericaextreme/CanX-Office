@@ -242,10 +242,9 @@ export function OfficeSignInScreen({ onSignedIn }: { onSignedIn?: () => void } =
 
 /**
  * Gate: checking → office or sign-in, deterministically.
- * Production fails closed; development allows UI browsing without a session.
- * Server-side permissions remain unchanged. With no backend there is no way
- * to verify the owner, so the office is kept closed and the unavailable
- * sign-in screen is shown instead of any office content.
+ * During the owner-requested build period, all builds skip the entrance.
+ * This grants presentation access only, never record/action permissions.
+ * After the build period, non-development builds require a verified owner.
  */
 export function OfficeGate({ children }: { children: ReactNode }) {
   const session = useOwnerSession();
