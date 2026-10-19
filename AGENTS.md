@@ -26,15 +26,18 @@
 - The office audit's checklist of record is `docs/office-audit.md`; keep it in step when room sources, skills or connections change. Why: no room may be silently dropped across staged work.
 
 ## GitHub saving and publication — standing authorisation, 4 October 2026
-John explicitly requested automatic publication after every completed CanX Office application change (major or minor), pushed to GitHub as office changes are made. This supersedes older preview-only/no-publish instructions for completed, owner-requested CanX Office updates. It does not apply to Safe Highways or other projects.
+John authorises GitHub saving and publication of completed owner-requested CanX Office changes, superseding older preview-only defaults; not Safe Highways or other projects.
 - Finish every completed CanX Office change by running checks appropriate to the change, committing and pushing to the connected `canericaextreme/CanX-Office` branch, confirming Lovable has synced that commit, then publishing project `52572715-7d7c-4c7a-85cb-96664ada3394` to the existing `https://canx-office.lovable.app` address. Do not ask again for ordinary publication already authorised here.
-- At the end of a work day, reconcile completed changes with GitHub and the published office. Publish completed updates that passed checks; leave incomplete or failed work staged and explain the exact blocker. An explicit later request to keep a change private overrides this default for that change.
+- Reconcile GitHub and publication daily. Publish checked completed updates; stage failures with exact blockers. Later private-preview instructions override publication.
 - Preserve user records, secrets, budgets, authentication and rollback history. No force pushes, secret exposure, new spending, provider subscriptions, database migrations or unrelated changes are authorised by this release policy.
 - Record the source commit and deployment result. A pending deployment is not a successful publication. Publishing and signed-in functional verification are separate: do not mark health or voice verified merely because publication succeeds.
-- A ChatGPT evening release automation is a release check, not a continuous signed-in Office health monitor. Existing owner/MFA health requirements remain.
+- Evening release checks are not continuous health monitoring; owner/MFA verification remains mandatory.
+
+## Development entrance
+- Only development builds may bypass the OfficeGate presentation screen; never fabricate a session or bypass data/action checks. Why: preview browsing must not open production records or permissions.
 
 ## Owner-only connection shutdown — 4 October 2026
-Only John may turn off either Claude or ChatGPT/Codex once connected. Neither colleague may disable, revoke, remove, replace, or sever the other's Office access on its own initiative. Changes to either connection's enablement, credentials, routing, or removal require John's explicit instruction for that change; ordinary coding or standing publication authorisation does not authorise shutdown. Build candidates affecting these controls must remain proposals until that owner instruction is present. Do not claim the Office can disable the external ChatGPT or Claude account.
+Only John may authorise changes to Claude or ChatGPT/Codex enablement, credentials, routing or removal. Neither assistant may sever the other's access. Ordinary coding/publication does not authorise this; affected candidates remain proposals. The Office cannot disable external accounts. Why: connection control belongs to John.
 
 ## Routine pull requests merge themselves — CanX merge robot (issue #142, 17 Oct 2026)
 - For John-authorized routine work: open the PR into `main`, mark it ready and add the label `canx:auto-merge`. The robot merges after `pr-checks` and every other check pass and the other AI company approves the exact commit. Rules: `scripts/automerge/policy.mjs`; plain explanation: `docs/canx-merge-robot.md`.

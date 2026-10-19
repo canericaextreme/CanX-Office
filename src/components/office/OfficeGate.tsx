@@ -17,6 +17,7 @@ import { LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useOwnerSession } from "@/lib/owner-session";
+import { canBrowseOfficeWithoutSignIn } from "@/lib/office-development-access";
 
 function Shell({ children }: { children: ReactNode }) {
   return (
@@ -241,7 +242,8 @@ export function OfficeSignInScreen({ onSignedIn }: { onSignedIn?: () => void } =
 
 /**
  * Gate: checking → office or sign-in, deterministically.
- * The gate fails closed. With no CanX-owned backend configured there is no way
+ * Production fails closed; development allows UI browsing without a session.
+ * Server-side permissions remain unchanged. With no backend there is no way
  * to verify the owner, so the office is kept closed and the unavailable
  * sign-in screen is shown instead of any office content.
  */
@@ -268,6 +270,7 @@ export function OfficeGate({ children }: { children: ReactNode }) {
     try { window.sessionStorage.setItem("canx-office-logo-entrance-v1", "1"); } catch { /* Keep page state. */ }
   };
 
+  if (canBrowseOfficeWithoutSignIn(import.meta.env.DEV)) return <>{children}</>;
   if (session.state === "checking" || !entranceChecked) return <OfficeOpeningScreen />;
   if (session.state !== "owner") return <OfficeSignInScreen onSignedIn={enterOffice} />;
   if (!entered && !session.viewer) {
