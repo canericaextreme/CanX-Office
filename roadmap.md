@@ -1,8 +1,9 @@
 # Phase 1 bright office completion
 
 ## Phone landscape and header access (2026-10-19)
-- [ ] Fit the header in portrait/landscape and expose optional owner sign-in.
-- [ ] Verify rotated phone layouts and sign-in opening; real owner/MFA test needs John.
+- [x] Fit the header in portrait/landscape and expose optional owner sign-in without changing authentication.
+- [x] Verify 360×625, 625×360, 844×390, 740×360 and desktop: controls visible, no horizontal overflow, sign-in opens, no runtime errors; 12 focused tests and preview build passed.
+- [ ] Real iPhone/Android rotation and owner/MFA sign-in need John's device check; not published.
 
 ## Subscription expiry and promotion filtering (2026-10-04)
 - [x] Expand bounded Gmail search terms for expiry, renewal, trial, suspension and payment/card failure language.
