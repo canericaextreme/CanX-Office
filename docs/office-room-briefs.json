@@ -2546,6 +2546,11 @@
      "key": "decisions",
      "label": "Saved decisions",
      "kind": "live"
+    },
+    {
+     "key": "brain-view",
+     "label": "Live Brain view — work logbook (moves between rooms and stages)",
+     "kind": "live"
     }
    ],
    "skillRegistryVersion": "2026-10-04.3",

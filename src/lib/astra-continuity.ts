@@ -9,6 +9,8 @@
  * owner id or any memory. Stored text is rendered as untrusted office data.
  */
 
+import { handoffContext, readLatestHandoffs, type HandoffNote } from "./conversation-handoff";
+
 export type Rest = (
   path: string,
   init?: RequestInit,
@@ -48,6 +50,7 @@ export function astraContinuityContext(
   summaries: unknown[],
   recentNewestFirst: unknown[],
   layout: ContinuityLayout = {},
+  handoffs: HandoffNote[] = [],
 ): string {
   const m = rows(memory).filter(r => r["active"] !== false).slice(0, MEMORY_LIMIT);
   const s = rows(summaries).slice(0, SUMMARY_LIMIT);
@@ -68,18 +71,24 @@ export function astraContinuityContext(
       : `Recent turns (${r.length}, oldest first; earlier turns are pruned):`,
     ...r.map(x => `- ${x["role"] === "assistant" ? (typeof x["content"] === "string" && x["content"].startsWith("[Claude Office] ") ? "Claude" : "Elsie") : "John"} [${clean(x["created_at"], 40)}]: ${clean(x["content"], 1200)}`),
   ];
+  const handoffLines = handoffs.length ? [handoffContext(handoffs)] : [];
   const footer = "Old plans are not completed work; old requests are not new approvals.";
   return (layout.recentFirst
-    ? [header, footer, ...recentLines, ...summaryLines, ...memoryLines]
-    : [header, ...memoryLines, ...summaryLines, ...recentLines, footer]
+    ? [header, footer, ...recentLines, ...handoffLines, ...summaryLines, ...memoryLines]
+    : [header, ...memoryLines, ...summaryLines, ...handoffLines, ...recentLines, footer]
   ).join("\n");
 }
 
 export async function readAstraContinuity(rest: Rest, ownerId: string, layout: ContinuityLayout = {}): Promise<ContinuityRead> {
   if (!uuid.test(ownerId)) return { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Owner id was not verified." };
   // Preferred path: the existing database function, run as the owner (RLS).
-  const rpc = await rest("rpc/get_astra_context", { method: "POST", body: "{}" }).catch(() => ({ ok: false, status: 0, body: null as unknown }));
-  const fromRpc = rpc.ok ? rpcContext(rpc.body, layout) : null;
+  // Claude's and ChatGPT's latest handoffs are read alongside; a failed
+  // handoff read only leaves that section out.
+  const [rpc, handoffs] = await Promise.all([
+    rest("rpc/get_astra_context", { method: "POST", body: "{}" }).catch(() => ({ ok: false, status: 0, body: null as unknown })),
+    readLatestHandoffs(rest, ownerId),
+  ]);
+  const fromRpc = rpc.ok ? rpcContext(rpc.body, layout, handoffs) : null;
   if (fromRpc) return fromRpc;
   const owner = `owner_id=eq.${encodeURIComponent(ownerId)}`;
   const safe = (p: ReturnType<Rest>) => p.catch(() => ({ ok: false, status: 0, body: null as unknown }));
@@ -92,7 +101,7 @@ export async function readAstraContinuity(rest: Rest, ownerId: string, layout: C
     return { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity tables could not be read." };
   }
   const m = rows(memory.body), s = rows(summaries.body), r = rows(recent.body);
-  return { ok: true, text: astraContinuityContext(m, s, r, layout), counts: { memory: m.length, summaries: s.length, recent: r.length } };
+  return { ok: true, text: astraContinuityContext(m, s, r, layout, handoffs), counts: { memory: m.length, summaries: s.length, recent: r.length } };
 }
 
 function pick(obj: Record<string, unknown>, ...keys: string[]): unknown[] | null {
@@ -101,7 +110,7 @@ function pick(obj: Record<string, unknown>, ...keys: string[]): unknown[] | null
 }
 
 /** Accepts get_astra_context output as an object (or single-row array) of three lists. */
-export function rpcContext(body: unknown, layout: ContinuityLayout = {}): ContinuityRead | null {
+export function rpcContext(body: unknown, layout: ContinuityLayout = {}, handoffs: HandoffNote[] = []): ContinuityRead | null {
   const obj = Array.isArray(body) && body.length === 1 ? body[0] : body;
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
   const o = (Object.keys(obj).length === 1 && typeof Object.values(obj)[0] === "object" ? Object.values(obj)[0] : obj) as Record<string, unknown>;
@@ -114,7 +123,7 @@ export function rpcContext(body: unknown, layout: ContinuityLayout = {}): Contin
   const newestFirst = [...rows(recent)].sort((a, b) => String(b["created_at"] ?? "").localeCompare(String(a["created_at"] ?? "")));
   return {
     ok: true,
-    text: astraContinuityContext(memory, summaries, newestFirst, layout) + "\n(Source: get_astra_context.)",
+    text: astraContinuityContext(memory, summaries, newestFirst, layout, handoffs) + "\n(Source: get_astra_context.)",
     counts: { memory: rows(memory).length, summaries: rows(summaries).length, recent: newestFirst.length },
   };
 }

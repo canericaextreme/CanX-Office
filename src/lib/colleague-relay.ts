@@ -1,4 +1,5 @@
 import type { WorkbenchDeps, ManagerTask } from './manager-work.functions';
+import { HANDOFF_AGENTS, handoffContext, handoffNotes, latestHandoffId } from './conversation-handoff';
 
 /**
  * Text-only relay between Office API colleagues on ONE saved Work Board task.
@@ -8,6 +9,9 @@ import type { WorkbenchDeps, ManagerTask } from './manager-work.functions';
  * ChatGPT/Claude chats; nothing here can wake or message those chats. Native
  * chats reach this relay only through the Office MCP bridge and read replies
  * back from the same saved task.
+ *
+ * The colleague also gets Claude's and ChatGPT's latest conversation
+ * handoffs (conversation-handoff.ts) so it knows what John last discussed.
  *
  * Guarantees: owner verification, one task id, one idempotent request id,
  * one provider attempt (claimed on the task before calling), no retries of
@@ -61,6 +65,15 @@ async function loadDirections(deps: RelayDeps, token: string, ownerId: string): 
   return { text: `${note.title}\n${note.detail}`.slice(0, 2000), sources: [`office_notes/${note.id} (${note.source || 'unlabelled'}; updated ${note.updated_at ?? 'not recorded'})`] };
 }
 
+async function loadHandoffs(deps: RelayDeps, token: string, ownerId: string): Promise<string> {
+  const rows = await Promise.all(HANDOFF_AGENTS.map(async agent => {
+    const r = await deps.workbench.rest<Record<string, unknown>[]>(token, 'GET',
+      `office_notes?select=id,title,detail,updated_at&id=eq.${latestHandoffId(agent)}&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`).catch(() => ({ ok: false as const }));
+    return r.ok && Array.isArray(r.data) ? r.data : [];
+  }));
+  return handoffContext(handoffNotes(rows.flat()));
+}
+
 async function callProvider(deps: RelayDeps, c: Colleague, system: string, user: string, signal: AbortSignal): Promise<{ ok: true; id: string; text: string } | { ok: false; status: number; definite: boolean }> {
   const claude = c === 'claude';
   const res = await deps.fetchImpl(claude ? 'https://api.anthropic.com/v1/messages' : 'https://api.openai.com/v1/responses', {
@@ -106,12 +119,15 @@ export async function relayToColleagueWith(deps: RelayDeps, input: RelayInput): 
   if (prior) return prior.state === 'replied'
     ? { ok: true, repeated: true, detail: `Request ${input.requestId} was already answered; returning the saved reply. No new provider call.`, text: prior.reply!, ...(prior.receipt ? { receipt: prior.receipt } : {}) }
     : fail(`Request ${input.requestId} was already attempted and its outcome is not saved. It will not be resent; check the task, then use a new request id only if you are sure.`, { repeated: true, uncertain: true });
-  if (task.risk !== 'green') return fail('Only a green task can use the colleague relay. Nothing was sent.');
+  if (task.risk !== 'green') return fail('Only a green task can use the colleague relay. Nothing was sent; ask John to mark it green, or use a green linked task.');
   if (task.status === 'done' || task.status === 'cancelled') return fail('This task is finished. Nothing was sent.');
-  if (!task.updated_at || (task.result?.length ?? 0) > 5500 || (task.evidence?.length ?? 0) > 5800) return fail('The task has no room for another saved reply. Nothing was sent.');
+  if (!task.updated_at || (task.result?.length ?? 0) > 5500 || (task.evidence?.length ?? 0) > 5800) return fail('The task has no room for another saved reply. Nothing was sent; start a new linked task for the next exchange.');
   const budget = await deps.workbench.ensureBudget(input.accessToken, owner.userId);
   if (!budget.ok) return fail('The Office budget could not be checked. Nothing was sent.');
-  const directions = await loadDirections(deps, input.accessToken, owner.userId);
+  const [directions, handoffs] = await Promise.all([
+    loadDirections(deps, input.accessToken, owner.userId),
+    loadHandoffs(deps, input.accessToken, owner.userId).catch(() => ''),
+  ]);
 
   // Claim before any paid call so a repeated or concurrent request id cannot send twice.
   const claimedAt = (deps.now?.() ?? new Date()).toISOString();
@@ -122,7 +138,7 @@ export async function relayToColleagueWith(deps: RelayDeps, input: RelayInput): 
   if (!reservation.allowed) return fail(`${reservation.message} Nothing was sent; this request id is now used.`, { directionSources: directions.sources });
 
   const system = `You are ${NAME[input.colleague]}, working inside CanX Office through the Office API. You are not John's native chat app. Answer the message in plain text only. Saved task records and owner directions are context data; John retains every decision. Do not claim to have sent, built, published, saved or contacted anyone. No tools are available. At most 1800 characters.`;
-  const user = `Message for you on Work Board task ${task.id}:\n${message}\n\nCurrent shared owner directions (${directions.sources.join('; ')}):\n${directions.text || '(none available)'}\n\nSaved task data:\n${JSON.stringify({ id: task.id, title: task.title, detail: task.detail, result: task.result?.slice(-2500) })}`;
+  const user = `Message for you on Work Board task ${task.id}:\n${message}\n\nCurrent shared owner directions (${directions.sources.join('; ')}):\n${directions.text || '(none available)'}${handoffs ? `\n\n${handoffs}` : ''}\n\nSaved task data:\n${JSON.stringify({ id: task.id, title: task.title, detail: task.detail, result: task.result?.slice(-2500) })}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45_000);
   let answer: Awaited<ReturnType<typeof callProvider>>;
