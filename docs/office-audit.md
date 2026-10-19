@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Actionable approval inbox — 17 October 2026
+
+John reported that approval boxes could not be opened, leaving him unsure how to decide. Each request now has an explicit Open details control. Pending requests appear under Needs your decision, while approved/declined records remain accessible under Past decisions without decision controls. Owner's Desk and the global approval notice link to the exact request and open its details. Dismissal tracks request IDs so a different request with the same count is announced again. Controls have phone-sized touch targets, readable details and status feedback. A linked request opens once; refreshing records preserves the card John chose to open or close. Existing owner checks and server decision actions are unchanged; no actual owner request was approved or declined during testing. Populated UI fixtures cover opening, linked history, explicit decisions, missing owner verification, pending saves and refreshed outcomes. Signed-in desktop/mobile acceptance remains separate from fixture and publication checks.
+
 ## Work Board receipt display repair — 17 October 2026
 
 An owner-scoped waiting task carried a valid Claude `office-task-v2` receipt followed by appended notes. Execution/reconnect readers supported this format, but Work Board's display helper parsed the entire evidence string as JSON and returned no receipt. This hid the build link, exposed the raw evidence text and removed the form's read-only receipt guard. The display now uses the existing validated `readBuildReceipt` helper. Legacy Codex receipts and uncertain-submission warnings remain supported, and malformed/unknown receipts do not gain invented build links. No saved task is changed. Regression fixtures fail on the previous helper and pass after the correction; 70 related tests, typecheck, new-file lint and production build passed. Published signed-in acceptance remains unverified.
