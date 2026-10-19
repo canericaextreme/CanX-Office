@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { BarChart3, Bot, Brain, Building2, ChevronLeft, FileText, FolderKanban, Home, LayoutGrid, List, Search, Users } from "lucide-react";
+import { BarChart3, Bot, Brain, Building2, ChevronLeft, FileText, FolderKanban, Home, Search, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,7 @@ import { AccountMenu } from "@/components/office/AccountMenu";
 import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
 import { OFFICE_MAP_ROOMS, clockwiseOfficeRooms, readOfficeLabelPositions } from '@/lib/office-map';
-import type { OfficeViewMode } from "@/hooks/use-office-view";
 
-interface OfficeNavProps { viewMode: OfficeViewMode; onToggleView: () => void; }
 type SearchResult = { id: string; label: string; detail: string; type: "Room" | "Task" | "Project" | "Worker" | "Record"; route: string; icon: typeof Building2 };
 
 const SEARCH_ITEMS: SearchResult[] = [
@@ -25,7 +23,7 @@ const SEARCH_ITEMS: SearchResult[] = [
   ...SAMPLE_APPROVALS.map((item) => ({ id: item.id, label: item.action, detail: item.requestedAt, type: "Record" as const, route: "/approvals", icon: FileText })),
 ];
 
-export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
+export function OfficeNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [synopsis, setSynopsis] = useState<{ route: string; label: string } | null>(null);
@@ -64,11 +62,11 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
-      <div className="mx-auto flex min-h-16 max-w-screen-2xl items-center gap-2 px-3 sm:gap-3 sm:px-5">
+      <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-2 px-3 sm:gap-3 sm:px-5">
         <Button variant="ghost" size="icon" aria-label="Back to previous CanX Office screen" onClick={goBack}><ChevronLeft className="h-5 w-5" /></Button>
         <Button variant="ghost" size="icon" asChild aria-label="Home / Reception" className="h-11 w-11 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-6"><Link to="/"><Home className="h-6 w-6" /></Link></Button>
 
-        <div className="relative min-w-0 flex-1">
+        <div className="relative order-last mb-2 w-full min-w-0 sm:order-none sm:mb-0 sm:w-auto sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             placeholder="Search rooms and sample items…"
@@ -107,10 +105,6 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           )}
         </div>
 
-        <Button variant="outline" size="sm" onClick={onToggleView} aria-label={viewMode === "3d" ? "Switch to simple view" : "Switch to office view"} className="shrink-0 gap-2 px-2 sm:px-3">
-          {viewMode === "3d" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          <span className="hidden sm:inline">{viewMode === "3d" ? "Simple" : "Office"}</span>
-        </Button>
         <DropdownMenu onOpenChange={isOpen => { if (isOpen) setRoomMenu(clockwiseOfficeRooms(readOfficeLabelPositions())); }}>
           <DropdownMenuTrigger asChild><Button ref={synopsisTrigger} variant="ghost" size="sm" aria-label="Room synopsis" className="shrink-0 gap-2"><Building2 className="h-5 w-5" /><span>Synopsis</span></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto" onCloseAutoFocus={event => { if (synopsis) event.preventDefault(); }}>
@@ -137,8 +131,10 @@ export function OfficeNav({ viewMode, onToggleView }: OfficeNavProps) {
           </DialogContent>
         </Dialog>
         {/* Reachable from every room, without adding a destination. */}
-        <SecondEyesPanel />
-        <AccountMenu />
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
+          <SecondEyesPanel />
+          <AccountMenu />
+        </div>
       </div>
     </header>
   );
