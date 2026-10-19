@@ -1,3 +1,5 @@
+import { BrainBoardPreview } from "@/components/office/BrainBoardPreview";
+import { useSearch } from "@tanstack/react-router";
 import { BrainHub } from "@/components/office/BrainHub";
 import { BrainDocuments } from "@/components/office/BrainDocuments";
 import { createFileRoute } from "@tanstack/react-router";
@@ -21,12 +23,29 @@ export const Route = createFileRoute("/_office/brain")({
 });
 
 function Brain() {
+  const search = useSearch({ strict: false }) as Record<string, unknown>;
+  if (search["preview"] === "board")
+    return (
+      <RoomShell showFiles={false} showSample={false}>
+        <BrainBoardPreview />
+      </RoomShell>
+    );
   return (
     <RoomShell showFiles={false} showSample={false}>
       <div className="space-y-6">
+        <a
+          href="/brain?preview=board"
+          className="inline-block rounded border border-border px-4 py-3 text-sm underline"
+        >
+          Open brain board draft preview
+        </a>
         <BrainHub />
-        <div id="brain-documents"><BrainDocuments /></div>
-        <div id="brain-memory"><BrainMemory /></div>
+        <div id="brain-documents">
+          <BrainDocuments />
+        </div>
+        <div id="brain-memory">
+          <BrainMemory />
+        </div>
         <BrainMap />
         <Card className="border-border bg-card">
           <CardHeader>
