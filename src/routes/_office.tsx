@@ -8,7 +8,6 @@ import { CompanionDock } from "@/components/office/CompanionDock";
 import { OfficeGate } from "@/components/office/OfficeGate";
 import { OfficeThemeProvider } from "@/lib/office-theme";
 import { OwnerSessionProvider } from "@/lib/owner-session";
-import { useOfficeViewMode } from "@/hooks/use-office-view";
 import { useOwnerSession } from "@/lib/owner-session";
 
 export const Route = createFileRoute("/_office")({
@@ -16,17 +15,13 @@ export const Route = createFileRoute("/_office")({
 });
 
 function OfficeInterior() {
-  const { mode, setMode, hydrated } = useOfficeViewMode();
   // A read-only assistant viewing session: no assistants, alerts or companion are started, so nothing can be spent or asked.
   const readOnlyViewer = useOwnerSession().viewer;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <div className="flex min-h-screen flex-1 flex-col" data-canx-office-backdrop="true">
-        <OfficeNav
-          viewMode={hydrated ? mode : "3d"}
-          onToggleView={() => setMode(mode === "3d" ? "simple" : "3d")}
-        />
+        <OfficeNav />
         {!readOnlyViewer && <p className="canx-mobile-orientation-hint" data-canx-no-capture="true">
           For a wider Office, turn your phone sideways. Enable Auto rotate if it stays upright.
         </p>}
