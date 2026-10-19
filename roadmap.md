@@ -1,5 +1,10 @@
 # Phase 1 bright office completion
 
+## Elsie Android authenticator (2026-10-19)
+- [x] Move compact empty authenticator entry above scrolling content; preserve session/MFA enforcement.
+- [x] Remove empty-conversation, input and voice-mode explanatory copy; keep real history/errors.
+- [ ] Verify Android portrait/landscape controls and focused tests; real owner code remains untested.
+
 ## Phone landscape and header access (2026-10-19)
 - [x] Fit the header in portrait/landscape and expose optional owner sign-in without changing authentication.
 - [x] Verify 360×625, 625×360, 844×390, 740×360 and desktop: controls visible, no horizontal overflow, sign-in opens, no runtime errors; 12 focused tests and preview build passed.
