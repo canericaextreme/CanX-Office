@@ -61,12 +61,12 @@ export function OfficeNav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
-      <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-2 px-3 sm:gap-3 sm:px-5">
-        <Button variant="ghost" size="icon" aria-label="Back to previous CanX Office screen" onClick={goBack}><ChevronLeft className="h-5 w-5" /></Button>
+    <header className="canx-office-nav sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
+      <div className="canx-office-nav-inner mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-2 px-3 sm:gap-3 sm:px-5">
+        <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Back to previous CanX Office screen" onClick={goBack}><ChevronLeft className="h-5 w-5" /></Button>
         <Button variant="ghost" size="icon" asChild aria-label="Home / Reception" className="h-11 w-11 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-6"><Link to="/"><Home className="h-6 w-6" /></Link></Button>
 
-        <div className="relative order-last mb-2 w-full min-w-0 sm:order-none sm:mb-0 sm:w-auto sm:flex-1">
+        <div className="canx-office-nav-search relative order-last mb-2 w-full min-w-0 sm:order-none sm:mb-0 sm:w-auto sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             placeholder="Search rooms and sample items…"
@@ -106,7 +106,7 @@ export function OfficeNav() {
         </div>
 
         <DropdownMenu onOpenChange={isOpen => { if (isOpen) setRoomMenu(clockwiseOfficeRooms(readOfficeLabelPositions())); }}>
-          <DropdownMenuTrigger asChild><Button ref={synopsisTrigger} variant="ghost" size="sm" aria-label="Room synopsis" className="shrink-0 gap-2"><Building2 className="h-5 w-5" /><span>Synopsis</span></Button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><Button ref={synopsisTrigger} variant="ghost" size="sm" aria-label="Room synopsis" title="Room synopsis" className="h-11 shrink-0 gap-2"><Building2 className="h-5 w-5" /><span className="sr-only sm:not-sr-only">Synopsis</span></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto" onCloseAutoFocus={event => { if (synopsis) event.preventDefault(); }}>
             <p className="px-2 py-1.5 text-xs text-muted-foreground">Office Manager</p>
             <DropdownMenuItem onSelect={() => setSynopsis({ route: 'elsie', label: 'Elsie — Office Manager' })} className="flex cursor-pointer items-center gap-2"><Bot className="h-4 w-4 text-primary" />Elsie — Office Manager</DropdownMenuItem>

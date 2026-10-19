@@ -31,10 +31,10 @@ John authorises GitHub saving and publication of completed owner-requested CanX 
 - Reconcile GitHub and publication daily. Publish checked completed updates; stage failures with exact blockers. Later private-preview instructions override publication.
 - Preserve user records, secrets, budgets, authentication and rollback history. No force pushes, secret exposure, new spending, provider subscriptions, database migrations or unrelated changes are authorised by this release policy.
 - Record commit and deployment result; pending is not published. Publication never verifies signed-in health or voice.
-- Evening release checks are not continuous health monitoring; owner/MFA verification remains mandatory.
+- Evening checks are not continuous monitoring; owner/MFA verification remains mandatory.
 
 ## Development entrance
-- Skip OfficeGate during the build period; restore it when John finishes. Never bypass records/actions. Why: sign-in-free browsing is not authentication.
+- Skip OfficeGate while building; restore when finished. Keep header OwnerSignIn and rotation reflow. Never bypass records/actions: browsing is not authentication.
 
 ## Owner-only connection shutdown — 4 October 2026
 Only John may authorise changes to Claude or ChatGPT/Codex enablement, credentials, routing or removal. Neither assistant may sever the other's access. Ordinary coding/publication does not authorise this; affected candidates remain proposals. The Office cannot disable external accounts. Why: connection control belongs to John.

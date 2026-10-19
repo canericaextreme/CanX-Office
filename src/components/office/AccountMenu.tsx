@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { LogIn, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +18,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useOwnerSession } from "@/lib/owner-session";
+import { OwnerSignIn } from "@/components/office/OwnerSignIn";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 
 export function AccountMenu() {
   const session = useOwnerSession();
@@ -25,7 +27,23 @@ export function AccountMenu() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (session.state !== "owner") return null;
+  if (session.viewer) return null;
+  if (session.state !== "owner") return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-11 shrink-0 gap-2" aria-label="Owner sign-in and authenticator">
+          <LogIn className="h-4 w-4" aria-hidden="true" /> Sign in
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>CanX owner account</DialogTitle>
+          <DialogDescription>Sign in to access your saved Office records.</DialogDescription>
+        </DialogHeader>
+        <OwnerSignIn />
+      </DialogContent>
+    </Dialog>
+  );
 
   const verify = async () => {
     setBusy(true);
@@ -39,11 +57,11 @@ export function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Account and sign out">
+        <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Account and sign out">
           <UserRound className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="max-h-[calc(100dvh-1rem)] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto">
         <DropdownMenuLabel className="space-y-1">
           <span className="block truncate text-sm font-semibold">{session.email ?? "Signed in"}</span>
           <span className="block text-xs font-normal text-muted-foreground">

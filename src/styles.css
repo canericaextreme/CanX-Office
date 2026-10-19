@@ -4,6 +4,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Phone controls reflow with the viewport; orientation stays under device control. */
+@media (hover: none) and (pointer: coarse) and (max-width: 1366px) {
+  .canx-office-nav-inner {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+    padding-top: env(safe-area-inset-top);
+    gap: 0.25rem;
+  }
+  .canx-office-nav-inner > div:last-child { gap: 0.25rem; }
+}
+@media (hover: none) and (pointer: coarse) and (min-width: 568px) and (max-width: 1366px) and (orientation: landscape) and (max-height: 500px) {
+  .canx-office-nav-inner { min-height: 3rem; flex-wrap: nowrap; }
+  .canx-office-nav-search { order: 0; width: auto; flex: 1; margin-bottom: 0; }
+  .canx-office-nav-search input { text-overflow: ellipsis; }
+  .canx-office-nav-inner > div:last-child { margin-left: 0; }
+}
 /* Touch devices only: preserve every desktop map and analytics dimension. */
 @media (hover: none) and (pointer: coarse) and (max-width: 1366px) {
   .canx-office-map .canx-analytics-wall {
