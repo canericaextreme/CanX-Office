@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
 import { clearVoiceDiag, isPrivatePreview, readVoiceDiag, recordVoiceDiag, summarizeVoiceDiag } from "./voice-diagnostics";
 
 describe("voice diagnostics", () => {
@@ -18,6 +19,13 @@ describe("voice diagnostics", () => {
     expect(readVoiceDiag()[0]!.detail.length).toBeLessThanOrEqual(80);
     for (let i = 0; i < 100; i++) recordVoiceDiag("connected", "relay", "ok");
     expect(readVoiceDiag().length).toBe(60);
+  });
+  it("Standard voice records the provider-to-transcript and Office-model phases", () => {
+    const hook = readFileSync("src/lib/use-realtime-manager.ts", "utf8");
+    expect(hook).toContain('"speech end to transcript"');
+    expect(hook).toContain('"office request to answer"');
+    expect(hook).toContain('"end of speech to first sound"');
+    expect(hook).not.toContain("recordVoiceDiag(\"latency\", sessionMode, text");
   });
   it("is limited to private preview hosts", () => {
     expect(isPrivatePreview("id-preview--abc.lovable.app")).toBe(true);

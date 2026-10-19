@@ -449,6 +449,7 @@ export function useRealtimeManager(
         // asking the separate realtime speaker to read it aloud. A stopped,
         // blocked or failed speaker can never erase a completed Office reply.
         transcriptRef.current("assistant", output, inputId);
+        if (current() && inputId === latestRequestId) recordVoiceDiag("latency", sessionMode, "office request to answer", Date.now() - requestStartedAt);
         console.info("[astra-voice]", { stage: "assistant_response_received", turn: inputId });
         if (!current() || channel.readyState !== "open" || inputId !== latestRequestId) {
           console.info("[astra-voice]", { stage: "playback_skipped", turn: inputId });
@@ -634,6 +635,7 @@ export function useRealtimeManager(
           return;
         }
         if (payload.type === "conversation.item.input_audio_transcription.completed") {
+          if (sessionMode === "relay" && speechEndedAt && hasSpokenWords(text)) recordVoiceDiag("latency", sessionMode, "speech end to transcript", Date.now() - speechEndedAt);
           setStage("recognized");
           setActivity("Heard: " + text.slice(0, 140));
           transcriptRef.current("user", text, payload.item_id);
