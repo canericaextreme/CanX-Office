@@ -34,7 +34,7 @@ John authorises GitHub saving and publication of completed owner-requested CanX 
 - Evening release checks are not continuous health monitoring; owner/MFA verification remains mandatory.
 
 ## Development entrance
-- Skip OfficeGate during the build period; restore it when John finishes. Never bypass records/actions. Why: sign-in-free browsing is not authentication.
+- Skip OfficeGate while building; restore when finished. Keep optional OwnerSignIn in header and reflow on rotation. Never bypass records/actions: browsing is not authentication.
 
 ## Owner-only connection shutdown — 4 October 2026
 Only John may authorise changes to Claude or ChatGPT/Codex enablement, credentials, routing or removal. Neither assistant may sever the other's access. Ordinary coding/publication does not authorise this; affected candidates remain proposals. The Office cannot disable external accounts. Why: connection control belongs to John.

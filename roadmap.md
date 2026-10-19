@@ -1,5 +1,9 @@
 # Phase 1 bright office completion
 
+## Phone landscape and header access (2026-10-19)
+- [ ] Fit the header in portrait/landscape and expose optional owner sign-in.
+- [ ] Verify rotated phone layouts and sign-in opening; real owner/MFA test needs John.
+
 ## Subscription expiry and promotion filtering (2026-10-04)
 - [x] Expand bounded Gmail search terms for expiry, renewal, trial, suspension and payment/card failure language.
 - [x] Classify service/account deadlines separately from promotion expiry and identify what expires without overwriting confirmed records.
