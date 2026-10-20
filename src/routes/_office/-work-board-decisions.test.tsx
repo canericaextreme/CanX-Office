@@ -227,3 +227,25 @@ describe("Work Board decisions waiting on John", () => {
     expect(screen.queryByRole("button", { name: /Show only/ })).toBeNull();
   });
 });
+
+describe("draft manual trash view", () => {
+  it("sweeps only eligible closed tasks on click and retains their details in Trash", () => {
+    const old = new Date(Date.now() - 8 * 86400000).toISOString();
+    memory.tasks = ["open", "in_progress", "waiting", "done", "cancelled"].map((status) => task({
+      id: status, title: `Sweep ${status}`, status: status as ManagerTask["status"], created_at: old, updated_at: old,
+      result: "Retained result", evidence: "Retained evidence",
+    }));
+    render(<WorkBoard />);
+    expect(card("done")).toBeTruthy(); // No automatic sweep on mount.
+    fireEvent.click(screen.getByRole("button", { name: "Run sweep now" }));
+    expect(card("done")).toBeNull();
+    expect(card("cancelled")).toBeNull();
+    for (const status of ["open", "in_progress", "waiting"]) expect(card(status)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Trash (2)" }));
+    expect(within(card("done")).getByText("Saved detail")).toBeTruthy();
+    expect(within(card("done")).getByText("Result: Retained result")).toBeTruthy();
+    expect(within(card("cancelled")).getByText("Evidence: Retained evidence")).toBeTruthy();
+    for (const status of ["open", "in_progress", "waiting"]) expect(card(status)).toBeNull();
+    for (const fn of Object.values(fns)) expect(fn).not.toHaveBeenCalled();
+  });
+});
