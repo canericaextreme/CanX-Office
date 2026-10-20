@@ -36,7 +36,7 @@ const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|su
 // A noun such as "build" or "fix" in a status report is never permission.
 // Accept commands (including polite "Can you fix …?"), not arbitrary mentions.
 const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|elsie)(?:[ -]only)?[,:]?\s+)?(?:(?:can|could|would) you\s+)?`;
-const CHANGE = String.raw`(?:build|implement|code|fix|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
+const CHANGE = String.raw`(?:build|implement|code|fix|repair|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin) (?:the |this |my )?(?:saved |existing )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 
