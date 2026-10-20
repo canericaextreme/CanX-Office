@@ -91,7 +91,7 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
       if (!loc) return failed(def);
       const stages: Record<string, number> = {};
       for (const l of loc.locators) stages[l.stage] = (stages[l.stage] ?? 0) + 1;
-      return result(def, { count: loc.locators.length, items: [...Object.entries(stages).map(([k, v]) => `stage ${k}: ${v}`), ...loc.locators.slice(0, 15).map((l) => `${l.project.name} [${l.project.projectId.slice(0, 8)}] · ${l.stage} · next: ${l.nextMove}`)], latestAt: loc.tasksReadAt, detail: `metadata + John's plans + Work Board${loc.tasksReadAt ? "" : " (tasks NOT read)"}; stage unknown means not verified` });
+      return result(def, { count: loc.locators.length, items: [...Object.entries(stages).map(([k, v]) => `stage ${k}: ${v}`), ...loc.locators.slice(0, 15).map((l) => `${l.project.name} [${l.project.projectId.slice(0, 8)}] · ${l.stage} · next: ${l.nextMove}`)], latestAt: null, detail: `metadata + John's plans + Work Board${loc.tasksReadAt ? "" : " (tasks NOT read)"}; stage unknown means not verified` });
     }
     case "brain-view": {
       // Owner-only logbook: a read-only viewer would see nothing, so say so rather than report "no work".
