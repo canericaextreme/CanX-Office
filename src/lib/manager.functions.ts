@@ -1702,8 +1702,9 @@ export async function runManagerChatWith(
   // Include authentication, queue and reads in the timing origin. No words,
   // credentials or record content are included in these numeric stage logs.
   const startedAt = Date.now();
+  const turnId = crypto.randomUUID();
   const diag = (stage: string, status?: number) =>
-    console.info("[office-manager] turn", { stage, status: status ?? null, ms: Date.now() - startedAt });
+    console.info("[office-manager] turn", { turn: turnId, stage, status: status ?? null, ms: Date.now() - startedAt });
   // GATE 1 — paid Elsie calls use the same AAL2 owner requirement as the
   // database reservation. This reports an authenticator problem accurately
   // instead of mislabelling it as a spending-limit failure.

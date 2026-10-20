@@ -56,6 +56,27 @@ describe("Standard voice asks the Office for a short spoken answer", () => {
 });
 
 describe("the owner's records are read together, not one after another", () => {
+  it("waits for queue changes before taking the parallel snapshots", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const started: string[] = [];
+    const { d, bodies } = deps({
+      advanceBuilderQueue: async builder => {
+        started.push(`queue:${builder}`);
+        await gate;
+        return { builder, checked: true, finished: [], detail: "Queue checked" };
+      },
+      buildContext: async () => { started.push("context"); return { ok: true, text: "AFTER QUEUE" }; },
+      readRoomSnapshot: async () => { started.push("room"); return null; },
+    });
+    const pending = runManagerChatWith(d, { ...ask(true), currentRoute: "/reception" });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(started.sort()).toEqual(["queue:claude", "queue:codex"]);
+    release();
+    expect((await pending).ok).toBe(true);
+    expect(started).toEqual(expect.arrayContaining(["context", "room"]));
+    expect(bodies[0]).toContain("AFTER QUEUE");
+  });
   it("starts fresh room, Brain and project reads alongside continuity, before a paid call", async () => {
     const started: string[] = [];
     let release!: () => void;
