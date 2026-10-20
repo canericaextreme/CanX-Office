@@ -38,3 +38,33 @@ export function useVoiceDiag() {
 export function isPrivatePreview(host: string) {
   return host.startsWith("id-preview--") || host.endsWith("-dev.lovable.app") || host === "localhost" || host === "127.0.0.1";
 }
+
+const TIMING_STAGES = {
+  'speech end to transcript': 'Speech end → transcript',
+  'office request to answer': 'Office request → answer',
+  'end of speech to first sound': 'Speech end → provider audio start',
+} as const;
+/** Stage and voice mode must never be pooled: a fast transcription sample is
+ * not a fast end-to-end reply. Provider audio start is not hardware audibility.
+ */
+export function summarizeVoiceStages(list: VoiceDiagEvent[]) {
+  const groups = new Map<string, { mode: string; stage: string; values: number[] }>();
+  for (const event of list) {
+    if (event.kind !== 'latency' || event.ms === undefined || !Number.isFinite(event.ms) || event.ms < 0) continue;
+    const stage = TIMING_STAGES[event.detail as keyof typeof TIMING_STAGES];
+    if (!stage) continue;
+    const key = `${event.mode}:${event.detail}`;
+    const group = groups.get(key) ?? { mode: event.mode, stage, values: [] };
+    group.values.push(event.ms);
+    groups.set(key, group);
+  }
+  return [...groups.values()].map(({ mode, stage, values }) => {
+    values.sort((a, b) => a - b);
+    const middle = Math.floor(values.length / 2);
+    return { mode, stage, samples: values.length,
+      medianMs: values.length % 2 ? values[middle]! : (values[middle - 1]! + values[middle]!) / 2,
+      p95Ms: values[Math.ceil(values.length * 0.95) - 1]!,
+      worstMs: values[values.length - 1]!,
+    };
+  });
+}
