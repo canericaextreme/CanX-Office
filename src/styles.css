@@ -9,7 +9,8 @@
   .canx-account-dialog {
     top: max(0.5rem, env(safe-area-inset-top));
     /* Tailwind 4 uses the individual translate property for dialog centring. */
-    translate: -50% 0;
+    --tw-translate-x: -50%;
+    --tw-translate-y: 0;
     transform: none;
     max-height: calc(100dvh - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
