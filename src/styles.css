@@ -12,7 +12,7 @@
     padding-top: env(safe-area-inset-top);
     gap: 0.25rem;
   }
-  .canx-office-nav-inner > div:last-child { gap: 0.25rem; }
+  .canx-office-nav-actions { gap: 0.25rem; }
 }
 @media (hover: none) and (pointer: coarse) and (min-width: 568px) and (max-width: 1366px) and (orientation: landscape) and (max-height: 500px) {
   .canx-office-nav-inner { min-height: 3rem; flex-wrap: nowrap; }
@@ -81,13 +81,25 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
   #office-manager-panel > .canx-elsie-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     flex-wrap: nowrap;
-    overflow-x: auto;
     min-height: 3rem;
     padding: 0.25rem;
   }
-  .canx-elsie-toolbar > * { flex-shrink: 0; }
-  .canx-elsie-toolbar > [role="status"] { max-width: 16rem; }
+  .canx-elsie-toolbar-scroll {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .canx-elsie-toolbar-scroll > * { flex-shrink: 0; }
+  /* A phone panel already fills the viewport and cannot be dragged. */
+  .canx-elsie-toolbar-scroll > div:first-child,
+  .canx-elsie-toolbar-scroll > button:first-of-type { display: none; }
+  .canx-elsie-toolbar-scroll > [role="status"] { max-width: 16rem; }
+  .canx-elsie-message { min-height: 60px; }
   #office-manager-panel > .canx-elsie-links {
     min-height: 3rem;
     max-height: 18dvh;
