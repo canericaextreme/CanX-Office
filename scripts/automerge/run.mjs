@@ -54,13 +54,18 @@ async function freshPr(number) {
 }
 
 async function gather(pr) {
-  const [files, checkRuns, combined, reviews] = await Promise.all([
+  const [files, checkRuns, combined, reviews, raw] = await Promise.all([
     all(`/pulls/${pr.number}/files`),
     all(`/commits/${pr.head.sha}/check-runs`, r => r.check_runs),
     gh(`/commits/${pr.head.sha}/status`),
     all(`/pulls/${pr.number}/reviews`),
+    all(`/commits/${pr.head.sha}/statuses`),
   ]);
-  return { pr, files, checkRuns, statuses: combined.statuses ?? [], reviews };
+  // The combined status omits who posted each status; the policy needs that for the review result,
+  // so use the newest raw review status (which carries creator) in its place.
+  const review = raw.filter(s => s.context === REVIEW_CONTEXT).sort((a, b) => b.id - a.id)[0];
+  const statuses = (combined.statuses ?? []).filter(s => s.context !== REVIEW_CONTEXT);
+  return { pr, files, checkRuns, statuses: review ? [review, ...statuses] : statuses, reviews };
 }
 
 async function reviewsToday() {
