@@ -22,6 +22,8 @@ The Brain room has a new **Live Brain view**, beside the shelf map. It is a thre
 
 **Shared history.** Elsie, Claude and ChatGPT can read `office_work_events` through `read_office_records` (migration 20261019050000), read-only. Elsie's `brain-view` source now includes task names and the Needs-you list.
 
+**Elsie as advisor (20 Oct 2026).** "Ask Elsie" on a Needs-you item shows Elsie's advice under it: approve, archive or not sure, with reasons and the facts she used. The fact sheet is read fresh on the server: the full task, approval history, logbook, change log and live GitHub state of the draft changes and builds it mentions. Checked against the 6 real items on hold: it found draft #122 merged on 16 Oct (both Finance tasks were still waiting on it) and #77 merged on 10 Oct. Elsie's live answer has not been seen yet; the provider call runs only on the Office server.
+
 **Not yet verified.** The live view has not been opened signed in on a phone or laptop on the published build. Live updates depend on Supabase realtime with John's sign-in, and fall back to a check every minute. Nothing records "brainstorming" except open Ideas & Research tasks.
 
 ## Work Board receipt display repair — 17 October 2026

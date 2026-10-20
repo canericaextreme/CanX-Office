@@ -1249,6 +1249,7 @@ export function OfficeManager() {
         >
           <ElsieAuthenticator />
           <div className="canx-elsie-toolbar flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
+            <div className="canx-elsie-toolbar-scroll contents">
             <div
               {...(isMobile ? {} : panel.handleProps)}
               className="mr-1 flex cursor-move touch-none select-none items-center rounded-md p-1.5 text-muted-foreground hover:bg-background active:bg-secondary"
@@ -1307,6 +1308,7 @@ export function OfficeManager() {
                 )}
               </div>
 
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -1581,7 +1583,7 @@ export function OfficeManager() {
                     ref={inputRef}
                     rows={2}
                     value={draft}
-                    className="min-h-[60px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
+                    className="canx-elsie-message min-h-[120px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
                     style={{ fontSize: textSize, height: composerHeight }}
 
                     aria-label="Message the Office Manager"

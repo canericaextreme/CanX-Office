@@ -10,3 +10,11 @@ describe("unattended worker is fail closed", () => {
    });
  }
 });
+// Runtime data is not made trustworthy by a TypeScript interface.
+describe('unattended admission rejects unknown runtime values',()=>{
+ for(const key of Object.keys(allowed)){
+  for(const value of [undefined,null,0,1,'true','false']){
+   it(`rejects ${key} = ${String(value)}`,()=>expect(decideUnattendedPoll({...allowed,[key]:value} as unknown as PollGate).action).toBe('stop'));
+  }
+ }
+});

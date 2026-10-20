@@ -333,6 +333,15 @@
       "audience": "office-status",
       "summary": "Prepared a Work Board display repair after a fresh owner-scoped task read confirmed a Claude build receipt followed by notes. The old display parser hid its link and removed the form read-only guard; the candidate reuses the validated receipt reader. No task or archived record changed.",
       "evidence": "src/lib/task-execution-evidence.ts; regression fixtures reproduce the saved-record shape without private note text. Old helper fails 4 regression cases; corrected helper and related suites pass 70 tests. Typecheck, new-file lint and production build passed. Not live-verified."
+    },
+    {
+      "id": "2026-10-20-worker-candidate-checkpoint",
+      "at": "2026-10-20T01:18:00Z",
+      "actor": "ChatGPT",
+      "kind": "observation",
+      "audience": "office-status",
+      "summary": "Continued PR181 with held durable worker ledger, scoped HTTP runtime and fault tests. No production activation. Mobile continuation PR184 merged and Lovable synced; signed-in mobile and voice acceptance remains blocked by the available browser sign-in wall. DLC remains unidentified after GitHub, Work Board, Brain and prior-evidence searches.",
+      "evidence": "PR184 f339698; merged 55ec289. Worker candidate: typecheck, production build,1986 Vitest tests and12 disposable PostgreSQL tests passed; replacement process cannot reclaim an uncertain attempt. Visible owner authorization/Stop controls prepared. Authoritative accounting, enforced Codex cost ceiling, secure service provisioning, independent security review and live unattended acceptance remain outstanding. PR185 diagnostics merged as0c9ecd5. Publication699eadf1-e308-4ace-886a-eeb73af3d49d requested; API status pending. Live signed-out header, Synopsis and Elsie panel observed on index-D8sb5iof.js; authenticated device/voice checks not passed."
     }
   ]
 }

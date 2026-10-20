@@ -3,14 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { BrainTaskInfo, NeedsItem } from "@/lib/brain-view";
 
-const calls = { decide: vi.fn(), update: vi.fn(), cancel: vi.fn() };
+const calls = { decide: vi.fn(), update: vi.fn(), cancel: vi.fn(), advise: vi.fn() };
 vi.mock("@/lib/manager-work.functions", () => ({
   decideManagerApproval: "decide",
   updateManagerTask: "update",
   cancelManagerTask: "cancel",
 }));
+vi.mock("@/lib/brain-advice.functions", () => ({ getBrainAdvice: "advise" }));
 vi.mock("@tanstack/react-start", () => ({
-  useServerFn: (name: "decide" | "update" | "cancel") => calls[name],
+  useServerFn: (name: "decide" | "update" | "cancel" | "advise") => calls[name],
 }));
 import { BrainNeedsYou } from "./BrainNeedsYou";
 import { canQuickApprove, confirmText } from "@/lib/brain-needs-actions";
@@ -186,18 +187,68 @@ describe("Needs you", () => {
     expect(screen.getByText("Nothing needs you right now.")).toBeTruthy();
   });
 
-  it("lets John ask Elsie about one item", () => {
-    const got: string[] = [];
-    const on = (e: Event) => got.push((e as CustomEvent<{ text: string }>).detail.text);
-    window.addEventListener("canx:manager-handoff", on);
+  it("shows Elsie's advice under the item, with the facts she used", async () => {
+    calls.advise.mockResolvedValue({
+      ok: true,
+      advisedAt: "2026-10-20T00:00:00Z",
+      advice: {
+        verdict: "approve",
+        summary: "Draft #122 merged on 16 Oct, so this can resume.",
+        reasons: ["#122 merged into main on 2026-10-16"],
+        missing: [],
+      },
+      facts: {
+        kind: "task",
+        id: "t1",
+        title: "x",
+        status: "waiting",
+        worker: "claude",
+        risk: "green",
+        detail: "",
+        result: "",
+        evidence: "",
+        waitingReason: "Hold until #122 is reviewed",
+        project: "",
+        costCents: null,
+        createdAt: "",
+        updatedAt: "",
+        ageDays: 1,
+        approvals: [],
+        history: [],
+        changes: [],
+        github: [{ ref: "#122", kind: "change", state: "merged into main on 2026-10-16" }],
+        unread: [],
+      },
+    });
     renderList([item()]);
     fireEvent.click(
       within(screen.getByRole("list")).getByRole("button", {
         name: "Ask Elsie about: Check Finance headings",
       }),
     );
-    window.removeEventListener("canx:manager-handoff", on);
-    expect(got[0]).toContain("Check Finance headings");
+    expect(calls.advise).toHaveBeenCalledWith({
+      data: { accessToken: "tok", kind: "task", id: "t1" },
+    });
+    const box = await screen.findByRole("status", {
+      name: "Elsie's advice on Check Finance headings",
+    });
+    expect(within(box).getByText("Elsie suggests: Approve")).toBeTruthy();
+    expect(within(box).getByText("Draft #122 merged on 16 Oct, so this can resume.")).toBeTruthy();
+    expect(within(box).getByText(/Draft change #122: merged into main on 2026-10-16/)).toBeTruthy();
+    expect(within(box).getByText("Advice only. You decide with the buttons.")).toBeTruthy();
+    // Advice never presses a button for John.
+    expect(calls.update).not.toHaveBeenCalled();
+    expect(calls.cancel).not.toHaveBeenCalled();
+  });
+
+  it("shows Elsie's refusal plainly when she can't advise", async () => {
+    calls.advise.mockResolvedValue({ ok: false, message: "Daily AI limit reached." });
+    renderList([approval]);
+    fireEvent.click(screen.getByRole("button", { name: "Ask Elsie about: Buy a domain" }));
+    expect(await screen.findByText("Daily AI limit reached.")).toBeTruthy();
+    expect(calls.advise).toHaveBeenCalledWith({
+      data: { accessToken: "tok", kind: "approval", id: "a1" },
+    });
   });
 
   it("explains every action honestly", () => {
