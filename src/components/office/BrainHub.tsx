@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { OfficeFiles } from "./OfficeFiles";
 import { BrainShelfBubble } from "./BrainShelfBubble";
+import { BrainCast } from "./BrainCast";
 import { Button } from "@/components/ui/button";
 import { useOwnerSession } from "@/lib/owner-session";
 import { getBrainIndex, setBrainShelf } from "@/lib/brain-index.functions";
@@ -36,7 +37,6 @@ import {
   SHELF_HELP as CATEGORY_HELP,
   SHELF_COLORS,
   SHELF_DISPLAY,
-  BRAIN_CAST,
   shelfSynopsis,
   countByShelf as countByCategory,
   itemShelf,
@@ -418,13 +418,21 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
             {buckets.map((b, shelfNumber) => {
               const active = cat === b;
               const display = SHELF_DISPLAY[b];
-              const synopsis = shelfSynopsis(index?.items ?? [], b, shelvesReadable, index?.sources);
+              const synopsis = shelfSynopsis(
+                index?.items ?? [],
+                b,
+                shelvesReadable,
+                index?.sources,
+              );
               const synId = `shelf-synopsis-${b}`;
               return (
                 <BrainShelfBubble
                   key={b}
                   number={shelfNumber + 1}
-                  onSelect={() => { setInfoOpen(null); open(b); }}
+                  onSelect={() => {
+                    setInfoOpen(null);
+                    open(b);
+                  }}
                   name={display.name}
                   id={`shelf-bubble-${b}`}
                   open={infoOpen === b}
@@ -679,28 +687,7 @@ export function BrainHub({ fixture }: { fixture?: BrainIndex }) {
         )
       )}
 
-      {cat === null && (
-        <div className="mt-4 space-y-2">
-          <h3 id="brain-cast-heading" className="text-base font-bold">
-            Who's who
-          </h3>
-          <ul
-            aria-labelledby="brain-cast-heading"
-            className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
-          >
-            {BRAIN_CAST.map((m) => (
-              <li
-                key={m.who}
-                data-cast={m.who}
-                className="rounded-lg border border-[var(--brain-line)] bg-[var(--brain-card)] p-3"
-              >
-                <p className="text-sm font-bold">{m.who}</p>
-                <p className="text-sm">{m.role}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {cat === null && <BrainCast />}
       {cat === null && (
         <div aria-label="Office builders" className="mt-5 grid gap-3 sm:grid-cols-2">
           {BRAIN_PROVIDER_CARDS.map((provider) => (
