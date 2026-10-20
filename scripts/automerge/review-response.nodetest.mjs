@@ -7,14 +7,15 @@ import { LEGACY_UNREADABLE, REVIEW_FORMAT, parseVerdict, readReviewResponse, may
 const json = JSON.stringify({ verdict: 'approve', summary: 'Safe to merge.' });
 const anthropic = (extra = {}) => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: json }], ...extra });
 
-test('the existing review request asks for a schema, without raising model or token allowance', async () => {
+test('the review request asks for a schema, low effort and room for thinking plus the verdict', async () => {
   let request;
   const result = await askReviewer('anthropic', { title: 't', body: '' }, 'FULL DIFF', {
     config: { ANTHROPIC_API_KEY: 'fixture-only' },
     fetchImpl: async (_url, init) => { request = JSON.parse(init.body); return new Response(JSON.stringify(anthropic())); },
   });
   assert.deepEqual(request.output_config.format, REVIEW_FORMAT);
-  assert.equal(request.max_tokens, 800);
+  assert.equal(request.output_config.effort, 'low');
+  assert.equal(request.max_tokens, 4000);
   assert.equal(request.model, 'claude-sonnet-5-5');
   assert.equal(result.verdict, 'approve');
   assert.equal(result.kind, 'verdict');

@@ -8,7 +8,7 @@ This candidate is not proof that the hosted failure has been resolved.
 ## Change
 
 - Ask Anthropic for a JSON-schema-constrained verdict using its documented
-  `output_config.format` contract. Keep the configured model and800-token cap.
+  `output_config.format` contract. Keep the configured model and800-token cap. (Superseded 20 Oct 2026: see below.)
 - Accept only a completed, non-refused response with an exact two-field verdict
   and a nonempty bounded summary. Unknown, partial, malformed and refused
   responses remain unapproved, even if they contain valid-looking approval JSON.
@@ -53,3 +53,15 @@ No real provider call, production workflow activation, status reset or release
 was performed by these tests.
 
 Provider contract: https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+
+## Follow-up, 20 Oct 2026: room to answer
+
+Current Claude models (including the default `claude-sonnet-5-5`) think before
+answering by default, and those thinking tokens count against `max_tokens`. At
+800 the reviewer could use the whole allowance thinking about a large diff and
+stop (`max_tokens`) before writing its verdict, which reads as "unreadable". The
+Anthropic request now sends `output_config.effort: "low"` and `max_tokens: 4000`
+(the same allowance the OpenAI reviewer already has). `max_tokens` is a ceiling,
+not a charge: at Sonnet 5.5 output prices the worst case is about 4 US cents a
+review, still inside the existing daily review cap. Confirm with the
+`Review diagnostics` log line (`stop` should be `end_turn`) after the first run.

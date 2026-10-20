@@ -87,7 +87,10 @@ export async function askReviewer(vendor, pr, diff, { config = env, fetchImpl = 
     const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': config.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: 800, system: REVIEW_RULES, messages: [{ role: 'user', content: input }], output_config: { format: REVIEW_FORMAT } }),
+      // Current Claude models think by default and that thinking counts against max_tokens; at 800 the
+      // reviewer ran out before writing its verdict (PR 190). Low effort keeps thinking short; 4000 matches OpenAI.
+      body: JSON.stringify({ model, max_tokens: 4000, system: REVIEW_RULES, messages: [{ role: 'user', content: input }],
+        output_config: { effort: 'low', format: REVIEW_FORMAT } }),
     });
     if (!res.ok) throw new Error(`Anthropic review failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
     const body = await res.json();
