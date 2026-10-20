@@ -16,13 +16,14 @@ const LIVE = [
   ["20261011012738", "office_view_search_path"], ["20261011031034", "office_assistant_identity_isolation"],
   ["20261016021437", "elsie_scoped_task_claim_20261016"], ["20261018000946", "office_build_permission_status"],
   ["20261019021500", "office_work_events"],
+  ["20261019040000", "office_work_event_recorder"], ["20261019050000", "office_work_events_assistant_read"],
 ].map(([version, name]) => ({ version, name }));
 
 const repo = readMigrationFiles("supabase/migrations");
 
-test("against the real repo and live history, only the new recorder and assistant read access are applied", () => {
+test("against the real repo and live history, only the new function lock-down is applied", () => {
   const p = plan(repo, LIVE);
-  assert.deepEqual(p.apply.map((f) => f.file), ["20261019040000_office_work_event_recorder.sql", "20261019050000_office_work_events_assistant_read.sql"]);
+  assert.deepEqual(p.apply.map((f) => f.file), ["20261020020000_lock_down_public_db_functions.sql"]);
 });
 
 test("Elsie's held extended-sessions file is never applied automatically", () => {
@@ -33,17 +34,17 @@ test("Elsie's held extended-sessions file is never applied automatically", () =>
 
 test("older files already live under other dates are not re-run", () => {
   const p = plan(repo, LIVE);
-  for (const f of p.apply) assert.ok(f.version > "20261019021500");
+  for (const f of p.apply) assert.ok(f.version > "20261019050000");
 });
 
 test("a held file stays held even when asked for by name", () => {
   const p = plan(repo, LIVE, ["20261017013000_elsie_extended_sessions.sql"]);
-  assert.equal(p.apply.length, 2); // only the two newer files
+  assert.equal(p.apply.length, 1); // only the newer lock-down
   assert.ok(p.skipped.some((s) => s.file.includes("elsie_extended_sessions") && /hold/.test(s.reason)));
 });
 
 test("nothing is applied twice", () => {
-  const after = [...LIVE, { version: "20261019040000", name: "office_work_event_recorder" }, { version: "20261019050000", name: "office_work_events_assistant_read" }];
+  const after = [...LIVE, { version: "20261020020000", name: "lock_down_public_db_functions" }];
   assert.equal(plan(repo, after).apply.length, 0);
 });
 
