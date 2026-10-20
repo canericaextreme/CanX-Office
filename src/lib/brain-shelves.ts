@@ -93,13 +93,48 @@ export const SHELF_DISPLAY: Record<
     guide: "Open problems and duplicates.",
   },
 };
-/** The agreed cast, named as in brain-map-20261008 part 4. */
-export const BRAIN_CAST: readonly { who: string; role: string }[] = [
-  { who: "Elsie", role: "Front-Desk Manager" },
-  { who: "ChatGPT", role: "the Drafter" },
-  { who: "Claude", role: "the Second Pair of Eyes" },
-  { who: "Brain", role: "the Memory Keeper" },
-  { who: "Codex and Claude builders", role: "the Workshop Crew" },
+/**
+ * Who's who in the Office, as it works today (updated 19 Oct 2026 at John's
+ * request; first named in brain-map-20261008 part 4). `workers` are the
+ * Work Board team-member names whose tasks belong to each person, for the
+ * live "Now:" line.
+ */
+export const BRAIN_CAST: readonly {
+  who: string;
+  role: string;
+  does: string;
+  workers: readonly string[];
+}[] = [
+  {
+    who: "Elsie",
+    role: "Office Manager",
+    does: "Takes your instructions, sends work to the right room or builder, tracks it, and advises on what to approve or archive. She doesn't code, build, merge or publish.",
+    workers: ["elsie", "astra", "office manager"],
+  },
+  {
+    who: "ChatGPT",
+    role: "Builder (the default)",
+    does: "Builds Office changes through Codex unless you name Claude.",
+    workers: ["chatgpt", "codex"],
+  },
+  {
+    who: "Claude",
+    role: "Builder and reviewer",
+    does: "Builds when you name Claude, and checks work before you approve it.",
+    workers: ["claude"],
+  },
+  {
+    who: "Brain",
+    role: "Shared memory and live logbook",
+    does: "Keeps notes, documents and a record of every move. Elsie, Claude and ChatGPT all read it.",
+    workers: [],
+  },
+  {
+    who: "Build workshop",
+    role: "Draft changes on GitHub",
+    does: "Turns approved requests into tested draft changes. Nothing goes live until you approve it.",
+    workers: [],
+  },
 ];
 /** Short overview from readable shelf metadata, never title or body guesses. */
 export function shelfSynopsis(

@@ -206,14 +206,15 @@ describe("agreed shelf display design (PR70 + brain map)", () => {
       "#374151",
     ]);
   });
-  it("names the cast as in the saved map", () => {
+  it("names the cast as the Office works today", () => {
     expect(BRAIN_CAST.map((c) => `${c.who}: ${c.role}`)).toEqual([
-      "Elsie: Front-Desk Manager",
-      "ChatGPT: the Drafter",
-      "Claude: the Second Pair of Eyes",
-      "Brain: the Memory Keeper",
-      "Codex and Claude builders: the Workshop Crew",
+      "Elsie: Office Manager",
+      "ChatGPT: Builder (the default)",
+      "Claude: Builder and reviewer",
+      "Brain: Shared memory and live logbook",
+      "Build workshop: Draft changes on GitHub",
     ]);
+    expect(BRAIN_CAST[0]!.does).toMatch(/doesn't code, build, merge or publish/);
   });
 });
 
@@ -310,7 +311,7 @@ describe("Elsie receives the same authoritative shelf definitions", () => {
         `Shelf ${n + 1}, ${SHELF_DISPLAY[s].name} (${SHELF_DISPLAY[s].colourName}, ${SHELF_COLORS[s]})`,
       );
     });
-    expect(text).toContain("Elsie is Front-Desk Manager");
-    expect(text).toContain("Claude is the Second Pair of Eyes");
+    expect(text).toContain("Elsie is Office Manager");
+    expect(text).toContain("Claude is Builder and reviewer");
   });
 });
