@@ -5,6 +5,7 @@ import { RoomShell } from "@/components/office/RoomShell";
 import { BrainMap } from "@/components/office/BrainMap";
 import { BrainLiveView } from "@/components/office/BrainLiveView";
 import { BrainMemory } from "@/components/office/BrainMemory";
+import { BrainShelves } from "@/components/office/BrainShelves";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_office/brain")({
@@ -25,6 +26,7 @@ function Brain() {
   return (
     <RoomShell showFiles={false} showSample={false}>
       <div className="space-y-6">
+        <BrainShelves />
         <BrainHub />
         <div id="brain-documents"><BrainDocuments /></div>
         <div id="brain-memory"><BrainMemory /></div>
