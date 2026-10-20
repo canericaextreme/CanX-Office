@@ -105,6 +105,7 @@ export function OfficeNav() {
           )}
         </div>
 
+        <div className="canx-office-nav-actions ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
         <DropdownMenu onOpenChange={isOpen => { if (isOpen) setRoomMenu(clockwiseOfficeRooms(readOfficeLabelPositions())); }}>
           <DropdownMenuTrigger asChild><Button ref={synopsisTrigger} variant="ghost" size="sm" aria-label="Room synopsis" title="Room synopsis" className="h-11 shrink-0 gap-2"><Building2 className="h-5 w-5" /><span className="sr-only sm:not-sr-only">Synopsis</span></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-auto" onCloseAutoFocus={event => { if (synopsis) event.preventDefault(); }}>
@@ -131,7 +132,6 @@ export function OfficeNav() {
           </DialogContent>
         </Dialog>
         {/* Reachable from every room, without adding a destination. */}
-        <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
           <SecondEyesPanel />
           <AccountMenu />
         </div>
