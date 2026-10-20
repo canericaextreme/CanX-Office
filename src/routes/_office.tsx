@@ -5,6 +5,7 @@ import { RoomAccessBar } from "@/components/office/RoomAccessBar";
 import { OfficeManager } from "@/components/office/OfficeManager";
 import { ApprovalAlert } from "@/components/office/ApprovalAlert";
 import { CompanionDock } from "@/components/office/CompanionDock";
+import { canBrowseOfficeWithoutSignIn } from "@/lib/office-development-access";
 import { OfficeGate } from "@/components/office/OfficeGate";
 import { OfficeThemeProvider } from "@/lib/office-theme";
 import { OwnerSessionProvider } from "@/lib/owner-session";
@@ -56,9 +57,9 @@ function OfficeLayout() {
   return (
     <OfficeThemeProvider>
       <OwnerSessionProvider>
-        <OfficeGate>
-          <OfficeInterior />
-        </OfficeGate>
+        {canBrowseOfficeWithoutSignIn(import.meta.env.DEV)
+          ? <OfficeInterior />
+          : <OfficeGate><OfficeInterior /></OfficeGate>}
       </OwnerSessionProvider>
     </OfficeThemeProvider>
   );

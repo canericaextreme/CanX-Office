@@ -34,7 +34,7 @@ John authorises GitHub saving and publication of completed owner-requested CanX 
 - Evening checks are not continuous monitoring; owner/MFA verification remains mandatory.
 
 ## Development entrance
-- Skip OfficeGate during builds. Keep header sign-in. Elsie step-up stays above the transcript for phone access. Never bypass protected access.
+- Build browsing skips OfficeGate; one large Account dialog replaces inline sign-in cards. Protected Elsie attempts open Account without replay. Why: uncluttered UI, unchanged owner/MFA security.
 
 ## Owner-only connection shutdown — 4 October 2026
 Only John may authorise changes to Claude or ChatGPT/Codex enablement, credentials, routing or removal. Neither assistant may sever the other's access. Ordinary coding/publication does not authorise this; affected candidates remain proposals. The Office cannot disable external accounts. Why: connection control belongs to John.

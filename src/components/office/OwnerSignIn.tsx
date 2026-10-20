@@ -10,9 +10,7 @@ import { useState } from "react";
 import { Eye, EyeOff, LogIn, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOwnerSession } from "@/lib/owner-session";
-import { SUPABASE_SETUP_URL } from "@/lib/connections-inventory";
 
 export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
   const session = useOwnerSession();
@@ -25,58 +23,54 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const run = async (action: () => Promise<string | null>) => {
+    if (busy) return;
     setBusy(true);
     setError(null);
-    const problem = await action();
-    if (problem) setError(problem);
-    setBusy(false);
+    try {
+      const problem = await action();
+      if (problem) setError(problem);
+      else setCode("");
+    } catch {
+      setError("Account verification could not finish. Nothing was unlocked.");
+    } finally { setBusy(false); }
   };
 
   return (
-    <Card className="border-border bg-card">
-      <CardHeader className={compact ? "sr-only" : undefined}>
-        <CardTitle className="text-base">Owner sign-in</CardTitle>
-      </CardHeader>
-      <CardContent className={compact ? "space-y-2 p-2" : "space-y-3"}>
-        {!compact && <p className="text-sm text-muted-foreground">{session.message}</p>}
-
-        {!session.configured && (
-          <div className="rounded-lg border border-border/60 bg-secondary/40 p-3 text-sm">
-            <p className="text-foreground">Sign-in is unavailable until a CanX-owned database is connected.</p>
-            <p className="mt-1 text-muted-foreground">
-              You complete that step yourself, in your own account, so CanX owns it.
-            </p>
-            <a
-              href={SUPABASE_SETUP_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-block text-primary underline"
-            >
-              Open the connectors page and choose Supabase
-            </a>
+    <section aria-label="Owner account controls" className="space-y-4 text-base [&_input]:min-h-11 [&_input]:text-base [&_button]:min-h-11 [&_button]:text-base [&_button]:whitespace-normal">
+        {!compact && <h2 className="text-xl font-semibold">Owner account</h2>}
+        {session.state === "checking" ? <p role="status">Checking Account…</p> : !session.configured && (
+          <div className="space-y-3">
+            <p role="alert">Account sign-in settings are unavailable. Private records and paid calls stay locked.</p>
+            <Button variant="outline" disabled={busy} onClick={() => void run(async () => { await session.refresh(); return null; })}>Check Account connection</Button>
           </div>
         )}
 
         {session.configured && (session.state === "signed_out" || session.state === "error") && (
-          <div className="space-y-2">
+          <form className="space-y-3" onSubmit={event => { event.preventDefault(); if (email && password) void run(() => session.signIn(email, password)); }}>
+            <label className="block space-y-1"><span>Email</span>
             <Input
               type="email"
               value={email}
-              placeholder={compact ? undefined : "Owner email"}
+              autoComplete="username"
+              required
               aria-label="Owner email"
               onChange={(event) => setEmail(event.target.value)}
             />
+            </label>
+            <label className="block space-y-1"><span>Password</span>
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
                 value={password}
-                placeholder={compact ? undefined : "Password"}
+                required
                 aria-label="Password"
                 autoComplete="current-password"
                 className="pr-12"
                 onChange={(event) => setPassword(event.target.value)}
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 type="button"
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 aria-pressed={showPassword}
@@ -84,29 +78,33 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
                 className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
-              </button>
+              </Button>
             </div>
-            <Button disabled={busy || !email || !password} onClick={() => void run(() => session.signIn(email, password))}>
+            </label>
+            <Button type="submit" className="w-full" disabled={busy || !email || !password}>
               <LogIn className="mr-1.5 h-4 w-4" /> Sign in
             </Button>
-          </div>
+          </form>
         )}
 
-        {session.state === "mfa_required" && (
-          <div className="space-y-2">
-            {!compact && <p className="text-sm text-foreground">Enter the six-digit code from your authenticator app to finish signing in.</p>}
+        {(session.state === "mfa_required" || (session.state === "owner" && !session.stepUpComplete)) && (
+          <form className="space-y-3" onSubmit={event => { event.preventDefault(); if (code.length === 6) void run(() => enrolment ? session.confirmEnrolment(enrolment.factorId, code) : session.submitMfaCode(code)); }}>
+            <label className="block space-y-1"><span>Authenticator code</span>
             <Input
               inputMode="numeric"
               value={code}
-              placeholder={compact ? undefined : "123456"}
+              autoComplete="one-time-code"
+              maxLength={6}
               aria-label="Six digit code"
               onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
             />
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={busy || code.length !== 6} onClick={() => void run(() => session.submitMfaCode(code))}>
+            </label>
+            <div className="grid gap-2">
+              <Button type="submit" disabled={busy || code.length !== 6}>
                 <ShieldCheck className="mr-1.5 h-4 w-4" /> Verify
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 disabled={busy}
                 onClick={() =>
@@ -130,6 +128,7 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
                   access to the account.
                 </p>
                 <Button
+                  type="button"
                   size="sm"
                   className="mt-2"
                   disabled={busy || code.length !== 6}
@@ -139,7 +138,7 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
                 </Button>
               </div>
             )}
-          </div>
+          </form>
         )}
 
         {session.state === "not_owner" && (
@@ -150,7 +149,7 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
 
         {session.state === "owner" && (
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm text-foreground">Signed in as {session.email}. Records save to your CanX account.</span>
+            <span className="min-w-0 break-all text-base text-foreground">{session.email ?? "Owner signed in"}</span>
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void session.signOut()}>
               <LogOut className="mr-1.5 h-4 w-4" /> Sign out
             </Button>
@@ -162,7 +161,6 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
             {error}
           </p>
         )}
-      </CardContent>
-    </Card>
+    </section>
   );
 }

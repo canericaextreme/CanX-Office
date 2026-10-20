@@ -4,6 +4,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Account remains reachable above Elsie's phone shield and the keyboard. */
+@media (max-width: 767px), (max-height: 500px) {
+  .canx-account-dialog {
+    top: max(0.5rem, env(safe-area-inset-top));
+    transform: translateX(-50%);
+    max-height: calc(100dvh - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
 /* Phone controls reflow with the viewport; orientation stays under device control. */
 @media (hover: none) and (pointer: coarse) and (max-width: 1366px) {
   .canx-office-nav-inner {

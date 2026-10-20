@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BudgetPanel } from "@/components/office/BudgetPanel";
-import { OwnerSignIn } from "@/components/office/OwnerSignIn";
+import { openOfficeAccount } from "@/lib/office-account-dialog";
 import { useOwnerSession } from "@/lib/owner-session";
 import { listPrivateReceipts, savePrivateReceipts } from "@/lib/finance.functions";
 import { formatZoned, OFFICE_TIMEZONE } from "@/lib/subscriptions";
@@ -206,13 +206,10 @@ export function Finance() {
       <RoomShell showSample={false}>
         <div className="mx-auto max-w-xl space-y-4">
           <div>
-            <h2 className="text-xl font-semibold">Sign in to Finance</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Private receipts are available only to the verified owner, with two-step verification. Nothing in this
-              room is shown until you are signed in.
-            </p>
+            <h2 className="text-xl font-semibold">Finance</h2>
+            <p className="mt-1 text-base text-foreground">Private receipts remain locked.</p>
           </div>
-          <OwnerSignIn />
+          <Button className="min-h-11 text-base" onClick={openOfficeAccount}>Open Account</Button>
         </div>
       </RoomShell>
     );
@@ -221,7 +218,6 @@ export function Finance() {
   return (
     <RoomShell showSample={false}>
       <div className="grid gap-4">
-        <OwnerSignIn />
         {section === null ? (
           <>
             <h2 className="text-xl font-semibold">Finance overview</h2>
