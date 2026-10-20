@@ -9,6 +9,7 @@
 
 export const OPT_IN_LABEL = 'canx:auto-merge';
 export const REVIEW_CONTEXT = 'canx/independent-review';
+export const REVIEW_AUTHOR = 'github-actions[bot]';
 export const REQUIRED_CHECK = 'pr-checks';
 export const ROBOT_CHECK = 'auto-merge';
 export const STATE_LABELS = {
@@ -68,13 +69,16 @@ export function builderVendor(pr) {
 
 export const reviewerFor = vendor => (vendor === 'anthropic' ? 'openai' : vendor === 'openai' ? 'anthropic' : null);
 
-// statuses: GitHub statuses for the head commit, newest first. Description format: "<vendor>:<model> approve|changes - ...".
+// statuses: GitHub statuses for the head commit, newest first, with creator. Description format: "<vendor>:<model> approve|changes - ...".
 export function reviewState(statuses, builder) {
   const s = statuses.find(x => x.context === REVIEW_CONTEXT);
   if (!s) return { state: 'missing' };
   const vendor = /^(anthropic|openai):/.exec(s.description ?? '')?.[1] ?? null;
   if (s.state === 'pending') return { state: 'missing' };
   if (s.state !== 'success') return { state: 'changes', detail: s.description ?? 'reviewer asked for changes' };
+  // Only the robot itself posts review results. Anyone else with write access can post a status with
+  // the same name, so a success from another author is never an approval.
+  if (s.creator?.login !== REVIEW_AUTHOR) return { state: 'untrusted', detail: `the review result was posted by ${s.creator?.login ?? 'an unknown author'}, not the merge robot` };
   if (!vendor || vendor === builder) return { state: 'not-independent', detail: `review by ${vendor ?? 'unknown'} is not independent of the builder (${builder})` };
   return { state: 'approved', detail: s.description };
 }
@@ -113,6 +117,7 @@ export function decide({ pr, files, checkRuns, statuses, reviews }) {
 
   const review = reviewState(statuses ?? [], builder);
   if (review.state === 'changes') return out('blocked', [`independent review asked for changes: ${review.detail}`]);
+  if (review.state === 'untrusted') return out('owner-review', [review.detail]);
   if (review.state === 'not-independent') return out('waiting-review', [review.detail], 'review');
   if (review.state === 'missing') return out('waiting-review', [`needs an independent ${reviewerFor(builder)} review of this exact commit`], 'review');
   return out('ready', [`all gates passed; ${review.detail}`], 'merge');
