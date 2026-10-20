@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { runManagerChatWith, validate, VOICE_ANSWER_RULE, type ManagerDeps } from "./manager.functions";
 import { hasSpokenWords, spokenOfficeAnswer, spokenText } from "./use-realtime-manager";
+import { ELSIE_VOICE_DELIVERY } from "./elsie-voice-delivery";
 import type { OwnerVerification } from "./canx-backend.server";
 
 const OWNER: OwnerVerification = { ok: true, userId: "owner-1", email: "o@example.com", aal: "aal2" };
@@ -55,6 +56,32 @@ describe("Standard voice asks the Office for a short spoken answer", () => {
 });
 
 describe("the owner's records are read together, not one after another", () => {
+  it("starts fresh room, Brain and project reads alongside continuity, before a paid call", async () => {
+    const started: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const reserve = vi.fn(async () => ({ allowed: true as const, reservationId: "r1", remainingToday: 10 }));
+    const { d, bodies } = deps({
+      buildContext: async () => { started.push("context"); await gate; return { ok: true, text: "FRESH CONTEXT" }; },
+      readContinuity: async () => { started.push("memory"); return { ok: true, text: "SAVED MEMORY", counts: { memory: 1, summaries: 0, recent: 0 } }; },
+      readDocuments: async () => { started.push("documents"); return { text: "DOCUMENT FACTS", sources: [], gaps: [] }; },
+      readRoomSnapshot: async (_token, _aal, route) => { started.push(`room:${route}`); return null; },
+      readBrainIndex: async () => { started.push("brain"); return null; },
+      readProjectRegister: async () => { started.push("projects"); return null; },
+      reserve,
+    });
+    const pending = runManagerChatWith(d, { ...ask(true), currentRoute: "/projects", messages: [{ role: "user", content: "What projects are in Brain?" }] });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(started).toEqual(expect.arrayContaining(["context", "memory", "documents", "brain", "projects", "room:/projects"]));
+    expect(reserve).not.toHaveBeenCalled();
+    expect(bodies).toHaveLength(0);
+    release();
+    expect((await pending).ok).toBe(true);
+    expect(bodies[0]).toContain("FRESH CONTEXT");
+    expect(bodies[0]).toContain("SAVED MEMORY");
+    expect(bodies[0]).toContain("DOCUMENT FACTS");
+    expect(bodies[0]).toContain("could NOT be read");
+  });
   it("memory and documents start before the office facts finish", async () => {
     const started: string[] = [];
     let releaseContext!: () => void;
@@ -81,6 +108,14 @@ describe("the owner's records are read together, not one after another", () => {
 });
 
 describe("what Elsie says aloud", () => {
+  it("keeps the authoritative answer intact while asking for conversational delivery", () => {
+    const result = spokenOfficeAnswer("Your task is on hold. Nothing was changed.");
+    expect(result.response.instructions).toContain(ELSIE_VOICE_DELIVERY);
+    expect(result.response.instructions).toContain("word for word");
+    expect(result.response.instructions).toContain("Your task is on hold. Nothing was changed.");
+    expect(result.response.tool_choice).toBe("none");
+    expect(VOICE_ANSWER_RULE).toContain("natural contractions");
+  });
   it("record footers stay in the written answer but are not read aloud", () => {
     const written = "Reception is fresh.\n\nThe Claude button task is open.\n\nSource: Reception room snapshot, checked 18:12 UTC.\nSkill used: Office Manager — Skill Router, version 1.0.0.";
     expect(spokenText(written)).toBe("Reception is fresh.\n\nThe Claude button task is open.");

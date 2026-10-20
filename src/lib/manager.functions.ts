@@ -299,9 +299,11 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
     readContinuity: async (token, ownerId) => {
       const astra = await import("@/lib/astra-continuity");
       if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
-      const base = await astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId);
       const { readElsieReconnectBrief } = await import("./elsie-reconnect-brief");
-      const recovery = await readElsieReconnectBrief((path) => backend.restRequest(config, token, path), ownerId, new Date().toISOString());
+      const [base, recovery] = await Promise.all([
+        astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId),
+        readElsieReconnectBrief((path) => backend.restRequest(config, token, path), ownerId, new Date().toISOString()),
+      ]);
       return { ...base, text: base.text + "\n\n" + recovery };
     },
     readDocuments: async (token, request, previous) => {
@@ -761,6 +763,7 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
  * interpolated here; it is sent separately as labelled untrusted data.
  */
 export const MANAGER_SYSTEM_PROMPT = `You are Elsie, the CanX Office Manager for John Cantlon's CanX Office. You run the office: you turn approved decisions into tasks, assign workers, verify results, and keep one master task list. You talk only to John and act as the single office coordinator.
+Your purpose is to help John run a professional office that takes in a task and returns a verified finished product. Use the Office's current records, rules and canonical skills to think critically: identify the actual problem, dependencies and blockers, suggest practical solutions, and recommend the next useful step. Follow work through implementation, review and verification; distinguish a suggestion, a queued task, running work and a completed result. If required facts or capabilities are missing, say exactly what is missing instead of guessing or promising completion. These responsibilities grant no new tools or authority.
 
 Language: always reply in English, even when John's message is a short sound or a word that looks like another language (for example a speech-to-text mistake). Use another language only when John clearly asks for it.
 
@@ -875,7 +878,7 @@ export interface ChatInput {
  * reply. The token cap stays as it is so a long tool call is never cut off.
  */
 export const VOICE_ANSWER_RULE =
-  "SPOKEN TURN: John is listening, not reading. Answer in one to three short spoken sentences unless he asks for a list or the detail. Lists are names only, with no descriptions unless asked. Never shorten a tool call, an approval or a fact to fit.";
+  "SPOKEN TURN: John is listening, not reading. Answer conversationally, using everyday words and natural contractions. Lead with the useful answer, without a scripted acknowledgement or a report-style preamble. Use one to three short spoken sentences unless he asks for a list or the detail. Lists are names only, with no descriptions unless asked. Keep Elsie's established personality. Never shorten a tool call, an approval or a fact to fit.";
 
 /**
  * Rooms to read fresh for this request: a room John names explicitly comes
@@ -1696,6 +1699,11 @@ export async function runManagerChatWith(
   deps: ManagerDeps,
   data: ChatInput,
 ): Promise<ManagerReply> {
+  // Include authentication, queue and reads in the timing origin. No words,
+  // credentials or record content are included in these numeric stage logs.
+  const startedAt = Date.now();
+  const diag = (stage: string, status?: number) =>
+    console.info("[office-manager] turn", { stage, status: status ?? null, ms: Date.now() - startedAt });
   // GATE 1 — paid Elsie calls use the same AAL2 owner requirement as the
   // database reservation. This reports an authenticator problem accurately
   // instead of mislabelling it as a spending-limit failure.
@@ -1708,6 +1716,7 @@ export async function runManagerChatWith(
     );
   }
 
+  diag("owner_checked");
   if (!data.messages.length) {
     return denyReply("invalid_input", "not_configured", "No message was sent.");
   }
@@ -1746,6 +1755,7 @@ export async function runManagerChatWith(
   const turnRequest = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
   // An explicit "don't send / read-only / just asking" turn never releases work.
   const queueSteps = requestIsDiscussionOnly(turnRequest) ? [] : await advanceBuilderQueues(deps, data.accessToken);
+  diag("queue_checked");
   // Only real changes are announced; a refused release stays in the action log.
   const queueNews = queueSteps.flatMap(step => [...step.finished, ...(step.started?.ok ? [`Started the next queued ${BUILDER_LABEL[step.builder]} task "${step.started.title}". ${step.started.detail}`] : [])]);
   const queueResults: ManagerActionResult[] = queueSteps.filter(step => step.finished.length || step.started).map(step => ({
@@ -1767,7 +1777,12 @@ export async function runManagerChatWith(
   // was NOT read and must not claim it; nothing is invented.
   // The three owner-scoped reads are independent, so they run together
   // (17 Oct: run one after another they added to every spoken answer's wait).
-  const [context, continuity, documents] = await Promise.all([
+  // These are all reads of the same owner-verified request, after queue changes.
+  // Start them together: room/Brain/project reads previously waited for the
+  // entire context, reservation and health-check chain before even starting.
+  const targets = roomsForRequest(latestUser, data.currentRoute);
+  const needsProjects = /\bprojects?\b|lovable|\bwhere is\b|what.?s next|next (step|move)|ready to (market|launch|sell)|\bmarket\b/i.test(latestUser) || data.currentRoute === "/projects";
+  const [context, continuity, documents, roomReads, brain, reg] = await Promise.all([
     deps
       .buildContext(data.accessToken, verification, includeReceiptDetails)
       .catch(() => ({
@@ -1779,10 +1794,18 @@ export async function runManagerChatWith(
           .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
       : Promise.resolve({ ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." })) as Promise<ContinuityRead>,
     deps.readDocuments ? deps.readDocuments(data.accessToken, latestUser, previousDocumentRequest) : Promise.resolve({ text: "", sources: [], gaps: [] }),
+    Promise.all(targets.map(async t => ({ target: t, snap: deps.readRoomSnapshot
+      ? await deps.readRoomSnapshot(data.accessToken, verification.aal, t.route, data.buildId ?? "unknown", t.why === "current" ? data.device ?? null : null).catch(() => null)
+      : null }))),
+    requestNeedsBrain(latestUser, data.currentRoute) && deps.readBrainIndex
+      ? deps.readBrainIndex(data.accessToken, verification.aal).catch(() => null) : Promise.resolve(null),
+    needsProjects && verification.aal === "aal2" && deps.readProjectRegister
+      ? deps.readProjectRegister(data.accessToken).catch(() => null) : Promise.resolve(null),
   ]);
   if (!context.ok) {
     return denyReply("context_unavailable", "configured_unverified", context.message, deps.model);
   }
+  diag("context_ready");
   const persistTurn = async (answer: string): Promise<boolean | undefined> => {
     if (!deps.recordTurn || !answer.trim()) return undefined;
     const saved = await deps.recordTurn(data.accessToken, verification.userId, latestUser, answer).catch(() => null);
@@ -1791,16 +1814,13 @@ export async function runManagerChatWith(
 
   // GATE 4 — durable per-owner rate and spending reservation. If limits cannot
   // be reserved, the answer is no.
-  const startedAt = Date.now();
-  const diag = (stage: string, status?: number) =>
-    // Safe diagnostics only: stage, status and timing. No transcript, key or payload.
-    console.info("[office-manager] turn", { stage, status: status ?? null, ms: Date.now() - startedAt });
   const reservation = await deps.reserve(data.accessToken, deps.provider === "anthropic" ? 15 : ESTIMATED_CENTS_PER_CALL);
   if (!reservation.allowed) {
     const failedStage: ManagerFailedStage = reservation.reason === "rate_limit" ? "office_rate_limit" : "office_budget";
     diag(failedStage);
     return { ...denyReply("limit_blocked", "configured_unverified", reservation.message, deps.model), failedStage };
   }
+  diag("reserved");
 
   // GATE 5 — a real authenticated health check, every time.
   const health = await providerHealthCheck(deps);
@@ -1813,15 +1833,14 @@ export async function runManagerChatWith(
       ...(health.status ? { providerStatus: health.status } : {}),
     };
   }
+  diag("provider_ready");
 
   try {
     // Fresh per-request room reads (never the voice startup copy). A named
     // room overrides "this room"; failures are reported, never guessed.
-    const targets = roomsForRequest(latestUser, data.currentRoute);
     const snapshots: Array<{ snap: RoomSnapshot; why: "current" | "named" }> = [];
     const roomLines: string[] = [];
-    for (const t of targets) {
-      const snap = deps.readRoomSnapshot ? await deps.readRoomSnapshot(data.accessToken, verification.aal, t.route, data.buildId ?? "unknown", t.why === "current" ? data.device ?? null : null).catch(() => null) : null;
+    for (const { target: t, snap } of roomReads) {
       if (snap) { snapshots.push({ snap, why: t.why }); roomLines.push(snapshotForModel(snap, t.why)); }
       else roomLines.push(`Room snapshot for ${t.route}: could NOT be read for this request. Say so; do not describe this room's records.`);
     }
@@ -1830,14 +1849,12 @@ export async function runManagerChatWith(
       : "";
     let brainContext = "";
     if (requestNeedsBrain(latestUser, data.currentRoute) && deps.readBrainIndex) {
-      const brain = await deps.readBrainIndex(data.accessToken, verification.aal).catch(() => null);
       brainContext = brain ? brainIndexForModel(brain, latestUser) : "CanX Brain index: could NOT be read for this request. Do not describe Brain categories or saved items.";
     }
     let projectContext = "";
-    if (/\bprojects?\b|lovable|\bwhere is\b|what.?s next|next (step|move)|ready to (market|launch|sell)|\bmarket\b/i.test(latestUser) || data.currentRoute === "/projects") {
+    if (needsProjects) {
       if (verification.aal !== "aal2") projectContext = registerForModel([], "denied");
       else if (deps.readProjectRegister) {
-        const reg = await deps.readProjectRegister(data.accessToken).catch(() => null);
         projectContext = registerForModel(reg?.locators.map((l) => l.project) ?? [], reg ? "read" : "failed");
         if (reg) projectContext += "\n" + locatorsForModel(reg.locators, reg.tasksReadAt);
       }
