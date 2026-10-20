@@ -1,5 +1,11 @@
 # Phase 1 bright office completion
 
+## Construction Account cleanup (2026-10-20; continuing repairs 184/185)
+- [x] Inspect main 0c9ecd5; unmount construction entrance and remove duplicate ordinary sign-in cards.
+- [x] One readable phone Account dialog; protected Elsie attempts open it without sending/replaying.
+- [ ] Run regressions and verify phone portrait/landscape and desktop interactions.
+- [ ] John reviews diff/checks before publication; real owner/MFA/voice needs his session/device.
+
 ## Elsie Android authenticator (2026-10-19)
 - [x] Move compact empty authenticator entry above scrolling content; preserve session/MFA enforcement.
 - [x] Remove empty-conversation, input and voice-mode explanatory copy; keep real history/errors.
