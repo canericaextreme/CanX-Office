@@ -4,8 +4,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { BrainMap } from "@/components/office/BrainMap";
 import { BrainLiveView } from "@/components/office/BrainLiveView";
+import { BrainSection } from "@/components/office/BrainSection";
 import { BrainMemory } from "@/components/office/BrainMemory";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_office/brain")({
   head: () => ({
@@ -26,21 +26,40 @@ function Brain() {
     <RoomShell showFiles={false} showSample={false}>
       <div className="space-y-6">
         <BrainHub />
-        <div id="brain-documents"><BrainDocuments /></div>
-        <div id="brain-memory"><BrainMemory /></div>
         <BrainLiveView />
-        <BrainMap />
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-base">Growth history</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
+        <div className="space-y-3">
+          <BrainSection
+            id="brain-documents"
+            label="Project documents"
+            hint="Long documents saved for Elsie and the builders to read in full."
+          >
+            <BrainDocuments />
+          </BrainSection>
+          <BrainSection
+            id="brain-memory"
+            label="Saved conversation memory"
+            hint="Summaries of past conversations that Elsie reads when answering."
+          >
+            <BrainMemory />
+          </BrainSection>
+          <BrainSection
+            id="brain-map"
+            label="Brain map"
+            hint="How the Office's parts connect, with a keyboard-friendly list."
+          >
+            <BrainMap />
+          </BrainSection>
+          <BrainSection
+            id="brain-growth"
+            label="Growth history"
+            hint="Approved skills, new projects, verified sources and finished work, once recorded."
+          >
+            <p className="px-2 py-1 text-sm text-muted-foreground">
               No recorded changes yet. Growth will appear here after approved skills, added
               projects, verified sources, or completed work items are recorded.
             </p>
-          </CardContent>
-        </Card>
+          </BrainSection>
+        </div>
       </div>
     </RoomShell>
   );
