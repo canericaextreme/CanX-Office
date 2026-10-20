@@ -10,6 +10,7 @@ describe('Astra to Codex connection', () => {
     const result = await codexBuildsWith(d, 'owner');
 
     expect(result.ok).toBe(true);
+    expect(result.previewUrl).toBeNull();
     expect(result.runs).toEqual([]);
     expect(d.fetch).toHaveBeenCalledOnce();
     const [url, init] = vi.mocked(d.fetch).mock.calls[0]!;
@@ -38,7 +39,7 @@ describe('Astra to Codex connection', () => {
   });
   it('refuses unauthenticated callers before accessing GitHub', async () => {
     const d = setup(); vi.mocked(d.verify).mockResolvedValue({ ok: false, reason: 'mfa_required', message: 'MFA required' });
-    expect((await codexBuildsWith(d, 'bad', 'Build an office widget')).ok).toBe(false);
+    expect(await codexBuildsWith(d, 'bad', 'Build an office widget')).toMatchObject({ ok: false, previewUrl: null });
     expect(d.fetch).not.toHaveBeenCalled();
   });
   it('does not pretend to connect when credentials or enablement are missing', async () => {
@@ -81,6 +82,7 @@ describe('Astra to Codex connection', () => {
     expect(result.detail).toContain('Draft change #51');
     expect(result.detail).toContain('deployment remain unverified');
     expect(result.runs?.[0]?.state).toBe('success');
+    expect(result.previewUrl).toBeNull();
     for (const [, init] of vi.mocked(d.fetch).mock.calls) expect(init?.method ?? 'GET').toBe('GET');
   });
   it('rejects a linked run from another workflow', async () => {
