@@ -8,7 +8,9 @@
 @media (max-width: 767px), (max-height: 500px) {
   .canx-account-dialog {
     top: max(0.5rem, env(safe-area-inset-top));
-    transform: translateX(-50%);
+    /* Tailwind 4 uses the individual translate property for dialog centring. */
+    translate: -50% 0;
+    transform: none;
     max-height: calc(100dvh - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
 }

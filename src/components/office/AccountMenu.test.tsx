@@ -24,8 +24,8 @@ describe("one deliberate Account verification flow", () => {
     expect(h.session.signIn).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Account sign-in and authenticator" }));
     fireEvent.change(screen.getByLabelText("Owner email"), { target: { value: "owner@example.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "fixture-only" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in", exact: true }));
+    fireEvent.change(screen.getByLabelText("Password", { exact: true, selector: "input" }), { target: { value: "fixture-only" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Sign in$/ }));
     await waitFor(() => expect(h.session.signIn).toHaveBeenCalledExactlyOnceWith("owner@example.test", "fixture-only"));
     expect(h.session.submitMfaCode).not.toHaveBeenCalled();
   });
@@ -39,7 +39,7 @@ describe("one deliberate Account verification flow", () => {
     fireEvent.submit(code.closest("form") as HTMLFormElement);
     expect(h.session.submitMfaCode).not.toHaveBeenCalled();
     fireEvent.change(code, { target: { value: "12x34567" } });
-    fireEvent.click(screen.getByRole("button", { name: "Verify", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^Verify$/ }));
     await waitFor(() => expect(h.session.submitMfaCode).toHaveBeenCalledExactlyOnceWith("123456"));
     expect(h.session.signIn).not.toHaveBeenCalled();
   });
