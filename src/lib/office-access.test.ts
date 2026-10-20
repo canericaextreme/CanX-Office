@@ -80,13 +80,14 @@ describe("account menu", () => {
   const companion = read("src/components/office/CompanionDock.tsx");
 
   it("offers sign out from the header account menu, not the companion", () => {
-    expect(menu).toContain("session.signOut()");
+    expect(read("src/components/office/OwnerSignIn.tsx")).toContain("session.signOut()");
     expect(nav).toContain("<AccountMenu />");
     expect(companion).not.toContain("signOut");
   });
 
   it("offers the authenticator step-up in the account menu", () => {
-    expect(menu).toContain("submitMfaCode");
+    expect(menu).toContain("<OwnerSignIn compact />");
+    expect(read("src/components/office/OwnerSignIn.tsx")).toContain("submitMfaCode");
   });
 });
 
