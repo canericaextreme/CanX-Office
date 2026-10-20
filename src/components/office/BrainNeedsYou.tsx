@@ -12,7 +12,8 @@ import {
   type NeedsAction as Action,
 } from "@/lib/brain-needs-actions";
 import { brainRoomLabel } from "@/lib/brain-view-layout";
-import { sendManagerHandoff } from "@/lib/companion-bridge";
+import { getBrainAdvice, type AdviceResult } from "@/lib/brain-advice.functions";
+import { BrainAdvice } from "./BrainAdvice";
 
 const KIND_LABEL: Record<NeedsItem["kind"], string> = {
   approval: "Approval box",
@@ -53,6 +54,24 @@ export function BrainNeedsYou({
   const decide = useServerFn(decideManagerApproval);
   const update = useServerFn(updateManagerTask);
   const cancel = useServerFn(cancelManagerTask);
+  const advise = useServerFn(getBrainAdvice);
+  const [advice, setAdvice] = useState<Record<string, "loading" | AdviceResult>>({});
+
+  async function askElsie(item: NeedsItem) {
+    if (!token || advice[item.id] === "loading") return;
+    setAdvice((a) => ({ ...a, [item.id]: "loading" }));
+    const r = await advise({
+      data: {
+        accessToken: token,
+        kind: item.kind === "approval" ? "approval" : "task",
+        id: item.id,
+      },
+    }).catch((): AdviceResult => ({
+      ok: false,
+      message: "Elsie's advice could not be requested just now. Nothing was changed.",
+    }));
+    setAdvice((a) => ({ ...a, [item.id]: r }));
+  }
   const [pending, setPending] = useState<{ id: string; action: Action } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ id: string; text: string; ok: boolean } | null>(null);
@@ -206,6 +225,9 @@ export function BrainNeedsYou({
                       {notice.text}
                     </p>
                   ) : null}
+                  {advice[item.id] ? (
+                    <BrainAdvice state={advice[item.id]!} title={item.title} />
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {!canAct ? (
@@ -262,17 +284,13 @@ export function BrainNeedsYou({
                       <button
                         type="button"
                         aria-label={`Ask Elsie about: ${item.title}`}
-                        onClick={() =>
-                          sendManagerHandoff({
-                            text: `Explain this item from the Brain room's Needs-you list and what you'd recommend (approve or archive), using the work logbook and Work Board: "${item.title}" — ${item.why}`,
-                            room: "brain",
-                            path: "/brain",
-                            source: "room_button",
-                          })
-                        }
-                        className="rounded-md px-2 py-1.5 text-xs text-muted-foreground underline-offset-2 hover:underline"
+                        disabled={advice[item.id] === "loading"}
+                        onClick={() => void askElsie(item)}
+                        className="rounded-md border border-[#3987e5]/70 px-3 py-1.5 text-xs font-medium text-[#9cc3f2] hover:bg-[#3987e5]/15 disabled:opacity-50"
                       >
-                        Ask Elsie
+                        {advice[item.id] && advice[item.id] !== "loading"
+                          ? "Ask Elsie again"
+                          : "Ask Elsie"}
                       </button>
                     </>
                   )}
