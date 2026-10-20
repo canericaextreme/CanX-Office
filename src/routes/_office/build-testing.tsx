@@ -1,3 +1,4 @@
+import { ElsieWorkerControls } from '@/components/office/ElsieWorkerControls';
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +40,7 @@ function BuildTesting() {
         <AssistantConnectionsPanel />
         <ViewAccessPanel />
         <OfficeHealthPanel />
+        <ElsieWorkerControls />
         <RoomConnectionCheck />
         <Card className="border-border bg-card">
           <CardHeader>
