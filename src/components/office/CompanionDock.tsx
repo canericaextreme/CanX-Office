@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Minus } from "lucide-react";
-import { COMPANION_OPEN_EVENT, COMPANION_VISIBILITY_EVENT } from "@/lib/companion-bridge";
+import { CLAUDE_REVIEWS_EVENT, COMPANION_OPEN_EVENT, COMPANION_VISIBILITY_EVENT } from "@/lib/companion-bridge";
 import { CompanionWorkPanel, type Observation } from "@/components/office/CompanionWorkPanel";
 import { useCompanionPosition } from "@/lib/companion-position";
 import { CHAT_PHASE_LABEL, useRealtimeChat } from "@/lib/use-realtime-chat";
@@ -218,6 +218,27 @@ export function CompanionDock() {
       >
         Open ChatGPT
       </a>
+      {/* 21 Oct 2026, John: Claude sits off to the side, identical to Open ChatGPT, never over Elsie. */}
+      <a
+        href="https://claude.ai/"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="claude-tab"
+        onPointerDown={(event) => event.stopPropagation()}
+        aria-label="Work with Claude in a new tab"
+        className="flex cursor-pointer min-h-9 w-full items-center justify-center rounded-md border border-slate-500 px-1 text-center text-sm font-bold leading-tight text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Work with Claude
+      </a>
+      <button
+        type="button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => window.dispatchEvent(new Event(CLAUDE_REVIEWS_EVENT))}
+        aria-controls="claude-connection-dashboard"
+        className="flex cursor-pointer min-h-7 w-full items-center justify-center rounded-md px-1 text-[10px] text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Claude reviews
+      </button>
     </section>
     </>
   );

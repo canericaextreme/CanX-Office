@@ -17,6 +17,8 @@ export const COMPANION_OPEN_EVENT = "canx:open-companion";
 /** Same key as CompanionDock's HIDDEN_KEY; the Claude tab sits just above the Chatbot tab. */
 export const COMPANION_HIDDEN_KEY = "canx.companion.hidden";
 export const COMPANION_VISIBILITY_EVENT = "canx:companion-visibility";
+/** Opens or closes Claude's paid review panel (21 Oct: its entry sits in the chatbot card under Work with Claude). */
+export const CLAUDE_REVIEWS_EVENT = "canx:claude-reviews";
 
 export function openCompanion() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(COMPANION_OPEN_EVENT));
