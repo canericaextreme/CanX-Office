@@ -463,6 +463,7 @@ describe("live office context replaces anything the browser sends", () => {
       "check_elsie_queue",
       "execute_task",
       "check_task_execution",
+      "hand_to_claude_worker",
       "check_codex_builds",
       "check_claude_builds",
       // Google Drive (selected-files scope; no delete action exists).

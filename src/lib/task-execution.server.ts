@@ -5,6 +5,7 @@ import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCa
 import { BUILDER_LABEL, type OfficeBuilder } from './builder-choice';
 import { splitLeadingJson } from './task-receipt';
 import { ACTIVE_RUN_STATES, MAX_QUEUED_PER_BUILDER, hasQueueMarker, queueMarker, queuedTasksFor, selectElsieQueueTask } from './elsie-task-queue';
+import { FAILED_RUN_STATES, hasTakeover, newTakeoverNoteDetail, parseTakeoverNote, takeoverMarker, takeoverNoteId, takeoverStatusText, type ChangeState, type TakeoverReason } from './claude-takeover';
 
 type BuildFn = (token: string, request?: string, prNumber?: number, runId?: number) => Promise<CodexBuildResult>;
 interface Execution { kind: 'codex-task-v1' | 'office-task-v2'; builder: OfficeBuilder; attempt: string; runId?: number; state: string; prior: string; }
@@ -14,6 +15,8 @@ export interface TaskExecutionDeps {
   build: BuildFn;
   /** Claude builder; only used when John explicitly chose Claude. */
   buildClaude?: BuildFn;
+  /** Read-only live state of a full Claude worker's pull request. */
+  readChange?: (prNumber: number) => Promise<ChangeState | null>;
 }
 /** Legacy codex-task-v1 receipts are always Codex. */
 export const readExecution = (text: string): Execution | null => {
@@ -38,6 +41,8 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
   if (preclaimed && !task.evidence.includes('[elsie-claim ' + builder + ' ' + taskId + ']')) return { ok: false, detail: 'Missing queued claim receipt.' };
   const pick = (b: OfficeBuilder): BuildFn | undefined => b === 'claude' ? deps.buildClaude : deps.build;
   if (checkOnly) {
+    // A job handed to a full Claude worker reports Claude's progress, never the old small-builder run.
+    if (hasTakeover(task.evidence)) return takeoverStatusWith(deps, token, owner.userId, task.id);
     if (!execution?.runId) return { ok: false, detail: 'This task has no verified build link. Assignment alone does not start work. If a previous submission was uncertain, inspect Build & Testing before retrying.' };
     if (builder && builder !== execution.builder) return { ok: false, detail: `This task was sent to ${BUILDER_LABEL[execution.builder]}, not ${BUILDER_LABEL[builder]}. Its status is checked only with the recorded builder.` };
     const run = pick(execution.builder);
@@ -52,7 +57,15 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
       status: active ? 'in_progress' : 'open', result: live.detail.slice(0, 2000),
       evidence: JSON.stringify({ ...execution, state }) + splitLeadingJson(task.evidence).tail, updated_at: new Date().toISOString(),
     });
-    return { ...live, detail: live.detail + (saved.ok && firstRow(saved.data) ? ' Task evidence updated; completion remains unverified.' : ' Task record was not updated; it may have changed during this check.') };
+    const checked = { ...live, detail: live.detail + (saved.ok && firstRow(saved.data) ? ' Task evidence updated; completion remains unverified.' : ' Task record was not updated; it may have changed during this check.') };
+    // 21 Oct: a failed small Claude build goes to a full Claude worker at once,
+    // instead of John hearing "failure" and asking for paid re-runs.
+    if (execution.builder === 'claude' && FAILED_RUN_STATES.has(state) && saved.ok && firstRow(saved.data)) {
+      const handed = await handTaskToClaudeWith(deps, token, task.id, 'after-failure', `run ${execution.runId}: ${state}`)
+        .catch((): CodexBuildResult => ({ ok: false, detail: 'Handing it to a full Claude worker did not go through; ask me to give it to Claude.' }));
+      return { ...checked, detail: `The small Claude builder could not finish this (run ${execution.runId}: ${state}). ${handed.detail}` };
+    }
+    return checked;
   }
   if (task.status === 'done' || task.status === 'cancelled') return { ok: false, detail: 'That task is already finished; nothing was started.' };
   if (execution && builder && execution.builder !== builder) return { ok: false, detail: `A build attempt was already recorded with ${BUILDER_LABEL[execution.builder]}. It was not sent to ${BUILDER_LABEL[builder]}; check the existing attempt instead.` };
@@ -219,7 +232,8 @@ export async function advanceElsieQueueWith(deps: TaskExecutionDeps, token: stri
     if (check?.ok && state && !ACTIVE_RUN_STATES.has(state)) {
       const change = check.detail.match(/(?:Draft change|Change) #\d+[^:]*: \S+/)?.[0];
       const draftOnly = change?.startsWith('Draft change') ? ' Built as a draft only; it is not in the Office until it is merged and published.' : '';
-      finished.push(`"${t.title}" finished: ${state}.${change ? ' ' + change : ''}${draftOnly}`);
+      if (/Handed to a full Claude worker/.test(check.detail)) finished.push(`"${t.title}": the small builder could not finish it (${state}), so a full Claude worker has it now. No re-run is needed.`);
+      else finished.push(`"${t.title}" finished: ${state}.${change ? ' ' + change : ''}${draftOnly}`);
     }
   }
   if (finished.length) tasks = await builderTasks(deps, token, owner.userId, builder);
@@ -237,4 +251,59 @@ export async function advanceElsieQueueWith(deps: TaskExecutionDeps, token: stri
   return { builder, checked: true, finished,
     started: { taskId: task.id, title: task.title, ok: outcome.ok, detail: outcome.detail + (run ? ` Run ${run.id}: ${run.url}` : '') },
     detail: outcome.ok ? `Started queued ${BUILDER_LABEL[builder]} task "${task.title}".` : `Queued ${BUILDER_LABEL[builder]} task "${task.title}" was not started: ${outcome.detail}` };
+}
+
+/** Hand one saved green Office task to a full Claude worker. Writes the Brain
+ * note first, then marks the task; never starts a paid builder run.
+ */
+export async function handTaskToClaudeWith(deps: TaskExecutionDeps, token: string, taskId: string, reason: TakeoverReason, failedRun?: string): Promise<CodexBuildResult> {
+  const owner = await deps.workbench.verifyOwner(token);
+  if (!owner.ok) return { ok: false, detail: owner.message };
+  if (!/^[0-9a-f-]{36}$/i.test(taskId)) return { ok: false, detail: 'Choose a saved task identifier.' };
+  const path = `manager_tasks?id=eq.${encodeURIComponent(taskId)}&owner_id=eq.${encodeURIComponent(owner.userId)}`;
+  const read = await deps.workbench.rest<ManagerTask[]>(token, 'GET', path);
+  const task = read.ok ? firstRow<ManagerTask>(read.data) : null;
+  if (!task || task.owner_id !== owner.userId) return { ok: false, detail: 'The saved task could not be read for this owner.' };
+  if (task.status === 'done' || task.status === 'cancelled') return { ok: false, detail: 'That task is already finished; nothing was handed over.' };
+  if (hasTakeover(task.evidence)) return takeoverStatusWith(deps, token, owner.userId, task.id);
+  const scope = `${task.title}\n${task.detail}`;
+  if ((task.project && task.project.toLowerCase() !== 'canx office') || task.risk !== 'green' || officeBuildProtectedCategory(scope))
+    return { ok: false, detail: 'Only green CanX Office code tasks can be handed to a Claude worker. This one needs John\'s approval path; nothing was handed over.' };
+  const execution = readExecution(task.evidence);
+  if (execution?.runId && ACTIVE_RUN_STATES.has(execution.state))
+    return { ok: false, detail: `The small builder is still on run ${execution.runId}. Check it first; nothing was handed over.` };
+  const at = new Date().toISOString();
+  const noteId = takeoverNoteId(task.id);
+  const notePath = `office_notes?id=eq.${encodeURIComponent(noteId)}&owner_id=eq.${encodeURIComponent(owner.userId)}&select=id&limit=1`;
+  const existing = await deps.workbench.rest<{ id: string }[]>(token, 'GET', notePath);
+  if (!existing.ok || !Array.isArray(existing.data)) return { ok: false, detail: 'The Brain could not be checked for a Claude handoff note; nothing was handed over.' };
+  if (!existing.data.length) {
+    const note = await deps.workbench.rest(token, 'POST', 'office_notes', {
+      id: noteId, owner_id: owner.userId, kind: 'decision', owner_name: '', provenance: 'ai-proposal', source: 'Elsie handoff to Claude',
+      title: `Claude takeover: ${task.title}`.slice(0, 200),
+      detail: newTakeoverNoteDetail({ taskId: task.id, reason, at, title: task.title, detail: task.detail, ...(failedRun ? { failedRun } : {}) }),
+    });
+    if (!note.ok) return { ok: false, detail: 'Claude\'s handoff note could not be saved in the Brain; nothing was handed over.' };
+  }
+  const saved = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&evidence=eq.${encodeURIComponent(task.evidence)}&status=not.in.(done,cancelled)`, {
+    status: 'waiting', worker: 'Claude', evidence: (task.evidence ? task.evidence + '\n' : '') + takeoverMarker(at, reason),
+    waiting_reason: `With a full Claude worker (Brain note ${noteId}). Claude picks up handed-over jobs about every hour.`,
+    updated_at: at,
+  });
+  if (!saved.ok || !firstRow(saved.data)) return { ok: false, detail: 'The task changed while it was being handed over; nothing was handed over. Check it again.' };
+  await deps.workbench.rest(token, 'POST', 'rpc/log_manager_change', {
+    _owner_id: owner.userId, _action: 'task.claude_takeover', _entity: 'manager_tasks', _entity_id: task.id,
+    _before: { status: task.status, worker: task.worker }, _after: { reason, note: noteId },
+  }).catch(() => undefined);
+  return { ok: true, detail: 'Handed to a full Claude worker; no paid re-run was started. Claude picks it up within about an hour, builds it with tests, and its change merges itself once checks pass. Ask me for its status any time.' };
+}
+
+/** Claude's real progress on a handed-over task: its Brain note, then the live PR when it names one. */
+export async function takeoverStatusWith(deps: TaskExecutionDeps, token: string, ownerId: string, taskId: string): Promise<CodexBuildResult> {
+  const noteId = takeoverNoteId(taskId);
+  const read = await deps.workbench.rest<{ detail: string }[]>(token, 'GET',
+    `office_notes?id=eq.${encodeURIComponent(noteId)}&owner_id=eq.${encodeURIComponent(ownerId)}&select=detail&limit=1`).catch(() => null);
+  const note = read?.ok ? parseTakeoverNote(firstRow<{ detail: string }>(read.data)?.detail) : null;
+  const change = note?.pr && deps.readChange ? await deps.readChange(note.pr).catch(() => null) : null;
+  return { ok: !!note, detail: takeoverStatusText(note, change) };
 }
