@@ -88,3 +88,7 @@ the task. Completed task evidence includes the checkpoint ID so subsequent assis
 retrieve it. Checkpoint text says completion was requested, not completed: the linked task
 remains the authority if its subsequent update fails. This covers the Office task-verification
 path, not arbitrary external assistant text or all direct database writers.
+
+### Shared goals acceptance
+
+`office-goals.ts` retrieves the canonical goals note separately from recent windows. Both API relay providers receive its contents; Elsie typed and voice context and connector startup use the same reader. Existing owner/RLS/working-grant boundaries remain. Test API colleagues by asking for goal facts without supplying answers; then separately test Elsie and native external clients. A successful source read or unit test is not live cross-client acceptance.

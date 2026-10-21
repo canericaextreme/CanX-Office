@@ -7,6 +7,15 @@ const deps = (authorize = async () => true): OfficeMcpDeps => ({ resource, issue
 const request = (body: unknown, headers = {}) => new Request(resource, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer token", ...headers }, body: JSON.stringify(body) });
 const rpc = (method: string, params = {}) => ({ jsonrpc: "2.0", id: 1, method, params });
 describe("Office MCP access boundary", () => {
+  it('loads goals at connector startup only through the existing working-grant path', async () => {
+    const work = vi.fn(async () => ({ records: [{ data: { id: 'office-goals-master-20261021', detail: 'STARTUP_GOAL_FIXTURE', provenance: 'john' } }] }));
+    const params = { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } };
+    const response = await handleOfficeMcp(request(rpc('initialize', params)), { ...deps(), work });
+    expect((await response.json()).result.instructions).toContain('STARTUP_GOAL_FIXTURE');
+    expect(work).toHaveBeenCalledWith('token', 'read_office_records', expect.objectContaining({ id: 'office-goals-master-20261021' }));
+    const denied = await handleOfficeMcp(request(rpc('initialize', params)), { ...deps(), work: async () => { throw Error('grant absent'); } });
+    expect((await denied.json()).result.instructions).toContain('NOT AVAILABLE');
+  });
   it("exposes pending handoff receipts as tool failures without losing recovery details", async () => {
     const receipt = { verified:false, completion:"pending", historyId:"handoff-job-chatgpt-job-123" };
     const response = await handleOfficeMcp(request(rpc("tools/call", { name:"write_office_record", arguments:{collection:"office_notes",id:"handoff-latest-chatgpt",data:{}} })), {...deps(),work:async()=>receipt});

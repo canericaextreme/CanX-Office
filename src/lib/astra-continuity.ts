@@ -10,6 +10,7 @@
  */
 
 import { handoffContext, readLatestHandoffs, type HandoffNote } from "./conversation-handoff";
+import { readOfficeGoals } from './office-goals';
 
 export type Rest = (
   path: string,
@@ -84,12 +85,13 @@ export async function readAstraContinuity(rest: Rest, ownerId: string, layout: C
   // Preferred path: the existing database function, run as the owner (RLS).
   // Claude's and ChatGPT's latest handoffs are read alongside; a failed
   // handoff read only leaves that section out.
-  const [rpc, handoffs] = await Promise.all([
+  const [rpc, handoffs, goals] = await Promise.all([
     rest("rpc/get_astra_context", { method: "POST", body: "{}" }).catch(() => ({ ok: false, status: 0, body: null as unknown })),
     readLatestHandoffs(rest, ownerId),
+    readOfficeGoals(path => rest(`${path}&owner_id=eq.${encodeURIComponent(ownerId)}`)),
   ]);
   const fromRpc = rpc.ok ? rpcContext(rpc.body, layout, handoffs) : null;
-  if (fromRpc) return fromRpc;
+  if (fromRpc) return { ...fromRpc, text: `${goals}\n\n${fromRpc.text}` };
   const owner = `owner_id=eq.${encodeURIComponent(ownerId)}`;
   const safe = (p: ReturnType<Rest>) => p.catch(() => ({ ok: false, status: 0, body: null as unknown }));
   const [memory, summaries, recent] = await Promise.all([
@@ -101,7 +103,7 @@ export async function readAstraContinuity(rest: Rest, ownerId: string, layout: C
     return { ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity tables could not be read." };
   }
   const m = rows(memory.body), s = rows(summaries.body), r = rows(recent.body);
-  return { ok: true, text: astraContinuityContext(m, s, r, layout, handoffs), counts: { memory: m.length, summaries: s.length, recent: r.length } };
+  return { ok: true, text: `${goals}\n\n${astraContinuityContext(m, s, r, layout, handoffs)}`, counts: { memory: m.length, summaries: s.length, recent: r.length } };
 }
 
 function pick(obj: Record<string, unknown>, ...keys: string[]): unknown[] | null {

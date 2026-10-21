@@ -109,6 +109,15 @@ const FULL = {
 };
 
 describe("live office context", () => {
+  it('reads canonical goals separately from recent summaries', async () => {
+    const ordinary = rest(FULL);
+    const read: RestImpl = async (config, token, path, init) => path.includes('id=eq.office-goals-master-20261021')
+      ? { ok: true, status: 200, body: [{ id: 'office-goals-master-20261021', detail: 'CANONICAL_GOAL_FIXTURE', provenance: 'john' }] }
+      : ordinary(config, token, path, init);
+    const result = await buildLiveOfficeContext(request(read));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.text).toContain('CANONICAL_GOAL_FIXTURE');
+  });
   it("reloads existing Brain summaries on every fresh conversation without rewriting them", async () => {
     const detail = "Office build plan. ".repeat(45) + "Keep the existing summary workflow.";
     const memory = { title: "Existing agreed office plan", detail, source: "CanX Brain: conversation summary", provenance: "john", created_at: "2026-09-21T12:00:00Z" };

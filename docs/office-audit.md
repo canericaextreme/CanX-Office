@@ -183,3 +183,7 @@ The server accepts the reported “Pass this to the builder: apply cream-colored
 ### Completion-path integration follow-up
 
 Task verification now saves and independently reads an immutable Brain evidence checkpoint before changing task/assignment completion. Failed or mismatched saves leave the task unfinished; completed evidence links the checkpoint ID. Full local suite passed: 206 files / 1988 tests. This does not globally enforce native external chat replies, and live rollout remains pending.
+
+### Canonical goals delivery follow-up
+
+Live blind relay checks on 21 October found both Office API colleagues received only the goal record reference, not its contents. Added one exact-ID goal reader to both colleague prompts, typed Elsie context, voice continuity and working-grant MCP initialization. Tests assert the content arrives without copying it into user messages and failures remain labelled unavailable. External native client recall and live deployment remain acceptance checks. No goal content or private interview answers are committed to the repository.

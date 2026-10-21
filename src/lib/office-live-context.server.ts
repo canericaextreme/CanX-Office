@@ -1,4 +1,5 @@
 import { brainMemoryContext } from "./brain-memory-context";
+import { readOfficeGoals } from './office-goals';
 /**
  * Live office context for the Office Manager — SERVER ONLY, FAIL CLOSED.
  *
@@ -246,6 +247,7 @@ function staticRoomCatalogue(): string {
  */
 export async function buildLiveOfficeContext(request: LiveContextRequest): Promise<LiveContextResult> {
   const { config, token, rest } = request;
+  const goals = await readOfficeGoals(path => rest(config, token, path));
 
   const notesResponse = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=200").catch(
     () => null,
@@ -344,6 +346,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
       `- Two-step verification: confirmed (${request.aal}).`,
       `- Office Manager provider: ${request.provider}; model: ${request.model}.`,
     ].join("\n"),
+    goals,
     brainMemoryContext(memoryResponse.body, continuityResponse.body),
     notes.length
       ? `Shared office notes, tasks and decisions [provenance: live database]:\n${notes.join("\n")}`
