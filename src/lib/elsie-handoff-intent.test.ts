@@ -39,3 +39,28 @@ describe("Elsie handoff reaches the builder gate", () => {
     expect(requestAsksToQueue("Pass this task to Claude: tidy Finance")).toBe(false);
   });
 });
+
+// 21 Oct 2026: John's real spoken requests were saved as tasks but never built,
+// because the gate only accepted sentences that began with a command word.
+describe("John's spoken requests reach the builder gate", () => {
+  it("accepts a wish said after a spoken opener", () => {
+    const said = "No, it's not done. I just opened up the Claude button and it's still a great big square with a whole bunch of useless stuff on it. I want the button just to open up the same as OpenChatGPT, and I want it to say work with Claude.";
+    expect(directBuildRefusal(said, "claude")).toBeNull();
+    expect(directBuildRefusal("Okay, fix the reception label", "codex")).toBeNull();
+    expect(directBuildRefusal("Yeah. The Finance button should only say Receipts.", "codex")).toBeNull();
+    expect(directBuildRefusal("Claude has to fix the reception label", "claude")).toBeNull();
+    expect(directBuildRefusal("I want you to add a Trash view to the Work Board", "codex")).toBeNull();
+  });
+  it("accepts a spoken request to start a waiting task", () => {
+    expect(taskExecutionRefusal("Yeah, you need to pass whatever task we have there waiting to fix the label.")).toBeNull();
+    expect(taskExecutionRefusal("Okay. Go ahead and run the saved task.")).toBeNull();
+  });
+  it("still refuses pauses, status wishes and plain reports", () => {
+    expect(directBuildRefusal("Okay, just put it on pause. I gotta fix the voice. Claude has to fix the voice.", "claude")).not.toBeNull();
+    expect(directBuildRefusal("I want the status of the Work Board", "codex")).not.toBeNull();
+    expect(directBuildRefusal("I want to know what is going on in the office", "codex")).not.toBeNull();
+    expect(directBuildRefusal("Claude has build 15 running", "claude")).not.toBeNull();
+    expect(directBuildRefusal("Okay, stop, stop.", "codex")).not.toBeNull();
+    expect(taskExecutionRefusal("Just wondering what's still going on in the office.")).not.toBeNull();
+  });
+});

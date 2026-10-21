@@ -216,7 +216,11 @@ export async function advanceElsieQueueWith(deps: TaskExecutionDeps, token: stri
   for (const t of linked) {
     const check = await executeTaskWith(deps, token, t.id, true).catch(() => null);
     const state = check?.runs?.[0]?.state;
-    if (check?.ok && state && !ACTIVE_RUN_STATES.has(state)) finished.push(`"${t.title}" finished: ${state}.${check.detail.match(/(?:Draft change|Change) #\d+[^:]*: \S+/)?.[0] ? ' ' + check.detail.match(/(?:Draft change|Change) #\d+[^:]*: \S+/)![0] : ''}`);
+    if (check?.ok && state && !ACTIVE_RUN_STATES.has(state)) {
+      const change = check.detail.match(/(?:Draft change|Change) #\d+[^:]*: \S+/)?.[0];
+      const draftOnly = change?.startsWith('Draft change') ? ' Built as a draft only; it is not in the Office until it is merged and published.' : '';
+      finished.push(`"${t.title}" finished: ${state}.${change ? ' ' + change : ''}${draftOnly}`);
+    }
   }
   if (finished.length) tasks = await builderTasks(deps, token, owner.userId, builder);
   if (!tasks) return { builder, checked: true, finished, detail: 'Saved queue could not be re-read after the status check.' };
