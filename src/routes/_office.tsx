@@ -45,7 +45,7 @@ function OfficeInterior() {
             <ApprovalAlert />
           </div>
           <CompanionDock />
-          {/* Claude tab, just above the Chatbot tab, reachable from every room. */}
+          {/* Work with Claude tab, beside the Chatbot tab, reachable from every room. */}
           <SecondEyesPanel />
           <div data-canx-no-capture="true">
             <OfficeManager />

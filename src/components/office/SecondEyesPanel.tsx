@@ -54,7 +54,7 @@ function writeStored(key: string, value: string | null) {
 /** Simple Claude mark in the companion's colours. */
 function ClaudeMark() {
   return (
-    <svg viewBox="0 0 48 48" className="h-10 w-10 sm:h-12 sm:w-12" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 48 48" className="h-9 w-9 sm:h-10 sm:w-10" aria-hidden="true" focusable="false">
       <circle cx="24" cy="24" r="23" className="fill-white/15" />
       <path d="M31 16.5a10 10 0 1 0 0 15" className="fill-none stroke-white" strokeWidth="3" strokeLinecap="round" />
     </svg>
@@ -62,14 +62,14 @@ function ClaudeMark() {
 }
 
 /**
- * 21 Oct 2026, John: no big Claude button in the header. Claude gets its own
- * tab, identical to the ChatGPT "Chatbot" tab and sitting just above it.
+ * 21 Oct 2026, John: no Claude button at the top of the screen. A "Work with
+ * Claude" tab sits at the bottom, right beside the ChatGPT tab, in its style.
  * The card opens Claude in a new tab, like "Open ChatGPT", and keeps the
  * existing paid review panel one press away. Nothing here starts a review.
  */
 function ClaudeTab({ reviewsOpen, onToggleReviews }: { reviewsOpen: boolean; onToggleReviews: () => void }) {
   const [cardOpen, setCardOpen] = useState(false);
-  // Sit just above the Chatbot tab, or above the ChatGPT card while it is showing.
+  // Right beside the Chatbot tab (clear of it when it slides out), or beside the ChatGPT card.
   const [chatbotHidden, setChatbotHidden] = useState(false);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ function ClaudeTab({ reviewsOpen, onToggleReviews }: { reviewsOpen: boolean; onT
     return () => window.removeEventListener(COMPANION_VISIBILITY_EVENT, follow);
   }, []);
 
-  const place = chatbotHidden ? "bottom-[4.5rem]" : "bottom-[11.5rem] sm:bottom-[12.5rem]";
+  const place = chatbotHidden ? "bottom-4 left-[7.5rem]" : "bottom-4 left-[8.5rem] sm:left-[9.5rem]";
 
   if (!cardOpen) {
     return (
@@ -89,10 +89,10 @@ function ClaudeTab({ reviewsOpen, onToggleReviews }: { reviewsOpen: boolean; onT
         data-testid="claude-tab"
         data-canx-no-capture="true"
         onClick={() => { writeStored(CLAUDE_OPEN_KEY, "1"); setCardOpen(true); }}
-        aria-label="Open the Claude tab"
-        className={`fixed ${place} left-0 z-40 flex cursor-pointer h-12 w-28 -translate-x-[calc(100%-3rem)] transition-transform duration-200 hover:translate-x-0 focus-within:translate-x-0 motion-reduce:transition-none items-center justify-center gap-1 rounded-xl border border-slate-950 bg-slate-900 text-white shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+        aria-label="Open the Work with Claude tab"
+        className={`fixed ${place} z-40 flex cursor-pointer h-12 items-center justify-center gap-1 rounded-xl border border-slate-950 bg-slate-900 pl-3 pr-1 text-white shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
       >
-        <span className="text-sm font-bold">Claude</span>
+        <span className="whitespace-nowrap text-sm font-bold">Work with Claude</span>
         <ClaudeMark />
       </button>
     );
@@ -103,7 +103,7 @@ function ClaudeTab({ reviewsOpen, onToggleReviews }: { reviewsOpen: boolean; onT
       aria-label="Claude"
       data-canx-no-capture="true"
       data-testid="claude-card"
-      className={`fixed ${place} left-4 z-40 flex w-28 flex-col items-center gap-2 rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur sm:w-32`}
+      className={`fixed ${place} z-40 flex w-28 flex-col items-center gap-2 rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur sm:w-32`}
     >
       <div className="flex w-full items-center justify-between">
         <span className="text-sm font-bold">Claude</span>

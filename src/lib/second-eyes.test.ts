@@ -64,9 +64,10 @@ describe("reachable from every room without adding a destination", () => {
     expect(nav).not.toContain("SecondEyesPanel");
   });
 
-  it("the Claude tab matches the Chatbot tab and opens Claude like Open ChatGPT", () => {
+  it("the Work with Claude tab sits beside the Chatbot tab and opens Claude like Open ChatGPT", () => {
     expect(panel).toContain('data-testid="claude-tab"');
-    expect(panel).toContain('<span className="text-sm font-bold">Claude</span>');
+    expect(panel).toContain('<span className="whitespace-nowrap text-sm font-bold">Work with Claude</span>');
+    expect(panel).toMatch(/chatbotHidden \? "bottom-4 left-/);
     expect(panel).toContain('href="https://claude.ai/"');
     expect(panel).toContain("Work with Claude");
     expect(panel).not.toContain("TooltipContent");
