@@ -61,7 +61,8 @@ export async function executeTaskWith(deps: TaskExecutionDeps, token: string, ta
     // 21 Oct: a failed small Claude build goes to a full Claude worker at once,
     // instead of John hearing "failure" and asking for paid re-runs.
     if (execution.builder === 'claude' && FAILED_RUN_STATES.has(state) && saved.ok && firstRow(saved.data)) {
-      const handed = await handTaskToClaudeWith(deps, token, task.id, 'after-failure', `run ${execution.runId}: ${state}`);
+      const handed = await handTaskToClaudeWith(deps, token, task.id, 'after-failure', `run ${execution.runId}: ${state}`)
+        .catch((): CodexBuildResult => ({ ok: false, detail: 'Handing it to a full Claude worker did not go through; ask me to give it to Claude.' }));
       return { ...checked, detail: `The small Claude builder could not finish this (run ${execution.runId}: ${state}). ${handed.detail}` };
     }
     return checked;
