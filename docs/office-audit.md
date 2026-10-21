@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## "Work with Claude" header button — 21 October 2026
+
+At John's request, the Claude control in the Office header (seen on the home page and in every room) is now a plain button labelled "Work with Claude". The eye/minus icon, the "Claude connection" hover tooltip and the small status dot on the button were removed. Pressing it opens the same Claude panel as before, with "Open Claude" (claude.ai) and "Claude builds in Office". The panel's contents, connection check, review buttons, budget reservations, owner/MFA checks and credentials are unchanged. Nothing has been checked on a phone or laptop yet. Narrow phone headers need a look, because the button is now wider than the old icon.
+
 ## Elsie phone layout — 19 October 2026
 
 Touch-device CSS keeps the Elsie launcher fully visible, the toolbar on one horizontally scrolling row, and the transcript shrinkable on short landscape screens. The composer puts the existing voice controls before expanded writing content and keeps the three-button voice row sticky while the composer scrolls. Phone safe-area padding protects controls around cutouts. Portrait mode offers a rotation hint; the site does not claim to override Android's rotation lock. Voice handlers, providers, prompts, memory, authentication and desktop styling are unchanged. Signed-in Android acceptance remains pending.

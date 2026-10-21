@@ -62,6 +62,22 @@ describe("reachable from every room without adding a destination", () => {
     expect(nav).toContain("SecondEyesPanel");
   });
 
+  it("the header control is one clean button labelled Work with Claude", () => {
+    expect(panel).toContain('const WORK_WITH_CLAUDE_LABEL = "Work with Claude";');
+    expect(panel).toContain("{WORK_WITH_CLAUDE_LABEL}");
+    // The extra hover wording and icon-only labels are gone from the control.
+    expect(panel).not.toContain("TooltipContent");
+    expect(panel).not.toContain("Open Claude connection");
+    expect(panel).not.toContain("Minimize Claude connection");
+  });
+
+  it("the button still opens the existing Claude conversation entry point", () => {
+    expect(panel).toContain('aria-controls="claude-connection-dashboard"');
+    expect(panel).toContain("onClick={() => setOpen(value => !value)}");
+    expect(panel).toContain('<a href="https://claude.ai/" target="_blank" rel="noreferrer">Open Claude</a>');
+    expect(panel).toContain('<Link to="/build-testing" onClick={() => setOpen(false)}>Claude builds in Office</Link>');
+  });
+
   it("adds no new office route file", () => {
     expect(panel).not.toContain("createFileRoute");
   });
