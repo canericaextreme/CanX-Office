@@ -333,6 +333,24 @@
       "audience": "office-status",
       "summary": "Prepared a Work Board display repair after a fresh owner-scoped task read confirmed a Claude build receipt followed by notes. The old display parser hid its link and removed the form read-only guard; the candidate reuses the validated receipt reader. No task or archived record changed.",
       "evidence": "src/lib/task-execution-evidence.ts; regression fixtures reproduce the saved-record shape without private note text. Old helper fails 4 regression cases; corrected helper and related suites pass 70 tests. Typecheck, new-file lint and production build passed. Not live-verified."
+    },
+    {
+      "id": "2026-10-21-codex-brain-handoff-local-draft",
+      "at": "2026-10-21T14:39:15.396900Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared local Brain handoff repair: structured material-work evidence, stable job history, version-checked latest save and independent readback through existing record tools. Failed or uncertain saves stay pending; persistence retries cannot execute the job. Not published or live verified.",
+      "evidence": "Six focused Vitest files / 72 tests passed; typecheck and diff check passed. src/lib/brain-handoff.ts and brain-handoff.test.ts; docs/follow-through-loop.md. Inspected local main/cached origin/main de350ab and repository instructions. Production calls forbidden: current remote main/open PRs, named Brain source notes, live latest handoff and signed-in save/device reopen acceptance remain unverified. No credentials, database, permissions, budgets, dependencies or workflows changed."
+    },
+    {
+      "id": "2026-10-21-chatgpt-task-completion-handoff-gate",
+      "at": "2026-10-21T14:52:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Integrated Brain checkpoint save/readback into Office task verification: a task cannot be marked done through verifyManagerTaskWith until its evidence checkpoint independently reads back. Task evidence links the checkpoint. Failed saves remain unfinished; repeated verification reuses identical evidence. Draft only; not deployed.",
+      "evidence": "Full local suite: 206 files / 1988 tests passed. Typecheck/build being checked separately. Existing working-grant handoff validation in PR204 retained. No changes to Claude PR201. External native assistant replies cannot be globally gated by this Office code."
     }
   ]
 }

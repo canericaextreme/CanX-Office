@@ -32,6 +32,14 @@ function fakeRest(overrides: Partial<Record<"memory" | "summaries" | "recent", u
 }
 
 describe("reading continuity", () => {
+  it('includes canonical goals in continuity without recent goal notes', async () => {
+    const f = fakeRest();
+    const result = await readAstraContinuity(async (path, init) => path.includes('id=eq.office-goals-master-20261021')
+      ? ok([{ id: 'office-goals-master-20261021', detail: 'GOAL_CONTEXT_FIXTURE', provenance: 'john' }])
+      : f.rest(path, init), OWNER_ID, { recentFirst: true });
+    expect(result.text).toContain('GOAL_CONTEXT_FIXTURE');
+    expect(result.text.indexOf('GOAL_CONTEXT_FIXTURE')).toBeLessThan(result.text.indexOf('Recent turns'));
+  });
   it("reads all three tables filtered on the verified owner after trying get_astra_context, labelled as office data", async () => {
     const { rest, calls } = fakeRest();
     const result = await readAstraContinuity(rest, OWNER_ID);
@@ -43,6 +51,9 @@ describe("reading continuity", () => {
     expect(calls[handoff]!.path).toContain("id=in.(handoff-latest-claude,handoff-latest-chatgpt)");
     expect(calls[handoff]!.path).toContain(`owner_id=eq.${OWNER_ID}`);
     calls.splice(handoff, 1);
+    const goals = calls.findIndex(c => c.path.includes("id=eq.office-goals-master-20261021"));
+    expect(calls[goals]!.path).toContain(`owner_id=eq.${OWNER_ID}`);
+    calls.splice(goals, 1);
     expect(calls).toHaveLength(3);
     for (const c of calls) expect(c.path).toContain(`owner_id=eq.${OWNER_ID}`);
     expect(calls[0]!.path).toContain("active=is.true");

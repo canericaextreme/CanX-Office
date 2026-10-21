@@ -9,6 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import { runClaudeReviewWith, type ReviewInput } from "@/lib/claude-review.functions";
+import { taskBrainCheckpoint } from './task-brain-checkpoint';
 
 export type RiskLevel = "green" | "yellow" | "red";
 
@@ -483,19 +484,22 @@ export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTa
   if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
 
   const evidence = cleanString(input.evidence, 2000);
+  const checkpoint = await taskBrainCheckpoint(deps, input.accessToken, before, resultText, evidence);
+  if (!checkpoint) return fail("context_unavailable", "Brain handoff could not be saved and read back. Task remains open; retry verification, not the underlying job.");
+  const verifiedEvidence = `${evidence}\nBrain handoff: ${checkpoint}`.trim();
   const now = new Date().toISOString();
 
   const [updated] = await Promise.all([
     deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
       status: "done",
       result: resultText,
-      evidence,
+      evidence: verifiedEvidence,
       updated_at: now,
     }),
     deps.rest(input.accessToken, "PATCH", `manager_assignments?task_id=eq.${encodeURIComponent(input.taskId)}&completed_at=is.null`, {
       completed_at: now,
       result: resultText,
-      evidence,
+      evidence: verifiedEvidence,
     }),
   ]);
   if (!updated.ok || !updated.data?.[0]) return fail("context_unavailable", updated.error ?? "Verification could not be saved.");
@@ -506,7 +510,7 @@ export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTa
     _entity: "manager_tasks",
     _entity_id: input.taskId,
     _before: { status: before.status, result: before.result },
-    _after: { status: "done", result: resultText, evidence },
+    _after: { status: "done", result: resultText, evidence: verifiedEvidence },
   }).catch(() => undefined);
 
   return updated.data[0];

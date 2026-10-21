@@ -1,3 +1,4 @@
+import { handoffAgentForId, saveBrainHandoff } from './brain-handoff.ts';
 import { OFFICE_SKILLS, SKILLS_REGISTRY_VERSION } from './office-skills.ts';
 // Safe, fixed database messages from the Office record functions; anything else stays generic.
 export const KNOWN_RECORD_ERRORS=['Office working grant required','Invalid record','Field is not editable through this tool','Record changed; read it again before updating','Record missing; nothing replaced','Use the established import, approval or build workflow for this collection','Imported project originals are preserved; use separate project plan records','Finance document patch required','Owner Finance record required','Initialize Finance inside the Office before editing'];
@@ -14,7 +15,7 @@ export async function officeMcpWorkWith(deps:OfficeWorkServiceDeps,token:string,
  if(await rpc('canx_mcp_work_active',{})!==true)throw new OfficeWorkError('Office working grant required');
  switch(name){
  case 'read_office_records':return rpc('canx_office_records',{_collection:args['collection'],_id:args['id']??null,_offset:args['offset']??0,_limit:args['limit']??50});
- case 'write_office_record':return rpc('canx_write_office_record',{_collection:args['collection'],_id:args['id'],_data:args['data'],_expected_version:args['expectedVersion']??null});
+ case 'write_office_record':if(args['collection']==='office_notes' && handoffAgentForId(args['id']))return saveBrainHandoff(rpc,args);return rpc('canx_write_office_record',{_collection:args['collection'],_id:args['id'],_data:args['data'],_expected_version:args['expectedVersion']??null});
  case 'read_office_skills':return {version:SKILLS_REGISTRY_VERSION,skills:args['id']?OFFICE_SKILLS.filter(s=>s.id===args['id']):OFFICE_SKILLS};
  case 'open_office_file':{
   const result=await rpc('canx_office_records',{_collection:'office_files',_id:args['id'],_limit:1}) as {records?:{data:Record<string,unknown>}[]};

@@ -3,6 +3,7 @@ import { relayToColleagueWith, readColleagueRepliesWith, relayEntries, type Rela
 import type { ManagerTask, WorkbenchDeps } from './manager-work.functions';
 import { officeWorkBuildWith } from './office-work.server';
 import { OFFICE_WORK_TOOLS, validWorkArguments } from './office-mcp-work';
+import { OFFICE_GOALS_ID } from './office-goals';
 
 const RID = '11111111-2222-4333-8444-555555555555';
 const base: ManagerTask = { id: 'task-1', owner_id: 'owner', title: 'Welcome note', detail: 'Write it.', status: 'open', risk: 'green', worker: 'Office Manager', result: 'Earlier', evidence: 'Earlier evidence', created_at: '2026-10-08T00:00:00Z', updated_at: '2026-10-08T00:00:00Z' } as ManagerTask;
@@ -11,6 +12,7 @@ const note = { id: 'canx-communication-20261008', title: 'Communication', detail
 function fixture(provider: 'claude' | 'chatgpt' = 'claude') {
   let row = { ...base }; let t = 0;
   const rest = vi.fn(async (_tk: string, method: string, path: string, body?: Record<string, unknown>): Promise<{ ok: boolean; data: unknown[] }> => {
+    if (path.includes(`id=eq.${OFFICE_GOALS_ID}`)) return { ok: true, data: [{ id: OFFICE_GOALS_ID, title: 'Example goals', detail: 'GOAL_FIXTURE: prioritize checked prototypes', provenance: 'john' }] };
     if (path.startsWith('office_notes')) return { ok: true, data: [note] };
     if (method === 'PATCH') {
       const m = /updated_at=eq\.([^&]+)/.exec(path); if (m && decodeURIComponent(m[1]!) !== row.updated_at) return { ok: true, data: [] };
@@ -28,6 +30,13 @@ function fixture(provider: 'claude' | 'chatgpt' = 'claude') {
 const input = (c: 'claude' | 'chatgpt' = 'claude') => ({ accessToken: 'tok', taskId: 'task-1', requestId: RID, colleague: c, message: 'Please review the welcome note.' });
 
 describe('colleague relay', () => {
+  it.each(['claude', 'chatgpt'] as const)('supplies canonical goal contents to %s without pasting them in the message', async colleague => {
+    const f = fixture(colleague);
+    expect((await relayToColleagueWith(f.deps, input(colleague))).ok).toBe(true);
+    const sent = JSON.parse((f.fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(JSON.stringify(sent)).toContain('GOAL_FIXTURE: prioritize checked prototypes');
+    expect(f.rest.mock.calls.some(c => c[2].includes(`id=eq.${OFFICE_GOALS_ID}`) && c[2].includes('owner_id=eq.owner'))).toBe(true);
+  });
   it('saves Claude reply with receipt, labelled direction source and readback; ChatGPT can read it back', async () => {
     const f = fixture();
     const r = await relayToColleagueWith(f.deps, input());

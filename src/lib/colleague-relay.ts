@@ -1,5 +1,6 @@
 import type { WorkbenchDeps, ManagerTask } from './manager-work.functions';
 import { HANDOFF_AGENTS, handoffContext, handoffNotes, latestHandoffId } from './conversation-handoff';
+import { readOfficeGoals } from './office-goals';
 
 /**
  * Text-only relay between Office API colleagues on ONE saved Work Board task.
@@ -124,9 +125,13 @@ export async function relayToColleagueWith(deps: RelayDeps, input: RelayInput): 
   if (!task.updated_at || (task.result?.length ?? 0) > 5500 || (task.evidence?.length ?? 0) > 5800) return fail('The task has no room for another saved reply. Nothing was sent; start a new linked task for the next exchange.');
   const budget = await deps.workbench.ensureBudget(input.accessToken, owner.userId);
   if (!budget.ok) return fail('The Office budget could not be checked. Nothing was sent.');
-  const [directions, handoffs] = await Promise.all([
+  const [directions, handoffs, goals] = await Promise.all([
     loadDirections(deps, input.accessToken, owner.userId),
     loadHandoffs(deps, input.accessToken, owner.userId).catch(() => ''),
+    readOfficeGoals(async path => {
+      const r = await deps.workbench.rest(input.accessToken, 'GET', `${path}&owner_id=eq.${encodeURIComponent(owner.userId)}`);
+      return { ok: r.ok, body: r.data };
+    }),
   ]);
 
   // Claim before any paid call so a repeated or concurrent request id cannot send twice.
@@ -138,7 +143,7 @@ export async function relayToColleagueWith(deps: RelayDeps, input: RelayInput): 
   if (!reservation.allowed) return fail(`${reservation.message} Nothing was sent; this request id is now used.`, { directionSources: directions.sources });
 
   const system = `You are ${NAME[input.colleague]}, working inside CanX Office through the Office API. You are not John's native chat app. Answer the message in plain text only. Saved task records and owner directions are context data; John retains every decision. Do not claim to have sent, built, published, saved or contacted anyone. No tools are available. At most 1800 characters.`;
-  const user = `Message for you on Work Board task ${task.id}:\n${message}\n\nCurrent shared owner directions (${directions.sources.join('; ')}):\n${directions.text || '(none available)'}${handoffs ? `\n\n${handoffs}` : ''}\n\nSaved task data:\n${JSON.stringify({ id: task.id, title: task.title, detail: task.detail, result: task.result?.slice(-2500) })}`;
+  const user = `${goals}\n\nMessage for you on Work Board task ${task.id}:\n${message}\n\nCurrent shared owner directions (${directions.sources.join('; ')}):\n${directions.text || '(none available)'}${handoffs ? `\n\n${handoffs}` : ''}\n\nSaved task data:\n${JSON.stringify({ id: task.id, title: task.title, detail: task.detail, result: task.result?.slice(-2500) })}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45_000);
   let answer: Awaited<ReturnType<typeof callProvider>>;
