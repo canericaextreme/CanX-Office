@@ -57,12 +57,13 @@ export async function directToolOutput(
 }
 
 /**
- * Voice mode a new conversation starts in. "relay" (Standard voice) sends every
- * spoken turn to the Office, which reads memory, the Synopsis and tasks. The
- * "direct" preview lets a separate voice model answer on its own with a small
- * memory; John's 17 Oct test showed it guessing rooms and forgetting.
+ * Voice mode a new conversation starts in. "direct" (Natural voice) talks with
+ * John itself and checks the Office for facts; "relay" (Standard voice) reads
+ * out a written Office answer for every turn. On 21 Oct John found Standard
+ * slow and robotic and Natural "a lot more responsive"; its 17 Oct guessing is
+ * handled by the check-first rules in manager-realtime.functions.ts.
  */
-export const DEFAULT_LIVE_VOICE_MODE = "relay" as const;
+export const DEFAULT_LIVE_VOICE_MODE: "relay" | "direct" = "direct";
 
 /**
  * Realtime is the speaker here, not the Office reasoner. Keep the confirmed
