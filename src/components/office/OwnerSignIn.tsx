@@ -109,6 +109,10 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
               onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
             />
             </label>
+            <p className="text-sm text-muted-foreground">
+              Tip: in your authenticator app, tap the code to copy it, then come back and paste it here. If the page
+              reloads while you are away, this box opens again by itself.
+            </p>
             <div className="grid gap-2">
               <Button type="submit" disabled={busy || code.length !== 6}>
                 <ShieldCheck className="mr-1.5 h-4 w-4" /> Verify
