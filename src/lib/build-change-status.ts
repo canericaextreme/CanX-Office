@@ -12,5 +12,7 @@ export function buildChangeStatus(pr: { number?: unknown; merged_at?: unknown; s
     return `${passed} Change #${pr.number} was merged into main on ${pr.merged_at.slice(0, 10)}; whether that version is published was not checked here: ${url}.`;
   }
   if (pr.state === "closed") return `${passed} Change #${pr.number} was closed without merging: ${url}.`;
-  return `${passed} Review and deployment remain unverified. Draft change #${pr.number}: ${url}.`;
+  // 21 Oct: John heard "finished: success" and looked for the change in the
+  // Office. A passing draft is only a candidate until it is merged and published.
+  return `${passed} Review and deployment remain unverified. Draft change #${pr.number}: ${url}. It is not in the Office yet: it still needs a merge and a Publish.`;
 }

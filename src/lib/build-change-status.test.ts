@@ -38,3 +38,10 @@ describe('a passing build reports what its change became', () => {
     expect((await codexBuildsWith(d, 'owner', undefined, undefined, 42)).detail).toContain('Change #51 was merged');
   });
 });
+
+describe('a passing draft is not reported as done', () => {
+  it('says the open draft still needs a merge and a Publish', () => {
+    expect(buildChangeStatus({ number: 195, state: 'open', merged_at: null }, REPO)).toContain('It is not in the Office yet: it still needs a merge and a Publish.');
+    expect(buildChangeStatus({ number: 122, state: 'closed', merged_at: '2026-10-16T04:40:00Z' }, REPO)).not.toContain('not in the Office yet');
+  });
+});

@@ -35,10 +35,23 @@ export function builderChoiceFor(request: string): BuilderChoice {
 const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|suppose|imagine|how (?:would|could|to)|would (?:it|you|claude|codex)|could (?:claude|codex)|should (?:i|we)|read[ -]?only|no changes|no builds|don['’]?t (?:build|start|send|submit|execute|run|act|create|save|make changes)|do not (?:build|start|send|submit|execute|run|act|create|save|make changes)|not yet|just (?:asking|checking|discussing|planning)|explain)\b/i;
 // A noun such as "build" or "fix" in a status report is never permission.
 // Accept commands (including polite "Can you fix …?"), not arbitrary mentions.
-const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|elsie)(?:[ -]only)?[,:]?\s+)?(?:(?:can|could|would) you\s+)?`;
+// 21 Oct: spoken requests ("Claude has to fix …", "You need to pass the task …",
+// "I want you to add …", "Go ahead and fix …") count like the bare command.
+const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|elsie)(?:[ -]only)?[,:]?\s+)?(?:(?:can|could|would) you\s+)?(?:(?:you|we)\s+)?(?:(?:(?:need|needs|have|has|got) to|gotta|must)\s+)?(?:i (?:want|need|would like|['’]d like) (?:you|claude|codex|elsie) to\s+)?(?:go ahead and\s+|let['’]?s\s+)?(?:please\s+)?`;
 const CHANGE = String.raw`(?:build|implement|code|fix|repair|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
-const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin) (?:the |this |my )?(?:saved |existing )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
+const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin|pass|kick off) (?:the |this |my |that |whatever )?(?:saved |existing |waiting )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
+
+// What John wants the screen to do, said as a wish: "I want the button to say …",
+// "It should only say Work with Claude". Wishes to know or see status are not changes.
+const DESIRE = new RegExp(String.raw`^(?:i (?:want|need|would like|['’]d like)|we need) (?:the|it|this|that|my|our|its|every|each|all|elsie['’]s)\b(?!.*\b(?:status|summary|report|news|overview|progress|update on)\b)|^(?:it|the [\w'’ -]{1,40}?) (?:should|needs to|has to|must) (?:only |just )?(?:say|read|show|open|look|match|display)\b`, "i");
+// Spoken openers before the real instruction: "Okay,", "Yeah,", "No, it's not done."
+const OPENER = /^(?:(?:ok(?:ay)?|yeah|yes|yep|no|nope|so|alright|all right|right|well|um+|uh+|hey|and|but|now|then|also|just)\b[,.!]?\s+)+/i;
+const sentences = (text: string): string[] =>
+  text.trim().split(/(?<=[.!?;])\s+/).map(part => part.replace(OPENER, "").trim()).filter(Boolean);
+/** Any sentence of John's request is a direct change instruction or a clear wish for one. */
+const hasBuildIntent = (text: string): boolean => sentences(text).some(part => BUILD_INTENT.test(part) || DESIRE.test(part));
+const hasTaskIntent = (text: string): boolean => sentences(text).some(part => TASK_INTENT.test(part));
 
 const EXPLICIT_HANDOFF = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:this |the |my )?(?:task|job|assignment|request)?\s*(?:to\s+claude\b|to\s+codex\b|for\s+claude\b|for\s+codex\b)/i;
 const HANDOFF_PREFIX = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:it |this |the |my )?(?:task |job |assignment |request )?(?:to|for)\s+(?:the\s+)?(?:builder|claude|codex)(?:\s+(?:next|after (?:the|its) current (?:build|job|task)))?\s*[:,\-–—]\s*/i;
@@ -55,7 +68,7 @@ export const requestAsksToQueue = (request: string): boolean =>
 /** Treat clear handoffs as actions, without overriding explicit stop conditions. */
 export const requestIsDiscussionOnly = (request: string): boolean => {
   const text = request.trim();
-  const explicitStop = /\b(?:do not|don't|don’t|no)\s+(?:build|start|send|submit|execute|run|act|create|save|make changes)\b|\b(?:not yet|read[ -]?only|hypothetical(?:ly)?|for example|just (?:asking|checking|discussing|planning))\b/i;
+  const explicitStop = /\b(?:do not|don't|don’t|no)\s+(?:build|start|send|submit|execute|run|act|create|save|make changes)\b|\b(?:not yet|read[ -]?only|hypothetical(?:ly)?|for example|just (?:asking|checking|discussing|planning))\b|\bput (?:it |that |this |them |everything |the [\w'’ -]{1,30}?)?on (?:pause|hold)\b|\b(?:hold off|pause (?:it|that|this))\b|^(?:okay,?\s+)?stop\b/i;
   if (explicitStop.test(text)) return true;
   if (EXPLICIT_HANDOFF.test(text)) return false;
   return DISCUSSION.test(text);
@@ -64,7 +77,7 @@ export const requestIsDiscussionOnly = (request: string): boolean => {
 /** Current owner intent is checked on every build entry point, not model scope. */
 export function taskExecutionRefusal(request: string): string | null {
   if (requestIsDiscussionOnly(request)) return "That reads as discussion or a read-only request, so no task was executed.";
-  return (TASK_INTENT.test(request.trim()) || (EXPLICIT_HANDOFF.test(request.trim()) && /\b(?:task|job|assignment)\b/i.test(request))) ? null : "No explicit request to execute a saved task was received; nothing was sent.";
+  return (hasTaskIntent(request) || (EXPLICIT_HANDOFF.test(request.trim()) && /\b(?:task|job|assignment)\b/i.test(request))) ? null : "No explicit request to execute a saved task was received; nothing was sent.";
 }
 
 /**
@@ -78,9 +91,9 @@ export function directBuildRefusal(request: string, builder: OfficeBuilder): str
   const choice = builderChoiceFor(request);
   if ("conflict" in choice) return "Your request names both Claude and Codex. Say which one builder should do it; nothing was sent.";
   if (choice.builder !== builder) return `Your request chose ${BUILDER_LABEL[choice.builder]}, so nothing was sent to ${BUILDER_LABEL[builder]}.`;
-  if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !BUILD_INTENT.test(text))) return "That was a status question, so no build was started.";
+  if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !hasBuildIntent(text))) return "That was a status question, so no build was started.";
   if (requestIsDiscussionOnly(request)) return "That reads as discussion or an example, so no build was started.";
-  if (!BUILD_INTENT.test(text)) return "No explicit Office code change was requested, so no build was started.";
+  if (!hasBuildIntent(text)) return "No explicit Office code change was requested, so no build was started.";
   if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";
   const protectedCategory = officeBuildProtectedCategory(stripBuilderHandoffPrefix(request));
   if (protectedCategory) return `This request includes a protected action (${protectedCategory}), so no build was started.`;
