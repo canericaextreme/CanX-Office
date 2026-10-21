@@ -106,6 +106,24 @@ export function spokenOfficeAnswer(text: string) {
   };
 }
 
+// 21 Oct: John heard ~8 s of silence while the Office read records and
+// thought. A fixed short line says he was heard; the real answer follows.
+// Fixed words only: Elsie never guesses at the answer before the Office has it.
+export const QUICK_REPLY_LINES = ["Okay, checking.", "One moment.", "Let me check."] as const;
+// Fast answers (room commands, saves) skip the quick line entirely.
+export const QUICK_REPLY_DELAY_MS = 600;
+export function spokenQuickReply(index: number) {
+  const reply = spokenOfficeAnswer(QUICK_REPLY_LINES[index % QUICK_REPLY_LINES.length] ?? QUICK_REPLY_LINES[0]);
+  return { ...reply, response: { ...reply.response, metadata: { elsie_quick_reply: "true" } } };
+}
+// On 17 Oct the microphone heard Elsie's own chime as a new question. Her own
+// quick line must never become a request or interrupt the real answer.
+const QUICK_REPLY_WORDS = new Set(["okay", "ok", "one", "moment", "let", "me", "check", "checking"]);
+export function isQuickReplyEcho(text: string) {
+  const words = text.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.length <= 4 && words.every(word => QUICK_REPLY_WORDS.has(word));
+}
+
 /** Live step indicator: where the current voice turn actually is. */
 export type VoiceStage = "idle" | "connecting" | "listening" | "hearing" | "recognized" | "thinking" | "speaking" | "error";
 
@@ -270,6 +288,8 @@ export function useRealtimeManager(
     setActivity("Connecting the microphone and speaker…");
     const connectionStartedAt = Date.now();
     let speechEndedAt = 0;
+    // Kept after the first sound so the real answer can be timed too.
+    let lastSpeechEndedAt = 0;
     let connectStage = "microphone";
     const fail = (message: string) => {
       if (!current()) return;
@@ -398,6 +418,41 @@ export function useRealtimeManager(
       // (nothing left to cancel or clear). That must never end the call.
       let interruptedAt = 0;
       let answerAwaitingPlayback = false;
+      // Quick spoken line while the Office works (Standard voice only).
+      let officePendingId = "";
+      let quickTimer: ReturnType<typeof setTimeout> | undefined;
+      let quickGuard: ReturnType<typeof setTimeout> | undefined;
+      let quickActive = false;
+      let quickResponseId = "";
+      let quickEndedAt = 0;
+      let quickCount = 0;
+      let answerClockFrom = 0;
+      let heldAnswer: { inputId: string; text: string } | null = null;
+      const speakAnswer = (inputId: string, output: string) => {
+        if (!current() || channel.readyState !== "open" || inputId !== latestRequestId) {
+          console.info("[astra-voice]", { stage: "playback_skipped", turn: inputId });
+          return;
+        }
+        if (!sendEvent(spokenOfficeAnswer(output))) {
+          setPlaybackError("Elsie's written answer is available, but it could not be sent to the speaker.");
+          console.warn("[astra-voice]", { stage: "playback_send_failed", turn: inputId });
+          return;
+        }
+        answerAwaitingPlayback = true;
+        setActivity("Answer ready. Waiting for Elsie to speak…");
+      };
+      // The answer waits for the quick line to finish instead of talking over it.
+      const endQuickReply = () => {
+        if (!quickActive) return;
+        quickActive = false;
+        quickResponseId = "";
+        quickEndedAt = Date.now();
+        clearTimeout(quickGuard);
+        const held = heldAnswer;
+        heldAnswer = null;
+        if (held) speakAnswer(held.inputId, held.text);
+        else if (officePendingId && current()) { setPhase("thinking"); setStage("thinking"); }
+      };
       const handledInputs = new Set<string>();
       let currentInputId = "";
       // Standard voice: the newest request with real words. A noise-only
@@ -422,10 +477,21 @@ export function useRealtimeManager(
         // the microphone, transcribed as "Oh."/"No.", and replaced John's real
         // question, so its answer was typed but never spoken.
         setActivity("Elsie heard your request and is preparing an answer…");
+        officePendingId = inputId;
+        answerClockFrom = lastSpeechEndedAt;
+        clearTimeout(quickTimer);
+        quickTimer = setTimeout(() => {
+          if (!current() || officePendingId !== inputId || inputId !== latestRequestId || quickActive || outputPlaying || answerAwaitingPlayback) return;
+          if (!sendEvent(spokenQuickReply(quickCount++))) return;
+          quickActive = true;
+          // Never hold a real answer for long if the quick line never plays.
+          quickGuard = setTimeout(endQuickReply, 4000);
+        }, QUICK_REPLY_DELAY_MS);
         let output = "";
         const requestStartedAt = Date.now();
         try { output = (await requestRef.current(request)).trim(); }
         catch (failure) {
+          if (officePendingId === inputId) { officePendingId = ""; clearTimeout(quickTimer); }
           const known = failure instanceof VoiceTurnError ? failure : null;
           // Safe diagnostics only: stage, HTTP status, timing, retry count (never retried automatically).
           recordVoiceDiag("failure", sessionMode, "office answer " + (known?.stage ?? "other") + (known?.status ? " " + known.status : ""));
@@ -438,6 +504,7 @@ export function useRealtimeManager(
           }
           return;
         }
+        if (officePendingId === inputId) { officePendingId = ""; clearTimeout(quickTimer); }
         if (!output) {
           console.warn("[astra-voice]", { stage: "assistant_response_empty", turn: inputId });
           turnFailedRef.current?.(inputId);
@@ -453,17 +520,13 @@ export function useRealtimeManager(
         transcriptRef.current("assistant", output, inputId);
         if (current() && inputId === latestRequestId) recordVoiceDiag("latency", sessionMode, "office request to answer", Date.now() - requestStartedAt);
         console.info("[astra-voice]", { stage: "assistant_response_received", turn: inputId });
-        if (!current() || channel.readyState !== "open" || inputId !== latestRequestId) {
-          console.info("[astra-voice]", { stage: "playback_skipped", turn: inputId });
+        if (quickActive && current() && inputId === latestRequestId) {
+          heldAnswer = { inputId, text: output };
+          answerAwaitingPlayback = true;
+          setActivity("Answer ready. Elsie will say it after her short reply…");
           return;
         }
-        if (!sendEvent(spokenOfficeAnswer(output))) {
-          setPlaybackError("Elsie's written answer is available, but it could not be sent to the speaker.");
-          console.warn("[astra-voice]", { stage: "playback_send_failed", turn: inputId });
-          return;
-        }
-        answerAwaitingPlayback = true;
-        setActivity("Answer ready. Waiting for Elsie to speak…");
+        speakAnswer(inputId, output);
       };
       const settleWaiting = () => {
         for (const [inputId, request] of [...waiting]) {
@@ -503,13 +566,17 @@ export function useRealtimeManager(
       };
       channel.onmessage = (event) => {
         if (!current()) return;
-        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string; startup_greeting?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string; arguments?: string; content?: { transcript?: string; text?: string }[] }[] }; response_id?: string };
+        let payload: { type?: string; item_id?: string; transcript?: string; error?: { code?: string }; response?: { id?: string; metadata?: { office_input_id?: string; startup_greeting?: string; elsie_quick_reply?: string }; status?: string; status_details?: { error?: { code?: string } }; output?: { type?: string; name?: string; call_id?: string; arguments?: string; content?: { transcript?: string; text?: string }[] }[] }; response_id?: string };
         try { payload = JSON.parse(String(event.data)) as typeof payload; }
         catch { return; }
         if (payload.type === "session.created") {
           sessionReady = true;
           greetWhenReady();
         }
+        if (payload.type === "response.created" && payload.response?.metadata?.elsie_quick_reply === "true") {
+          quickResponseId = payload.response.id ?? "";
+        }
+        if (payload.type === "response.done" && quickResponseId && payload.response?.id === quickResponseId && payload.response?.status !== "completed") endQuickReply();
         if (payload.type === "response.created" && payload.response?.metadata?.startup_greeting === "true") {
           greetingResponseId = payload.response.id ?? "";
         }
@@ -582,7 +649,7 @@ export function useRealtimeManager(
           setActivity("Heard your voice. Checking the Office…");
         }
         if (payload.type === "input_audio_buffer.speech_started" && outputPlaying) recordVoiceDiag("interruption", sessionMode, "spoke over Elsie");
-        if (payload.type === "input_audio_buffer.speech_stopped") speechEndedAt = Date.now();
+        if (payload.type === "input_audio_buffer.speech_stopped") { speechEndedAt = Date.now(); lastSpeechEndedAt = speechEndedAt; }
         if (payload.type === "input_audio_buffer.speech_started") { hearing.providerHeardAt = Date.now(); setStage("hearing"); setActivity("Hearing you speak…"); }
         if (payload.type === "input_audio_buffer.committed") hearing.committedAt = Date.now();
         if (payload.type === "conversation.item.input_audio_transcription.completed") hearing.transcriptAt = Date.now();
@@ -601,9 +668,25 @@ export function useRealtimeManager(
           setError("Elsie heard you, but your words could not be turned into text. Please say it again; nothing was sent to the Office.");
           return;
         }
+        const isQuickAudio = quickActive && (!payload.response_id || payload.response_id === quickResponseId);
         if (payload.type === "output_audio_buffer.started" && speechEndedAt) {
           recordVoiceDiag("latency", sessionMode, "end of speech to first sound", Date.now() - speechEndedAt);
           speechEndedAt = 0;
+        }
+        if (payload.type === "output_audio_buffer.started" && !isQuickAudio && answerClockFrom) {
+          recordVoiceDiag("latency", sessionMode, "end of speech to answer sound", Date.now() - answerClockFrom);
+          answerClockFrom = 0;
+        }
+        if (isQuickAudio && payload.type === "output_audio_buffer.started") {
+          outputPlaying = true;
+          setStage("speaking");
+          setActivity("Elsie said she's checking. The Office is preparing the answer…");
+          return;
+        }
+        if (isQuickAudio && (payload.type === "output_audio_buffer.stopped" || payload.type === "output_audio_buffer.cleared")) {
+          outputPlaying = false;
+          endQuickReply();
+          return;
         }
         if (payload.type === "output_audio_buffer.started" && greetingResponseId && payload.response_id === greetingResponseId && !greetingSoundRecorded) {
           greetingSoundRecorded = true;
@@ -634,6 +717,12 @@ export function useRealtimeManager(
         // Standard voice: a sound with no words is neither saved nor answered.
         if (sessionMode === "relay" && payload.type === "conversation.item.input_audio_transcription.completed" && !hasSpokenWords(text)) {
           recordVoiceDiag("interruption", sessionMode, "ignored a sound with no words");
+          return;
+        }
+        if (sessionMode === "relay" && payload.type === "conversation.item.input_audio_transcription.completed"
+          && (quickActive || Date.now() - quickEndedAt < 2500) && isQuickReplyEcho(text)) {
+          if (payload.item_id) { heard.set(payload.item_id, "empty"); settleWaiting(); }
+          recordVoiceDiag("interruption", sessionMode, "ignored Elsie's own short reply");
           return;
         }
         if (payload.type === "conversation.item.input_audio_transcription.completed") {
