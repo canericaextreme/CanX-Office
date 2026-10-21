@@ -77,3 +77,14 @@ save without re-running work, then reopen a native assistant session and retriev
 Test both Claude and ChatGPT connector clients. Device testing should verify close/reopen context
 and accurate pending/completed wording; no voice/audio code changed or voice verification claimed.
 No production save, publication, push or external contact occurred in this repair.
+
+### Completion integration follow-up
+
+`verifyManagerTaskWith` now persists an append-only, content-addressed task checkpoint through
+the existing owner-scoped REST path before marking the task or assignments complete. Exact
+readback is mandatory; a failed or mismatched read leaves the task unfinished. A lost save
+acknowledgement is resolved by reading, and retries reuse the checkpoint without replaying
+the task. Completed task evidence includes the checkpoint ID so subsequent assistants can
+retrieve it. Checkpoint text says completion was requested, not completed: the linked task
+remains the authority if its subsequent update fails. This covers the Office task-verification
+path, not arbitrary external assistant text or all direct database writers.

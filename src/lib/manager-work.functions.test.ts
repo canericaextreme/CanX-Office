@@ -158,9 +158,23 @@ describe("task lifecycle", () => {
     expect(rest.mock.calls.find(c => c[1] === "PATCH")?.[3]).not.toHaveProperty("status");
   });
 
+  it("keeps a task unfinished when Brain checkpoint readback fails", async () => {
+    const task = { id: 't1', owner_id: 'owner-1', title: 'Task', worker: 'Elsie', status: 'in_progress' };
+    const rest = vi.fn().mockImplementation((_token, method, path) =>
+      Promise.resolve(path.startsWith('manager_tasks?')
+        ? { ok: true, data: [task] }
+        : { ok: true, data: [] }));
+    const result = await verifyManagerTaskWith(mockDeps({ rest }), { accessToken: 'token', taskId: 't1', result: 'Done' });
+    expect(result).toMatchObject({ ok: false, code: 'context_unavailable' });
+    expect(rest.mock.calls.some(c => c[1] === 'PATCH')).toBe(false);
+  });
+
   it("verifyManagerTaskWith marks a task done and logs the change", async () => {
     const updated = { id: "t1", owner_id: "owner-1", title: "Task", status: "done", worker: "Claude" };
-    const rest = vi.fn().mockImplementation((_token, _method, path) => {
+    let savedNote: unknown;
+    const rest = vi.fn().mockImplementation((_token, method, path, body) => {
+      if (path === "office_notes" && method === "POST") { savedNote = body; return Promise.resolve({ ok: true }); }
+      if (path.startsWith("office_notes?")) return Promise.resolve({ ok: true, data: savedNote ? [savedNote] : [] });
       if (path.startsWith("manager_tasks?id=eq")) return Promise.resolve({ ok: true, data: [updated] });
       if (path.startsWith("manager_tasks")) return Promise.resolve({ ok: true, data: [updated] });
       if (path === "rpc/log_manager_change") return Promise.resolve({ ok: true });

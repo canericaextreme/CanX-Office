@@ -179,3 +179,7 @@ The server accepts the reported “Pass this to the builder: apply cream-colored
 - Shared connector guidance and `src/lib/AGENTS.md` require retrieving relevant saved handoffs before work; later sessions can read exact job history. Structured continuity no longer drops evidence after 700 characters. Legacy prose, unrelated writes and builder behavior remain unchanged.
 - Local-only evidence and limitations: see `docs/follow-through-loop.md`. Live source-note retrieval, current remote main/open PR inspection, signed-in connector save/readback and device close/reopen remain pending. No credentials, authentication, authorization, database, spending, dependencies or infrastructure changed. This is not verified live Office health.
 - Checks: six focused Vitest files / 72 tests passed (new handoff failures/mismatch/retry/later-session cases, existing record service, MCP, continuity and relay). Typecheck and diff whitespace check passed. First test run's CI-summary reporter could not write its read-only external summary path; rerun with the default reporter passed. Existing framework deprecation warnings remain.
+
+### Completion-path integration follow-up
+
+Task verification now saves and independently reads an immutable Brain evidence checkpoint before changing task/assignment completion. Failed or mismatched saves leave the task unfinished; completed evidence links the checkpoint ID. Full local suite passed: 206 files / 1988 tests. This does not globally enforce native external chat replies, and live rollout remains pending.
