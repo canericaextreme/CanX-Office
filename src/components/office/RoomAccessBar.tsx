@@ -66,7 +66,7 @@ export function RoomAccessBar() {
     };
   }, [refresh]);
 
-  if (!target) return null;
+  if (!target || !token) return null;
   const tone = !token ? "border-border" : error || snap?.overall === "failed" ? "border-destructive/60" : snap?.overall === "partial" ? "border-amber-500/60" : snap ? "border-emerald-500/50" : "border-border";
   const headline = !token
     ? "Sign in to let Elsie read this room. Nothing is read while signed out."

@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(resolve(__dirname, "finance.tsx"), "utf8");
 
 describe("Finance owner sign-in gate", () => {
-  it("renders OwnerSignIn and nothing else before the owner is verified", () => {
+  it("keeps private content gated and opens the existing Account flow", () => {
     expect(source).toContain('owner.state !== "owner"');
-    expect(source).toContain("Sign in to Finance");
-    expect(source).toContain("<OwnerSignIn />");
+    expect(source).toContain("Private receipts remain locked.");
+    expect(source).toContain("onClick={openOfficeAccount}");
     // The gate returns before the receipt dashboard, totals, or reconciliation render.
     const gateIndex = source.indexOf('owner.state !== "owner"');
     const receiptImportIndex = source.indexOf("Receipt inbox");
@@ -39,8 +39,8 @@ describe("Finance owner sign-in gate", () => {
     expect(source).not.toContain("Receipts ({receipts.length})");
   });
 
-  it("reuses the existing OwnerSignIn component rather than a second auth method", () => {
-    expect(source).toContain('import { OwnerSignIn } from "@/components/office/OwnerSignIn"');
+  it("reuses the Account entry rather than a second auth method", () => {
+    expect(source).toContain('import { openOfficeAccount } from "@/lib/office-account-dialog"');
     expect(source).not.toContain("signInWithPassword");
   });
 });

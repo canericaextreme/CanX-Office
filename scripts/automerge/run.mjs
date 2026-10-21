@@ -4,6 +4,8 @@
 // merges only when policy.mjs says every gate passed, then starts the Office functions deploy.
 import { appendFileSync } from 'node:fs';
 import { decide, OPT_IN_LABEL, REVIEW_CONTEXT, STATE_LABELS, reviewerFor, builderVendor } from './policy.mjs';
+import { REVIEW_FORMAT, readReviewResponse, mayRetryUnreadableReview } from './review-response.mjs';
+export { parseVerdict } from './review-response.mjs';
 
 const env = process.env;
 const repo = env.GITHUB_REPOSITORY;
@@ -52,13 +54,18 @@ async function freshPr(number) {
 }
 
 async function gather(pr) {
-  const [files, checkRuns, combined, reviews] = await Promise.all([
+  const [files, checkRuns, combined, reviews, raw] = await Promise.all([
     all(`/pulls/${pr.number}/files`),
     all(`/commits/${pr.head.sha}/check-runs`, r => r.check_runs),
     gh(`/commits/${pr.head.sha}/status`),
     all(`/pulls/${pr.number}/reviews`),
+    all(`/commits/${pr.head.sha}/statuses`),
   ]);
-  return { pr, files, checkRuns, statuses: combined.statuses ?? [], reviews };
+  // The combined status omits who posted each status; the policy needs that for the review result,
+  // so use the newest raw review status (which carries creator) in its place.
+  const review = raw.filter(s => s.context === REVIEW_CONTEXT).sort((a, b) => b.id - a.id)[0];
+  const statuses = (combined.statuses ?? []).filter(s => s.context !== REVIEW_CONTEXT);
+  return { pr, files, checkRuns, statuses: review ? [review, ...statuses] : statuses, reviews };
 }
 
 async function reviewsToday() {
@@ -76,40 +83,36 @@ const REVIEW_RULES = [
   'Reply with JSON only: {"verdict":"approve"|"changes","summary":"one or two plain sentences a 10-year-old could follow"}.',
 ].join('\n');
 
-async function askReviewer(vendor, pr, diff) {
+export async function askReviewer(vendor, pr, diff, { config = env, fetchImpl = fetch } = {}) {
+  if (typeof diff !== 'string' || diff.length > 60000) throw new Error('The full diff exceeds the review limit; no review was requested.');
   const input = `TITLE: ${pr.title}\n\nDESCRIPTION:\n${(pr.body ?? '').slice(0, 4000)}\n\nDIFF:\n${diff.slice(0, 60000)}`;
   if (vendor === 'anthropic') {
-    if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set');
-    const model = env.ANTHROPIC_REVIEW_MODEL || 'claude-sonnet-5-5';
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    if (!config.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set');
+    const model = config.ANTHROPIC_REVIEW_MODEL || 'claude-sonnet-5-5';
+    const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: 800, system: REVIEW_RULES, messages: [{ role: 'user', content: input }] }),
+      headers: { 'x-api-key': config.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      // Current Claude models think by default and that thinking counts against max_tokens; at 800 the
+      // reviewer ran out before writing its verdict (PR 190). Low effort keeps thinking short; 4000 matches OpenAI.
+      body: JSON.stringify({ model, max_tokens: 4000, system: REVIEW_RULES, messages: [{ role: 'user', content: input }],
+        output_config: { effort: 'low', format: REVIEW_FORMAT } }),
     });
     if (!res.ok) throw new Error(`Anthropic review failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
     const body = await res.json();
-    return { model, text: body.content?.map(c => c.text ?? '').join('') ?? '' };
+    return { model, ...readReviewResponse(vendor, body) };
   }
-  if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
-  const model = env.OPENAI_REVIEW_MODEL || 'gpt-5';
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  if (vendor !== 'openai') throw new Error('Unknown review provider');
+  if (!config.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
+  const model = config.OPENAI_REVIEW_MODEL || 'gpt-5';
+  const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${config.OPENAI_API_KEY}`, 'content-type': 'application/json' },
     body: JSON.stringify({ model, max_completion_tokens: 4000, response_format: { type: 'json_object' },
       messages: [{ role: 'system', content: REVIEW_RULES }, { role: 'user', content: input }] }),
   });
   if (!res.ok) throw new Error(`OpenAI review failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
   const body = await res.json();
-  return { model, text: body.choices?.[0]?.message?.content ?? '' };
-}
-
-export function parseVerdict(text) {
-  const json = /\{[\s\S]*\}/.exec(text)?.[0];
-  try {
-    const v = JSON.parse(json);
-    if (v.verdict === 'approve' || v.verdict === 'changes') return { verdict: v.verdict, summary: String(v.summary ?? '').slice(0, 600) };
-  } catch {}
-  return { verdict: 'changes', summary: 'The reviewer reply could not be read, so this counts as not approved.' };
+  return { model, ...readReviewResponse(vendor, body) };
 }
 
 // Returns a reason string when no review could be made (the PR then waits), or null after a review was saved.
@@ -119,17 +122,18 @@ async function independentReview(pr) {
   if ((await reviewsToday()) >= cap) return `today's limit of ${cap} automatic reviews is used up; it continues tomorrow (UTC)`;
   const vendor = reviewerFor(builderVendor(pr));
   if (env.DRY_RUN) return `(dry run) would ask ${vendor} to review`;
-  const diff = await gh(`/pulls/${pr.number}`, { accept: 'application/vnd.github.diff' });
+  const diff = await gh(`/compare/${pr.base.sha}...${pr.head.sha}`, { accept: 'application/vnd.github.diff' });
   let result;
   try { result = await askReviewer(vendor, pr, diff); } catch (e) { return `the ${vendor} reviewer could not be reached: ${e.message}`; }
-  const v = parseVerdict(result.text);
+  const v = result;
+  log(`Review diagnostics: ${JSON.stringify(result.diagnostics)}`);
   await gh(`/statuses/${pr.head.sha}`, { method: 'POST', body: {
     context: REVIEW_CONTEXT,
     state: v.verdict === 'approve' ? 'success' : 'failure',
     description: `${vendor}:${result.model} ${v.verdict} - ${v.summary}`.slice(0, 140),
   } });
   await gh(`/issues/${pr.number}/comments`, { method: 'POST', body: {
-    body: `${REVIEW_MARK} sha=${pr.head.sha} -->\n**Independent review by ${vendor} (${result.model}) of ${pr.head.sha.slice(0, 7)}: ${v.verdict === 'approve' ? 'approved' : 'changes needed'}.**\n\n${v.summary}`,
+    body: `${REVIEW_MARK} sha=${pr.head.sha} kind=${v.kind} -->\n**Independent review by ${vendor} (${result.model}) of ${pr.head.sha.slice(0, 7)}: ${v.verdict === 'approve' ? 'approved' : 'changes needed'}.**\n\n${v.summary}`,
   } });
   log(`#${pr.number}: ${vendor} review ${v.verdict}`);
   return null;
@@ -160,6 +164,16 @@ async function report(pr, state, reasons) {
 async function handle(number) {
   let facts = await gather(await freshPr(number));
   let d = decide(facts);
+  // Explicit dispatch can request one NEW review after a transport/format
+  // failure. It never manufactures approval or retries a substantive rejection.
+  if (env.RETRY_UNREADABLE_REVIEW_SHA) {
+    const withoutReview = decide({ ...facts, statuses: facts.statuses.filter(s => s.context !== REVIEW_CONTEXT) });
+    if (withoutReview.action === 'review' && mayRetryUnreadableReview({
+      pr: facts.pr, comments: await all(`/issues/${number}/comments`),
+      requestedSha: env.RETRY_UNREADABLE_REVIEW_SHA, requestedPr: env.PR_NUMBER,
+      eventName: env.GITHUB_EVENT_NAME, status: facts.statuses.find(s => s.context === REVIEW_CONTEXT),
+    })) d = withoutReview;
+  }
   if (d.action === 'review') {
     const why = await independentReview(facts.pr);
     if (why) d = { ...d, reasons: [...d.reasons, why] };

@@ -8,6 +8,20 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) =>
     React.createElement("a", { href: "#" }, children),
 }));
+vi.mock("@/lib/use-brain-view", () => ({
+  useBrainView: () => ({
+    status: "signed-out",
+    message: "",
+    view: { source: "live", nodes: [], sparks: [], items: [], events: [], invalidEvents: 0 },
+    readAt: null,
+    capped: false,
+    mode: "off",
+    arrivals: [],
+    tasks: null,
+    approvals: null,
+    reload: () => undefined,
+  }),
+}));
 vi.mock("@/lib/brain-index.functions", () => ({ getBrainIndex: {}, setBrainShelf: {} }));
 vi.mock("@/lib/owner-session", () => ({
   useOwnerSession: () => ({ accessToken: "fixture", stepUpComplete: true }),

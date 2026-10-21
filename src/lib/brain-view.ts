@@ -350,7 +350,7 @@ export function brainViewForModel(view: BrainView, now: Date): string {
   const t = stageTotals(view);
   const recent = recentSparks(view, now, 24 * 60 * 60 * 1000, 8);
   return [
-    `Live Brain view [work logbook, read ${now.toISOString()}]: ${view.items.length} items, ${view.sparks.length} room moves recorded, ${view.invalidEvents} unreadable lines skipped. Stalled = waiting, or no change for 7 days.`,
+    `Live Brain view [work logbook; the read time is the snapshot's checked time]: ${view.items.length} items, ${view.sparks.length} room moves recorded, ${view.invalidEvents} unreadable lines skipped. Stalled = waiting, or no change for 7 days.`,
     `Now: ${BRAIN_STAGES.map((st) => `${st} ${t[st]}`).join(", ")}, cancelled ${t.cancelled}.`,
     ...view.nodes
       .filter((n) => n.active > 0)

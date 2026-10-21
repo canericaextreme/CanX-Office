@@ -1,7 +1,7 @@
 "use client";
 
 import { OfficeFiles } from "./OfficeFiles";
-import { ElsieAuthenticator } from "./ElsieAuthenticator";
+import { openOfficeAccount } from "@/lib/office-account-dialog";
 import { VoiceDiagnosticsPanel } from "./VoiceDiagnosticsPanel";
 import { recordVoiceDiag } from "@/lib/voice-diagnostics";
 
@@ -872,7 +872,8 @@ export function OfficeManager() {
     }
     const handoffId = decision.kind === "attach" ? decision.id : undefined;
     if (!session.stepUpComplete || !token) {
-      setError("Enter the six-digit authenticator code below before talking with Elsie.");
+      setError("Paid Elsie conversations require owner verification in Account. Nothing was sent.");
+      openOfficeAccount();
       if (handoffId) reportHandoff(handoffId, { status: "blocked", detail: "Authenticator step not complete. Nothing was sent.", canResend: true });
       return;
     }
@@ -1091,7 +1092,8 @@ export function OfficeManager() {
     if (realtimeManager.error) recordVoiceDiag("fallback", "fallback", "switched to record-and-reply");
     if (sendingRef.current) return;
     if (!session.stepUpComplete) {
-      setError("Enter the six-digit authenticator code below before talking with Elsie.");
+      setError("Paid Elsie conversations require owner verification in Account. Nothing was sent.");
+      openOfficeAccount();
       return;
     }
     cancelVoiceActivity();
@@ -1177,6 +1179,11 @@ export function OfficeManager() {
             : "Talk to Elsie";
 
   const primaryVoiceAction = () => {
+    if (!session.stepUpComplete || !token) {
+      setError("Paid Elsie conversations require owner verification in Account. Nothing was sent.");
+      openOfficeAccount();
+      return;
+    }
     if (realtimeManager.on || !historyReady) return;
     if (voiceModeRef.current) endVoiceMode();
     setError(null);
@@ -1247,8 +1254,8 @@ export function OfficeManager() {
               : "h-[calc(100dvh-32px)] max-h-[960px] w-[min(64rem,calc(100vw-2rem))] max-w-[calc(100vw-16px)] resize rounded-xl"
           }`}
         >
-          <ElsieAuthenticator />
           <div className="canx-elsie-toolbar flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-secondary/60 p-2">
+            <div className="canx-elsie-toolbar-scroll contents">
             <div
               {...(isMobile ? {} : panel.handleProps)}
               className="mr-1 flex cursor-move touch-none select-none items-center rounded-md p-1.5 text-muted-foreground hover:bg-background active:bg-secondary"
@@ -1307,6 +1314,7 @@ export function OfficeManager() {
                 )}
               </div>
 
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -1581,7 +1589,7 @@ export function OfficeManager() {
                     ref={inputRef}
                     rows={2}
                     value={draft}
-                    className="min-h-[60px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
+                    className="canx-elsie-message min-h-[120px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
                     style={{ fontSize: textSize, height: composerHeight }}
 
                     aria-label="Message the Office Manager"
@@ -1607,7 +1615,7 @@ export function OfficeManager() {
                     size="icon"
                     className="absolute bottom-2 right-2 h-11 w-11 rounded-full"
                     onClick={() => void send()}
-                    disabled={busy || !historyReady || !session.stepUpComplete || !token || !draft.trim()}
+                    disabled={busy || !draft.trim() || (session.stepUpComplete && !historyReady)}
                     aria-label={busy ? "Sending message" : "Send message"}
                     title={busy ? "Sending…" : "Send message"}
                   >
@@ -1624,7 +1632,7 @@ export function OfficeManager() {
                     <Button type="button" size="sm"
                       className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
                       onClick={primaryVoiceAction}
-                      disabled={!session.stepUpComplete || !token || !historyReady || realtimeManager.on || realtimeManager.phase === "connecting"}>
+                      disabled={(session.stepUpComplete && !historyReady) || realtimeManager.on || realtimeManager.phase === "connecting"}>
                       <Mic className="mr-1.5 h-4 w-4 shrink-0" /> Talk to Elsie
                     </Button>
                     <Button type="button" size="sm" variant={liveVoiceMode === "direct" ? "default" : "outline"}
