@@ -153,7 +153,7 @@ export function CompanionDock() {
       <p
         role="alert"
         data-testid="canx-companion-share-error"
-        className="fixed bottom-48 left-4 z-40 max-w-64 rounded-lg border border-slate-950 bg-slate-900 p-2 text-white text-xs text-foreground shadow-lg backdrop-blur"
+        className="fixed bottom-[15.5rem] left-4 z-40 max-w-64 rounded-lg border border-slate-950 bg-slate-900 p-2 text-white text-xs text-foreground shadow-lg backdrop-blur"
       >
         {shareError}
       </p>
@@ -174,7 +174,7 @@ export function CompanionDock() {
       tabIndex={0}
       title="Drag to move"
       style={pos ? { left: pos.left, top: pos.top } : { left: 16, bottom: 16 }}
-      className={`fixed z-40 flex h-36 w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-40 sm:w-32 ${
+      className={`fixed z-40 flex h-[12.5rem] w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-[14rem] sm:w-32 ${
         dragging ? "opacity-90" : ""
       }`}
     >
@@ -235,7 +235,7 @@ export function CompanionDock() {
         onPointerDown={(event) => event.stopPropagation()}
         onClick={() => window.dispatchEvent(new Event(CLAUDE_REVIEWS_EVENT))}
         aria-controls="claude-connection-dashboard"
-        className="flex cursor-pointer min-h-7 w-full items-center justify-center rounded-md px-1 text-[10px] text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex cursor-pointer min-h-5 w-full items-center justify-center rounded-md px-1 text-[10px] leading-none text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Claude reviews
       </button>
