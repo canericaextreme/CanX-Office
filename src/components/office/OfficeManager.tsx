@@ -1638,7 +1638,7 @@ export function OfficeManager() {
                     <Button type="button" size="sm" variant={liveVoiceMode === "direct" ? "default" : "outline"}
                       className="min-h-9 h-auto min-w-0 whitespace-normal px-2 py-2 text-xs sm:text-sm"
                       aria-pressed={liveVoiceMode === "direct"} disabled={realtimeManager.on} onClick={() => setLiveVoiceMode("direct")}>
-                      Live voice (preview)
+                      Natural voice
                     </Button>
                   </div>
                   {realtimeManager.error && !realtimeManager.on && !voiceMode && (
