@@ -1,6 +1,7 @@
 /** Durable manager handoff using existing owner task storage and executor. */
 import { firstRow, type ManagerTask } from './manager-work.functions';
-import { executeTaskWith, readExecution, type TaskExecutionDeps } from './task-execution.server';
+import { executeTaskWith, handTaskToClaudeWith, readExecution, type TaskExecutionDeps } from './task-execution.server';
+import { hasTakeover, needsFullClaude } from './claude-takeover';
 import { BUILDER_LABEL, type OfficeBuilder } from './builder-choice';
 
 export async function managerBuilderHandoff(deps: TaskExecutionDeps, token: string, request: string, requestId: string, builder: OfficeBuilder) {
@@ -34,6 +35,11 @@ export async function managerBuilderHandoff(deps: TaskExecutionDeps, token: stri
   if (!task || task.owner_id !== owner.userId || task.detail !== request)
     return { ok: false, detail: 'The saved handoff could not be confirmed. Nothing was submitted.' };
   const prior = readExecution(task.evidence);
+  // 21 Oct: big Claude jobs skip the small builder and go to a full Claude worker first time.
+  if (builder === 'claude' && !prior && (hasTakeover(task.evidence) || needsFullClaude(request))) {
+    const handed = await handTaskToClaudeWith(deps, token, task.id, 'upfront');
+    return { ...handed, detail: `Claude handoff — task ${task.id}. This job is bigger than the small builder handles well. ${handed.detail}` };
+  }
   const result = await executeTaskWith(deps, token, task.id, !!prior?.runId, builder);
   return { ...result, ok: result.ok && !!result.runs?.some(run => Number.isSafeInteger(run.id) && run.id > 0), detail: `${BUILDER_LABEL[builder]} handoff — task ${task.id}. ${result.detail}${result.runs?.length ? ' ' + result.runs.map(r => `Run ${r.id}: ${r.state} — ${r.url}`).join('\n') : ' No confirmed run reference; do not resubmit an uncertain attempt.'}` };
 }

@@ -2,6 +2,7 @@
  * Read-only, RLS-scoped inputs. Never treats a saved task as a running build.
  */
 import { readBuildReceipt, type BuildReceipt } from "./task-receipt";
+import { hasTakeover } from "./claude-takeover";
 
 export interface RecoveryTurn { role: string; content: string; created_at: string }
 export interface RecoveryTask { id: string; title: string; detail: string; status: string; worker: string; updated_at: string; evidence?: string|null }
@@ -20,7 +21,7 @@ export function elsieReconnectBrief(turns:readonly RecoveryTurn[],tasks:readonly
  const recent=[...turns].filter(x=>x.role==="user"||x.role==="assistant")
   .sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,12).reverse();
  // Tasks with a build receipt are what Elsie was building; they lead.
- const active=[...tasks].filter(t=>t.status==="open"||t.status==="in_progress")
+ const active=[...tasks].filter(t=>t.status==="open"||t.status==="in_progress"||hasTakeover(t.evidence))
   .map(t=>({t,r:readBuildReceipt(t.evidence)}))
   .sort((a,b)=>Number(!!b.r)-Number(!!a.r)||b.t.updated_at.localeCompare(a.t.updated_at)).slice(0,5);
  const clean=(s:string,n=250)=>s.replace(/\s+/g," ").trim().slice(0,n);
@@ -29,7 +30,7 @@ export function elsieReconnectBrief(turns:readonly RecoveryTurn[],tasks:readonly
  "Recent conversation (chronological):",
  ...(recent.length?recent.map(t=>`- ${t.role==="user"?"John":"Elsie"} [${clean(t.created_at,35)}]: ${clean(t.content,380)}`):["- No recent saved conversation available; do not pretend to remember."]),
  "Unfinished Work Board tasks (saved status is not a live builder run):",
- ...(active.length?active.map(({t,r})=>`- ${clean(t.title,90)} [task ${clean(t.id,40)}; ${clean(t.status,24)}, worker ${clean(t.worker,35)}, updated ${clean(t.updated_at,35)}${r?"; "+receiptLine(r):""}]: ${clean(t.detail,220)}`):["- No readable unfinished tasks."]),
+ ...(active.length?active.map(({t,r})=>`- ${clean(t.title,90)} [task ${clean(t.id,40)}; ${clean(t.status,24)}, worker ${clean(t.worker,35)}, updated ${clean(t.updated_at,35)}${hasTakeover(t.evidence)?"; handed to a full Claude worker: read its status with check_task_execution, never re-run it":r?"; "+receiptLine(r):""}]: ${clean(t.detail,220)}`):["- No readable unfinished tasks."]),
  "On reconnect: explain what was last being discussed; confirm exact task/run receipt before continuing. For a task with a build receipt, call check_task_execution with its task id to read the real run status before saying it is running, done or failed; never call execute_task or start a new build for it. Do not re-submit uncertain builds, spend or merge without current gates."
  ].join("\n");
 }
@@ -43,7 +44,7 @@ export async function readElsieReconnectBrief(
  const [recent,tasks]=await Promise.all([
   rest("astra_recent_context?select=role,content,created_at&"+owner+"&conversation_key=eq.office-manager&order=created_at.desc&limit=12")
     .catch(()=>({ok:false,body:null})),
-  rest("manager_tasks?select=id,title,detail,status,worker,updated_at,evidence&"+owner+"&status=in.(open,in_progress)&order=updated_at.desc&limit=10")
+  rest("manager_tasks?select=id,title,detail,status,worker,updated_at,evidence&"+owner+"&status=in.(open,in_progress,waiting)&order=updated_at.desc&limit=10")
     .catch(()=>({ok:false,body:null}))
  ]);
  if(!recent.ok||!tasks.ok||!Array.isArray(recent.body)||!Array.isArray(tasks.body))
