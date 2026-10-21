@@ -56,3 +56,20 @@ A scheduled Claude task checks for handed-over jobs about every hour, using John
 existing Claude account and the CanX Office connector. No new credential or API spend.
 Starting a Claude worker instantly from Elsie would need a new service credential,
 which is John's decision (see the open unattended-queue decision, PR 181).
+
+## Autopilot switch and auto-publish (21 Oct 2026)
+
+John: keep building "till I say stop, or there's money to be spent, or there's a legal issue."
+He also chose (21 Oct, 14:35 UTC) that Claude presses Publish after each green merge.
+
+- **Switch:** Brain note `office-autopilot`, line 1 `AUTOPILOT: on|stopped | UPDATED | BY | NOTE`.
+  No note means on. Elsie flips it when John says "stop everything", "stop all work",
+  "pause the builds" or "resume work", "start building again" (`src/lib/autopilot.ts`).
+  While stopped, Elsie's queue releases nothing and the hourly Claude worker takes no
+  new job and publishes nothing. A new request John makes is still his OK for that job.
+- **Legal:** contracts, lawsuits, licences, privacy policies, compliance and similar words
+  stop a build or handover for John, like money (`touchesLegal`). Screen edits to the
+  Office's own Legal room are not legal matters.
+- **Publish:** after Claude merges its own green PR, it publishes the CanX Office Lovable
+  project, then tells John what to test. Merged plus published is still not "verified live"
+  until a signed-in check passes.

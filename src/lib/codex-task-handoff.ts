@@ -6,6 +6,7 @@
 import type { CodexBuildResult } from "./codex-builds.server";
 import type { RiskLevel } from "./manager-work.functions";
 import { protectedBuildCategoryOf } from "./protected-actions";
+import { touchesLegal } from "./autopilot";
 
 /** Ignore only standalone routing instructions to our fixed internal builder.
  * Keep the original request intact for execution, and retain every other
@@ -16,6 +17,8 @@ export function officeBuildProtectedCategory(request: string): string | null {
     /(^|[.!?\n])([ \t]*)(?:send|submit) (?:it |this task |the task )?to (?:the )?(?:builder|codex|claude)(?: (?:once(?: only)?|only once))?[ \t]*(?=[.!?\n]|$)/gi,
     "$1$2",
   );
+  // 21 Oct 2026: legal matters wait for John, like money.
+  if (touchesLegal(scope)) return "legal";
   return protectedBuildCategoryOf(scope);
 }
 

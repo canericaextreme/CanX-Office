@@ -59,7 +59,7 @@ import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCa
 import { isCodexStatusCommand, isClaudeStatusCommand } from "./codex-status-command";
 import { builderChoiceFor, directBuildRefusal, taskExecutionRefusal, requestIsDiscussionOnly, requestAsksToQueue, stripBuilderHandoffPrefix, BUILDER_LABEL, type OfficeBuilder } from "./builder-choice";
 import { normalizeWorkerId } from "./manager-workers";
-import { executeTaskWith, advanceElsieQueueWith, handoffMustQueue, queueTaskForBuilderWith, handTaskToClaudeWith, type QueueAdvance } from "./task-execution.server";
+import { executeTaskWith, advanceElsieQueueWith, handoffMustQueue, queueTaskForBuilderWith, handTaskToClaudeWith, autopilotStepWith, type QueueAdvance } from "./task-execution.server";
 import { claudeTakeoverRefusal, needsFullClaude } from "./claude-takeover";
 import { queuedTasksFor } from "./elsie-task-queue";
 import { roomTargetForRoute, snapshotForModel, snapshotRef, type RoomSnapshot } from "./room-snapshot";
@@ -1779,17 +1779,25 @@ export async function runManagerChatWith(
   // Runs inside this owner-verified request; a failure never blocks the turn.
   const turnRequest = [...data.messages].reverse().find(message => message.role === "user")?.content ?? "";
   // An explicit "don't send / read-only / just asking" turn never releases work.
-  const queueSteps = requestIsDiscussionOnly(turnRequest) ? [] : await advanceBuilderQueues(deps, data.accessToken);
+  // 21 Oct: John's "stop everything" / "resume work" flips the Office autopilot switch
+  // (Brain note office-autopilot); while stopped, queued work is not released.
+  const autopilot = !requestIsDiscussionOnly(turnRequest) && (deps.advanceBuilderQueue || deps.queueAutoAdvance)
+    ? await autopilotStepWith(buildWorkbenchDeps(deps), data.accessToken, turnRequest).catch(() => null)
+    : null;
+  const queueSteps = requestIsDiscussionOnly(turnRequest) || autopilot?.mode === "stopped" ? [] : await advanceBuilderQueues(deps, data.accessToken);
   diag("queue_checked");
   // Only real changes are announced; a refused release stays in the action log.
-  const queueNews = queueSteps.flatMap(step => [...step.finished, ...(step.started?.ok ? [`Started the next queued ${BUILDER_LABEL[step.builder]} task "${step.started.title}". ${step.started.detail}`] : [])]);
+  const queueNews = (autopilot?.changed ? [autopilot.detail] : []).concat(queueSteps.flatMap(step => [...step.finished, ...(step.started?.ok ? [`Started the next queued ${BUILDER_LABEL[step.builder]} task "${step.started.title}". ${step.started.detail}`] : [])]));
   const queueResults: ManagerActionResult[] = queueSteps.filter(step => step.finished.length || step.started).map(step => ({
     name: `advance_${step.builder}_queue`, risk: "green" as const, status: step.started?.ok ? "pending" as const : "done" as const,
     detail: [...step.finished, step.started ? step.started.detail : step.detail].join(" "),
   }));
-  const queueContext = queueSteps.some(step => step.checked)
-    ? "Builder queue step just now [server action, verified owner]: " + queueSteps.filter(step => step.checked).map(step => [...step.finished, step.started ? step.detail + " " + step.started.detail : step.detail].join(" ")).join(" ")
-    : "";
+  const queueContext = [
+    autopilot ? `Office autopilot switch [server read, verified owner]: ${autopilot.detail}` : "",
+    queueSteps.some(step => step.checked)
+      ? "Builder queue step just now [server action, verified owner]: " + queueSteps.filter(step => step.checked).map(step => [...step.finished, step.started ? step.detail + " " + step.started.detail : step.detail].join(" ")).join(" ")
+      : "",
+  ].filter(Boolean).join("\n");
 
   // GATE 3 — live office facts, read on the server as the verified owner.
   // A failed read fails closed: no paid call, and never a fall back to the
