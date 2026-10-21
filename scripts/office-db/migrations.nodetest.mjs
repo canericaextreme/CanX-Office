@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { plan, isOnHold, buildApplySql, readMigrationFiles, parseFileName } from "./migrations.mjs";
 
-// What the live database had recorded on 19 Oct 2026 (read-only list from Supabase; the logbook went live via this job).
+// What the live database had recorded on 21 Oct 2026 (read-only list from Supabase; the logbook went live via this job).
 const LIVE = [
   ["20260923200738", "astra_memory_core"], ["20260923200827", "astra_conversation_summaries"],
   ["20260923200848", "astra_recent_context"], ["20260923200913", "astra_context_retrieval"],
@@ -17,13 +17,14 @@ const LIVE = [
   ["20261016021437", "elsie_scoped_task_claim_20261016"], ["20261018000946", "office_build_permission_status"],
   ["20261019021500", "office_work_events"],
   ["20261019040000", "office_work_event_recorder"], ["20261019050000", "office_work_events_assistant_read"],
+  ["20261020020000", "lock_down_public_db_functions"],
 ].map(([version, name]) => ({ version, name }));
 
 const repo = readMigrationFiles("supabase/migrations");
 
-test("against the real repo and live history, only the new function lock-down is applied", () => {
+test("against the real repo and live history, only the new Finance append-only save is applied", () => {
   const p = plan(repo, LIVE);
-  assert.deepEqual(p.apply.map((f) => f.file), ["20261020020000_lock_down_public_db_functions.sql"]);
+  assert.deepEqual(p.apply.map((f) => f.file), ["20261021150000_finance_receipts_append_only.sql"]);
 });
 
 test("Elsie's held extended-sessions file is never applied automatically", () => {
@@ -34,7 +35,7 @@ test("Elsie's held extended-sessions file is never applied automatically", () =>
 
 test("older files already live under other dates are not re-run", () => {
   const p = plan(repo, LIVE);
-  for (const f of p.apply) assert.ok(f.version > "20261019050000");
+  for (const f of p.apply) assert.ok(f.version > "20261020020000");
 });
 
 test("a held file stays held even when asked for by name", () => {
@@ -44,7 +45,7 @@ test("a held file stays held even when asked for by name", () => {
 });
 
 test("nothing is applied twice", () => {
-  const after = [...LIVE, { version: "20261020020000", name: "lock_down_public_db_functions" }];
+  const after = [...LIVE, { version: "20261021150000", name: "finance_receipts_append_only" }];
   assert.equal(plan(repo, after).apply.length, 0);
 });
 

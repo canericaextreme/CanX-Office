@@ -76,6 +76,17 @@ export const OFFICE_WORK_TOOLS = [
     false,
   ),
   tool(
+    "append_finance_receipts",
+    "Add new Finance receipts without resending the saved ones. Send ONLY the new receipts (each needs id and vendor; same fields as the Finance receipts list). They are added to the end of the saved list; saved receipts are never changed, removed or reordered, and an id that is already saved is skipped instead of duplicated. Up to 25 receipts and 12,000 bytes per call; split larger batches. Each receipt is read back before the result says confirmed. Never reconciles or pays anything.",
+    schema(
+      {
+        receipts: { type: "array", minItems: 1, maxItems: 25, items: { type: "object" } },
+      },
+      ["receipts"],
+    ),
+    false,
+  ),
+  tool(
     "read_office_skills",
     "Read the canonical shared Office skill instructions and routes; these are the same instructions used inside the Office. Instructions do not grant permissions.",
     schema({ id: text }, []),
@@ -158,6 +169,14 @@ export function validWorkArguments(name: string, args: Record<string, unknown>):
     )
       return false;
     if (p["type"] === "object" && (!v || typeof v !== "object" || Array.isArray(v))) return false;
+    if (
+      p["type"] === "array" &&
+      (!Array.isArray(v) ||
+        v.length < ((p["minItems"] as number) ?? 0) ||
+        v.length > ((p["maxItems"] as number) ?? 1000) ||
+        v.some((e) => !e || typeof e !== "object" || Array.isArray(e)))
+    )
+      return false;
     if (p["enum"] && !(p["enum"] as unknown[]).includes(v)) return false;
     if (
       p["format"] === "uuid" &&
