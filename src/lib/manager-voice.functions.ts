@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { ELSIE_VOICE_DELIVERY } from "./elsie-voice-delivery";
 
 export type ManagerVoiceCode =
   | "ok"
@@ -143,7 +142,7 @@ export const speakManagerText = createServerFn({ method: "POST" })
           model,
           voice: "shimmer",
           input: data.text,
-          ...(model === "tts-1" ? {} : { instructions: ELSIE_VOICE_DELIVERY }),
+          ...(model === "tts-1" ? {} : { instructions: "Speak warmly, clearly, and naturally as John's professional CanX Office Manager." }),
           response_format: "mp3",
         }),
       });
