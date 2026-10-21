@@ -110,7 +110,7 @@ async function purgeExpired() {
 }
 
 const bearer = (req: Request) => (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-const HTTP: Record<string, number> = { oidc_invalid: 401, not_signed_in: 401, bad_request: 400, unavailable: 503, capture_timeout: 504, image_too_large: 413 };
+const HTTP: Record<string, number> = { oidc_invalid: 401, not_signed_in: 401, bad_request: 400, unavailable: 503, viewer_busy: 503, capture_timeout: 504, image_too_large: 413 };
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { ok: false, code: "bad_request" });

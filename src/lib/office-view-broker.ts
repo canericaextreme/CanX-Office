@@ -27,7 +27,7 @@ export type BrokerCode =
   | "bad_request" | "rate_limited" | "connector_inactive" | "request_already_claimed" | "request_expired"
   | "unknown_request" | "grant_not_active" | "capture_unavailable" | "revoked_during_capture" | "wrong_route"
   | "session_not_bindable" | "unknown_session" | "oidc_invalid" | "image_invalid" | "image_too_large"
-  | "checksum_mismatch" | "capture_timeout" | "capture_failed" | "dispatch_failed" | "unavailable" | "not_signed_in";
+  | "checksum_mismatch" | "capture_timeout" | "capture_failed" | "dispatch_failed" | "viewer_busy" | "unavailable" | "not_signed_in";
 
 export class BrokerError extends Error {
   constructor(readonly code: BrokerCode) {
@@ -78,6 +78,7 @@ export const BROKER_MESSAGES: Record<BrokerCode, string> = {
   capture_timeout: "The picture was not ready in time. No picture is available yet; ask again in a minute.",
   capture_failed: "The capture failed. No picture is available.",
   dispatch_failed: "The capture runner could not be started. No picture is available.",
+  viewer_busy: "Another room view for this assistant was opening at the same moment and this one could not start. Nothing was read. Ask again in a few seconds.",
   unavailable: "The Office viewing service is unavailable right now. Missing access is not an empty Office.",
   not_signed_in: "A signed-in Office session is required.",
 };
@@ -307,6 +308,39 @@ function sessionIdOf(accessToken: string): string | null {
   return typeof sid === "string" && UUID.test(sid) ? sid : null;
 }
 
+/**
+ * Opening a viewer session asks the sign-in service for a one-time key for the viewer account, and the service keeps
+ * only ONE such key per account: a newer request replaces an older one. Two reads started together for the same
+ * assistant therefore knocked each other out (live 18 Oct 2026: 3 together = 1 read, 2 "unavailable"; one at a time = all read).
+ * Fix: take turns inside this function, and retry a few times for the case where another copy of the function is
+ * minting at the same moment. If it still fails the caller is told "viewer_busy" - never an empty or successful-looking read.
+ */
+export const MINT_ATTEMPTS = 4;
+const mintQueue = new Map<string, Promise<unknown>>();
+
+async function mintInTurn(deps: BrokerDeps, email: string): Promise<string> {
+  const previous = mintQueue.get(email) ?? Promise.resolve();
+  const turn = previous.catch(() => undefined).then(async () => {
+    for (let attempt = 1; attempt <= MINT_ATTEMPTS; attempt++) {
+      try {
+        return await deps.mintViewerToken(email);
+      } catch {
+        if (attempt === MINT_ATTEMPTS) break;
+        deps.log({ event: "viewer_mint_retry", attempt });
+        await deps.sleep(150 * attempt + Math.floor(Math.random() * 100));
+      }
+    }
+    deps.log({ event: "viewer_mint_failed", attempts: MINT_ATTEMPTS });
+    throw new BrokerError("viewer_busy");
+  });
+  mintQueue.set(email, turn);
+  try {
+    return await turn;
+  } finally {
+    if (mintQueue.get(email) === turn) mintQueue.delete(email);
+  }
+}
+
 /** Claim, open and bind a viewer session for one request. Used by the runner (after OIDC) and for information reads. */
 async function openViewerSession(deps: BrokerDeps, requestId: string) {
   const claimed = rows(await guarded(() => deps.callService("canx_view_request_claim", { _request: requestId })))[0];
@@ -315,7 +349,7 @@ async function openViewerSession(deps: BrokerDeps, requestId: string) {
   try {
     const email = await deps.viewerEmail(String(claimed["viewer_user_id"]));
     if (!email) throw new BrokerError("unavailable");
-    const accessToken = await deps.mintViewerToken(email);
+    const accessToken = await mintInTurn(deps, email);
     const authSession = sessionIdOf(accessToken);
     if (!authSession) { await deps.endSession(accessToken).catch(() => undefined); throw new BrokerError("unavailable"); }
     await guarded(() => deps.callService("canx_view_session_bind", { _session: sessionId, _auth_session: authSession }));
