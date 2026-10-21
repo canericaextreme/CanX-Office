@@ -71,20 +71,23 @@ describe("reachable from every room without adding a destination", () => {
     expect(layout.slice(layout.indexOf(") : (")).includes("<SecondEyesPanel />")).toBe(true);
   });
 
-  it("the Work with Claude tab sits beside the Chatbot tab and opens Claude like Open ChatGPT", () => {
-    expect(panel).toContain('data-testid="claude-tab"');
-    expect(panel).toContain('<span className="whitespace-nowrap text-sm font-bold">Work with Claude</span>');
-    expect(panel).toMatch(/chatbotHidden \? "bottom-4 left-/);
-    expect(panel).toContain('href="https://claude.ai/"');
-    expect(panel).toContain("Work with Claude");
+  it("Work with Claude sits in the chatbot card, identical to Open ChatGPT, with no floating tab over Elsie", () => {
+    const dock = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
+    const chatgpt = dock.slice(dock.indexOf('href="https://chatgpt.com/"'));
+    expect(chatgpt).toContain('data-testid="claude-tab"');
+    expect(chatgpt).toContain('href="https://claude.ai/"');
+    expect(chatgpt).toContain("Work with Claude");
+    expect(panel).not.toContain("function ClaudeTab");
+    expect(panel).not.toMatch(/fixed \$\{place\}/);
     expect(panel).not.toContain("TooltipContent");
   });
 
-  it("keeps the paid review panel one press away and never starts a review from the tab", () => {
-    expect(panel).toContain('aria-controls="claude-connection-dashboard"');
-    expect(panel).toContain("onToggleReviews={() => setOpen(value => !value)}");
-    const tab = panel.slice(panel.indexOf("function ClaudeTab"), panel.indexOf("/** Plain wording for the reservation"));
-    expect(tab).not.toMatch(/review\(|reviewThisRoom|reviewWholeOffice|reserve/);
+  it("keeps the paid review panel one press away and never starts a review from the button", () => {
+    const dock = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
+    expect(dock).toContain("window.dispatchEvent(new Event(CLAUDE_REVIEWS_EVENT))");
+    expect(dock).toContain('aria-controls="claude-connection-dashboard"');
+    expect(panel).toContain("window.addEventListener(CLAUDE_REVIEWS_EVENT, toggle)");
+    expect(dock).not.toMatch(/requestClaudeReview|reviewThisRoom|reviewWholeOffice|reserve/);
   });
 
   it("adds no new office route file", () => {

@@ -31,7 +31,9 @@ describe("ChatGPT Work panel belongs to the companion", () => {
     expect(dockSource).toContain("CompanionWorkPanel");
     expect(dockSource).toContain("const toggleWork");
     const links = [...dockSource.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/g)];
-    expect(links).toHaveLength(1);
+    // 21 Oct 2026: John asked for Work with Claude beside Open ChatGPT, identical in style.
+    expect(links).toHaveLength(2);
+    expect(links[1]?.[0] ?? "").toContain('href="https://claude.ai/"');
     const link = links[0]?.[0] ?? "";
     expect(link).toContain('href="https://chatgpt.com/"');
     expect(link).toContain('target="_blank"');
