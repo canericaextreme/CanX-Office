@@ -47,7 +47,7 @@ describe("saved sign-in survives a slow check", () => {
     h.getSession.mockRejectedValue(new Error("lock"));
     start(); await flush();
     expect(h.states[0]).toBe("error"); expect(h.states[8]).toBe(false);
-    await vi.advanceTimersByTimeAsync(RECONNECT_DELAYS[RECONNECT_DELAYS.length - 1] * 3); await flush();
+    await vi.advanceTimersByTimeAsync(RECONNECT_DELAYS[3] * 3); await flush();
     expect(h.getSession).toHaveBeenCalledTimes(1);
   });
   it("a genuinely ended sign-in is still signed out, never retried into owner", async () => {
