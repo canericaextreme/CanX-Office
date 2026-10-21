@@ -36,6 +36,8 @@ export interface OwnerSession {
   signedIn: boolean;
   /** Authenticator confirmed — protected actions may proceed. NEVER true for an assistant viewer. */
   stepUpComplete: boolean;
+  /** This browser still holds a saved sign-in, so a failed check is a connection problem, not a sign-out. */
+  savedSession: boolean;
   /** True when this is an assistant's read-only viewing session, not the owner. The database refuses every write from it. */
   viewer: boolean;
   /** May READ protected rooms: the owner with the authenticator, or an assistant viewer under a delegation. Reading only; no action may use this. */
@@ -79,6 +81,21 @@ export function withStartupTimeout<T>(work: Promise<T>, ms: number, step: string
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
+/** Same key as the Supabase client's storageKey in canx-supabase.ts. */
+const AUTH_STORAGE_KEY = "canx-office-auth";
+
+/** Whether this browser still holds a saved sign-in. Reads presence only, never the token. */
+export function hasSavedSignIn(): boolean {
+  try {
+    return typeof window !== "undefined" && Boolean(window.localStorage.getItem(AUTH_STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+/** Retry delays while a saved sign-in cannot be checked (slow network, cold server). */
+export const RECONNECT_DELAYS = [2_000, 5_000, 15_000, 30_000] as const;
+
 const DEVICE_ONLY = "No CanX-owned database is connected, so the office is saving on this device only.";
 
 /**
@@ -120,6 +137,11 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   const [aal, setAal] = useState<"aal1" | "aal2" | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [viewer, setViewer] = useState(false);
+  const [savedSession, setSavedSession] = useState(false);
+  const stateRef = useRef<OwnerState>("checking");
+  stateRef.current = state;
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const retryAttempt = useRef(0);
 
   const applyResult = useCallback((token: string | null, result: SessionResult) => {
     setAccessToken(token);
@@ -139,9 +161,23 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshGeneration = useRef(0);
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
+  // A check that fails while this browser still holds a saved sign-in is a
+  // connection problem, so keep retrying quietly instead of asking for the
+  // password again (a fresh password sign-in would also need a new code).
+  const reconnectLater = useCallback(() => {
+    clearTimeout(retryTimer.current);
+    const saved = hasSavedSignIn();
+    setSavedSession(saved);
+    if (!saved) return;
+    const delay = RECONNECT_DELAYS[Math.min(retryAttempt.current, RECONNECT_DELAYS.length - 1)];
+    retryAttempt.current += 1;
+    retryTimer.current = setTimeout(() => { void refreshRef.current(); }, delay);
+  }, []);
   const refresh = useCallback(async () => {
     const generation = ++refreshGeneration.current;
     const current = () => generation === refreshGeneration.current;
+    clearTimeout(retryTimer.current);
     const fail = (text: string) => {
       if (!current()) return;
       setAccessToken(null);
@@ -149,6 +185,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       setUserId(null);
       setState("error");
       setMessage(text);
+      reconnectLater();
     };
     let supabase: Awaited<ReturnType<typeof loadCanxSupabase>>;
     try {
@@ -177,13 +214,18 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!current()) return;
+    setSavedSession(Boolean(token));
     try {
       const result = await withStartupTimeout(verifyOwnerSession({ data: { accessToken: token ?? "" } }), STARTUP_TIMEOUTS.verify, "verify");
-      if (current()) applyResult(token, result);
+      if (!current()) return;
+      applyResult(token, result);
+      if (!result.ok && result.reason === "backend_error") reconnectLater();
+      else retryAttempt.current = 0;
     } catch {
       fail("The office could not check your sign-in in time. Nothing was signed out. Try again.");
     }
-  }, [applyResult]);
+  }, [applyResult, reconnectLater]);
+  refreshRef.current = refresh;
 
   useEffect(() => {
     let active = true;
@@ -197,6 +239,8 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
           const { data } = supabase.auth.onAuthStateChange((event: string) => {
             if (event === "SIGNED_OUT") {
               ++refreshGeneration.current;
+              clearTimeout(retryTimer.current);
+              setSavedSession(false);
               clearAllSnapshots(browserStore());
               setAccessToken(null);
               setEmail(null);
@@ -213,6 +257,20 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
           });
           unsubscribe = () => data.subscription.unsubscribe();
         }
+        // Coming back to the tab or back online retries a failed check at once.
+        if (typeof window !== "undefined" && typeof document !== "undefined") {
+          const retryNow = () => {
+            if (active && stateRef.current === "error" && document.visibilityState !== "hidden") void refresh();
+          };
+          window.addEventListener("online", retryNow);
+          document.addEventListener("visibilitychange", retryNow);
+          const previous = unsubscribe;
+          unsubscribe = () => {
+            previous?.();
+            window.removeEventListener("online", retryNow);
+            document.removeEventListener("visibilitychange", retryNow);
+          };
+        }
       } catch {
         // refresh() below reports the failure honestly and offers Retry.
       }
@@ -222,6 +280,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       active = false;
       ++refreshGeneration.current;
       clearTimeout(refreshTimer);
+      clearTimeout(retryTimer.current);
       unsubscribe?.();
     };
   }, [refresh]);
@@ -302,8 +361,10 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
     ++refreshGeneration.current;
     // Astra's device copy belongs to the signed-in owner only.
     clearAllSnapshots(browserStore());
+    clearTimeout(retryTimer.current);
     const supabase = await loadCanxSupabase();
     if (supabase) await supabase.auth.signOut();
+    setSavedSession(false);
     setAccessToken(null);
     setEmail(null);
     setUserId(null);
@@ -323,6 +384,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       aal,
       signedIn: state === "owner" && Boolean(accessToken),
       stepUpComplete: state === "owner" && aal === "aal2",
+      savedSession,
       viewer: state === "owner" && viewer,
       canReadProtected: state === "owner" && (aal === "aal2" || viewer),
       shared: state === "owner" && Boolean(accessToken),
@@ -335,7 +397,7 @@ export function OwnerSessionProvider({ children }: { children: ReactNode }) {
       signOut,
       refresh,
     }),
-    [state, configured, email, userId, message, accessToken, aal, viewer, signIn, requestPasswordReset, updatePassword, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
+    [state, configured, email, userId, message, accessToken, aal, savedSession, viewer, signIn, requestPasswordReset, updatePassword, submitMfaCode, enrolTotp, confirmEnrolment, signOut, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

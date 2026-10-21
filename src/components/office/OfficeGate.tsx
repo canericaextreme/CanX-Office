@@ -65,6 +65,7 @@ export function OfficeSignInScreen({ onSignedIn }: { onSignedIn?: () => void } =
   const [recovering, setRecovering] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [signInAnyway, setSignInAnyway] = useState(false);
 
   const submit = async () => {
     setBusy(true);
@@ -84,6 +85,25 @@ export function OfficeSignInScreen({ onSignedIn }: { onSignedIn?: () => void } =
     setBusy(false);
   };
 
+
+  if (session.state === "error" && session.savedSession && !signInAnyway) {
+    return (
+      <Shell>
+        <h1 className="text-xl font-semibold">Reconnecting to your office</h1>
+        <p role="status" className="mt-2 text-base text-zinc-400">
+          Your saved sign-in is still on this device. The office is retrying automatically, so there is no need to
+          type your password.
+        </p>
+        <Button className="mt-4" disabled={busy} onClick={async () => {
+          setBusy(true);
+          try { await session.refresh(); } finally { setBusy(false); }
+        }}>{busy ? "Checking…" : "Try again now"}</Button>
+        <button type="button" className="mt-3 block text-sm font-medium text-primary underline" onClick={() => setSignInAnyway(true)}>
+          Sign in again instead
+        </button>
+      </Shell>
+    );
+  }
 
   if (!session.configured) {
     return (
