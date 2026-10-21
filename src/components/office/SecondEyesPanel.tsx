@@ -352,6 +352,10 @@ export function SecondEyesPanel() {
   const canReview = signedIn && session.stepUpComplete;
   const working = busy !== null;
 
+  // The tab and its review panel are for John only: not for signed-out
+  // visitors, and the layout leaves it out of read-only viewing sessions.
+  if (!signedIn) return null;
+
   return (
     <>
       <ClaudeTab reviewsOpen={open} onToggleReviews={() => setOpen(value => !value)} />

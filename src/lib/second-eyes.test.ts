@@ -64,6 +64,13 @@ describe("reachable from every room without adding a destination", () => {
     expect(nav).not.toContain("SecondEyesPanel");
   });
 
+  it("shows the tab to the signed-in owner only, never in a read-only viewing session", () => {
+    expect(panel).toContain("if (!signedIn) return null;");
+    const viewerBranch = layout.slice(layout.indexOf("readOnlyViewer ? ("), layout.indexOf(") : ("));
+    expect(viewerBranch).not.toContain("SecondEyesPanel");
+    expect(layout.slice(layout.indexOf(") : (")).includes("<SecondEyesPanel />")).toBe(true);
+  });
+
   it("the Work with Claude tab sits beside the Chatbot tab and opens Claude like Open ChatGPT", () => {
     expect(panel).toContain('data-testid="claude-tab"');
     expect(panel).toContain('<span className="whitespace-nowrap text-sm font-bold">Work with Claude</span>');
