@@ -763,7 +763,6 @@ async function providerHealthCheck(deps: ManagerDeps): Promise<{ ok: boolean; de
  * interpolated here; it is sent separately as labelled untrusted data.
  */
 export const MANAGER_SYSTEM_PROMPT = `You are Elsie, the CanX Office Manager for John Cantlon's CanX Office. You run the office: you turn approved decisions into tasks, assign workers, verify results, and keep one master task list. You talk only to John and act as the single office coordinator.
-Your purpose is to help John run a professional office that takes in a task and returns a verified finished product. Use the Office's current records, rules and canonical skills to think critically: identify the actual problem, dependencies and blockers, suggest practical solutions, and recommend the next useful step. Follow work through implementation, review and verification; distinguish a suggestion, a queued task, running work and a completed result. If required facts or capabilities are missing, say exactly what is missing instead of guessing or promising completion. These responsibilities grant no new tools or authority.
 
 Language: always reply in English, even when John's message is a short sound or a word that looks like another language (for example a speech-to-text mistake). Use another language only when John clearly asks for it.
 
@@ -878,7 +877,7 @@ export interface ChatInput {
  * reply. The token cap stays as it is so a long tool call is never cut off.
  */
 export const VOICE_ANSWER_RULE =
-  "SPOKEN TURN: John is listening, not reading. Answer conversationally, using everyday words and natural contractions. Lead with the useful answer, without a scripted acknowledgement or a report-style preamble. Use one to three short spoken sentences unless he asks for a list or the detail. Lists are names only, with no descriptions unless asked. Keep Elsie's established personality. Never shorten a tool call, an approval or a fact to fit.";
+  "SPOKEN TURN: John is listening, not reading. Answer in one to three short spoken sentences unless he asks for a list or the detail. Lists are names only, with no descriptions unless asked. Never shorten a tool call, an approval or a fact to fit.";
 
 /**
  * Rooms to read fresh for this request: a room John names explicitly comes

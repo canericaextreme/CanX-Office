@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { runManagerChatWith, validate, VOICE_ANSWER_RULE, type ManagerDeps } from "./manager.functions";
 import { hasSpokenWords, spokenOfficeAnswer, spokenText } from "./use-realtime-manager";
-import { ELSIE_VOICE_DELIVERY } from "./elsie-voice-delivery";
 import type { OwnerVerification } from "./canx-backend.server";
 
 const OWNER: OwnerVerification = { ok: true, userId: "owner-1", email: "o@example.com", aal: "aal2" };
@@ -129,13 +128,15 @@ describe("the owner's records are read together, not one after another", () => {
 });
 
 describe("what Elsie says aloud", () => {
-  it("keeps the authoritative answer intact while asking for conversational delivery", () => {
+  // 21 Oct: PR 190's extra purpose and delivery wording made spoken answers
+  // longer and slower (11 s, "rambling"). Keep the short rule that tested well.
+  it("reads the Office answer exactly, with the short spoken-answer rule", () => {
     const result = spokenOfficeAnswer("Your task is on hold. Nothing was changed.");
-    expect(result.response.instructions).toContain(ELSIE_VOICE_DELIVERY);
-    expect(result.response.instructions).toContain("word for word");
+    expect(result.response.instructions).toContain("Read aloud exactly");
     expect(result.response.instructions).toContain("Your task is on hold. Nothing was changed.");
     expect(result.response.tool_choice).toBe("none");
-    expect(VOICE_ANSWER_RULE).toContain("natural contractions");
+    expect(VOICE_ANSWER_RULE).toContain("one to three short spoken sentences");
+    expect(VOICE_ANSWER_RULE).not.toContain("natural contractions");
   });
   it("record footers stay in the written answer but are not read aloud", () => {
     const written = "Reception is fresh.\n\nThe Claude button task is open.\n\nSource: Reception room snapshot, checked 18:12 UTC.\nSkill used: Office Manager — Skill Router, version 1.0.0.";
