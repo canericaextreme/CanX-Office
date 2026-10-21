@@ -6,7 +6,7 @@ vi.mock("react", () => ({
   useState: (initial: unknown) => { const i = h.states.push(initial)-1; return [initial,(v: unknown) => {h.states[i]=v;}]; },
   useEffect: (fn: () => () => void) => {h.cleanup=fn();},
 }));
-vi.mock("./canx-supabase", () => ({loadCanxSupabase: h.load}));
+vi.mock("./canx-supabase", () => ({AUTH_STORAGE_KEY: "canx-office-auth", loadCanxSupabase: h.load}));
 vi.mock("./auth.functions", () => ({ verifyOwnerSession: h.verify }));
 import { OwnerSessionProvider, RECONNECT_DELAYS, STARTUP_TIMEOUTS } from "./owner-session";
 const client = { auth: { getSession: h.getSession, onAuthStateChange: () => ({data:{subscription:{unsubscribe(){}}}}) } };

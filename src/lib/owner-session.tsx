@@ -9,7 +9,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { loadCanxSupabase } from "@/lib/canx-supabase";
+import { AUTH_STORAGE_KEY, loadCanxSupabase } from "@/lib/canx-supabase";
 import { verifyOwnerSession, type SessionResult } from "@/lib/auth.functions";
 import { browserStore, clearAllSnapshots } from "@/lib/astra-device-continuity";
 
@@ -80,9 +80,6 @@ export function withStartupTimeout<T>(work: Promise<T>, ms: number, step: string
   const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new StartupTimeoutError(step)), ms); });
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
-
-/** Same key as the Supabase client's storageKey in canx-supabase.ts. */
-const AUTH_STORAGE_KEY = "canx-office-auth";
 
 /** Whether this browser still holds a saved sign-in. Reads presence only, never the token. */
 export function hasSavedSignIn(): boolean {
