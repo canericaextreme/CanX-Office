@@ -26,6 +26,7 @@ const IMAGE = `data:image/jpeg;base64,${"A".repeat(400)}`;
 
 const panel = readFileSync("src/components/office/SecondEyesPanel.tsx", "utf8");
 const nav = readFileSync("src/components/office/OfficeNav.tsx", "utf8");
+const layout = readFileSync("src/routes/_office.tsx", "utf8");
 const manager = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
 const reviewSource = readFileSync("src/lib/claude-review.functions.ts", "utf8");
 const observe = readFileSync("src/lib/office-observe.ts", "utf8");
@@ -58,8 +59,24 @@ const BASE = {
 };
 
 describe("reachable from every room without adding a destination", () => {
-  it("the shared control lives in the office shell navigation", () => {
-    expect(nav).toContain("SecondEyesPanel");
+  it("the shared control lives in the office shell, as a tab instead of a header button", () => {
+    expect(layout).toContain("<SecondEyesPanel />");
+    expect(nav).not.toContain("SecondEyesPanel");
+  });
+
+  it("the Claude tab matches the Chatbot tab and opens Claude like Open ChatGPT", () => {
+    expect(panel).toContain('data-testid="claude-tab"');
+    expect(panel).toContain('<span className="text-sm font-bold">Claude</span>');
+    expect(panel).toContain('href="https://claude.ai/"');
+    expect(panel).toContain("Work with Claude");
+    expect(panel).not.toContain("TooltipContent");
+  });
+
+  it("keeps the paid review panel one press away and never starts a review from the tab", () => {
+    expect(panel).toContain('aria-controls="claude-connection-dashboard"');
+    expect(panel).toContain("onToggleReviews={() => setOpen(value => !value)}");
+    const tab = panel.slice(panel.indexOf("function ClaudeTab"), panel.indexOf("/** Plain wording for the reservation"));
+    expect(tab).not.toMatch(/review\(|reviewThisRoom|reviewWholeOffice|reserve/);
   });
 
   it("adds no new office route file", () => {

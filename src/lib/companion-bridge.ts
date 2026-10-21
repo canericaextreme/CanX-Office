@@ -14,6 +14,10 @@
 
 export const COMPANION_OPEN_EVENT = "canx:open-companion";
 
+/** Same key as CompanionDock's HIDDEN_KEY; the Claude tab sits just above the Chatbot tab. */
+export const COMPANION_HIDDEN_KEY = "canx.companion.hidden";
+export const COMPANION_VISIBILITY_EVENT = "canx:companion-visibility";
+
 export function openCompanion() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(COMPANION_OPEN_EVENT));
 }

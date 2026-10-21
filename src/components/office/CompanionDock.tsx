@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Minus } from "lucide-react";
-import { COMPANION_OPEN_EVENT } from "@/lib/companion-bridge";
+import { COMPANION_OPEN_EVENT, COMPANION_VISIBILITY_EVENT } from "@/lib/companion-bridge";
 import { CompanionWorkPanel, type Observation } from "@/components/office/CompanionWorkPanel";
 import { useCompanionPosition } from "@/lib/companion-position";
 import { CHAT_PHASE_LABEL, useRealtimeChat } from "@/lib/use-realtime-chat";
@@ -86,6 +86,11 @@ export function CompanionDock() {
     window.addEventListener(COMPANION_OPEN_EVENT, reopen);
     return () => window.removeEventListener(COMPANION_OPEN_EVENT, reopen);
   }, []);
+
+  // The Claude tab sits just above whichever ChatGPT control is showing.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(COMPANION_VISIBILITY_EVENT, { detail: { hidden } }));
+  }, [hidden]);
 
   const active = chat.active;
   const label = chat.error ?? CHAT_PHASE_LABEL[chat.phase];

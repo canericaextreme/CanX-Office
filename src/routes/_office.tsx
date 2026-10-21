@@ -5,6 +5,7 @@ import { RoomAccessBar } from "@/components/office/RoomAccessBar";
 import { OfficeManager } from "@/components/office/OfficeManager";
 import { ApprovalAlert } from "@/components/office/ApprovalAlert";
 import { CompanionDock } from "@/components/office/CompanionDock";
+import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { canBrowseOfficeWithoutSignIn } from "@/lib/office-development-access";
 import { OfficeGate } from "@/components/office/OfficeGate";
 import { OfficeThemeProvider } from "@/lib/office-theme";
@@ -44,6 +45,8 @@ function OfficeInterior() {
             <ApprovalAlert />
           </div>
           <CompanionDock />
+          {/* Claude tab, just above the Chatbot tab, reachable from every room. */}
+          <SecondEyesPanel />
           <div data-canx-no-capture="true">
             <OfficeManager />
           </div>
