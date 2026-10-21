@@ -53,7 +53,7 @@ export const OFFICE_WORK_TOOLS = [
   ),
   tool(
     "write_office_record",
-    "Create or update Office notes, Brain memory, tasks, links, discussion documents or Finance document keys. Use the current owner instruction. Update requires the exact version from read_office_records; Finance merges document keys. Code/setup changes use submit_office_build.",
+    "Create or update Office notes, Brain memory, tasks, links, discussion documents or Finance document keys. Use the current owner instruction. Update requires the exact version from read_office_records; Finance merges document keys. Latest handoff notes require the brain-handoff-v1 JSON detail described at initialization; completion requires verified readback of job history and latest. Pending receipts never mean complete. Code/setup changes use submit_office_build.",
     schema(
       {
         collection: {

@@ -7,6 +7,13 @@ const deps = (authorize = async () => true): OfficeMcpDeps => ({ resource, issue
 const request = (body: unknown, headers = {}) => new Request(resource, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer token", ...headers }, body: JSON.stringify(body) });
 const rpc = (method: string, params = {}) => ({ jsonrpc: "2.0", id: 1, method, params });
 describe("Office MCP access boundary", () => {
+  it("exposes pending handoff receipts as tool failures without losing recovery details", async () => {
+    const receipt = { verified:false, completion:"pending", historyId:"handoff-job-chatgpt-job-123" };
+    const response = await handleOfficeMcp(request(rpc("tools/call", { name:"write_office_record", arguments:{collection:"office_notes",id:"handoff-latest-chatgpt",data:{}} })), {...deps(),work:async()=>receipt});
+    const body = await response.json();
+    expect(body.result.isError).toBe(true);
+    expect(JSON.parse(body.result.content[0].text)).toEqual(receipt);
+  });
   it("reads scoped metadata with the authenticated token and reports failed reads", async () => {
     const status = vi.fn(async () => ({projects:[{id:"project-id",name:"Saved project"}],tasks:[]}));
     const d = {...deps(),status};

@@ -42,3 +42,38 @@ Each run:
 - The 9 Oct "raw access / OAuth" failure on task ab619d17 was fixed on 10-11 Oct (relay now uses
   the working-grant functions); that task's waiting note is out of date.
 - The relay colleague has no tools; it can advise but not open PRs or pictures.
+
+## Verified material-work checkpoint — 21 October draft
+
+The material-work save path now lives in `src/lib/brain-handoff.ts`, called by the existing
+`write_office_record` service for the two latest-handoff IDs. The earlier short-paragraph and
+minute-stamped-copy procedure above is historical for these writes. Use a `brain-handoff-v1`
+JSON string in `data.detail` with the required fields documented in the shared connector
+instructions and `src/lib/AGENTS.md`. There is no new tool, grant, table or job executor.
+
+A save first preserves `handoff-job-{assistant}-{jobId}`, then compares and saves latest using
+the supplied version. Independent reads verify both records' requested fields. Identical retries
+reuse existing records; changed evidence under the same job ID, read errors, mismatches and
+concurrent latest changes remain pending. A lost acknowledgement is recovered by reading before
+writing. History is immutable through this path, not a new database restriction. Existing database
+record tools retain their permissions. A checkpoint status of blocked or pending remains that status
+even after persistence verifies. Full structured handoff evidence is retained in colleague context;
+legacy prose keeps its existing context bound.
+
+Before work, assistants retrieve latest and relevant exact job/project records with existing reads.
+This is shared connector guidance, not a global lock on external assistants or a new execution gate.
+Unrelated tasks/builds/voice behavior is unchanged. An assistant that ignores the protocol can still
+answer without saving; this local repair cannot control external clients or their completion UI.
+
+Local inspection: main and cached origin/main are `de350ab`. No remote freshness check or open-PR
+listing was performed because this task forbids production calls and no offline PR snapshot exists.
+The named Brain notes `brain-handoff-rule-20261021` and
+`brain-safe-highways-location-check-20261021` are references supplied by John, not locally retrieved
+records. Their contents, real latest project handoff, and open PR overlap remain acceptance checks.
+
+Live acceptance still requires an owner-authorized environment: retrieve those notes and relevant
+project handoff, save/read back a non-sensitive checkpoint, interrupt the response and retry the same
+save without re-running work, then reopen a native assistant session and retrieve the exact history.
+Test both Claude and ChatGPT connector clients. Device testing should verify close/reopen context
+and accurate pending/completed wording; no voice/audio code changed or voice verification claimed.
+No production save, publication, push or external contact occurred in this repair.
