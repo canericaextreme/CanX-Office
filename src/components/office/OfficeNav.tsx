@@ -9,7 +9,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ROOM_SYNOPSES } from '@/lib/room-synopses';
 import { AccountMenu } from "@/components/office/AccountMenu";
-import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { ROOMS, SAMPLE_APPROVALS, SAMPLE_PROJECTS, SAMPLE_WORKERS, SAMPLE_WORK_ITEMS } from "@/lib/office-data";
 import { OFFICE_MAP_ROOMS, clockwiseOfficeRooms, readOfficeLabelPositions } from '@/lib/office-map';
 
@@ -131,8 +130,6 @@ export function OfficeNav() {
             </DialogHeader>
           </DialogContent>
         </Dialog>
-        {/* Reachable from every room, without adding a destination. */}
-          <SecondEyesPanel />
           <AccountMenu />
         </div>
       </div>

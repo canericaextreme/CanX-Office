@@ -15,12 +15,12 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Eye, Minus, Loader2, Building2, MonitorSmartphone } from "lucide-react";
+import { Minus, Loader2, Building2, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOwnerSession } from "@/lib/owner-session";
+import { COMPANION_HIDDEN_KEY, COMPANION_VISIBILITY_EVENT } from "@/lib/companion-bridge";
 import {
   ESTIMATED_CENTS_BY_SCOPE,
   getClaudeStatus,
@@ -38,6 +38,107 @@ import {
   sixAreaFindings,
   subscribeSecondEyes,
 } from "@/lib/second-eyes";
+
+const CLAUDE_OPEN_KEY = "canx.claude.open";
+
+function readStored(key: string): string | null {
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+function writeStored(key: string, value: string | null) {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch { /* private window: the tab still works for this visit */ }
+}
+
+/** Simple Claude mark in the companion's colours. */
+function ClaudeMark() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-9 w-9 sm:h-10 sm:w-10" aria-hidden="true" focusable="false">
+      <circle cx="24" cy="24" r="23" className="fill-white/15" />
+      <path d="M31 16.5a10 10 0 1 0 0 15" className="fill-none stroke-white" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * 21 Oct 2026, John: no Claude button at the top of the screen. A "Work with
+ * Claude" tab sits at the bottom, right beside the ChatGPT tab, in its style.
+ * The card opens Claude in a new tab, like "Open ChatGPT", and keeps the
+ * existing paid review panel one press away. Nothing here starts a review.
+ */
+function ClaudeTab({ reviewsOpen, onToggleReviews }: { reviewsOpen: boolean; onToggleReviews: () => void }) {
+  const [cardOpen, setCardOpen] = useState(false);
+  // Right beside the Chatbot tab (clear of it when it slides out), or beside the ChatGPT card.
+  const [chatbotHidden, setChatbotHidden] = useState(false);
+
+  useEffect(() => {
+    setCardOpen(readStored(CLAUDE_OPEN_KEY) === "1");
+    setChatbotHidden(readStored(COMPANION_HIDDEN_KEY) === "1");
+    const follow = (event: Event) => setChatbotHidden(Boolean((event as CustomEvent<{ hidden: boolean }>).detail?.hidden));
+    window.addEventListener(COMPANION_VISIBILITY_EVENT, follow);
+    return () => window.removeEventListener(COMPANION_VISIBILITY_EVENT, follow);
+  }, []);
+
+  const place = chatbotHidden ? "bottom-4 left-[7.5rem]" : "bottom-4 left-[8.5rem] sm:left-[9.5rem]";
+
+  if (!cardOpen) {
+    return (
+      <button
+        type="button"
+        data-testid="claude-tab"
+        data-canx-no-capture="true"
+        onClick={() => { writeStored(CLAUDE_OPEN_KEY, "1"); setCardOpen(true); }}
+        aria-label="Open the Work with Claude tab"
+        className={`fixed ${place} z-40 flex cursor-pointer h-12 items-center justify-center gap-1 rounded-xl border border-slate-950 bg-slate-900 pl-3 pr-1 text-white shadow-lg backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+      >
+        <span className="whitespace-nowrap text-sm font-bold">Work with Claude</span>
+        <ClaudeMark />
+      </button>
+    );
+  }
+
+  return (
+    <section
+      aria-label="Claude"
+      data-canx-no-capture="true"
+      data-testid="claude-card"
+      className={`fixed ${place} z-40 flex w-28 flex-col items-center gap-2 rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur sm:w-32`}
+    >
+      <div className="flex w-full items-center justify-between">
+        <span className="text-sm font-bold">Claude</span>
+        <button
+          type="button"
+          onClick={() => { writeStored(CLAUDE_OPEN_KEY, null); setCardOpen(false); }}
+          aria-label="Minimize the Claude tab"
+          title="Minimize Claude"
+          className="flex cursor-pointer h-7 w-7 items-center justify-center rounded-md text-white hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+      </div>
+      <ClaudeMark />
+      <a
+        href="https://claude.ai/"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Work with Claude in a new tab"
+        className="flex cursor-pointer min-h-9 w-full items-center justify-center rounded-md border border-slate-500 px-1 text-center text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Work with Claude
+      </a>
+      <button
+        type="button"
+        onClick={onToggleReviews}
+        aria-expanded={reviewsOpen}
+        aria-controls="claude-connection-dashboard"
+        className="flex cursor-pointer min-h-8 w-full items-center justify-center rounded-md px-1 text-xs text-slate-200 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {reviewsOpen ? "Close reviews" : "Reviews"}
+      </button>
+    </section>
+  );
+}
 
 /** Plain wording for the reservation shown beside each review button. */
 function reservationLabel(scope: "manual" | "room" | "office"): string {
@@ -251,33 +352,13 @@ export function SecondEyesPanel() {
   const canReview = signedIn && session.stepUpComplete;
   const working = busy !== null;
 
+  // The tab and its review panel are for John only: not for signed-out
+  // visitors, and the layout leaves it out of read-only viewing sessions.
+  if (!signedIn) return null;
+
   return (
     <>
-      <TooltipProvider delayDuration={250}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          aria-label={open ? "Minimize Claude connection" : "Open Claude connection"}
-          aria-expanded={open}
-          aria-controls="claude-connection-dashboard"
-          onClick={() => setOpen(value => !value)}
-          className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
-        >
-          {open ? <Minus className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-          <span
-            aria-hidden="true"
-            className={`absolute bottom-1 right-1 h-2 w-2 rounded-full border ${TONE_CLASS[tone]}`}
-          />
-        </Button>
-        </TooltipTrigger>
-      <TooltipContent side="bottom" align="end" collisionPadding={12} className="w-48 max-w-[calc(100vw-2rem)] whitespace-normal break-words border border-slate-600 bg-slate-950 px-3 py-2 text-center text-sm leading-relaxed text-white">
-        Claude connection
-      </TooltipContent>
-      </Tooltip>
-      </TooltipProvider>
+      <ClaudeTab reviewsOpen={open} onToggleReviews={() => setOpen(value => !value)} />
 
       <div id="claude-connection-dashboard" hidden={!open} data-canx-no-capture="true">
       <section
