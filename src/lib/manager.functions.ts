@@ -1,3 +1,4 @@
+import { isElsieContinuation, continueElsieTaskWith } from "./elsie-continuation.server";
 import { managerBuilderHandoff } from "./manager-builder-handoff";
 import { sha256Hex } from "./sha256";
 /**
@@ -173,6 +174,8 @@ const ESTIMATED_CENTS_PER_CALL = 3;
 /* ------------------------- injectable dependencies ------------------------- */
 
 export interface ManagerDeps {
+  /** Existing owner-scoped REST transport; injectable for offline execution tests. */
+  workbenchRest?: WorkbenchDeps["rest"];
   /** Provider credentials stay separate; never fall back across colleagues. */
   provider?: "openai" | "anthropic";
   anthropicKey?: string | undefined;
@@ -1163,7 +1166,7 @@ function buildWorkbenchDeps(managerDeps: ManagerDeps): WorkbenchDeps {
     verifyOwner: managerDeps.verifyOwner,
     reserve: managerDeps.reserve,
     settle: managerDeps.settle,
-    rest: async <T>(token: string, method: string, path: string, body?: JsonObject) => {
+    rest: managerDeps.workbenchRest ?? (async <T>(token: string, method: string, path: string, body?: JsonObject) => {
       const backend = await import("@/lib/canx-backend.server");
       const config = backend.readBackendConfig();
       if (!config) return { ok: false, error: "No CanX-owned database is configured." };
@@ -1187,7 +1190,7 @@ function buildWorkbenchDeps(managerDeps: ManagerDeps): WorkbenchDeps {
       } catch {
         return { ok: true };
       }
-    },
+    }),
     ensureBudget: async (token, ownerId) => {
       const backend = await import("@/lib/canx-backend.server");
       const config = backend.readBackendConfig();
@@ -1762,6 +1765,21 @@ export async function runManagerChatWith(
       ...(deps.recordTurn ? { persisted: saved?.saved === true } : {}) };
   }
 
+  // Short approvals resolve only against freshly read saved tasks, including after reopen.
+  // No model-selected task id or remembered assistant promise can dispatch work.
+  if (statusRequest?.role === "user" && isElsieContinuation(statusRequest.content)) {
+    const run = deps.runBuild ?? defaultRunBuild;
+    const result = await continueElsieTaskWith({
+      workbench: buildWorkbenchDeps(deps),
+      build: (token, request, pr, id) => run("codex", token, request, pr, id),
+    }, data.accessToken, statusRequest.content).catch(() => ({ ok: false, detail: "Continuation could not be confirmed. Nothing was retried; inspect the saved execution receipt before proceeding." }));
+    const saved = deps.recordTurn ? await deps.recordTurn(data.accessToken, verification.userId, statusRequest.content, result.detail).catch(() => null) : null;
+    return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
+      text: result.detail, toolCalls: [], ...(deps.recordTurn ? { persisted: saved?.saved === true } : {}), actionResults: [{
+        name: "continue_saved_task", risk: "green", status: result.ok ? "pending" : "stopped", detail: result.detail,
+      }] };
+  }
+
   // GATE 2 — provider key and explicit model must both be configured.
   if (!providerKey(deps) || !deps.model) {
     return denyReply(
@@ -1781,7 +1799,7 @@ export async function runManagerChatWith(
   // An explicit "don't send / read-only / just asking" turn never releases work.
   // 21 Oct: John's "stop everything" / "resume work" flips the Office autopilot switch
   // (Brain note office-autopilot); while stopped, queued work is not released.
-  const autopilot = !requestIsDiscussionOnly(turnRequest) && (deps.advanceBuilderQueue || deps.queueAutoAdvance)
+  const autopilot = !requestIsDiscussionOnly(turnRequest) && deps.queueAutoAdvance
     ? await autopilotStepWith(buildWorkbenchDeps(deps), data.accessToken, turnRequest).catch(() => null)
     : null;
   const queueSteps = requestIsDiscussionOnly(turnRequest) || autopilot?.mode === "stopped" ? [] : await advanceBuilderQueues(deps, data.accessToken);

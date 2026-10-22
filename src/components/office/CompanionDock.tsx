@@ -174,7 +174,7 @@ export function CompanionDock() {
       tabIndex={0}
       title="Drag to move"
       style={pos ? { left: pos.left, top: pos.top } : { left: 16, bottom: 16 }}
-      className={`fixed z-40 flex h-[12.5rem] w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-[14rem] sm:w-32 ${
+      className={`fixed z-40 flex h-[14rem] w-28 cursor-move touch-none select-none flex-col items-center justify-between rounded-2xl border border-slate-950 bg-slate-900 p-2 text-white shadow-2xl backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-[15.5rem] sm:w-32 ${
         dragging ? "opacity-90" : ""
       }`}
     >
@@ -208,6 +208,7 @@ export function CompanionDock() {
       </p>
 
 
+      <div className="flex w-full shrink-0 flex-col gap-[0.25in]">
       <a
         href="https://chatgpt.com/"
         target="_blank"
@@ -230,6 +231,7 @@ export function CompanionDock() {
       >
         Work with Claude
       </a>
+      </div>
       <button
         type="button"
         onPointerDown={(event) => event.stopPropagation()}
