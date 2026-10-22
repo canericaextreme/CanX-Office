@@ -74,6 +74,14 @@ describe("builder choice is John's, never the model's", () => {
 });
 
 describe("Elsie builder routing", () => {
+  it("routes the actual clear screen change instead of a model-selected unrelated saved task", async () => {
+    const h = chatDeps("execute_task", {}, { task_id: "unrelated-task" });
+    const words = "separate the ChatGPT and Claude buttons by a quarter inch";
+    const reply = await runManagerChatWith(h.deps, say(words));
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("codex", "t", expect.stringContaining(words), undefined, undefined);
+    expect(h.runBuild.mock.calls[0]?.[2]).not.toContain("unrelated-task");
+    expect(reply.actionResults.some(a => a.detail.includes("No explicit request"))).toBe(false);
+  });
   it("answers a Claude status command read-only without any OpenAI call", async () => {
     const checkClaudeStatus = vi.fn().mockResolvedValue({ ok: true, detail: "Live Claude run status.", runs: [] });
     const reply = await runManagerChatWith({ verifyOwner: async () => OWNER, reserve: async () => ({ allowed: true, reservationId: "r", remainingToday: 1 }), settle: async () => undefined, buildContext: async () => ({ ok: true, text: "" }), fetchImpl: noFetch, openaiKey: "sk", model: "m", checkClaudeStatus }, say("Check Claude builds"));

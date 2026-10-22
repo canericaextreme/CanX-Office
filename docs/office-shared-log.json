@@ -351,6 +351,24 @@
       "audience": "office-status",
       "summary": "Integrated Brain checkpoint save/readback into Office task verification: a task cannot be marked done through verifyManagerTaskWith until its evidence checkpoint independently reads back. Task evidence links the checkpoint. Failed saves remain unfinished; repeated verification reuses identical evidence. Draft only; not deployed.",
       "evidence": "Full local suite: 206 files / 1988 tests passed. Typecheck/build being checked separately. Existing working-grant handoff validation in PR204 retained. No changes to Claude PR201. External native assistant replies cannot be globally gated by this Office code."
+    },
+    {
+      "id": "2026-10-22-codex-elsie-continuation-local-draft",
+      "at": "2026-10-22T14:51:49Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared a local draft repair for Elsie short task continuations, persisted owner task resolution, receipt-based reopen checks and colleague button spacing. No production calls, publication or changes to drafts 208\u2013210.",
+      "evidence": "src/lib/elsie-continuation.server.ts; src/lib/elsie-continuation.test.ts; docs/elsie-continuation-draft-candidate.md. Full local suite: 209 files / 2030 tests passed; typecheck and build passed. Local verification only; not a live execution receipt."
+    },
+    {
+      "id": "2026-10-22-chatgpt-elsie-continuation-review",
+      "at": "2026-10-22T15:02:30.549976+00:00",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Reviewed PR211: added finish it and task continuation forms, recent discussed-task selection among multiple jobs, saved task reference checkpoints, original clear change routing; reverted unrelated button spacing. Existing execution gates retained. Candidate only; not live.",
+      "evidence": "Full local suite:209 files/2043 tests passed; TypeScript, production build and whitespace checks passed. Signed-in phone/voice acceptance pending."
     }
   ]
 }
