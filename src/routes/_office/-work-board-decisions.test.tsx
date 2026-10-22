@@ -123,10 +123,10 @@ describe("Work Board decisions waiting on John", () => {
 
   it("the filter shows only what needs John, and back", () => {
     render(<WorkBoard />);
-    fireEvent.click(screen.getByRole("button", { name: "Show only what needs me (3)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Needs John" }));
     expect(document.getElementById("task-plain")).toBeNull();
     expect(card("hold")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Show all tasks" }));
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
     expect(card("plain")).toBeTruthy();
   });
 
@@ -225,5 +225,60 @@ describe("Work Board decisions waiting on John", () => {
       screen.getByRole("heading", { name: "Nothing is waiting on you right now." }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Show only/ })).toBeNull();
+  });
+});
+
+describe("Work Board compact filters", () => {
+  it("keeps John first without changing saved task order and collapses secondary details", () => {
+    memory.tasks = [task({ id: "plain" }), task({ id: "review", risk: "yellow" })];
+    render(<WorkBoard />);
+    expect(Array.from(document.querySelectorAll('[id^="task-"]')).map((el) => el.id)).toEqual([
+      "task-review",
+      "task-plain",
+    ]);
+    expect(memory.tasks.map((t) => t.id)).toEqual(["plain", "review"]);
+    expect(card("plain").querySelector("details")?.open).toBe(false);
+    expect(within(card("review")).getByRole("button", { name: /Approve Task/ })).toBeTruthy();
+  });
+
+  it("filters saved states, preserves cancelled history and never writes on filter clicks", () => {
+    memory.tasks = [
+      task({ id: "ready", title: "Ready job" }),
+      task({ id: "working", status: "in_progress", title: "Assigned job" }),
+      task({ id: "blocked", status: "waiting", title: "Waiting job" }),
+      task({ id: "red", risk: "red", title: "Stopped job" }),
+      task({ id: "done", status: "done", title: "Finished job" }),
+      task({ id: "cancelled", status: "cancelled", title: "Cancelled job" }),
+      task({ id: "yellow", risk: "yellow", title: "Approval job" }),
+    ];
+    render(<WorkBoard />);
+    for (const [filter, ids] of [
+      ["Ready", ["ready"]],
+      ["Working", ["working"]],
+      ["Blocked", ["blocked", "red"]],
+      ["Done", ["done"]],
+      ["Needs John", ["blocked", "yellow"]],
+    ] as const) {
+      fireEvent.click(screen.getByRole("button", { name: filter }));
+      expect(screen.getByRole("button", { name: filter }).getAttribute("aria-pressed")).toBe(
+        "true",
+      );
+      expect(Array.from(document.querySelectorAll('[id^="task-"]')).map((el) => el.id)).toEqual(
+        ids.map((id) => `task-${id}`),
+      );
+      expect(screen.queryByText("Buy a domain") !== null).toBe(filter === "Needs John");
+    }
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(card("cancelled")).toBeTruthy();
+    for (const fn of Object.values(fns)) expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("shows empty filter feedback and leaves the controls available", () => {
+    memory.tasks = [task({ id: "plain" })];
+    memory.approvals = [];
+    render(<WorkBoard />);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.getByRole("status").textContent).toBe("No tasks match Done.");
+    expect(screen.getByRole("button", { name: "Needs John" })).toBeTruthy();
   });
 });

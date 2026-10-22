@@ -351,6 +351,15 @@
       "audience": "office-status",
       "summary": "Integrated Brain checkpoint save/readback into Office task verification: a task cannot be marked done through verifyManagerTaskWith until its evidence checkpoint independently reads back. Task evidence links the checkpoint. Failed saves remain unfinished; repeated verification reuses identical evidence. Draft only; not deployed.",
       "evidence": "Full local suite: 206 files / 1988 tests passed. Typecheck/build being checked separately. Existing working-grant handoff validation in PR204 retained. No changes to Claude PR201. External native assistant replies cannot be globally gated by this Office code."
+    },
+    {
+      "id": "2026-10-22-work-board-filters-local",
+      "at": "2026-10-22T02:00:00Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Implemented local Work Board state filters and compact task details, with John decision tasks first. No publication or production checks; date-based numbering excluded.",
+      "evidence": "src/routes/_office/work-board.tsx; Work Board decision/filter, decision helper and task evidence tests: 24 passed; TypeScript check passed. Device and signed-in acceptance unverified."
     }
   ]
 }

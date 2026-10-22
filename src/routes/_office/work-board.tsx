@@ -74,15 +74,27 @@ function taskStatus(task: ManagerTask): TaskStatus {
     case "done":
       return { tone: "green", label: "Green — done", reason: null };
     case "waiting":
-      return { tone: "yellow", label: "Waiting", reason: task.waiting_reason || "Waiting reason not recorded." };
+      return {
+        tone: "yellow",
+        label: "Waiting",
+        reason: task.waiting_reason || "Waiting reason not recorded.",
+      };
     case "in_progress":
-      return { tone: "blue", label: "Assigned — activity unconfirmed", reason: "Assignment alone does not confirm that work is running." };
+      return {
+        tone: "blue",
+        label: "Assigned — activity unconfirmed",
+        reason: "Assignment alone does not confirm that work is running.",
+      };
     case "cancelled":
       return { tone: "red", label: "Red — cancelled", reason: null };
     case "open":
       return { tone: "grey", label: "Grey — planned", reason: "Not assigned to a worker yet." };
     default:
-      return { tone: "grey", label: "Grey — unknown", reason: "The saved status is not recognized." };
+      return {
+        tone: "grey",
+        label: "Grey — unknown",
+        reason: "The saved status is not recognized.",
+      };
   }
 }
 
@@ -93,7 +105,8 @@ function when(value: string | null | undefined): string {
 }
 
 export function WorkBoard() {
-  const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } = useManagerMemory();
+  const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } =
+    useManagerMemory();
   const createTask = useServerFn(createManagerTask);
   const assignTask = useServerFn(assignManagerTask);
   const verifyTask = useServerFn(verifyManagerTask);
@@ -104,7 +117,7 @@ export function WorkBoard() {
   const [detail, setDetail] = useState("");
   const [project, setProject] = useState("");
   const [risk, setRisk] = useState<RiskLevel>("green");
-  const [waitingReason, setWaitingReason] = useState<Record<string,string>>({});
+  const [waitingReason, setWaitingReason] = useState<Record<string, string>>({});
   const [worker, setWorker] = useState<Record<string, string>>({});
   const [team, setTeam] = useState<TeamMember[]>(DEFAULT_TEAM);
   useEffect(() => {
@@ -116,12 +129,15 @@ export function WorkBoard() {
   const [result, setResult] = useState<Record<string, string>>({});
   const [evidence, setEvidence] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<
-    Record<string, { title: string; detail: string; project: string; result: string; evidence: string }>
+    Record<
+      string,
+      { title: string; detail: string; project: string; result: string; evidence: string }
+    >
   >({});
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [onlyMine, setOnlyMine] = useState(false);
+  const [filter, setFilter] = useState("All");
 
   const tasks = memory?.tasks ?? null;
   const assignments = memory?.assignments ?? [];
@@ -131,7 +147,22 @@ export function WorkBoard() {
   const decisionFor: Record<string, DecisionItem> = {};
   for (const item of decisions) if (item.kind !== "approval") decisionFor[item.id] = item;
   const approvalDecisions = decisions.filter((item) => item.kind === "approval");
-  const shownTasks = onlyMine ? tasks?.filter((task) => decisionFor[task.id]) : tasks;
+  const filters = ["All", "Needs John", "Ready", "Working", "Blocked", "Done"];
+  const matchesFilter = (task: ManagerTask, selected: string) => {
+    if (selected === "All") return true;
+    if (selected === "Needs John") return Boolean(decisionFor[task.id]);
+    if (selected === "Done") return task.status === "done";
+    if (selected === "Blocked")
+      return (
+        task.status === "waiting" ||
+        (task.risk === "red" && task.status !== "done" && task.status !== "cancelled")
+      );
+    if (decisionFor[task.id] || task.risk === "red") return false;
+    return task.status === (selected === "Ready" ? "open" : "in_progress");
+  };
+  const shownTasks = tasks
+    ?.filter((task) => matchesFilter(task, filter))
+    .sort((a, b) => Number(Boolean(decisionFor[b.id])) - Number(Boolean(decisionFor[a.id])));
   const decided = (message: string) => {
     setProblem(null);
     setNotice(message);
@@ -184,7 +215,9 @@ export function WorkBoard() {
             <CardTitle className="text-base">Master task list</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               {tasks ? (
-                <span className="text-xs text-muted-foreground">Shared memory — saved in the CanX-owned database.</span>
+                <span className="text-xs text-muted-foreground">
+                  Shared memory — saved in the CanX-owned database.
+                </span>
               ) : isOwner ? (
                 <span className="flex flex-wrap items-center gap-2">
                   <StatusBadge tone="grey" label="Grey — disconnected" />
@@ -218,7 +251,31 @@ export function WorkBoard() {
             </p>
           )}
 
-          {isOwner && tasks && (
+          {tasks && (
+            <div role="group" aria-label="Work Board filters" className="flex flex-wrap gap-2">
+              {filters.map((name) => (
+                <Button
+                  key={name}
+                  size="sm"
+                  className="min-h-11"
+                  variant={filter === name ? "default" : "outline"}
+                  aria-pressed={filter === name}
+                  onClick={() => setFilter(name)}
+                >
+                  {name}
+                </Button>
+              ))}
+            </div>
+          )}
+          {tasks && (
+            <p className="text-xs text-muted-foreground">
+              Needs John comes first. Ready means planned and not waiting on John; Working means
+              assigned, not confirmed running. Blocked includes waiting and stopped red tasks.
+              Cancelled tasks remain in All.
+            </p>
+          )}
+
+          {isOwner && tasks && (filter === "All" || filter === "Needs John") && (
             <section
               aria-labelledby="needs-john-heading"
               className={
@@ -228,27 +285,25 @@ export function WorkBoard() {
               }
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 id="needs-john-heading" className={decisions.length > 0 ? "text-base font-semibold text-canx-yellow" : "text-sm text-canx-green"}>
+                <h2
+                  id="needs-john-heading"
+                  className={
+                    decisions.length > 0
+                      ? "text-base font-semibold text-canx-yellow"
+                      : "text-sm text-canx-green"
+                  }
+                >
                   {decisions.length === 0
                     ? "Nothing is waiting on you right now."
                     : decisions.length === 1
                       ? "John — 1 item needs your decision"
                       : `John — ${decisions.length} items need your decision`}
                 </h2>
-                {decisions.length > 0 && (
-                  <Button
-                    variant={onlyMine ? "default" : "outline"}
-                    className="h-11"
-                    aria-pressed={onlyMine}
-                    onClick={() => setOnlyMine((v) => !v)}
-                  >
-                    {onlyMine ? "Show all tasks" : `Show only what needs me (${decisions.length})`}
-                  </Button>
-                )}
               </div>
               {decisions.length > 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Each one has Approve and Decline on its card, marked “John — review needed”. Every button asks you to confirm first.
+                  Each one has Approve and Decline on its card, marked “John — review needed”. Every
+                  button asks you to confirm first.
                 </p>
               )}
               {decisions.some((item) => item.kind !== "approval") && (
@@ -264,22 +319,30 @@ export function WorkBoard() {
                     ))}
                 </ul>
               )}
-              {approvalDecisions.map((item) => (
-                <div key={item.id} className="mt-3 rounded-lg border-2 border-canx-yellow bg-card p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">John — review needed</span>
-                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Approval Box request</span>
-                    <span className="font-medium">{item.title}</span>
+              {(filter === "All" || filter === "Needs John") &&
+                approvalDecisions.map((item) => (
+                  <div
+                    key={item.id}
+                    className="mt-3 rounded-lg border-2 border-canx-yellow bg-card p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">
+                        John — review needed
+                      </span>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                        Approval Box request
+                      </span>
+                      <span className="font-medium">{item.title}</span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{item.why}</p>
+                    {item.kind === "approval" && item.approval.cost_cents != null && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Estimated cost: {(item.approval.cost_cents / 100).toFixed(2)}
+                      </p>
+                    )}
+                    <WorkBoardDecision item={item} accessToken={accessToken} onDone={decided} />
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">{item.why}</p>
-                  {item.kind === "approval" && item.approval.cost_cents != null && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Estimated cost: {(item.approval.cost_cents / 100).toFixed(2)}
-                    </p>
-                  )}
-                  <WorkBoardDecision item={item} accessToken={accessToken} onDone={decided} />
-                </div>
-              ))}
+                ))}
               <p className="mt-2 text-xs text-muted-foreground">
                 Past decisions stay in the{" "}
                 <Link to="/approvals" className="underline">
@@ -290,7 +353,9 @@ export function WorkBoard() {
             </section>
           )}
 
-          {loading && !tasks && <p className="text-sm text-muted-foreground">Loading your task list…</p>}
+          {loading && !tasks && (
+            <p className="text-sm text-muted-foreground">Loading your task list…</p>
+          )}
 
           {!isOwner && !loading && (
             <p className="text-sm text-muted-foreground">
@@ -304,7 +369,17 @@ export function WorkBoard() {
             </p>
           )}
 
-          {tasks && tasks.length === 0 && <p className="text-sm text-muted-foreground">No records yet.</p>}
+          {tasks &&
+            tasks.length > 0 &&
+            shownTasks?.length === 0 &&
+            !(filter === "Needs John" && approvalDecisions.length > 0) && (
+              <p role="status" className="text-sm text-muted-foreground">
+                No tasks match {filter}.
+              </p>
+            )}
+          {tasks && tasks.length === 0 && (
+            <p className="text-sm text-muted-foreground">No records yet.</p>
+          )}
 
           {shownTasks?.map((task) => {
             const needs = decisionFor[task.id];
@@ -323,7 +398,9 @@ export function WorkBoard() {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   {needs && (
-                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">John — review needed</span>
+                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">
+                      John — review needed
+                    </span>
                   )}
                   <StatusBadge tone={status.tone} label={status.label} />
                   <span className="font-medium">{task.title}</span>
@@ -347,248 +424,384 @@ export function WorkBoard() {
                     <WorkBoardDecision item={needs} accessToken={accessToken} onDone={decided} />
                   </>
                 ) : (
-                  status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>
+                  status.reason && (
+                    <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>
+                  )
                 )}
-                <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
-                  <div>
-                    <dt className="inline font-medium">Project: </dt>
-                    <dd className="inline">{task.project?.trim() || "Not stated"}</dd>
-                  </div>
-                  <div>
-                    <dt className="inline font-medium">Assigned to: </dt>
-                    <dd className="inline">{task.worker?.trim() || "Nobody yet"}</dd>
-                  </div>
-                  <div>
-                    <dt className="inline font-medium">Created: </dt>
-                    <dd className="inline">{when(task.created_at)}</dd>
-                  </div>
-                  <div>
-                    <dt className="inline font-medium">Updated: </dt>
-                    <dd className="inline">{when(task.updated_at)}</dd>
-                  </div>
-                </dl>
-                {isOwner && (task.status === "open" || task.status === "in_progress" || task.status === "waiting") && <div className="mt-3 flex flex-wrap gap-2">
-                  <Input className="max-w-sm" aria-label={`What ${task.title} is waiting for`} placeholder="Waiting for approval, information or verification" value={waitingReason[task.id] ?? task.waiting_reason ?? ''} onChange={e => setWaitingReason(current => ({...current,[task.id]:e.target.value}))} />
-                  <Button variant="outline" disabled={busy===task.id || !accessToken || !(waitingReason[task.id] ?? task.waiting_reason ?? '').trim()} onClick={()=>run(task.id,()=>editTask({data:{accessToken:accessToken!,taskId:task.id,title:task.title,detail:task.detail,project:task.project??'',risk:task.risk,status:'waiting',waiting_reason:waitingReason[task.id] ?? task.waiting_reason ?? ''}}),'Saved waiting status.')}>Mark waiting</Button>
-                  {task.status==='waiting' && <Button variant="outline" disabled={busy===task.id || !accessToken} onClick={()=>run(task.id,()=>editTask({data:{accessToken:accessToken!,taskId:task.id,title:task.title,detail:task.detail,project:task.project??'',risk:task.risk,status:'open'}}),'Returned to planned work.')}>Return to planned</Button>}
-                </div>}
-                {task.detail && <p className="mt-2 text-xs text-muted-foreground">{task.detail}</p>}
-                <p className="mt-1 text-xs text-canx-green">Result: {task.result?.trim() || "Not recorded"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Evidence: {taskExecutionEvidence(task.evidence)?.label ?? (task.evidence?.trim() || "Not recorded")}</p>
-                {taskExecutionEvidence(task.evidence)?.url && <a className="text-xs underline" href={taskExecutionEvidence(task.evidence)!.url} target="_blank" rel="noopener noreferrer">Open this task’s build</a>}
-                {taskAssignments.length > 0 && (
+                <details className="mt-2">
+                  <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium">
+                    Details and actions for {task.title}
+                  </summary>
+                  <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
+                    <div>
+                      <dt className="inline font-medium">Project: </dt>
+                      <dd className="inline">{task.project?.trim() || "Not stated"}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Assigned to: </dt>
+                      <dd className="inline">{task.worker?.trim() || "Nobody yet"}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Created: </dt>
+                      <dd className="inline">{when(task.created_at)}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Updated: </dt>
+                      <dd className="inline">{when(task.updated_at)}</dd>
+                    </div>
+                  </dl>
+                  {isOwner &&
+                    (task.status === "open" ||
+                      task.status === "in_progress" ||
+                      task.status === "waiting") && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Input
+                          className="max-w-sm"
+                          aria-label={`What ${task.title} is waiting for`}
+                          placeholder="Waiting for approval, information or verification"
+                          value={waitingReason[task.id] ?? task.waiting_reason ?? ""}
+                          onChange={(e) =>
+                            setWaitingReason((current) => ({
+                              ...current,
+                              [task.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        <Button
+                          variant="outline"
+                          disabled={
+                            busy === task.id ||
+                            !accessToken ||
+                            !(waitingReason[task.id] ?? task.waiting_reason ?? "").trim()
+                          }
+                          onClick={() =>
+                            run(
+                              task.id,
+                              () =>
+                                editTask({
+                                  data: {
+                                    accessToken: accessToken!,
+                                    taskId: task.id,
+                                    title: task.title,
+                                    detail: task.detail,
+                                    project: task.project ?? "",
+                                    risk: task.risk,
+                                    status: "waiting",
+                                    waiting_reason:
+                                      waitingReason[task.id] ?? task.waiting_reason ?? "",
+                                  },
+                                }),
+                              "Saved waiting status.",
+                            )
+                          }
+                        >
+                          Mark waiting
+                        </Button>
+                        {task.status === "waiting" && (
+                          <Button
+                            variant="outline"
+                            disabled={busy === task.id || !accessToken}
+                            onClick={() =>
+                              run(
+                                task.id,
+                                () =>
+                                  editTask({
+                                    data: {
+                                      accessToken: accessToken!,
+                                      taskId: task.id,
+                                      title: task.title,
+                                      detail: task.detail,
+                                      project: task.project ?? "",
+                                      risk: task.risk,
+                                      status: "open",
+                                    },
+                                  }),
+                                "Returned to planned work.",
+                              )
+                            }
+                          >
+                            Return to planned
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  {task.detail && (
+                    <p className="mt-2 text-xs text-muted-foreground">{task.detail}</p>
+                  )}
+                  <p className="mt-1 text-xs text-canx-green">
+                    Result: {task.result?.trim() || "Not recorded"}
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {taskAssignments.length} assignment{taskAssignments.length === 1 ? "" : "s"} recorded · latest{" "}
-                    {when(taskAssignments[0]?.assigned_at)}
+                    Evidence:{" "}
+                    {taskExecutionEvidence(task.evidence)?.label ??
+                      (task.evidence?.trim() || "Not recorded")}
                   </p>
-                )}
-
-                {task.risk === "red" && task.status !== "cancelled" && (
-                  <p className="mt-2 text-xs text-destructive">
-                    Red: this operation is stopped. It cannot be assigned or approved from here.
-                  </p>
-                )}
-
-                {isOwner && task.status === "open" && task.risk !== "red" && (
-                  <div className="mt-3 flex flex-wrap items-end gap-2">
-                    <div>
-                      <Label className="text-xs" htmlFor={`worker-${task.id}`}>
-                        Worker
-                      </Label>
-                      <Input
-                        id={`worker-${task.id}`}
-                        list="canx-team-names"
-                        className="h-11 w-full sm:w-[220px]"
-                        placeholder="Worker name"
-                        value={worker[task.id] ?? ""}
-                        onChange={(e) => setWorker((w) => ({ ...w, [task.id]: e.target.value }))}
-                      />
-                    </div>
-                    <Button
-                      className="h-11"
-                      disabled={busy === task.id || !(worker[task.id] ?? "").trim() || !accessToken}
-                      onClick={() =>
-                        run(
-                          task.id,
-                          () =>
-                            assignTask({
-                              data: { accessToken: accessToken!, taskId: task.id, worker: worker[task.id] ?? "" },
-                            }),
-                          "Assigned and recorded.",
-                        )
-                      }
+                  {taskExecutionEvidence(task.evidence)?.url && (
+                    <a
+                      className="text-xs underline"
+                      href={taskExecutionEvidence(task.evidence)!.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      {busy === task.id ? "Saving…" : "Assign"}
-                    </Button>
-                  </div>
-                )}
+                      Open this task’s build
+                    </a>
+                  )}
+                  {taskAssignments.length > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {taskAssignments.length} assignment{taskAssignments.length === 1 ? "" : "s"}{" "}
+                      recorded · latest {when(taskAssignments[0]?.assigned_at)}
+                    </p>
+                  )}
 
-                {isOwner && task.status === "in_progress" && (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <Label className="text-xs" htmlFor={`result-${task.id}`}>
-                        What was done
+                  {task.risk === "red" && task.status !== "cancelled" && (
+                    <p className="mt-2 text-xs text-destructive">
+                      Red: this operation is stopped. It cannot be assigned or approved from here.
+                    </p>
+                  )}
+
+                  {isOwner && task.status === "open" && task.risk !== "red" && (
+                    <div className="mt-3 flex flex-wrap items-end gap-2">
+                      <div>
+                        <Label className="text-xs" htmlFor={`worker-${task.id}`}>
+                          Worker
+                        </Label>
+                        <Input
+                          id={`worker-${task.id}`}
+                          list="canx-team-names"
+                          className="h-11 w-full sm:w-[220px]"
+                          placeholder="Worker name"
+                          value={worker[task.id] ?? ""}
+                          onChange={(e) => setWorker((w) => ({ ...w, [task.id]: e.target.value }))}
+                        />
+                      </div>
+                      <Button
+                        className="h-11"
+                        disabled={
+                          busy === task.id || !(worker[task.id] ?? "").trim() || !accessToken
+                        }
+                        onClick={() =>
+                          run(
+                            task.id,
+                            () =>
+                              assignTask({
+                                data: {
+                                  accessToken: accessToken!,
+                                  taskId: task.id,
+                                  worker: worker[task.id] ?? "",
+                                },
+                              }),
+                            "Assigned and recorded.",
+                          )
+                        }
+                      >
+                        {busy === task.id ? "Saving…" : "Assign"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {isOwner && task.status === "in_progress" && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <Label className="text-xs" htmlFor={`result-${task.id}`}>
+                          What was done
+                        </Label>
+                        <Input
+                          id={`result-${task.id}`}
+                          className="h-11"
+                          value={result[task.id] ?? ""}
+                          onChange={(e) => setResult((r) => ({ ...r, [task.id]: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs" htmlFor={`evidence-${task.id}`}>
+                          Evidence
+                        </Label>
+                        <Input
+                          id={`evidence-${task.id}`}
+                          className="h-11"
+                          value={evidence[task.id] ?? ""}
+                          onChange={(e) =>
+                            setEvidence((r) => ({ ...r, [task.id]: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <Button
+                        className="h-11 sm:col-span-2 sm:w-fit"
+                        disabled={
+                          busy === task.id || !(result[task.id] ?? "").trim() || !accessToken
+                        }
+                        onClick={() =>
+                          run(
+                            task.id,
+                            () =>
+                              verifyTask({
+                                data: {
+                                  accessToken: accessToken!,
+                                  taskId: task.id,
+                                  result: result[task.id] ?? "",
+                                  evidence: evidence[task.id] ?? "",
+                                },
+                              }),
+                            "Verified and closed.",
+                          )
+                        }
+                      >
+                        {busy === task.id ? "Saving…" : "Verify and complete"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {isOwner && task.status !== "done" && task.status !== "cancelled" && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setEditing((e) =>
+                            e[task.id]
+                              ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== task.id))
+                              : {
+                                  ...e,
+                                  [task.id]: {
+                                    title: task.title,
+                                    detail: task.detail,
+                                    project: task.project ?? "",
+                                    result: task.result ?? "",
+                                    evidence: task.evidence ?? "",
+                                  },
+                                },
+                          )
+                        }
+                      >
+                        {edit ? "Close edit" : "Edit"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy === task.id || !accessToken}
+                        onClick={() =>
+                          run(
+                            task.id,
+                            () =>
+                              cancelTask({
+                                data: { accessToken: accessToken!, taskId: task.id, reason: "" },
+                              }),
+                            "Task cancelled. Nothing was deleted.",
+                          )
+                        }
+                      >
+                        Cancel task
+                      </Button>
+                    </div>
+                  )}
+
+                  {isOwner && edit && (
+                    <div className="mt-3 space-y-2 rounded-md border border-border p-3">
+                      <Label className="text-xs" htmlFor={`edit-title-${task.id}`}>
+                        Title
                       </Label>
                       <Input
-                        id={`result-${task.id}`}
+                        id={`edit-title-${task.id}`}
                         className="h-11"
-                        value={result[task.id] ?? ""}
-                        onChange={(e) => setResult((r) => ({ ...r, [task.id]: e.target.value }))}
+                        value={edit.title}
+                        onChange={(e) =>
+                          setEditing((s) => ({
+                            ...s,
+                            [task.id]: { ...edit, title: e.target.value },
+                          }))
+                        }
                       />
-                    </div>
-                    <div>
-                      <Label className="text-xs" htmlFor={`evidence-${task.id}`}>
+                      <Label className="text-xs" htmlFor={`edit-detail-${task.id}`}>
+                        Details
+                      </Label>
+                      <Textarea
+                        id={`edit-detail-${task.id}`}
+                        value={edit.detail}
+                        onChange={(e) =>
+                          setEditing((s) => ({
+                            ...s,
+                            [task.id]: { ...edit, detail: e.target.value },
+                          }))
+                        }
+                      />
+                      <Label className="text-xs" htmlFor={`edit-project-${task.id}`}>
+                        Project
+                      </Label>
+                      <Input
+                        id={`edit-project-${task.id}`}
+                        className="h-11"
+                        value={edit.project}
+                        onChange={(e) =>
+                          setEditing((s) => ({
+                            ...s,
+                            [task.id]: { ...edit, project: e.target.value },
+                          }))
+                        }
+                      />
+                      <Label className="text-xs" htmlFor={`edit-result-${task.id}`}>
+                        Result
+                      </Label>
+                      <Input
+                        id={`edit-result-${task.id}`}
+                        className="h-11"
+                        value={edit.result}
+                        onChange={(e) =>
+                          setEditing((s) => ({
+                            ...s,
+                            [task.id]: { ...edit, result: e.target.value },
+                          }))
+                        }
+                      />
+                      <Label className="text-xs" htmlFor={`edit-evidence-${task.id}`}>
                         Evidence
                       </Label>
                       <Input
-                        id={`evidence-${task.id}`}
+                        id={`edit-evidence-${task.id}`}
                         className="h-11"
-                        value={evidence[task.id] ?? ""}
-                        onChange={(e) => setEvidence((r) => ({ ...r, [task.id]: e.target.value }))}
+                        value={taskExecutionEvidence(edit.evidence)?.label ?? edit.evidence}
+                        readOnly={Boolean(taskExecutionEvidence(edit.evidence))}
+                        onChange={(e) =>
+                          setEditing((s) => ({
+                            ...s,
+                            [task.id]: { ...edit, evidence: e.target.value },
+                          }))
+                        }
                       />
-                    </div>
-                    <Button
-                      className="h-11 sm:col-span-2 sm:w-fit"
-                      disabled={busy === task.id || !(result[task.id] ?? "").trim() || !accessToken}
-                      onClick={() =>
-                        run(
-                          task.id,
-                          () =>
-                            verifyTask({
-                              data: {
-                                accessToken: accessToken!,
-                                taskId: task.id,
-                                result: result[task.id] ?? "",
-                                evidence: evidence[task.id] ?? "",
-                              },
-                            }),
-                          "Verified and closed.",
-                        )
-                      }
-                    >
-                      {busy === task.id ? "Saving…" : "Verify and complete"}
-                    </Button>
-                  </div>
-                )}
-
-                {isOwner && task.status !== "done" && task.status !== "cancelled" && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setEditing((e) =>
-                          e[task.id]
-                            ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== task.id))
-                            : {
-                                ...e,
-                                [task.id]: {
-                                  title: task.title,
-                                  detail: task.detail,
-                                  project: task.project ?? "",
-                                  result: task.result ?? "",
-                                  evidence: task.evidence ?? "",
+                      <Button
+                        className="h-11"
+                        disabled={busy === task.id || !edit.title.trim() || !accessToken}
+                        onClick={() =>
+                          run(
+                            task.id,
+                            async () => {
+                              const res = await editTask({
+                                data: {
+                                  accessToken: accessToken!,
+                                  taskId: task.id,
+                                  title: edit.title,
+                                  detail: edit.detail,
+                                  project: edit.project,
+                                  result: edit.result,
+                                  evidence: edit.evidence,
+                                  risk: task.risk,
                                 },
-                              },
-                        )
-                      }
-                    >
-                      {edit ? "Close edit" : "Edit"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy === task.id || !accessToken}
-                      onClick={() =>
-                        run(
-                          task.id,
-                          () => cancelTask({ data: { accessToken: accessToken!, taskId: task.id, reason: "" } }),
-                          "Task cancelled. Nothing was deleted.",
-                        )
-                      }
-                    >
-                      Cancel task
-                    </Button>
-                  </div>
-                )}
-
-                {isOwner && edit && (
-                  <div className="mt-3 space-y-2 rounded-md border border-border p-3">
-                    <Label className="text-xs" htmlFor={`edit-title-${task.id}`}>
-                      Title
-                    </Label>
-                    <Input
-                      id={`edit-title-${task.id}`}
-                      className="h-11"
-                      value={edit.title}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, title: e.target.value } }))}
-                    />
-                    <Label className="text-xs" htmlFor={`edit-detail-${task.id}`}>
-                      Details
-                    </Label>
-                    <Textarea
-                      id={`edit-detail-${task.id}`}
-                      value={edit.detail}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, detail: e.target.value } }))}
-                    />
-                    <Label className="text-xs" htmlFor={`edit-project-${task.id}`}>
-                      Project
-                    </Label>
-                    <Input
-                      id={`edit-project-${task.id}`}
-                      className="h-11"
-                      value={edit.project}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, project: e.target.value } }))}
-                    />
-                    <Label className="text-xs" htmlFor={`edit-result-${task.id}`}>
-                      Result
-                    </Label>
-                    <Input
-                      id={`edit-result-${task.id}`}
-                      className="h-11"
-                      value={edit.result}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, result: e.target.value } }))}
-                    />
-                    <Label className="text-xs" htmlFor={`edit-evidence-${task.id}`}>
-                      Evidence
-                    </Label>
-                    <Input
-                      id={`edit-evidence-${task.id}`}
-                      className="h-11"
-                      value={taskExecutionEvidence(edit.evidence)?.label ?? edit.evidence}
-                      readOnly={Boolean(taskExecutionEvidence(edit.evidence))}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, evidence: e.target.value } }))}
-                    />
-                    <Button
-                      className="h-11"
-                      disabled={busy === task.id || !edit.title.trim() || !accessToken}
-                      onClick={() =>
-                        run(
-                          task.id,
-                          async () => {
-                            const res = await editTask({
-                              data: {
-                                accessToken: accessToken!,
-                                taskId: task.id,
-                                title: edit.title,
-                                detail: edit.detail,
-                                project: edit.project,
-                                result: edit.result,
-                                evidence: edit.evidence,
-                                risk: task.risk,
-                              },
-                            });
-                            setEditing((s) => Object.fromEntries(Object.entries(s).filter(([k]) => k !== task.id)));
-                            return res;
-                          },
-                          "Task updated.",
-                        )
-                      }
-                    >
-                      Save changes
-                    </Button>
-                  </div>
-                )}
+                              });
+                              setEditing((s) =>
+                                Object.fromEntries(
+                                  Object.entries(s).filter(([k]) => k !== task.id),
+                                ),
+                              );
+                              return res;
+                            },
+                            "Task updated.",
+                          )
+                        }
+                      >
+                        Save changes
+                      </Button>
+                    </div>
+                  )}
+                </details>
               </div>
             );
           })}
@@ -605,7 +818,12 @@ export function WorkBoard() {
               <Label className="text-xs" htmlFor="new-title">
                 Title
               </Label>
-              <Input id="new-title" className="h-11" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Input
+                id="new-title"
+                className="h-11"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -640,7 +858,11 @@ export function WorkBoard() {
               <Label className="text-xs" htmlFor="new-detail">
                 Details
               </Label>
-              <Textarea id="new-detail" value={detail} onChange={(e) => setDetail(e.target.value)} />
+              <Textarea
+                id="new-detail"
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+              />
             </div>
             <Button
               className="h-11"
