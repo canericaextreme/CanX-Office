@@ -461,6 +461,8 @@ describe("live office context replaces anything the browser sends", () => {
       "start_claude_build",
       "release_next_elsie_task",
       "check_elsie_queue",
+      "edit_task",
+      "submit_task_correction",
       "execute_task",
       "check_task_execution",
       "hand_to_claude_worker",

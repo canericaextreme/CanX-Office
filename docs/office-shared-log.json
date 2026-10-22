@@ -351,6 +351,15 @@
       "audience": "office-status",
       "summary": "Integrated Brain checkpoint save/readback into Office task verification: a task cannot be marked done through verifyManagerTaskWith until its evidence checkpoint independently reads back. Task evidence links the checkpoint. Failed saves remain unfinished; repeated verification reuses identical evidence. Draft only; not deployed.",
       "evidence": "Full local suite: 206 files / 1988 tests passed. Typecheck/build being checked separately. Existing working-grant handoff validation in PR204 retained. No changes to Claude PR201. External native assistant replies cannot be globally gated by this Office code."
+    },
+    {
+      "id": "2026-10-22-codex-elsie-task-tools-draft",
+      "at": "2026-10-22T02:50:00Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared local draft Elsie task editing and successful-draft correction tools. Owner-scoped conditional edits retain task identity and evidence; deterministic linked amendment tasks preserve original requirements and build history and use the unchanged execution service. Identical correction retries recover receipts without replaying uncertain submissions. Not published or production verified.",
+      "evidence": "157 focused tests passed across five files; TypeScript typecheck, new-file ESLint and git diff --check passed. No database, authentication, permission, budget, workflow or dependency changes. No production calls, push, merge or publication. Signed-in desktop/phone acceptance remains pending. Elsie remains responsible for Work Board task 1cfb5a86-c807-47ed-802e-157624c8c8ef after prerequisite review."
     }
   ]
 }
