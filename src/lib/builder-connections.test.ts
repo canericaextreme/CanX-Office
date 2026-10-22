@@ -115,7 +115,7 @@ describe("Elsie builder routing", () => {
     expect(h.fetchImpl).not.toHaveBeenCalled();
     expect(h.runBuild).not.toHaveBeenCalled();
   });
-  it.each(["execute_task", "create_task"])("blocks a model's %s action during read-only or hypothetical discussion", async name => {
+  it.each(["execute_task", "create_task", "edit_task", "submit_task_correction"])("blocks a model's %s action during read-only or hypothetical discussion", async name => {
     const args = name === "execute_task" ? { task_id: id } : { title: "Fix the reception label", detail: "Change the room label", code_change: true, risk: "green" };
     for (const content of ["Read-only: tell me how to fix the reception label", "How would you execute the saved task?"]) {
       const h = chatDeps(name, {}, args);
@@ -124,6 +124,13 @@ describe("Elsie builder routing", () => {
       expect(reply.actionResults[0]).toMatchObject({ name, status: "stopped" });
       expect(vi.mocked(h.fetchImpl).mock.calls.some(([url]) => String(url).includes("/rest/v1/"))).toBe(false);
     }
+  });
+  it.each(["edit_task", "submit_task_correction"])("requires current owner intent for %s rather than trusting model arguments", async name => {
+    const h = chatDeps(name, {}, { task_id: id, detail: "Replace requirements", correction: "Change page label" });
+    const reply = await runManagerChatWith(h.deps, say("Tell me about the Office"));
+    expect(reply.actionResults[0]).toMatchObject({ name, status: "stopped" });
+    expect(h.runBuild).not.toHaveBeenCalled();
+    expect(vi.mocked(h.fetchImpl).mock.calls.some(([url]) => String(url).includes("/rest/v1/"))).toBe(false);
   });
   it("allows only one build attempt even when the provider calls both builders", async () => {
     const h = chatDeps(null);

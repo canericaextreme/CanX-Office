@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie task tools — 22 October 2026 draft
+
+`edit_task` conditionally edits an existing owner task before queueing or a build attempt. `submit_task_correction` preserves the successful original draft and requirements, creates a deterministic linked amendment task, and uses the unchanged execution service. Identical corrections recover the amendment receipt; uncertain submissions never dispatch again. No new room sources, permissions, database schema or execution bypass. Local regression evidence is recorded in the shared log. Signed-in desktop/phone acceptance and live builder receipts remain unverified. No publication is authorised for this draft. Elsie still owns completion of Work Board task `1cfb5a86-c807-47ed-802e-157624c8c8ef` after review of this prerequisite repair.
+
 ## Elsie phone layout — 19 October 2026
 
 Touch-device CSS keeps the Elsie launcher fully visible, the toolbar on one horizontally scrolling row, and the transcript shrinkable on short landscape screens. The composer puts the existing voice controls before expanded writing content and keeps the three-button voice row sticky while the composer scrolls. Phone safe-area padding protects controls around cutouts. Portrait mode offers a rotation hint; the site does not claim to override Android's rotation lock. Voice handlers, providers, prompts, memory, authentication and desktop styling are unchanged. Signed-in Android acceptance remains pending.
