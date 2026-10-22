@@ -19,7 +19,8 @@ const exclusive = (name: string) => new RegExp(String.raw`\b${name}[ -]only\b|\b
  * unless exactly one is marked "only" (e.g. "Codex only … Claude may review").
  */
 export function builderChoiceFor(request: string): BuilderChoice {
-  const claude = /\bclaude\b/i.test(request);
+  const builderWords = request.replace(/\b(?:ChatGPT and Claude|Claude and ChatGPT) (?:buttons|tabs|links)\b/gi, "colleague controls");
+  const claude = /\bclaude\b/i.test(builderWords);
   const codex = /\bcodex\b/i.test(request);
   if (claude && codex) {
     const claudeOnly = exclusive("claude").test(request);
@@ -38,7 +39,7 @@ const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|su
 // 21 Oct: spoken requests ("Claude has to fix …", "You need to pass the task …",
 // "I want you to add …", "Go ahead and fix …") count like the bare command.
 const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|elsie)(?:[ -]only)?[,:]?\s+)?(?:(?:can|could|would) you\s+)?(?:(?:you|we)\s+)?(?:(?:(?:need|needs|have|has|got) to|gotta|must)\s+)?(?:i (?:want|need|would like|['’]d like) (?:you|claude|codex|elsie) to\s+)?(?:go ahead and\s+|let['’]?s\s+)?(?:please\s+)?`;
-const CHANGE = String.raw`(?:build|implement|code|fix|repair|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
+const CHANGE = String.raw`(?:separate|space|build|implement|code|fix|repair|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin|pass|kick off) (?:the |this |my |that |whatever )?(?:saved |existing |waiting )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 

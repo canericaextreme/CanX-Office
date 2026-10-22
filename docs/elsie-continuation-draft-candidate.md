@@ -1,18 +1,11 @@
-# Elsie handoff continuity — local draft candidate
+# Elsie task handoff and continuation repair
 
-Owner-requested replacement candidate following reported failed run 39796628492 (reported to have produced no PR). This checkout did not inspect or modify that production run, create a PR, or contact builders. Existing drafts 208, 209 and 210 were not accessed or changed.
+PR211 continues the successful corrective run39798798619; failed run39796628492 is retained as history. Work Board drafts208–210 are separate.
 
-Implemented:
-- Exact short commands: Proceed, proceed with that, continue, carry on, finish that (case insensitive, optional please and terminal punctuation).
-- Read existing persisted Work Board tasks using the verified owner's ID before resolving any short command. No assistant text or browser history supplies task identity or execution authority.
-- Require exactly one fresh active CanX Office task. Fresh means created within 24 hours, not recently updated by polling. Multiple candidates, unavailable/incomplete reads and no candidate ask the owner to name the task without submitting work.
-- Green open tasks proceed through the existing Codex executor, scope checks and compare-and-set receipt. Waiting tasks, Claude assignments and claim/handoff evidence require clarification.
-- Reopened sessions use the same saved records. Recorded Codex attempts use execution checks only; failure and uncertain submission do not authorize a replay. Returned progress comes from executor/status receipts, never a generated promise.
-- Injected queue executors start together and settle before context and room snapshots. Production retains the existing autopilot step. The queue-before-snapshot regression assertion remains unchanged.
-- ChatGPT and Claude links have a fixed quarter-inch CSS gap; the dock is taller to accommodate it.
+The repair accepts Proceed, continue, carry on, finish it, finish that, resume and their short task forms, with common spoken openers. It identifies the discussed task from bounded recent owner-scoped saved exchanges and the current conversation, then independently reads the owned task and uses the existing execution gates. Multiple unrelated open jobs do not create ambiguity when one job was clearly identified. Without a unique fresh task, Elsie asks one focused question. A task must have been created within24 hours; recent polling does not renew that window.
 
-Validation uses stub executors and owner-scoped record fixtures, including stop/discussion, ambiguity, age, owner isolation, protected scope, reopen, uncertain attempts and concurrent duplicates. No authentication, authorization, budgets, credentials, database or dependency changes.
+Reopened conversations recover the task reference from saved exchanges. An existing Codex receipt is checked rather than submitted again. Existing waiting/protected tasks, uncertain claims, stale or unavailable context and foreign-owner records do not dispatch. The actual task reference is included in the saved continuation checkpoint, without adding identifiers to the spoken answer. Queue checks still complete before ordinary room/context snapshots. Progress instructions require actual tool receipts.
 
-Acceptance still needs device checks for typed and spoken commands, reopen, mobile dragging and button separation. CSS inches are browser reference units, not a guaranteed physical measurement on every screen. Local tests cannot establish signed-in production health, a real build run, a PR, publication or voice-device behavior.
+The original clear instruction to separate the ChatGPT and Claude buttons is recognized as a screen change; naming those controls does not select Claude as builder. The draft's unrelated button-spacing edits were removed during review. No room layout, voice personality, database, budget or sign-in change is included.
 
-Completed local checks: full Vitest suite — 209 files, 2,030 tests passed; TypeScript typecheck passed; production build passed (existing createServerFn deprecation and bundler warnings). The unchanged elsie-voice-faster.test.ts queue-before-snapshot regression passed. git diff --check passed.
+Validation after review amendments: all2,043 tests across209 files passed; TypeScript checking, production build and git diff --check passed. Signed-in typed/voice and reopen acceptance on John's phone remains required. A successful build or publication alone does not prove live conversation behavior or overall Office health.
