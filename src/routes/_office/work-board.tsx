@@ -43,46 +43,77 @@ const RISK_WORDS: Record<RiskLevel, string> = {
   red: "Red — stopped",
 };
 
-type StatusTone = "green" | "blue" | "yellow" | "red" | "grey";
+type StatusTone = "green" | "yellow" | "red";
 
 interface TaskStatus {
   tone: StatusTone;
   label: string;
-  /** Plain-language reason, always shown for Grey statuses. */
+  /** Plain-language context; colour alone never conveys task state. */
   reason: string | null;
 }
 
 /** Milliseconds after which an unfinished task with no update is stale. */
 const STALE_MS = 14 * 24 * 60 * 60 * 1000;
 
-/**
- * Written work status for a task. Colour is never the only signal: every badge
- * carries words, and Grey always names Planned, Disconnected, Unknown or Stale
- * with its reason. Grey stays separate from Green/Blue/Yellow/Red.
- */
+/** Display only: these colours never change risk gates or task permissions. */
 function taskStatus(task: ManagerTask): TaskStatus {
+  // Protection takes precedence even over a saved done/stale state.
+  if (task.risk === "red") {
+    return {
+      tone: "red",
+      label: "Red — protected / integrity risk",
+      reason: "Protected task: review its saved risk and evidence before taking action.",
+    };
+  }
   const updated = new Date(task.updated_at).getTime();
   const isStale =
     (task.status === "open" || task.status === "in_progress") &&
     Number.isFinite(updated) &&
     Date.now() - updated > STALE_MS;
 
+  if (task.risk === "yellow" && (task.status === "open" || task.status === "in_progress")) {
+    return {
+      tone: "yellow",
+      label: "Yellow — needs attention",
+      reason: "Yellow-risk work: check its approval and evidence before proceeding.",
+    };
+  }
   if (isStale) {
-    return { tone: "grey", label: "Grey — stale", reason: "No update recorded in over 14 days." };
+    return {
+      tone: "yellow",
+      label: "Yellow — stale",
+      reason: "No update recorded in over 14 days.",
+    };
   }
   switch (task.status) {
     case "done":
       return { tone: "green", label: "Green — done", reason: null };
     case "waiting":
-      return { tone: "yellow", label: "Waiting", reason: task.waiting_reason || "Waiting reason not recorded." };
+      return {
+        tone: "yellow",
+        label: "Yellow — waiting",
+        reason: task.waiting_reason || "Waiting reason not recorded.",
+      };
     case "in_progress":
-      return { tone: "blue", label: "Assigned — activity unconfirmed", reason: "Assignment alone does not confirm that work is running." };
+      return {
+        tone: "green",
+        label: "Green — clear / assigned",
+        reason: "Assignment alone does not confirm that work is running.",
+      };
     case "cancelled":
-      return { tone: "red", label: "Red — cancelled", reason: null };
+      return { tone: "yellow", label: "Yellow — cancelled", reason: null };
     case "open":
-      return { tone: "grey", label: "Grey — planned", reason: "Not assigned to a worker yet." };
+      return {
+        tone: "green",
+        label: "Green — clear / planned",
+        reason: "Not assigned to a worker yet.",
+      };
     default:
-      return { tone: "grey", label: "Grey — unknown", reason: "The saved status is not recognized." };
+      return {
+        tone: "yellow",
+        label: "Yellow — unknown",
+        reason: "The saved status is not recognized.",
+      };
   }
 }
 
@@ -93,7 +124,8 @@ function when(value: string | null | undefined): string {
 }
 
 export function WorkBoard() {
-  const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } = useManagerMemory();
+  const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } =
+    useManagerMemory();
   const createTask = useServerFn(createManagerTask);
   const assignTask = useServerFn(assignManagerTask);
   const verifyTask = useServerFn(verifyManagerTask);
@@ -104,7 +136,7 @@ export function WorkBoard() {
   const [detail, setDetail] = useState("");
   const [project, setProject] = useState("");
   const [risk, setRisk] = useState<RiskLevel>("green");
-  const [waitingReason, setWaitingReason] = useState<Record<string,string>>({});
+  const [waitingReason, setWaitingReason] = useState<Record<string, string>>({});
   const [worker, setWorker] = useState<Record<string, string>>({});
   const [team, setTeam] = useState<TeamMember[]>(DEFAULT_TEAM);
   useEffect(() => {
@@ -116,7 +148,10 @@ export function WorkBoard() {
   const [result, setResult] = useState<Record<string, string>>({});
   const [evidence, setEvidence] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<
-    Record<string, { title: string; detail: string; project: string; result: string; evidence: string }>
+    Record<
+      string,
+      { title: string; detail: string; project: string; result: string; evidence: string }
+    >
   >({});
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -184,7 +219,9 @@ export function WorkBoard() {
             <CardTitle className="text-base">Master task list</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               {tasks ? (
-                <span className="text-xs text-muted-foreground">Shared memory — saved in the CanX-owned database.</span>
+                <span className="text-xs text-muted-foreground">
+                  Shared memory — saved in the CanX-owned database.
+                </span>
               ) : isOwner ? (
                 <span className="flex flex-wrap items-center gap-2">
                   <StatusBadge tone="grey" label="Grey — disconnected" />
@@ -204,6 +241,10 @@ export function WorkBoard() {
           </div>
           <p className="text-sm text-muted-foreground">
             Assigned jobs start when a worker begins execution
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Green — clear/good · Yellow — needs attention · Red — protected or integrity risk. Clear
+            does not mean running or verified; check the status and evidence.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -228,7 +269,14 @@ export function WorkBoard() {
               }
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 id="needs-john-heading" className={decisions.length > 0 ? "text-base font-semibold text-canx-yellow" : "text-sm text-canx-green"}>
+                <h2
+                  id="needs-john-heading"
+                  className={
+                    decisions.length > 0
+                      ? "text-base font-semibold text-canx-yellow"
+                      : "text-sm text-canx-green"
+                  }
+                >
                   {decisions.length === 0
                     ? "Nothing is waiting on you right now."
                     : decisions.length === 1
@@ -248,7 +296,8 @@ export function WorkBoard() {
               </div>
               {decisions.length > 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Each one has Approve and Decline on its card, marked “John — review needed”. Every button asks you to confirm first.
+                  Each one has Approve and Decline on its card, marked “John — review needed”. Every
+                  button asks you to confirm first.
                 </p>
               )}
               {decisions.some((item) => item.kind !== "approval") && (
@@ -265,10 +314,17 @@ export function WorkBoard() {
                 </ul>
               )}
               {approvalDecisions.map((item) => (
-                <div key={item.id} className="mt-3 rounded-lg border-2 border-canx-yellow bg-card p-3">
+                <div
+                  key={item.id}
+                  className="mt-3 rounded-lg border-2 border-canx-yellow bg-card p-3"
+                >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">John — review needed</span>
-                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Approval Box request</span>
+                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">
+                      John — review needed
+                    </span>
+                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                      Approval Box request
+                    </span>
                     <span className="font-medium">{item.title}</span>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{item.why}</p>
@@ -290,7 +346,9 @@ export function WorkBoard() {
             </section>
           )}
 
-          {loading && !tasks && <p className="text-sm text-muted-foreground">Loading your task list…</p>}
+          {loading && !tasks && (
+            <p className="text-sm text-muted-foreground">Loading your task list…</p>
+          )}
 
           {!isOwner && !loading && (
             <p className="text-sm text-muted-foreground">
@@ -304,7 +362,9 @@ export function WorkBoard() {
             </p>
           )}
 
-          {tasks && tasks.length === 0 && <p className="text-sm text-muted-foreground">No records yet.</p>}
+          {tasks && tasks.length === 0 && (
+            <p className="text-sm text-muted-foreground">No records yet.</p>
+          )}
 
           {shownTasks?.map((task) => {
             const needs = decisionFor[task.id];
@@ -315,18 +375,22 @@ export function WorkBoard() {
               <div
                 key={task.id}
                 id={`task-${task.id}`}
-                className={
-                  needs
-                    ? "scroll-mt-24 rounded-lg border-2 border-canx-yellow bg-canx-yellow/5 p-3 shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-canx-yellow)_25%,transparent)]"
-                    : "scroll-mt-24 rounded-lg border border-border/50 p-3"
-                }
+                className={`min-w-0 scroll-mt-24 rounded-lg border-2 p-3 [overflow-wrap:anywhere] ${
+                  status.tone === "red"
+                    ? "border-destructive bg-destructive/5"
+                    : status.tone === "yellow"
+                      ? "border-canx-yellow bg-canx-yellow/5"
+                      : "border-canx-green/60 bg-canx-green/5"
+                }`}
               >
                 <div className="flex flex-wrap items-center gap-2">
                   {needs && (
-                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">John — review needed</span>
+                    <span className="rounded-full bg-canx-yellow px-2 py-0.5 text-xs font-semibold text-black">
+                      John — review needed
+                    </span>
                   )}
                   <StatusBadge tone={status.tone} label={status.label} />
-                  <span className="font-medium">{task.title}</span>
+                  <span className="min-w-0 font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
                   </span>
@@ -347,7 +411,9 @@ export function WorkBoard() {
                     <WorkBoardDecision item={needs} accessToken={accessToken} onDone={decided} />
                   </>
                 ) : (
-                  status.reason && <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>
+                  status.reason && (
+                    <p className="mt-1 text-xs text-muted-foreground">{status.reason}</p>
+                  )
                 )}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
                   <div>
@@ -367,19 +433,101 @@ export function WorkBoard() {
                     <dd className="inline">{when(task.updated_at)}</dd>
                   </div>
                 </dl>
-                {isOwner && (task.status === "open" || task.status === "in_progress" || task.status === "waiting") && <div className="mt-3 flex flex-wrap gap-2">
-                  <Input className="max-w-sm" aria-label={`What ${task.title} is waiting for`} placeholder="Waiting for approval, information or verification" value={waitingReason[task.id] ?? task.waiting_reason ?? ''} onChange={e => setWaitingReason(current => ({...current,[task.id]:e.target.value}))} />
-                  <Button variant="outline" disabled={busy===task.id || !accessToken || !(waitingReason[task.id] ?? task.waiting_reason ?? '').trim()} onClick={()=>run(task.id,()=>editTask({data:{accessToken:accessToken!,taskId:task.id,title:task.title,detail:task.detail,project:task.project??'',risk:task.risk,status:'waiting',waiting_reason:waitingReason[task.id] ?? task.waiting_reason ?? ''}}),'Saved waiting status.')}>Mark waiting</Button>
-                  {task.status==='waiting' && <Button variant="outline" disabled={busy===task.id || !accessToken} onClick={()=>run(task.id,()=>editTask({data:{accessToken:accessToken!,taskId:task.id,title:task.title,detail:task.detail,project:task.project??'',risk:task.risk,status:'open'}}),'Returned to planned work.')}>Return to planned</Button>}
-                </div>}
+                {isOwner &&
+                  (task.status === "open" ||
+                    task.status === "in_progress" ||
+                    task.status === "waiting") && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Input
+                        className="max-w-sm"
+                        aria-label={`What ${task.title} is waiting for`}
+                        placeholder="Waiting for approval, information or verification"
+                        value={waitingReason[task.id] ?? task.waiting_reason ?? ""}
+                        onChange={(e) =>
+                          setWaitingReason((current) => ({ ...current, [task.id]: e.target.value }))
+                        }
+                      />
+                      <Button
+                        variant="outline"
+                        disabled={
+                          busy === task.id ||
+                          !accessToken ||
+                          !(waitingReason[task.id] ?? task.waiting_reason ?? "").trim()
+                        }
+                        onClick={() =>
+                          run(
+                            task.id,
+                            () =>
+                              editTask({
+                                data: {
+                                  accessToken: accessToken!,
+                                  taskId: task.id,
+                                  title: task.title,
+                                  detail: task.detail,
+                                  project: task.project ?? "",
+                                  risk: task.risk,
+                                  status: "waiting",
+                                  waiting_reason:
+                                    waitingReason[task.id] ?? task.waiting_reason ?? "",
+                                },
+                              }),
+                            "Saved waiting status.",
+                          )
+                        }
+                      >
+                        Mark waiting
+                      </Button>
+                      {task.status === "waiting" && (
+                        <Button
+                          variant="outline"
+                          disabled={busy === task.id || !accessToken}
+                          onClick={() =>
+                            run(
+                              task.id,
+                              () =>
+                                editTask({
+                                  data: {
+                                    accessToken: accessToken!,
+                                    taskId: task.id,
+                                    title: task.title,
+                                    detail: task.detail,
+                                    project: task.project ?? "",
+                                    risk: task.risk,
+                                    status: "open",
+                                  },
+                                }),
+                              "Returned to planned work.",
+                            )
+                          }
+                        >
+                          Return to planned
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 {task.detail && <p className="mt-2 text-xs text-muted-foreground">{task.detail}</p>}
-                <p className="mt-1 text-xs text-canx-green">Result: {task.result?.trim() || "Not recorded"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Evidence: {taskExecutionEvidence(task.evidence)?.label ?? (task.evidence?.trim() || "Not recorded")}</p>
-                {taskExecutionEvidence(task.evidence)?.url && <a className="text-xs underline" href={taskExecutionEvidence(task.evidence)!.url} target="_blank" rel="noopener noreferrer">Open this task’s build</a>}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Result: {task.result?.trim() || "Not recorded"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Evidence:{" "}
+                  {taskExecutionEvidence(task.evidence)?.label ??
+                    (task.evidence?.trim() || "Not recorded")}
+                </p>
+                {taskExecutionEvidence(task.evidence)?.url && (
+                  <a
+                    className="text-xs underline"
+                    href={taskExecutionEvidence(task.evidence)!.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open this task’s build
+                  </a>
+                )}
                 {taskAssignments.length > 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {taskAssignments.length} assignment{taskAssignments.length === 1 ? "" : "s"} recorded · latest{" "}
-                    {when(taskAssignments[0]?.assigned_at)}
+                    {taskAssignments.length} assignment{taskAssignments.length === 1 ? "" : "s"}{" "}
+                    recorded · latest {when(taskAssignments[0]?.assigned_at)}
                   </p>
                 )}
 
@@ -412,7 +560,11 @@ export function WorkBoard() {
                           task.id,
                           () =>
                             assignTask({
-                              data: { accessToken: accessToken!, taskId: task.id, worker: worker[task.id] ?? "" },
+                              data: {
+                                accessToken: accessToken!,
+                                taskId: task.id,
+                                worker: worker[task.id] ?? "",
+                              },
                             }),
                           "Assigned and recorded.",
                         )
@@ -502,7 +654,10 @@ export function WorkBoard() {
                       onClick={() =>
                         run(
                           task.id,
-                          () => cancelTask({ data: { accessToken: accessToken!, taskId: task.id, reason: "" } }),
+                          () =>
+                            cancelTask({
+                              data: { accessToken: accessToken!, taskId: task.id, reason: "" },
+                            }),
                           "Task cancelled. Nothing was deleted.",
                         )
                       }
@@ -521,7 +676,9 @@ export function WorkBoard() {
                       id={`edit-title-${task.id}`}
                       className="h-11"
                       value={edit.title}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, title: e.target.value } }))}
+                      onChange={(e) =>
+                        setEditing((s) => ({ ...s, [task.id]: { ...edit, title: e.target.value } }))
+                      }
                     />
                     <Label className="text-xs" htmlFor={`edit-detail-${task.id}`}>
                       Details
@@ -529,7 +686,12 @@ export function WorkBoard() {
                     <Textarea
                       id={`edit-detail-${task.id}`}
                       value={edit.detail}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, detail: e.target.value } }))}
+                      onChange={(e) =>
+                        setEditing((s) => ({
+                          ...s,
+                          [task.id]: { ...edit, detail: e.target.value },
+                        }))
+                      }
                     />
                     <Label className="text-xs" htmlFor={`edit-project-${task.id}`}>
                       Project
@@ -538,7 +700,12 @@ export function WorkBoard() {
                       id={`edit-project-${task.id}`}
                       className="h-11"
                       value={edit.project}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, project: e.target.value } }))}
+                      onChange={(e) =>
+                        setEditing((s) => ({
+                          ...s,
+                          [task.id]: { ...edit, project: e.target.value },
+                        }))
+                      }
                     />
                     <Label className="text-xs" htmlFor={`edit-result-${task.id}`}>
                       Result
@@ -547,7 +714,12 @@ export function WorkBoard() {
                       id={`edit-result-${task.id}`}
                       className="h-11"
                       value={edit.result}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, result: e.target.value } }))}
+                      onChange={(e) =>
+                        setEditing((s) => ({
+                          ...s,
+                          [task.id]: { ...edit, result: e.target.value },
+                        }))
+                      }
                     />
                     <Label className="text-xs" htmlFor={`edit-evidence-${task.id}`}>
                       Evidence
@@ -557,7 +729,12 @@ export function WorkBoard() {
                       className="h-11"
                       value={taskExecutionEvidence(edit.evidence)?.label ?? edit.evidence}
                       readOnly={Boolean(taskExecutionEvidence(edit.evidence))}
-                      onChange={(e) => setEditing((s) => ({ ...s, [task.id]: { ...edit, evidence: e.target.value } }))}
+                      onChange={(e) =>
+                        setEditing((s) => ({
+                          ...s,
+                          [task.id]: { ...edit, evidence: e.target.value },
+                        }))
+                      }
                     />
                     <Button
                       className="h-11"
@@ -578,7 +755,9 @@ export function WorkBoard() {
                                 risk: task.risk,
                               },
                             });
-                            setEditing((s) => Object.fromEntries(Object.entries(s).filter(([k]) => k !== task.id)));
+                            setEditing((s) =>
+                              Object.fromEntries(Object.entries(s).filter(([k]) => k !== task.id)),
+                            );
                             return res;
                           },
                           "Task updated.",
@@ -605,7 +784,12 @@ export function WorkBoard() {
               <Label className="text-xs" htmlFor="new-title">
                 Title
               </Label>
-              <Input id="new-title" className="h-11" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Input
+                id="new-title"
+                className="h-11"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -640,7 +824,11 @@ export function WorkBoard() {
               <Label className="text-xs" htmlFor="new-detail">
                 Details
               </Label>
-              <Textarea id="new-detail" value={detail} onChange={(e) => setDetail(e.target.value)} />
+              <Textarea
+                id="new-detail"
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+              />
             </div>
             <Button
               className="h-11"

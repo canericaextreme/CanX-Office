@@ -227,3 +227,48 @@ describe("Work Board decisions waiting on John", () => {
     expect(screen.queryByRole("button", { name: /Show only/ })).toBeNull();
   });
 });
+
+describe("Work Board status colours", () => {
+  it.each([
+    [{ status: "open" }, "Green — clear / planned", "border-canx-green/60"],
+    [{ status: "in_progress" }, "Green — clear / assigned", "border-canx-green/60"],
+    [{ status: "done" }, "Green — done", "border-canx-green/60"],
+    [{ status: "waiting" }, "Yellow — waiting", "border-canx-yellow"],
+    [{ status: "cancelled" }, "Yellow — cancelled", "border-canx-yellow"],
+    [{ risk: "yellow" }, "Yellow — needs attention", "border-canx-yellow"],
+    [{ updated_at: "2020-01-01T00:00:00Z" }, "Yellow — stale", "border-canx-yellow"],
+    [{ risk: "red", status: "done" }, "Red — protected / integrity risk", "border-destructive"],
+    [{ risk: "red", status: "waiting" }, "Red — protected / integrity risk", "border-destructive"],
+    [
+      { risk: "red", updated_at: "2020-01-01T00:00:00Z" },
+      "Red — protected / integrity risk",
+      "border-destructive",
+    ],
+  ] as [Partial<ManagerTask>, string, string][])(
+    "shows %j with words and matching card colour",
+    (over, label, border) => {
+      memory = {
+        ...memory,
+        approvals: [],
+        tasks: [task({ id: "original-id", updated_at: new Date().toISOString(), ...over })],
+      };
+      render(<WorkBoard />);
+      const item = card("original-id");
+      expect(within(item).getByText(label)).toBeTruthy();
+      expect(item.className).toContain(border);
+      expect(item.className).toContain("[overflow-wrap:anywhere]");
+      if (over.risk === "red") {
+        expect(within(item).queryByRole("button", { name: /Approve/ })).toBeNull();
+      }
+      for (const fn of Object.values(fns)) expect(fn).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps long task content and existing IDs intact", () => {
+    const title = "UnbrokenTitle".repeat(40);
+    memory = { ...memory, approvals: [], tasks: [task({ id: "WB-10-21-2026-3", title })] };
+    render(<WorkBoard />);
+    expect(within(card("WB-10-21-2026-3")).getByText(title)).toBeTruthy();
+    expect(memory.tasks[0]?.id).toBe("WB-10-21-2026-3");
+  });
+});
