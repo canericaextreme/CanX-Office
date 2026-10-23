@@ -75,6 +75,11 @@ export function pageProblem(text) {
   return hit ? `page shows "${hit}"` : null;
 }
 
+/** Hidden error messages cannot invalidate an otherwise ready screenshot. */
+export function visiblePageProblem(signals) {
+  return pageProblem(signals.visibleText ?? "");
+}
+
 async function post(brokerUrl, route, oidc, body) {
   const response = await fetch(`${brokerUrl}/${route}`, {
     method: "POST",
@@ -168,7 +173,7 @@ export async function runCapture({ requestId, env = process.env }) {
     if (!badge) return finish("session_not_accepted");
     // Hidden/previous room errors remain in textContent but are not in the visible screenshot.
     // Only a currently visible error blocks a fresh room capture.
-    const notReady = pageProblem(signals.visibleText);
+    const notReady = visiblePageProblem(signals);
     if (notReady) {
       // Only a predefined phrase, never room text, records, credentials or URLs.
       say("readiness_check", { outcome: "blocked_phrase", reason: notReady, visibleReason: pageProblem(signals.visibleText) });
