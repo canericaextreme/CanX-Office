@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Brain handoff capacity — 23 October 2026 (pending deployment)
+
+John requested preserving complete handoffs rather than shortening them. PR213 raises only `office_notes.detail` storage from 2,000 to 12,000 characters, accommodating the existing 11,000-byte serialized handoff contract; RPC byte bounds, ownership, RLS, grants, audit and triggers remain unchanged. Rollback-only PostgreSQL tests preserved full boundary content and rejected 12,001 characters. Migration planning tests isolate the historical baseline and verify the capacity migration is planned once. After merge, confirm the live constraint and original full MCP handoff history/latest readback. Capacity alone does not implement Elsie pickup; acknowledgement and campaign execution remain unverified.
+
 ## Elsie phone layout — 19 October 2026
 
 Touch-device CSS keeps the Elsie launcher fully visible, the toolbar on one horizontally scrolling row, and the transcript shrinkable on short landscape screens. The composer puts the existing voice controls before expanded writing content and keeps the three-button voice row sticky while the composer scrolls. Phone safe-area padding protects controls around cutouts. Portrait mode offers a rotation hint; the site does not claim to override Android's rotation lock. Voice handlers, providers, prompts, memory, authentication and desktop styling are unchanged. Signed-in Android acceptance remains pending.
