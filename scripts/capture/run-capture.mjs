@@ -156,13 +156,22 @@ export async function runCapture({ requestId, env = process.env }) {
         hasSignIn: Boolean(document.querySelector('[aria-label="CanX Office entrance"]')),
         textLength: (root?.textContent ?? "").trim().length,
         text: (root?.textContent ?? "").slice(0, 200_000),
+        visibleText: (root?.innerText ?? "").slice(0, 200_000),
       };
     });
     const outcome = classifyCapture({ route, finalPath: signals.finalPath, httpStatus: response ? response.status() : NaN, hasOfficeView: signals.hasOfficeView, hasSignIn: signals.hasSignIn, textLength: signals.textLength });
     if (outcome === "sign_in_page") return finish("session_not_accepted");
-    if (outcome !== "ok") return finish(outcome === "wrong_route" ? "wrong_room" : "page_not_ready");
+    if (outcome !== "ok") {
+      say("readiness_check", { outcome, httpStatus: response ? response.status() : 0, hasOfficeView: signals.hasOfficeView, hasSignIn: signals.hasSignIn, hasViewerBadge: Boolean(badge) });
+      return finish(outcome === "wrong_route" ? "wrong_room" : "page_not_ready");
+    }
     if (!badge) return finish("session_not_accepted");
-    if (pageProblem(signals.text)) return finish("page_not_ready");
+    const notReady = pageProblem(signals.text);
+    if (notReady) {
+      // Only a predefined phrase, never room text, records, credentials or URLs.
+      say("readiness_check", { outcome: "blocked_phrase", reason: notReady, visibleReason: pageProblem(signals.visibleText) });
+      return finish("page_not_ready");
+    }
 
     await page.addStyleTag({ content: MASK_CSS });
     if (state === "synopsis_open") {
