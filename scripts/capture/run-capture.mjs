@@ -166,7 +166,9 @@ export async function runCapture({ requestId, env = process.env }) {
       return finish(outcome === "wrong_route" ? "wrong_room" : "page_not_ready");
     }
     if (!badge) return finish("session_not_accepted");
-    const notReady = pageProblem(signals.text);
+    // Hidden/previous room errors remain in textContent but are not in the visible screenshot.
+    // Only a currently visible error blocks a fresh room capture.
+    const notReady = pageProblem(signals.visibleText);
     if (notReady) {
       // Only a predefined phrase, never room text, records, credentials or URLs.
       say("readiness_check", { outcome: "blocked_phrase", reason: notReady, visibleReason: pageProblem(signals.visibleText) });
