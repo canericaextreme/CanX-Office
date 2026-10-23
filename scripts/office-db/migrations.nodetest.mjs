@@ -19,7 +19,21 @@ const LIVE = [
   ["20261019040000", "office_work_event_recorder"], ["20261019050000", "office_work_events_assistant_read"],
 ].map(([version, name]) => ({ version, name }));
 
-const repo = readMigrationFiles("supabase/migrations");
+const currentRepo = readMigrationFiles("supabase/migrations");
+// Freeze this historical fixture at its original date; later migrations have
+// their own acceptance cases and must not change the 19 October assertions.
+const repo = currentRepo.filter(f => f.version <= "20261020020000");
+
+test("Brain capacity migration is planned once after the historical baseline", () => {
+  const capacity = currentRepo.find(f => f.name === "expand_brain_note_capacity");
+  assert.ok(capacity, "capacity migration must exist");
+  assert.ok(!isOnHold(capacity.sql));
+  const afterBaseline = [...LIVE, { version: "20261020020000", name: "lock_down_public_db_functions" }];
+  const pending = plan(currentRepo, afterBaseline);
+  assert.ok(pending.apply.some(f => f.file === capacity.file));
+  const afterCapacity = [...afterBaseline, { version: capacity.version, name: capacity.name }];
+  assert.ok(!plan(currentRepo, afterCapacity).apply.some(f => f.file === capacity.file));
+});
 
 test("against the real repo and live history, only the new function lock-down is applied", () => {
   const p = plan(repo, LIVE);
