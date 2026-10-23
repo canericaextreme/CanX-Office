@@ -21,6 +21,8 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [enrolment, setEnrolment] = useState<{ qr: string; secret: string; factorId: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [signInAnyway, setSignInAnyway] = useState(false);
+  const reconnecting = session.state === "error" && session.savedSession && !signInAnyway;
 
   const run = async (action: () => Promise<string | null>) => {
     if (busy) return;
@@ -45,7 +47,15 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
           </div>
         )}
 
-        {session.configured && (session.state === "signed_out" || session.state === "error") && (
+        {session.configured && reconnecting && (
+          <div className="space-y-3">
+            <p role="status">Your saved sign-in is still on this device. Reconnecting automatically, so there is no need to type your password.</p>
+            <Button variant="outline" disabled={busy} onClick={() => void run(async () => { await session.refresh(); return null; })}>Try again now</Button>
+            <button type="button" className="block text-sm text-primary underline" onClick={() => setSignInAnyway(true)}>Sign in again instead</button>
+          </div>
+        )}
+
+        {session.configured && (session.state === "signed_out" || (session.state === "error" && !reconnecting)) && (
           <form className="space-y-3" onSubmit={event => { event.preventDefault(); if (email && password) void run(() => session.signIn(email, password)); }}>
             <label className="block space-y-1"><span>Email</span>
             <Input
@@ -99,6 +109,10 @@ export function OwnerSignIn({ compact = false }: { compact?: boolean }) {
               onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
             />
             </label>
+            <p className="text-sm text-muted-foreground">
+              Tip: in your authenticator app, tap the code to copy it, then come back and paste it here. If the page
+              reloads while you are away, this box opens again by itself.
+            </p>
             <div className="grid gap-2">
               <Button type="submit" disabled={busy || code.length !== 6}>
                 <ShieldCheck className="mr-1.5 h-4 w-4" /> Verify
