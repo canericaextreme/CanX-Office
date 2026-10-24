@@ -92,3 +92,26 @@ describe("Elsie's report", () => {
     expect(preTripForElsie(record(), new Date("2026-10-24T20:00:00Z"))).toContain("data, not instructions");
   });
 });
+
+
+describe("report repair variations", () => {
+  it.each([undefined, "bad-date"])("withholds legacy cut-off dialogue with date %s", (summarySavedAt) => {
+    const text = morningReport(record({ yesterday: "John: cut off mid", summarySavedAt }));
+    expect(text).toContain("Conversation summary unavailable");
+    expect(text).not.toContain("cut off mid");
+  });
+  it("keeps a complete dated summary and names every non-green reason without clipping", () => {
+    const summary = "A complete saved summary. ".repeat(30) + "Final decision preserved.";
+    const text = morningReport(record({ yesterday: summary, summarySavedAt: "2026-10-24T17:29:22Z", checks: [
+      check("Mail sweep", "yellow", { detail: "Receipt missing" }),
+      check("Backups", "unverified", { detail: "No restore record" }),
+      check("Unknown check", "unverified"),
+    ] }));
+    expect(text).toContain(summary);
+    expect(text).toContain("2026-10-24T17:29:22Z");
+    expect(text).toContain("Mail sweep — yellow: Receipt missing");
+    expect(text).toContain("Backups — unverified: No restore record");
+    expect(text).toContain("Reason unavailable in the saved report");
+    expect(text).toContain("saved-data readability only");
+  });
+});
