@@ -1799,9 +1799,12 @@ export async function runManagerChatWith(
   // Discussion, examples and status requests never enter this path.
   if (statusRequest?.role === "user" && isDirectBuildCommand(statusRequest.content)) {
     const choice = builderChoiceFor(statusRequest.content);
-    const refusal = "conflict" in choice
-      ? "Your request names both Claude and Codex. Choose one builder."
-      : directBuildRefusal(statusRequest.content, choice.builder);
+    if ("conflict" in choice) {
+      const detail = "Your request names both Claude and Codex. Choose one builder.";
+      return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
+        text: detail, toolCalls: [], actionResults: [{ name: "start_build", risk: "green", status: "stopped", detail }] };
+    }
+    const refusal = directBuildRefusal(statusRequest.content, choice.builder);
     if (refusal) {
       return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
         text: refusal, toolCalls: [], actionResults: [{ name: "start_build", risk: "green", status: "stopped", detail: refusal }] };
