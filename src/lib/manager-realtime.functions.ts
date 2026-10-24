@@ -360,7 +360,13 @@ async function realDeps(): Promise<ManagerRealtimeDeps> {
       const astra = await import("@/lib/astra-continuity");
       if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
       // Voice keeps only a small slice of memory, so the newest turns lead.
-      return astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId, { recentFirst: true });
+      // The pre-trip line goes first and is read in parallel with a 1.5 s cap, so it never delays voice.
+      const { readPreTripForElsie } = await import("./pretrip.server");
+      const [base, pretrip] = await Promise.all([
+        astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId, { recentFirst: true }),
+        readPreTripForElsie((path, init) => backend.restRequest(config, token, path, init), ownerId, new Date()),
+      ]);
+      return { ...base, text: pretrip + "\n\n" + base.text };
     },
     fetchImpl: (input, init) => fetch(input, init),
     openaiKey: readSetting(process.env["OPENAI_API_KEY"]),
