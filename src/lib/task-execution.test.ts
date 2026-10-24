@@ -16,6 +16,24 @@ function setup(overrides: Partial<ManagerTask> = {}) {
   return { deps, rest, build, task: () => task };
 }
 describe('saved task execution', () => {
+  it('does not turn an Office Manager acknowledgment request into a build or fabricated receipt on repeat', async () => {
+    // Local reproduction only: the supplied live task/specification were not read.
+    const taskId = '0e4dc517-7c81-4edf-a239-66fe12b98e51';
+    const h = setup({
+      id: taskId, worker: 'Office Manager',
+      title: 'Acknowledge receipt of the saved Office Manager task',
+      detail: 'Read the saved task and record an acknowledgment.',
+      evidence: 'Specification reference: office_notes/brain-loop-test-20261024-a',
+    });
+    const before = { ...h.task() };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await executeTaskWith(h.deps, 'token', taskId);
+      expect(result).toMatchObject({ ok: false, detail: expect.stringContaining('green CanX Office code changes only') });
+    }
+    expect(h.build).not.toHaveBeenCalled();
+    expect(h.rest.mock.calls.every(call => call[1] === 'GET')).toBe(true);
+    expect(h.task()).toEqual(before);
+  });
   it('rejects a preclaimed task without the exact Elsie claim receipt', async () => {
     const h = setup({ status: 'in_progress', worker: 'claude', evidence: '[elsie-claim codex other]' });
     await executeTaskWith(h.deps, 'token', id, false, 'claude', true);

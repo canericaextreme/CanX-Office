@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie saved-task acknowledgment — 24 October 2026 (blocked)
+
+Local inspection found no connector delivery/acknowledgment action for Elsie: the saved-task executor dispatches Office code builds, and colleague relays accept only Claude/ChatGPT. Added negative regression coverage for repeated unsupported acknowledgment requests and Elsie relay rejection; no runtime capability added. The supplied saved task/specification were not read (production calls prohibited). Typecheck and 220 focused tests passed. Successful acknowledgment and its deduplication remain unimplemented and unverified; voice code is unchanged. Evidence, limitations and local draft PR: [Elsie task acknowledgment](elsie-task-acknowledgment-draft-pr.md).
+
 ## Brain handoff capacity — 23 October 2026 (pending deployment)
 
 John requested preserving complete handoffs rather than shortening them. PR213 raises only `office_notes.detail` storage from 2,000 to 12,000 characters, accommodating the existing 11,000-byte serialized handoff contract; RPC byte bounds, ownership, RLS, grants, audit and triggers remain unchanged. Rollback-only PostgreSQL tests preserved full boundary content and rejected 12,001 characters. Migration planning tests isolate the historical baseline and verify the capacity migration is planned once. After merge, confirm the live constraint and original full MCP handoff history/latest readback. Capacity alone does not implement Elsie pickup; acknowledgement and campaign execution remain unverified.
