@@ -1310,7 +1310,7 @@ async function executeToolCalls(
   for (const call of toolCalls) {
     // An action suggested by the provider cannot override John's read-only or
     // hypothetical request, including task writes and status-evidence updates.
-    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "request_approval", "log_change", "preview_appearance", "check_task_execution", "hand_to_claude_worker", "create_drive_file", "update_drive_file", "save_brain_note"].includes(call.name)) {
+    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "request_approval", "log_change", "preview_appearance", "hand_to_claude_worker", "create_drive_file", "update_drive_file", "save_brain_note"].includes(call.name)) {
       actionResults.push({ name: call.name, risk: "green", status: "stopped", detail: "This was discussion or a read-only request. No Office action was carried out." });
       continue;
     }
