@@ -6,7 +6,6 @@ import {
   decideManagerApprovalWith,
   getManagerBudgetStatusWith,
   loadManagerMemoryWith,
-  loadViewerDeskMemoryWith,
   logManagerChangeWith,
   requestManagerApprovalWith,
   runManagerSecondEyesWith,
@@ -113,36 +112,6 @@ describe("memory and budget", () => {
     const deps = mockDeps({ rest });
     const result = await loadManagerMemoryWith(deps, "token");
     expect(result).toEqual(expect.objectContaining({ ok: true, tasks, approvals, changes, budget }));
-  });
-
-  it("loadViewerDeskMemoryWith reads tasks, approvals and changes with the viewer's own token and no budget", async () => {
-    const tasks = [{ id: "t1", title: "Task 1", status: "waiting", waiting_reason: "Queued" }];
-    const rest = vi.fn().mockImplementation((_token, _method, path) => {
-      if (path.startsWith("manager_tasks")) return { ok: true, data: tasks };
-      return { ok: true, data: [] };
-    });
-    const verifyRead = vi.fn().mockResolvedValue({ ok: true, userId: "owner-1", email: "", aal: "viewer", viewer: { assistant: "chatgpt", rooms: ["/owner-desk"] } });
-    const deps = mockDeps({ rest, verifyRead });
-    const result = await loadViewerDeskMemoryWith(deps, "viewer-token");
-    expect(result).toEqual({ ok: true, readOnly: true, tasks, approvals: [], changes: [] });
-    expect(deps.ensureBudget).not.toHaveBeenCalled();
-    expect(rest).toHaveBeenCalledTimes(3);
-    for (const call of rest.mock.calls) expect(call.slice(0, 2)).toEqual(["viewer-token", "GET"]);
-    expect(rest).toHaveBeenCalledWith("viewer-token", "GET", expect.stringContaining("manager_tasks?owner_id=eq.owner-1"));
-  });
-
-  it("loadViewerDeskMemoryWith refuses an owner session so the owner path is unchanged", async () => {
-    const deps = mockDeps({ verifyRead: vi.fn().mockResolvedValue(okOwner()) });
-    const result = await loadViewerDeskMemoryWith(deps, "token");
-    expect(result).toEqual(expect.objectContaining({ ok: false, code: "forbidden" }));
-    expect(deps.rest).not.toHaveBeenCalled();
-  });
-
-  it("loadViewerDeskMemoryWith fails closed when the viewing session is not confirmed", async () => {
-    const deps = mockDeps({ verifyRead: vi.fn().mockResolvedValue(failOwner()) });
-    const result = await loadViewerDeskMemoryWith(deps, "token");
-    expect(result).toEqual(expect.objectContaining({ ok: false, code: "auth_not_ready" }));
-    expect(deps.rest).not.toHaveBeenCalled();
   });
 
   it("getManagerBudgetStatusWith fails closed when budget setup fails", async () => {

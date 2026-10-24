@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
 import { useOwnerSession } from "@/lib/owner-session";
-import { loadViewerDeskMemory, type ViewerDeskMemory } from "@/lib/manager-work.functions";
+import { loadViewerDeskMemory, type ViewerDeskMemory } from "@/lib/owner-desk-viewer.functions";
 
 export const Route = createFileRoute("/_office/owner-desk")({
   head: () => ({
