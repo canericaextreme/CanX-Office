@@ -43,7 +43,12 @@ const CHANGE = String.raw`(?:separate|space|build|implement|code|fix|repair|appl
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 // Explicit builder dispatch wording: "Start a new Codex build to repair ...".
 const DIRECT_START = /^(?:please\s+)?(?:(?:elsie|chatgpt)[,:]?\s+)?(?:start|launch|submit|run|kick off)\s+(?:a |the )?(?:new |fresh )?(?:(?:codex|claude)\s+)?build\s+to\s+(?:build|implement|fix|repair|change|update|add|remove)\b/i;
-export const isDirectBuildCommand = (request: string): boolean => sentences(request).some(part => DIRECT_START.test(part));
+// Voice transcripts and Office chat can prepend conversational lead-ins; the
+// explicit start-build clause remains owner-authored and still passes all gates.
+const DIRECT_START_CLAUSE = /\\b(?:start|launch|submit|run|kick off)\\s+(?:a |the )?(?:new |fresh )?(?:(?:codex|claude)\\s+)?build\\s+to\\s+(?:build|implement|fix|repair|change|update|add|remove)\\b/i;
+export const isDirectBuildCommand = (request: string): boolean =>
+  sentences(request).some(part => DIRECT_START.test(part) ||
+    (/^(?:(?:okay|ok|yeah|yes|right|well|so)[,.!]?\\s+)*.{0,100}?(?:elsie|chatgpt)[,:]\\s+/i.test(part) && DIRECT_START_CLAUSE.test(part)));
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin|pass|kick off) (?:the |this |my |that |whatever )?(?:saved |existing |waiting )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 
 // What John wants the screen to do, said as a wish: "I want the button to say …",
