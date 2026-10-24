@@ -58,7 +58,7 @@ import {
 } from "@/lib/manager-work.functions";
 import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCategory } from "@/lib/codex-task-handoff";
 import { isCodexStatusCommand, isClaudeStatusCommand } from "./codex-status-command";
-import { builderChoiceFor, directBuildRefusal, taskExecutionRefusal, requestIsDiscussionOnly, requestAsksToQueue, stripBuilderHandoffPrefix, BUILDER_LABEL, type OfficeBuilder } from "./builder-choice";
+import { builderChoiceFor, directBuildRefusal, isDirectBuildCommand, taskExecutionRefusal, requestIsDiscussionOnly, requestAsksToQueue, stripBuilderHandoffPrefix, BUILDER_LABEL, type OfficeBuilder } from "./builder-choice";
 import { normalizeWorkerId } from "./manager-workers";
 import { executeTaskWith, advanceElsieQueueWith, handoffMustQueue, queueTaskForBuilderWith, handTaskToClaudeWith, autopilotStepWith, type QueueAdvance } from "./task-execution.server";
 import { claudeTakeoverRefusal, needsFullClaude } from "./claude-takeover";
@@ -1792,6 +1792,38 @@ export async function runManagerChatWith(
     return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null, text, toolCalls: [],
       actionResults: [{ name: `check_${statusBuilder}_builds`, risk: "green", status: result.ok ? "done" : "stopped", detail: result.detail }],
       ...(deps.recordTurn ? { persisted: saved?.saved === true } : {}) };
+  }
+
+  // Explicit build commands bypass model tool selection. The existing durable
+  // handoff deduplicates identical requests and retains owner/budget/protected gates.
+  // Discussion, examples and status requests never enter this path.
+  if (statusRequest?.role === "user" && isDirectBuildCommand(statusRequest.content)) {
+    const choice = builderChoiceFor(statusRequest.content);
+    if ("conflict" in choice) {
+      const detail = "Your request names both Claude and Codex. Choose one builder.";
+      return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
+        text: detail, toolCalls: [], actionResults: [{ name: "start_build", risk: "green", status: "stopped", detail }] };
+    }
+    const refusal = directBuildRefusal(statusRequest.content, choice.builder);
+    if (refusal) {
+      return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
+        text: refusal, toolCalls: [], actionResults: [{ name: "start_build", risk: "green", status: "stopped", detail: refusal }] };
+    }
+    const request = statusRequest.content;
+    const digest = sha256Hex(JSON.stringify([verification.userId, request]));
+    const requestId = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-${digest.slice(12, 16)}-${digest.slice(16, 20)}-${digest.slice(20, 32)}`;
+    const runBuild = deps.runBuild ?? defaultRunBuild;
+    const result = await managerBuilderHandoff({
+      workbench: buildWorkbenchDeps(deps),
+      build: (t, scope, pr, id) => runBuild("codex", t, scope, pr, id),
+      buildClaude: (t, scope, pr, id) => runBuild("claude", t, scope, pr, id),
+      readChange: deps.readClaudeChange ?? defaultReadClaudeChange,
+    }, data.accessToken, request, requestId, choice.builder).catch(() => ({
+      ok: false, detail: "The direct builder handoff could not be confirmed. Inspect Build & Testing before retrying.",
+    }));
+    return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
+      text: result.detail, toolCalls: [],
+      actionResults: [{ name: `start_${choice.builder}_build`, risk: "green", status: result.ok ? "pending" : "stopped", detail: result.detail }] };
   }
 
   // Short approvals resolve only against freshly read saved tasks, including after reopen.

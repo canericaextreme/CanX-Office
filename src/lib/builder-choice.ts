@@ -41,6 +41,9 @@ const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|su
 const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|elsie)(?:[ -]only)?[,:]?\s+)?(?:(?:can|could|would) you\s+)?(?:(?:you|we)\s+)?(?:(?:(?:need|needs|have|has|got) to|gotta|must)\s+)?(?:i (?:want|need|would like|['’]d like) (?:you|claude|codex|elsie) to\s+)?(?:go ahead and\s+|let['’]?s\s+)?(?:please\s+)?`;
 const CHANGE = String.raw`(?:separate|space|build|implement|code|fix|repair|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
+// Explicit builder dispatch wording: "Start a new Codex build to repair ...".
+const DIRECT_START = /^(?:please\s+)?(?:(?:elsie|chatgpt)[,:]?\s+)?(?:start|launch|submit|run|kick off)\s+(?:a |the )?(?:new |fresh )?(?:(?:codex|claude)\s+)?build\s+to\s+(?:build|implement|fix|repair|change|update|add|remove)\b/i;
+export const isDirectBuildCommand = (request: string): boolean => sentences(request).some(part => DIRECT_START.test(part));
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin|pass|kick off) (?:the |this |my |that |whatever )?(?:saved |existing |waiting )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
 
 // What John wants the screen to do, said as a wish: "I want the button to say …",
@@ -94,7 +97,7 @@ export function directBuildRefusal(request: string, builder: OfficeBuilder): str
   if (choice.builder !== builder) return `Your request chose ${BUILDER_LABEL[choice.builder]}, so nothing was sent to ${BUILDER_LABEL[builder]}.`;
   if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !hasBuildIntent(text))) return "That was a status question, so no build was started.";
   if (requestIsDiscussionOnly(request)) return "That reads as discussion or an example, so no build was started.";
-  if (!hasBuildIntent(text)) return "No explicit Office code change was requested, so no build was started.";
+  if (!hasBuildIntent(text) && !isDirectBuildCommand(text)) return "No explicit Office code change was requested, so no build was started.";
   if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";
   const protectedCategory = officeBuildProtectedCategory(stripBuilderHandoffPrefix(request));
   if (protectedCategory) return `This request includes a protected action (${protectedCategory}), so no build was started.`;
