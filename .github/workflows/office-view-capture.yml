@@ -10,8 +10,11 @@ on:
         required: true
         type: string
 permissions: {}
+# One group per request. A single shared group let GitHub keep only ONE waiting run and cancel the rest,
+# so rooms asked for together were silently dropped and their requests expired (live 24 Oct 2026 00:17 UTC:
+# 6 ChatGPT rooms asked together, 2 pictures, 4 runs cancelled). Overlapping viewer sessions are safe since PR 214.
 concurrency:
-  group: canx-office-view
+  group: canx-office-view-${{ inputs.request_id }}
   cancel-in-progress: false
 jobs:
   capture:

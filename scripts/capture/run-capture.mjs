@@ -102,6 +102,18 @@ async function workflowIdentity(env) {
   return value;
 }
 
+/** Runs started together can meet "viewer_busy" while the broker opens another viewer session. Wait and ask again. */
+export const CLAIM_ATTEMPTS = 4;
+export async function claimWithRetry(attempt, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  let result = null;
+  for (let i = 1; i <= CLAIM_ATTEMPTS; i++) {
+    result = await attempt();
+    if (!(result?.status === 503 && result.json?.code === "viewer_busy") || i === CLAIM_ATTEMPTS) return result;
+    await sleep(1500 * i);
+  }
+  return result;
+}
+
 const mask = (value) => { if (process.env.GITHUB_ACTIONS === "true" && value) console.log(`::add-mask::${value}`); };
 const say = (event, extra = {}) => console.log(JSON.stringify({ event, ...extra }));
 
@@ -124,7 +136,7 @@ export async function runCapture({ requestId, env = process.env }) {
     return 1;
   };
 
-  const claim = await post(brokerUrl, "claim", oidc, { requestId }).catch(() => null);
+  const claim = await claimWithRetry(() => post(brokerUrl, "claim", oidc, { requestId }).catch(() => null));
   if (!claim || claim.status !== 200 || !claim.json?.claimed?.accessToken) { say("failed", { code: "claim_refused", http: claim?.status ?? 0, why: claim?.json?.code }); return 1; }
   claimed = claim.json.claimed;
   mask(claimed.accessToken);
