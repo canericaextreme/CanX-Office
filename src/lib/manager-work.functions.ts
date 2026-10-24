@@ -96,6 +96,8 @@ export interface WorkbenchDeps {
   settle: (token: string, reservationId: string, outcome: "ok" | "failed") => Promise<void>;
   rest: <T>(token: string, method: string, path: string, body?: JsonObject) => Promise<{ ok: boolean; data?: T; error?: string }>;
   ensureBudget: (token: string, ownerId: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Read-only check that also accepts an assistant's confirmed viewing session. Only the Owner's Desk viewer copy uses it. */
+  verifyRead?: (token: string) => Promise<OwnerVerification>;
 }
 
 function readSetting(value: string | undefined): string | undefined {
@@ -108,6 +110,7 @@ async function realDeps(): Promise<WorkbenchDeps> {
   const config = backend.readBackendConfig();
   return {
     verifyOwner: (token) => backend.verifyOwnerWith(config, token),
+    verifyRead: async (token) => (await import("@/lib/canx-viewer.server")).verifyOwnerOrViewerReadWith(config, token, true),
     reserve: (token, cents) => backend.reserveAiCallWith(config, token, cents),
     settle: (token, id, outcome) => backend.settleAiCallWith(config, token, id, outcome),
     rest: async <T>(token: string, method: string, path: string, body?: JsonObject) => {
@@ -272,6 +275,39 @@ export async function loadManagerMemoryWith(deps: WorkbenchDeps, token: string):
     changes: changes.data ?? [],
     budget,
   };
+}
+
+/**
+ * The Owner's Desk as an assistant's read-only viewer sees it. The viewer's own
+ * token reads tasks, approvals and the change log, so the database's viewing
+ * grant (office_view_read) decides every row. The AI budget is never shared
+ * with a viewer, and nothing here writes. Owners keep using loadManagerMemory.
+ */
+export interface ViewerDeskMemory {
+  ok: true;
+  readOnly: true;
+  tasks: ManagerTask[];
+  approvals: ManagerApproval[];
+  changes: ManagerChange[];
+}
+
+export async function loadViewerDeskMemoryWith(deps: WorkbenchDeps, token: string): Promise<ViewerDeskMemory | ManagerWorkError> {
+  if (!deps.verifyRead) return fail("auth_not_ready", "Read-only viewing is not available.");
+  const v = await deps.verifyRead(token);
+  if (!v.ok) return fail("auth_not_ready", v.message);
+  if (v.aal !== "viewer") return fail("forbidden", "This read-only copy is only for an assistant's viewing session.");
+
+  const [tasks, approvals, changes] = await Promise.all([
+    deps.rest<ManagerTask[]>(token, "GET", `manager_tasks?owner_id=eq.${encodeURIComponent(v.userId)}&order=created_at.desc`),
+    deps.rest<ManagerApproval[]>(token, "GET", `manager_approvals?owner_id=eq.${encodeURIComponent(v.userId)}&order=created_at.desc`),
+    deps.rest<ManagerChange[]>(token, "GET", `manager_changes?owner_id=eq.${encodeURIComponent(v.userId)}&entity=neq.manager_conversation&order=at.desc&limit=50`),
+  ]);
+
+  if (!tasks.ok) return fail("context_unavailable", tasks.error ?? "Could not read tasks.");
+  if (!approvals.ok) return fail("context_unavailable", approvals.error ?? "Could not read approvals.");
+  if (!changes.ok) return fail("context_unavailable", changes.error ?? "Could not read change log.");
+
+  return { ok: true, readOnly: true, tasks: tasks.data ?? [], approvals: approvals.data ?? [], changes: changes.data ?? [] };
 }
 
 /* ------------------------------- tasks ------------------------------- */
@@ -762,6 +798,10 @@ function strAccess(input: unknown): { accessToken: string } {
 export const loadManagerMemory = createServerFn({ method: "POST" })
   .inputValidator(strAccess)
   .handler(async ({ data }) => loadManagerMemoryWith(await realDeps(), data.accessToken));
+
+export const loadViewerDeskMemory = createServerFn({ method: "POST" })
+  .inputValidator(strAccess)
+  .handler(async ({ data }) => loadViewerDeskMemoryWith(await realDeps(), data.accessToken));
 
 export const createManagerTask = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => {
