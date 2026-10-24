@@ -51,5 +51,14 @@ describe("pingColleague", () => {
     const r = await pingColleague(deps(async () => json({ id: "m", content: [{ type: "text", text: "Hello" }] })), "claude", "ABC", TITLE);
     expect(r).toMatchObject({ replied: true, verified: false });
     expect(r.failure).toContain("one-time code");
+    expect(r.failure).toContain('reply began: "Hello"');
+  });
+
+  it("gives ChatGPT room to finish and says when its reply was cut off", async () => {
+    let sent: Record<string, unknown> = {};
+    const f = (async (_u: unknown, init?: RequestInit) => { sent = JSON.parse(String(init?.body)); return json({ id: "r", status: "incomplete", output_text: "PRETRIP-OK ABC |" }); }) as typeof fetch;
+    const r = await pingColleague(deps(f), "chatgpt", "ABC", TITLE);
+    expect(sent["max_output_tokens"]).toBe(400);
+    expect(r.failure).toContain("cut off");
   });
 });
