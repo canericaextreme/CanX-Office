@@ -95,6 +95,7 @@ export async function runPreTripWith(deps: PreTripDeps, trigger: PreTripTrigger)
   };
 
   let outstanding: number | null = null, approvals: number | null = null, yesterday = "", sharedTitle = "";
+  let summarySavedAt: string | undefined;
   const email: PreTripRecord["email"] = { sweep: "not checked", needsAttention: null, archive: null, ignored: null };
 
   // Work Board first: the colleague test quotes one real task title back.
@@ -146,7 +147,10 @@ export async function runPreTripWith(deps: PreTripDeps, trigger: PreTripTrigger)
         get(`astra_recent_context?select=created_at&${owner(deps.ownerId)}&conversation_key=eq.office-manager&order=created_at.desc&limit=1`),
       ]);
       const s = summaries[0];
-      yesterday = clip(s?.["summary"], 300);
+      if (typeof s?.["summary"] === "string" && typeof s["updated_at"] === "string" && Number.isFinite(Date.parse(s["updated_at"]))) {
+        yesterday = s["summary"].trim();
+        summarySavedAt = s["updated_at"];
+      }
       const loops = Array.isArray(s?.["open_loops"]) ? (s!["open_loops"] as unknown[]).length : 0;
       const lastTurn = recent[0]?.["created_at"];
       const fresh = typeof lastTurn === "string" && start.getTime() - Date.parse(lastTurn) < 3 * 86_400_000;
@@ -210,7 +214,7 @@ export async function runPreTripWith(deps: PreTripDeps, trigger: PreTripTrigger)
     overall: overallLight(compared.checks),
     checks: compared.checks,
     rooms: { total: ROOM_TARGETS.length, verified: rooms.filter((c) => c.status === "green").length },
-    email, outstanding, approvals, yesterday,
+    email, outstanding, approvals, yesterday, summarySavedAt,
     changes: compared.changes,
     previousId: previous?.id ?? null,
   };

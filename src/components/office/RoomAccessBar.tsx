@@ -25,6 +25,7 @@ export function RoomAccessBar() {
   const [snap, setSnap] = useState<RoomSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [attemptAt, setAttemptAt] = useState("");
   const [open, setOpen] = useState(false);
   const seq = useRef(0);
   const token = session.accessToken;
@@ -37,19 +38,24 @@ export function RoomAccessBar() {
       const reply = await fetchSnapshot({ data: { accessToken: token, route: target.route, buildId: currentBuildVersion(), device: collectDeviceSnapshot(target.route) } });
       // A reply for a room John already left is discarded (navigation race).
       if (mine !== seq.current) return;
-      if (!reply.ok) { setError(reply.message); setSnap(null); return; }
+      setAttemptAt(new Date().toISOString());
+      if (!reply.ok) { setError(reply.message); return; }
+      if (reply.snapshot.overall === "failed") {
+        setError(reply.snapshot.sources.filter((s) => s.kind === "live" && s.status !== "read").map((s) => `${s.label}: ${s.detail || s.status}`).join("; ") || "Saved room records could not be read.");
+        return;
+      }
       setError("");
       setSnap(reply.snapshot);
       recordViewedSnapshot(snapshotRef(reply.snapshot));
     } catch {
-      if (mine === seq.current) { setError("This room could not be checked just now."); setSnap(null); }
+      if (mine === seq.current) { setAttemptAt(new Date().toISOString()); setError("This room could not be checked just now."); }
     } finally {
       if (mine === seq.current) setBusy(false);
     }
   }, [target, token, fetchSnapshot]);
 
   useEffect(() => {
-    setSnap(null); setError("");
+    setSnap(null); setError(""); setAttemptAt("");
     void refresh();
     const onEvent = () => void refresh();
     const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
@@ -70,14 +76,14 @@ export function RoomAccessBar() {
   const tone = !token ? "border-border" : error || snap?.overall === "failed" ? "border-destructive/60" : snap?.overall === "partial" ? "border-amber-500/60" : snap ? "border-emerald-500/50" : "border-border";
   const headline = !token
     ? "Sign in to let Elsie read this room. Nothing is read while signed out."
-    : error ? `Not checked: ${error}`
+    : error ? `Fresh read failed ${formatRoomReadAt(attemptAt)}: ${error}${snap ? ` Last snapshot retained from ${formatRoomReadAt(snap.checkedAt)} (not fresh).` : " No successful snapshot available."}`
     : !snap ? "Checking this room…"
-    : snap.overall === "fresh" ? `Elsie can read this room · saved room records read ${formatRoomReadAt(snap.checkedAt)}`
-    : snap.overall === "partial" ? `Elsie can read part of this room · saved room records read ${formatRoomReadAt(snap.checkedAt)}`
-    : `Elsie could not read this room's records · tried ${formatRoomReadAt(snap.checkedAt)}`;
+    : snap.overall === "fresh" ? `Saved-data readability: read · checked ${formatRoomReadAt(snap.checkedAt)}`
+    : snap.overall === "partial" ? `Saved-data readability: partial · checked ${formatRoomReadAt(snap.checkedAt)}`
+    : `Saved-data readability: failed · tried ${formatRoomReadAt(snap.checkedAt)}`;
 
   return (
-    <section aria-label="Elsie's access to this room" className={`mx-auto mt-3 max-w-6xl rounded-lg border ${tone} bg-card/70 px-3 py-2 text-sm`} data-room-access={snap?.overall ?? (error ? "error" : "none")}>
+    <section aria-label="Elsie's access to this room" className={`mx-auto mt-3 max-w-6xl rounded-lg border ${tone} bg-card/70 px-3 py-2 text-sm`} data-room-access={error ? "error" : snap?.overall ?? "none"}>
       <div className="flex flex-wrap items-center gap-2">
         <Eye className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
         <span role="status" className="font-medium text-foreground">{headline}</span>
@@ -98,6 +104,7 @@ export function RoomAccessBar() {
             {snap.sources.map((s) => (
               <li key={s.key} className="text-muted-foreground">
                 <span className="font-medium text-foreground">{s.label}</span> — {KIND_TEXT[s.kind]}, {s.kind === "static" ? "app setup (not live)" : STATUS_TEXT[s.status]}
+                {s.status !== "read" && s.detail ? ` · ${s.detail}` : ""}
                 {s.count !== null && s.kind !== "static" ? `, ${s.count}` : ""}
               </li>
             ))}

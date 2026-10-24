@@ -30,3 +30,39 @@ Elsie gets one context line (`readPreTripForElsie`, 1.5 s cap, read in parallel)
 
 ## Recovery
 If the card breaks: Elsie and the Office keep working, because nothing depends on it. Revert the PR that added `src/lib/pretrip*.ts` and `PreTripCard.tsx`. Saved records stay in the Brain.
+
+## Reporting repair — 24 October 2026 (local candidate)
+
+Owner task: `a542ed30-2c98-4bfd-b3b0-062254ee8592`; supplied Brain reference:
+`pretrip-20261024-manual-172922`. The reference contents were not available in
+this checkout and production was not contacted. No saved Brain record or task
+was modified.
+
+- Room reports render once per saved ID; separate reports with identical titles remain separate.
+- A new report keeps the full saved conversation summary with its saved timestamp.
+  Older reports without this evidence explicitly say the summary is unavailable;
+  a clipped dialogue is never reconstructed or presented as verified.
+- Each non-green finding includes its name, status and saved reason (or an explicit
+  reason-unavailable message). Room green means saved-data readability only.
+- Reception's room-read panel timestamps failures, retains the last readable
+  snapshot, labels it not fresh, and replaces it on recovery. Failed source
+  details remain visible. Navigation/session changes still clear the panel.
+- Elsie's pre-trip context identifies a run and asks for reporting it only when
+  requested, once per run, rather than repeating it as a greeting. This is model
+  guidance, not a guarantee of spoken deduplication. Voice, personality and audio
+  configuration were not changed.
+
+Regression variations cover duplicate IDs, identical titles, legacy/malformed
+summary dates, complete long summaries, named yellow/unverified reasons, returned
+and thrown refresh failures, first-read failure and recovery. Fixture tests do
+not verify live saved records. Signed-in desktop/phone testing, narrow-screen
+long-report readability, and audio/session acceptance remain necessary.
+
+Local build receipt (2026-10-24T17:37:44Z): `npm run build` exited 0,
+entry `index-dzKeOlFL.js`, SHA-256
+`108ee89886dd8d7ad49b996cea112654e0112fc3bd1e9f0c6519c7976bc151aa`.
+Base HEAD `dc4b85a39e2381c7fab931616aa7402281be88df`, with local uncommitted
+repair changes. `npm run typecheck` exited 0; focused Vitest run: 6 files,
+55 tests passed. Existing server-function deprecation/build warnings remain.
+This is a local build receipt, not a builder-job, deployed-release or live-health
+receipt. The fix is logged in `docs/office-shared-log.json`; no Brain write occurred.

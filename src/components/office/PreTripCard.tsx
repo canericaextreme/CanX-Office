@@ -103,10 +103,8 @@ export function PreTripCardView({ record, now, running, message, onRun, canRun }
             <p className="text-sm">{morningReport(view.record)}</p>
             <div>
               <Row k="Inspection" v={view.record.inspection === "complete" ? "Complete" : "Partial"} />
-              <Row k="ChatGPT (Office helper)" v={light("colleague:chatgpt")} />
-              <Row k="Claude (Office helper)" v={light("colleague:claude")} />
               <Row k="Elsie's memory" v={light("continuity")} />
-              <Row k="Office rooms" v={`${view.record.rooms.verified} of ${view.record.rooms.total} green`} />
+              <Row k="Rooms · saved-data readability" v={`${view.record.rooms.verified} of ${view.record.rooms.total} green`} />
               <Row k="Fresh emails needing you" v={view.record.email.needsAttention === null ? "Unknown" : String(view.record.email.needsAttention)} />
               <Row k="Email cleanup" v={view.record.email.archive === null ? "Unknown" : `${view.record.email.archive} to archive · delete: not counted`} />
               <Row k="Outstanding work" v={view.record.outstanding === null ? "Unknown" : String(view.record.outstanding)} />
@@ -119,7 +117,7 @@ export function PreTripCardView({ record, now, running, message, onRun, canRun }
               <ul className="space-y-2">
                 {view.record.changes.carried.length > 0 && <li className="text-xs text-muted-foreground">Carried forward: {view.record.changes.carried.join("; ")}</li>}
                 {view.record.changes.resolved.length > 0 && <li className="text-xs text-muted-foreground">Fixed since last time: {view.record.changes.resolved.join(", ")}</li>}
-                {view.record.checks.map((c) => <CheckRow key={c.id} c={c} />)}
+                {view.record.checks.filter((c) => c.status === "green").map((c) => <CheckRow key={c.id} c={c} />)}
               </ul>
             )}
           </>
@@ -173,7 +171,7 @@ export function PreTripBadge() {
     <p className="inline-flex flex-wrap items-center gap-2 text-sm" data-canx-pretrip-badge="true">
       <span className="font-medium">Today's pre-trip:</span>
       {s.running ? <StatusBadge tone="blue" label="Checking now" />
-        : view.state === "checked" ? <StatusBadge tone={TONE[view.record.overall]} label={`${WORD[view.record.overall]} · ${view.record.rooms.verified}/${view.record.rooms.total} rooms`} />
+        : view.state === "checked" ? <StatusBadge tone={TONE[view.record.overall]} label={`${WORD[view.record.overall]} · ${view.record.rooms.verified}/${view.record.rooms.total} rooms · saved-data readability`} />
         : <StatusBadge tone="grey" label="NOT CHECKED TODAY" />}
       <span className="text-xs">Details on the Owner's Desk.</span>
     </p>

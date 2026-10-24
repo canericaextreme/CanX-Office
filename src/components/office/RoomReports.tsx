@@ -27,7 +27,7 @@ export function RoomReports() {
         const reply = await list({ data: { accessToken: session.accessToken } });
         if (!active || current !== sequence) return;
         if (!reply.ok) { setError("Room reports could not be loaded."); return; }
-        setReports((reply.data ?? []).filter(note => note.source === roomReportSource(room.id)));
+        setReports([...new Map((reply.data ?? []).filter(note => note.source === roomReportSource(room.id)).map(note => [note.id, note])).values()]);
         setError("");
       } catch { if (active && current === sequence) setError("Room reports could not be loaded."); }
     };
