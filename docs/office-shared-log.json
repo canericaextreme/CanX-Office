@@ -2,6 +2,15 @@
   "version": 1,
   "entries": [
     {
+      "id": "2026-10-24-elsie-phone-composer",
+      "at": "2026-10-24T14:20:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared John's requested repair for Elsie's off-screen phone text box: visual-viewport sizing for keyboard and landscape, an always-open larger paste target, and shrinkable transcript. Voice handlers, conversation behavior, authentication and records are unchanged. Candidate, not yet live.",
+      "evidence": "Local typecheck and production build passed; 216 test files / 2089 tests passed, including viewport geometry and keyboard/pan listener regression coverage. Real-browser download failed; signed-in Samsung paste acceptance remains unverified."
+    },
+    {
       "id": "2026-10-05-stage1-approved",
       "at": "2026-10-05T16:05:10Z",
       "actor": "John",

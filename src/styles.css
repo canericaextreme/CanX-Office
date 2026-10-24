@@ -145,6 +145,31 @@
   }
   .canx-elsie-voice-controls > .grid > button { min-height: 44px; }
 }
+/* The keyboard changes the visual viewport, not Android's 100dvh layout height.
+ * Keep the paste target first and let messages shrink instead of pushing it out. */
+#office-manager-panel[data-phone="true"] { min-height: 0; box-sizing: border-box; }
+#office-manager-panel[data-phone="true"] > [aria-label="Conversation with Elsie"] {
+  min-height: 0;
+  flex: 1 1 0;
+}
+#office-manager-panel[data-phone="true"] > .canx-elsie-links {
+  min-height: 0;
+  max-height: 3rem;
+  overflow-y: auto;
+}
+#office-manager-panel[data-phone="true"] > .canx-elsie-composer {
+  min-height: 0;
+  max-height: 65%;
+  flex: 0 1 auto;
+  overflow-y: auto;
+  padding-top: 0.5rem;
+  scroll-padding-block: 0.5rem;
+}
+#office-manager-panel[data-phone="true"] .canx-elsie-message { min-height: 88px; max-height: none; }
+#office-manager-panel[data-phone="true"] .canx-elsie-voice-controls { order: 0; margin-top: 0.5rem; }
+#office-manager-panel[data-phone="true"] .canx-elsie-composer > [role="separator"] { display: none; }
+#office-manager-panel[data-phone="true"] .canx-elsie-composer > div:nth-child(2) { display: none; }
+
 @media (hover: none) and (pointer: coarse) and (max-width: 767px) and (orientation: portrait) {
   .canx-mobile-orientation-hint {
     display: block;
