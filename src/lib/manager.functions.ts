@@ -233,6 +233,8 @@ export interface ManagerDeps {
   readProjectRegister?: (token: string) => Promise<{ locators: import("./project-locator").Locator[]; tasksReadAt: string | null } | null>;
   readBrainIndex?: (token: string, aal: string) => Promise<import("./brain-index").BrainIndex | null>;
   readContinuity?: (token: string, ownerId: string) => Promise<ContinuityRead>;
+  /** Elsie's daily pre-trip ("run your pre-trip again"); read-only checks plus one saved record. */
+  runPreTrip?: (token: string) => Promise<{ ok: boolean; detail: string }>;
   /** Persist a completed turn for the server-verified owner id only. */
   recordTurn?: (token: string, ownerId: string, user: string, answer: string) => Promise<{ saved: boolean; pruned: boolean }>;
 }
@@ -306,11 +308,13 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
       const astra = await import("@/lib/astra-continuity");
       if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
       const { readElsieReconnectBrief } = await import("./elsie-reconnect-brief");
-      const [base, recovery] = await Promise.all([
+      const { readPreTripForElsie } = await import("./pretrip.server");
+      const [base, recovery, pretrip] = await Promise.all([
         astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId),
         readElsieReconnectBrief((path) => backend.restRequest(config, token, path), ownerId, new Date().toISOString()),
+        readPreTripForElsie((path, init) => backend.restRequest(config, token, path, init), ownerId, new Date()),
       ]);
-      return { ...base, text: base.text + "\n\n" + recovery };
+      return { ...base, text: pretrip + "\n\n" + base.text + "\n\n" + recovery };
     },
     readDocuments: async (token, request, previous) => {
       const { readDocumentContext } = await import("./document-knowledge");
@@ -332,6 +336,17 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
       if (!config) return null;
       const { readBrainIndexWith } = await import("./brain-index.server");
       return readBrainIndexWith({ config, token, aal, rest: backend.restRequest });
+    },
+    runPreTrip: async (token) => {
+      if (!config) return { ok: false, detail: "No CanX-owned database is configured, so the pre-trip cannot run." };
+      const v = await backend.verifySignedInWith(config, token);
+      if (!v.ok) return { ok: false, detail: v.message };
+      const { preTripServerDeps } = await import("./pretrip.functions");
+      const { runPreTripWith } = await import("./pretrip.server");
+      const pre = await preTripServerDeps(token, v.userId, v.aal);
+      if (!pre) return { ok: false, detail: "The pre-trip is not configured on this server." };
+      const r = await runPreTripWith(pre, "manual");
+      return { ok: r.ok, detail: r.detail };
     },
     recordTurn: async (token, ownerId, user, answer) => {
       if (!config) return { saved: false, pruned: false };
@@ -506,6 +521,12 @@ const TOOLS = [
   },
   {
     type: "function" as const,
+    name: "run_pretrip",
+    description: "When John asks Elsie to run her pre-trip (again), run the quick daily Office inspection now: read-only checks of all 24 rooms, Brain, Work Board, approvals, spending, yesterday's work and the 6 a.m. email sweep, plus the approved one-message test of the Office ChatGPT and Claude helpers. Saves a new dated Brain record (never overwrites) and returns the short report. Not a repair; detailed diagnosis stays in Office Health.",
+    parameters: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
+    type: "function" as const,
     name: "handoff_to_chatgpt_text",
     description: "Send one existing unfinished task to the ChatGPT Office writing colleague (OpenAI API, separate from native ChatGPT). Only when John explicitly asks to send/ask/hand writing to ChatGPT. Reads the owned task, returns text, appends the reply and provider receipt to that SAME task, verifies readback and leaves its status unchanged. No code build, publication or room visits. Include Claude feedback in instruction when available.",
     parameters: { type: "object", additionalProperties: false, required: ["task_id", "instruction"], properties: { task_id: { type: "string" }, instruction: { type: "string" } } },
@@ -612,6 +633,7 @@ const TOOL_ARG_RULES: Record<
     entity_id: { type: "string", maxLen: 120 },
   },
   save_brain_note: { title: { type: "string", maxLen: 201 }, content: { type: "string", maxLen: 4001 } },
+  run_pretrip: {},
   handoff_to_chatgpt_text: { task_id: { type: "string", maxLen: 100 }, instruction: { type: "string", maxLen: 4000 } },
   second_eyes_review: {
     subject: { type: "string", maxLen: 300 },
@@ -1595,6 +1617,12 @@ async function executeToolCalls(
           title: String(call.arguments["title"] ?? ""),
           content: String(call.arguments["content"] ?? ""),
         });
+        textAdditions.push(result.detail);
+        actionResults.push({ name: call.name, risk, status: result.ok ? "done" : "stopped", detail: result.detail });
+      } else if (call.name === "run_pretrip") {
+        const result = deps.runPreTrip
+          ? await deps.runPreTrip(accessToken).catch(() => ({ ok: false, detail: "The pre-trip could not run. Office work is not affected." }))
+          : { ok: false, detail: "The pre-trip is not wired on this server." };
         textAdditions.push(result.detail);
         actionResults.push({ name: call.name, risk, status: result.ok ? "done" : "stopped", detail: result.detail });
       } else if (call.name === "handoff_to_chatgpt_text") {

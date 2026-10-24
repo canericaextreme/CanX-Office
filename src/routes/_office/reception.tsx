@@ -3,6 +3,7 @@ import { RoomShell } from "@/components/office/RoomShell";
 import { Button } from "@/components/ui/button";
 import { readOfficeConnectionPlan } from "@/lib/office-connection-plan";
 import { roomIdentityForRoute } from "@/lib/office-room-identity";
+import { PreTripBadge } from "@/components/office/PreTripCard";
 
 // Solar Flare room palette (16 Oct 2026). Text on the orange-gold is always dark ink,
 // because white text on Solar Flare is hard to read.
@@ -66,6 +67,9 @@ function ReceptionRoom() {
             >
               Talk to Elsie
             </Button>
+          </div>
+          <div className="mt-4 inline-block rounded-md px-3 py-2" style={{ backgroundColor: C.pale, color: C.ink }}>
+            <PreTripBadge />
           </div>
         </header>
 
