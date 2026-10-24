@@ -682,6 +682,11 @@ describe("deterministic explicit builder command routing", () => {
     expect(isDirectBuildCommand(request)).toBe(true);
     expect(directBuildRefusal(request, "codex")).toBeNull();
   });
+  it("recognizes a direct owner instruction after a spoken lead-in", () => {
+    const request = "Okay, Elsie, start a new Codex build to repair routine Brain note authorization.";
+    expect(isDirectBuildCommand(request)).toBe(true);
+    expect(directBuildRefusal(request, "codex")).toBeNull();
+  });
   it("does not treat builder status inspections as new builds", () => {
     expect(isDirectBuildCommand("Check the Codex build status.")).toBe(false);
     expect(isDirectBuildCommand("Please check the task status.")).toBe(false);
