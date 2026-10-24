@@ -27,9 +27,12 @@ describe("compact CanX companion", () => {
   });
 
   it("keeps a compact footprint with room for the ChatGPT link and drags from the shell", () => {
-    // 21 Oct 2026: taller to hold Work with Claude and Claude reviews under Open ChatGPT.
-    expect(dockSource).toContain("h-[12.5rem] w-28");
-    expect(dockSource).toContain("sm:h-[14rem] sm:w-32");
+    // 21 Oct 2026: the card grows with its text, so big Android fonts never pile the links on top of each other.
+    expect(dockSource).toContain("h-auto w-28");
+    expect(dockSource).toContain("sm:w-32");
+    expect(dockSource).not.toMatch(/h-\[\d+(?:\.\d+)?rem\] w-28/);
+    // A quarter inch (24px) between Open ChatGPT and Work with Claude: 6px gap + 18px margin.
+    expect(dockSource).toContain("mt-[1.125rem] flex");
     expect(dockSource).toContain("canx-companion-drag-handle");
     expect(dockSource).toContain("onPointerDown={onPointerDown}");
     // Minimize, the ChatGPT and Claude links and Claude reviews must not begin a drag.

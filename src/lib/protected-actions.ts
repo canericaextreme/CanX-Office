@@ -73,8 +73,22 @@ export function ownerApprovalScope(text: string): string {
  * Ignore only descriptive references to existing approval for owner_approval.
  * Other protected categories still examine the original request.
  */
+// 21 Oct 2026, John ("fix her from start to finish"): build requests match whole words, so
+// "control" is not "role", "dropdown" is not "drop" and "ChatGPT" is not "charge".
+// Prefixes and endings still count: "unsubscribe", "redeploy", "deleting", "dropped".
+const wholeWord = (text: string, word: string): boolean => {
+  const base = word.replace(/_/g, "[ _]");
+  const stem = word.endsWith("e") ? `|${base.slice(0, -1)}` : /[^aeiou][aeiou][bdgmnpt]$/.test(word) ? `|${base}${word.slice(-1)}` : "";
+  return new RegExp(String.raw`\b(?:un|re|pre|auto|mis)?-?(?:${base}${stem})(?:s|es|d|ed|ing|er|ers|ment|ments|ion|ions)?\b`).test(text);
+};
+// Deleting something on the screen ("delete the Claude button at the top") is a screen edit,
+// not deleting data. Any data word in the request keeps the deletion protected.
+const SCREEN_DELETE = /\b(?:delete|drop)\s+(?:the |that |this |those |these |a |an |its |their )?(?:[\w'’-]+\s+){0,4}?(?:button|tab|link|icon|label|banner|heading|header|title|text|card|box|panel|menu|badge|bar|arrow|dot|line|word|picture|image)s?\b/g;
+const DATA_WORDS = /\b(?:record|data|database|table|row|receipt|note|file|account|user|history|memory|memories|task|email|backup|document|photo|message|log|brain|finance)s?\b/;
+const screenOnlyScope = (text: string): string => DATA_WORDS.test(text) ? text : text.replace(SCREEN_DELETE, " ");
+
 export function protectedBuildCategoryOf(request: string): ProtectedActionCategory | null {
-  const text = request.toLowerCase();
+  const text = screenOnlyScope(request.toLowerCase());
   const publishText = text.replace(
     /\b(?:do\s+not|don['’]t|never|must\s+not|not\s+to|no)\s+(?:(?:auto(?:matically)?|automatically)[ -]?)?publish\b/g,
     "",
@@ -84,8 +98,8 @@ export function protectedBuildCategoryOf(request: string): ProtectedActionCatego
     const matches = category === "publish_deploy"
       ? /\bpublish\b/.test(publishText)
       : category === "owner_approval"
-        ? CATEGORY_WORDS.owner_approval.some((word) => approvalText.includes(word))
-        : CATEGORY_WORDS[category].some((word) => text.includes(word));
+        ? CATEGORY_WORDS.owner_approval.some((word) => wholeWord(approvalText, word))
+        : CATEGORY_WORDS[category].some((word) => wholeWord(text, word));
     if (matches) return category;
   }
   return null;
