@@ -1,3 +1,4 @@
+import { directBuildRefusal, isDirectBuildCommand } from "./builder-choice";
 import { describe, expect, it, vi } from "vitest";
 import {
   computeManagerStatusWith,
@@ -672,5 +673,21 @@ describe("ChatGPT writing action dispatch", () => {
       expect(row.status).toBe("open"); expect(row.evidence).toContain("resp-integration");
       expect(writingCalls).toBe(1); expect(build).not.toHaveBeenCalled();
     } finally { vi.unstubAllEnvs(); }
+  });
+});
+
+describe("deterministic explicit builder command routing", () => {
+  it("recognizes a spoken direct Codex build instruction without relying on model tool choice", () => {
+    const request = "Elsie, start a new Codex build to repair task routing.";
+    expect(isDirectBuildCommand(request)).toBe(true);
+    expect(directBuildRefusal(request, "codex")).toBeNull();
+  });
+  it("does not treat builder status inspections as new builds", () => {
+    expect(isDirectBuildCommand("Check the Codex build status.")).toBe(false);
+    expect(isDirectBuildCommand("Please check the task status.")).toBe(false);
+  });
+  it("retains a read-only stop against starting a build", () => {
+    const request = "Elsie, start a new Codex build to repair task routing. Do not start a build.";
+    expect(directBuildRefusal(request, "codex")).not.toBeNull();
   });
 });
