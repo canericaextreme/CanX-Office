@@ -36,7 +36,7 @@ The Brain room has a new **Live Brain view**, beside the shelf map. It is a thre
 
 **New room source.** Brain → `brain-view` (live). Elsie reads it as text through the room snapshot. Read-only viewers get "denied", not an empty logbook.
 
-**Analytics.** Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
+**Analytics.** Shared owner-only Safe Highways assignment progress uses the same canonical task as the Safe Highways room; recorded evidence is separate from live runtime (see docs/safe-highways-progress-display.md). Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
 
 **Needs you.** Under the view, a list of what is waiting on John: approval-box requests, tasks on hold (with their reason) and work with no change for 7 days. Each item has Approve, Archive and Ask Elsie. Every action is confirmed first and uses the existing owner-checked Office actions. Archive never deletes.
 
@@ -74,7 +74,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 13 | Finance | receipt totals (two-step) | Finance (4) | No bank/accounting ledger |
 | 14 | Work Board | tasks, change log | Operations (4), Foreman (4) | No crew dispatch / calendar |
 | 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending; shared GitHub status failure under diagnosis |
-| 16 | Safe Highways | static boundary | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
+| 16 | Safe Highways | static boundary plus exact owner-only Work Board assignment progress (43da2350-e1aa-4d22-a1da-9885295888be); no Safe Highways system connection | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
 | 17 | Research | files, reports only | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
 | 20 | Future | — | Reserved | Reserved by John |
