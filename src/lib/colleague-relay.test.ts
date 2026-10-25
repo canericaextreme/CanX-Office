@@ -30,6 +30,12 @@ function fixture(provider: 'claude' | 'chatgpt' = 'claude') {
 const input = (c: 'claude' | 'chatgpt' = 'claude') => ({ accessToken: 'tok', taskId: 'task-1', requestId: RID, colleague: c, message: 'Please review the welcome note.' });
 
 describe('colleague relay', () => {
+  it.each(['rate_limit_exceeded', 'slow_down', 'credit_balance_exhausted', 'project_spend_limit_exceeded', 'organization_spend_limit_exceeded', 'organization_usage_limit_exceeded'])('retains a documented quota/rate code without retrying: %s', async code => {
+    const f = fixture('chatgpt'); f.fetchImpl.mockImplementation(async () => Response.json({ error: { code, type: code === 'rate_limit_exceeded' ? 'tokens' : 'insufficient_quota', message: 'PRIVATE_MESSAGE' } }, { status: 429, headers: { 'retry-after': '12.5' } }));
+    const r = await callRelayProvider(f.deps, 'chatgpt', 'system', 'user', new AbortController().signal);
+    expect(r).toMatchObject({ ok: false, status: 429, diagnostic: expect.stringContaining(`provider_http_429:${code}:unclassified:type_`) });
+    expect(JSON.stringify(r)).toContain('retry_after_seconds_13'); expect(JSON.stringify(r)).not.toContain('PRIVATE'); expect(f.fetchImpl).toHaveBeenCalledOnce();
+  });
   it.each([
     ['unsupported_parameter', 'PRIVATE_PARAM', 'unsupported_parameter:unclassified'],
     ['PRIVATE_CODE', 'model', 'unclassified:model'],

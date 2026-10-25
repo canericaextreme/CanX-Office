@@ -91,9 +91,12 @@ export async function callRelayProvider(deps: RelayDeps, c: Colleague, system: s
     const body = await res.json().catch(() => null);
     // Only fixed, allowlisted codes/parameter names; never provider messages,
     // request bodies, headers, credentials or arbitrary error text.
-    const code = ['unsupported_parameter', 'unsupported_value', 'model_not_found', 'invalid_api_key', 'insufficient_quota', 'context_length_exceeded', 'invalid_request_error'].includes(body?.error?.code) ? body.error.code : 'unclassified';
+    const code = ['unsupported_parameter', 'unsupported_value', 'model_not_found', 'invalid_api_key', 'insufficient_quota', 'context_length_exceeded', 'invalid_request_error', 'rate_limit_exceeded', 'slow_down', 'credit_balance_exhausted', 'organization_spend_limit_exceeded', 'project_spend_limit_exceeded', 'organization_usage_limit_exceeded', 'usage_limit_exceeded', 'server_is_overloaded'].includes(body?.error?.code) ? body.error.code : 'unclassified';
     const param = ['model', 'max_output_tokens', 'max_tokens', 'instructions', 'input', 'store', 'reasoning', 'temperature'].includes(body?.error?.param) ? body.error.param : 'unclassified';
-    return { ok: false, status: res.status, definite: res.status >= 300 && res.status < 500 && ![408, 409, 429].includes(res.status), diagnostic: `provider_http_${res.status}:${code}:${param}` };
+    const type = ['insufficient_quota', 'rate_limit_error', 'tokens', 'requests'].includes(body?.error?.type) ? body.error.type : 'unclassified';
+    const retry = Number(res.headers.get('retry-after') ?? NaN);
+    const wait = Number.isFinite(retry) && retry >= 0 && retry <= 86400 ? `:retry_after_seconds_${Math.ceil(retry)}` : '';
+    return { ok: false, status: res.status, definite: res.status >= 300 && res.status < 500 && ![408, 409, 429].includes(res.status), diagnostic: `provider_http_${res.status}:${code}:${param}${type === 'unclassified' ? '' : `:type_${type}`}${wait}` };
   }
   const p = await res.json().catch(() => null) as Record<string, unknown> | null;
   if (!p) return { ok: false, status: res.status, definite: false };
