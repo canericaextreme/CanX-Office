@@ -4,6 +4,14 @@ Status: implementation tested locally; not deployed or accepted live. This repla
 
 ## What runs
 
+### Supported task messages on the existing colleague connection
+
+Clients that already have `relay_to_colleague` can use its unchanged arguments to send an explicit Elsie task message. This is a permanent versioned message contract, dispatched by the server to the same `liveElsieTask` engine as `run_elsie_text_task`; it does not require clients to rediscover a new tool before using their existing working grant. It does not refresh or repair a client's cached tool list.
+
+Set `message` to the literal line `CANX_ELSIE_TEXT_TASK_V1`, a newline, then a JSON object containing **only** `specNoteId`, `ruleId` and `instruction`. The outer `requestId`, `taskId` and `colleague` remain authoritative. Invalid reserved messages fail before any provider call, with no fallback to ordinary relay. Ordinary messages retain their existing behavior.
+
+One invocation runs at most one phase. Continue with exactly the same outer arguments and message only when `continue=true`. Read the returned `recordId` from `office_notes` independently; the task's ordinary relay history is not the loop result. Completed requests do not call a provider again; unknown claims are not replayed. The existing authorization, exact-source checks, budget reservations, settlement verification and Brain CAS/readback apply unchanged. No general manager actions, builds, credential export or impersonation are introduced.
+
 The new `run_elsie_text_task` MCP action enters `/api/office-work` under the existing live working-grant check. The caller explicitly supplies a task UUID, exact Brain specification ID, active standing-rule UUID, colleague, current bounded writing instruction and stable request UUID. The task must be owned, open/active, green and assigned to Office Manager. Every continuation retrieves all three exact records and compares source versions. Saved text is context, not authority for any additional action.
 
 One invocation performs at most one model call:
