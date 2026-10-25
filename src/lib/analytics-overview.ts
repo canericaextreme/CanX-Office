@@ -13,6 +13,8 @@
  * Every metric carries its source and the time it was read.
  */
 
+import { BACKGROUND_ACTIVATION, SAFE_HIGHWAYS_ASSIGNMENT } from "./background-task";
+import { taskExecutionEvidence } from "./task-execution-evidence";
 import { totalsByCurrency, type FinanceReceipt } from "./finance-receipts";
 import { RUNNING_COST_CEILING, RUNNING_COST_CURRENCY } from "./office-budget";
 import type { SubscriptionRecord } from "./subscriptions";
@@ -400,6 +402,14 @@ function builderStats(name: string, r: Read<BuildRun[]>): BuilderStats | null {
 function buildersCard(raw: AnalyticsRaw): AnalyticsCard {
   const c = builderStats("Claude", raw.builds.claude), x = builderStats("ChatGPT / Codex", raw.builds.codex);
   const metrics: Metric[] = [];
+  metrics.push(unmeasured("Background execution", BACKGROUND_ACTIVATION, "not-connected", "Background runner activation"));
+  if (raw.tasks.status === "read") {
+    const assignment = raw.tasks.data.find((r) => r["id"] === SAFE_HIGHWAYS_ASSIGNMENT);
+    metrics.push(assignment
+      ? live("Safe Highways assignment", str(assignment["status"], 40) || "unknown", SRC.tasks, raw.tasks.at, "neutral",
+          taskExecutionEvidence(typeof assignment["evidence"] === "string" ? assignment["evidence"] : "")?.label ?? "No verified execution receipt. Assignment alone does not start work.")
+      : unmeasured("Safe Highways assignment", "Exact assignment was absent from the bounded Work Board read; its state is unknown.", "not-measured", SRC.tasks));
+  } else metrics.push(missing("Safe Highways assignment", raw.tasks, SRC.tasks));
   const add = (s: BuilderStats | null, read: Read<BuildRun[]>, label: string, source: string) => {
     if (!s) { metrics.push(missing(`${label} builds`, read, source)); return; }
     const rate = s.ok.length + s.bad.length ? Math.round((s.ok.length / (s.ok.length + s.bad.length)) * 100) : null;
@@ -416,7 +426,7 @@ function buildersCard(raw: AnalyticsRaw): AnalyticsCard {
   const headline: Metric = c && x
     ? live("Office builder runs", `Claude ${c.ok.length}/${c.done.length} passed · Codex ${x.ok.length}/${x.done.length} passed`, `${SRC.claude}; ${SRC.codex}`, c.at, "neutral", "Passed / finished runs, all Office builder runs on record (up to 100 per builder).")
     : c || x
-      ? { ...(c ? metrics[0]! : metrics.find((m) => m.label === "ChatGPT / Codex builds")!), label: "Office builder runs", note: `Only ${c ? "Claude" : "Codex"} could be read, so this is not a comparison.` }
+      ? { ...(c ? metrics.find((m) => m.label === "Claude builds")! : metrics.find((m) => m.label === "ChatGPT / Codex builds")!), label: "Office builder runs", note: `Only ${c ? "Claude" : "Codex"} could be read, so this is not a comparison.` }
       : missing("Office builder runs", raw.builds.claude, SRC.claude);
   const series: Series[] = [];
   // Both builders must be read before they are drawn side by side; an unread builder is never drawn as zero.

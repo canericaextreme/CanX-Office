@@ -207,3 +207,7 @@ Task verification now saves and independently reads an immutable Brain evidence 
 ### Canonical goals delivery follow-up
 
 Live blind relay checks on 21 October found both Office API colleagues received only the goal record reference, not its contents. Added one exact-ID goal reader to both colleague prompts, typed Elsie context, voice continuity and working-grant MCP initialization. Tests assert the content arrives without copying it into user messages and failures remain labelled unavailable. External native client recall and live deployment remain acceptance checks. No goal content or private interview answers are committed to the repository.
+
+## Background task candidate — 25 October 2026
+
+Analytics retains existing room sources and adds exact Safe Highways assignment/build receipt display plus an explicit blocked scheduler indicator. Server checkpoint/state-machine libraries are inactive pending scheduler identity, enrolment, control wiring, independent outcome verification and PR236 availability. See [activation prerequisites](background-task-activation.md). No live room, device or production task validation is claimed.
