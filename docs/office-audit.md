@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie bounded text-task loop — local candidate, 24 October 2026
+
+New working-grant connector action coordinates a saved writing task through actual configured Elsie, an Office API worker and Elsie reporting, with exact source reads, one atomic claim per phase, existing budget/settlement checks and independently verified Brain persistence. Original records and normal voice/chat are unchanged. Explicit unknown outcomes never replay. Related relay checks use the live 2,000-character task limits and no silent successful truncation. Local full suite/typecheck/build pass; deployed gateway, live three-phase execution and independent cross-worker retrieval remain unverified. Owner review required for gateway files. See [scope, evidence and acceptance](elsie-text-task-loop.md).
+
 ## Brain handoff capacity — 23 October 2026 (pending deployment)
 
 John requested preserving complete handoffs rather than shortening them. PR213 raises only `office_notes.detail` storage from 2,000 to 12,000 characters, accommodating the existing 11,000-byte serialized handoff contract; RPC byte bounds, ownership, RLS, grants, audit and triggers remain unchanged. Rollback-only PostgreSQL tests preserved full boundary content and rejected 12,001 characters. Migration planning tests isolate the historical baseline and verify the capacity migration is planned once. After merge, confirm the live constraint and original full MCP handoff history/latest readback. Capacity alone does not implement Elsie pickup; acknowledgement and campaign execution remain unverified.

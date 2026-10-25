@@ -75,7 +75,7 @@ async function loadHandoffs(deps: RelayDeps, token: string, ownerId: string): Pr
   return handoffContext(handoffNotes(rows.flat()));
 }
 
-async function callProvider(deps: RelayDeps, c: Colleague, system: string, user: string, signal: AbortSignal): Promise<{ ok: true; id: string; text: string } | { ok: false; status: number; definite: boolean }> {
+export async function callRelayProvider(deps: RelayDeps, c: Colleague, system: string, user: string, signal: AbortSignal): Promise<{ ok: true; id: string; text: string } | { ok: false; status: number; definite: boolean }> {
   const claude = c === 'claude';
   const res = await deps.fetchImpl(claude ? 'https://api.anthropic.com/v1/messages' : 'https://api.openai.com/v1/responses', {
     method: 'POST', signal, redirect: 'manual',
@@ -122,7 +122,10 @@ export async function relayToColleagueWith(deps: RelayDeps, input: RelayInput): 
     : fail(`Request ${input.requestId} was already attempted and its outcome is not saved. It will not be resent; check the task, then use a new request id only if you are sure.`, { repeated: true, uncertain: true });
   if (task.risk !== 'green') return fail('Only a green task can use the colleague relay. Nothing was sent; ask John to mark it green, or use a green linked task.');
   if (task.status === 'done' || task.status === 'cancelled') return fail('This task is finished. Nothing was sent.');
-  if (!task.updated_at || (task.result?.length ?? 0) > 5500 || (task.evidence?.length ?? 0) > 5800) return fail('The task has no room for another saved reply. Nothing was sent; start a new linked task for the next exchange.');
+  // Live task result/evidence constraints are 2000, not the relay RPC's 8000.
+  // Reserve room BEFORE a paid call, including the marker and receipt. Long
+  // conversations belong in per-request Brain records, never truncated history.
+  if (!task.updated_at || (task.result?.length ?? 0) + 1900 > 2000 || (task.evidence?.length ?? 0) + 1100 > 2000) return fail('The task has no room for another complete saved reply. Nothing was sent; use a new linked task or the bounded Elsie text-task Brain record.');
   const budget = await deps.workbench.ensureBudget(input.accessToken, owner.userId);
   if (!budget.ok) return fail('The Office budget could not be checked. Nothing was sent.');
   const [directions, handoffs, goals] = await Promise.all([
@@ -146,15 +149,16 @@ export async function relayToColleagueWith(deps: RelayDeps, input: RelayInput): 
   const user = `${goals}\n\nMessage for you on Work Board task ${task.id}:\n${message}\n\nCurrent shared owner directions (${directions.sources.join('; ')}):\n${directions.text || '(none available)'}${handoffs ? `\n\n${handoffs}` : ''}\n\nSaved task data:\n${JSON.stringify({ id: task.id, title: task.title, detail: task.detail, result: task.result?.slice(-2500) })}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45_000);
-  let answer: Awaited<ReturnType<typeof callProvider>>;
-  try { answer = await callProvider(deps, input.colleague, system, user, controller.signal); }
+  let answer: Awaited<ReturnType<typeof callRelayProvider>>;
+  try { answer = await callRelayProvider(deps, input.colleague, system, user, controller.signal); }
   catch { answer = { ok: false, status: 0, definite: false }; }
   finally { clearTimeout(timer); }
   await deps.workbench.settle(input.accessToken, reservation.reservationId, answer.ok ? 'ok' : 'failed').catch(() => undefined);
   if (!answer.ok) return fail(answer.definite
     ? `${NAME[input.colleague]} refused the request (HTTP ${answer.status}). No reply saved; not retried.`
     : `${NAME[input.colleague]} outcome is uncertain. No reply saved and it will not be retried under this request id.`, { uncertain: !answer.definite, directionSources: directions.sources });
-  const text = answer.text.slice(0, 1800);
+  if (answer.text.length > 1800) return fail('The colleague returned an oversized reply. Nothing was truncated or saved as complete. Keep the full returned reply for recovery; no provider retry.', { text: answer.text, directionSources: directions.sources });
+  const text = answer.text;
   const at = (deps.now?.() ?? new Date()).toISOString();
   const receipt = `Relay receipt ${input.requestId}: ${input.colleague === 'claude' ? 'Anthropic' : 'OpenAI'} response ${answer.id}; model ${model}; ${at}; task ${task.id}; directions ${directions.sources.join('; ')}.`;
   const result = [task.result, `${replyHead(input.requestId, input.colleague, at)}\n${text}`].filter(Boolean).join('\n\n');

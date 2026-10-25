@@ -387,6 +387,15 @@
       "audience": "office-status",
       "summary": "Prepared owner-requested Brain note capacity increase from 2000 to 12000 characters. Full handoff text is preserved. Migration planning regression tests corrected; direct Elsie pickup remains unverified.",
       "evidence": "PR213; PostgreSQL logs identified office_notes_detail_check. Rollback-only boundary tests passed at 2001,11000,12000 characters, with rejection at12001. 33 migration/merge-policy tests passed locally. Deployment and live MCP handoff readback remain pending."
+    },
+    {
+      "id": "2026-10-25-elsie-bounded-text-loop-candidate",
+      "at": "2026-10-25T00:01:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Implemented local bounded Elsie-to-worker text-task candidate with exact Brain context, per-phase atomic claims, existing budget/settlement readback and separate per-request Brain outcomes. Original voice/chat and access controls unchanged. Not deployed or live-verified.",
+      "evidence": "218 files / 2115 local tests, typecheck and build passed. Claude excerpt review led to explicit unknown state for stale claims; no automatic replay. Remote build40144302720 failed before implementation due provider quota. Live schema confirms task result/evidence max2000; relay preflight and oversized-output reporting corrected. Gateway files require owner review. See docs/elsie-text-task-loop.md."
     }
   ]
 }

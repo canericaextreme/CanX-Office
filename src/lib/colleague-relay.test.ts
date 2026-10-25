@@ -30,6 +30,17 @@ function fixture(provider: 'claude' | 'chatgpt' = 'claude') {
 const input = (c: 'claude' | 'chatgpt' = 'claude') => ({ accessToken: 'tok', taskId: 'task-1', requestId: RID, colleague: c, message: 'Please review the welcome note.' });
 
 describe('colleague relay', () => {
+  it('refuses task capacity overflow before charging, using the actual 2000-character database limit', async () => {
+    const f = fixture(); const orig = f.rest.getMockImplementation()!;
+    f.rest.mockImplementation(async (...args) => args[2].startsWith('manager_tasks') ? { ok: true, data: [{ ...base, result: 'x'.repeat(101) }] } : orig(...args));
+    expect(await relayToColleagueWith(f.deps, input())).toMatchObject({ ok: false, detail: expect.stringContaining('no room') });
+    expect(f.fetchImpl).not.toHaveBeenCalled(); expect(f.deps.workbench.reserve).not.toHaveBeenCalled();
+  });
+  it('returns a full oversized response for recovery without silently cutting it or claiming saved success', async () => {
+    const f = fixture(); f.fetchImpl.mockImplementation(async () => Response.json({ id: 'msg_long', stop_reason: 'end_turn', content: [{ type: 'text', text: 'x'.repeat(1801) }] }));
+    expect(await relayToColleagueWith(f.deps, input())).toMatchObject({ ok: false, text: 'x'.repeat(1801), detail: expect.stringContaining('Nothing was truncated') });
+    expect(f.row().result).toBe(base.result);
+  });
   it.each(['claude', 'chatgpt'] as const)('supplies canonical goal contents to %s without pasting them in the message', async colleague => {
     const f = fixture(colleague);
     expect((await relayToColleagueWith(f.deps, input(colleague))).ok).toBe(true);
