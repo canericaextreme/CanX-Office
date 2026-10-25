@@ -7,6 +7,8 @@ import { OwnerSignIn } from "./OwnerSignIn";
 import { OFFICE_ACCOUNT_EVENT } from "@/lib/office-account-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 
+const CODE_PENDING_KEY = "canx-account-code-pending";
+
 export function AccountMenu() {
   const session = useOwnerSession();
   const [open, setOpen] = useState(false);
@@ -15,8 +17,23 @@ export function AccountMenu() {
     window.addEventListener(OFFICE_ACCOUNT_EVENT, show);
     return () => window.removeEventListener(OFFICE_ACCOUNT_EVENT, show);
   }, [session.viewer]);
+  // Android may reload the page while John is in his authenticator app. Remember
+  // that the code step was open so it comes back by itself instead of vanishing.
+  const needsCode = !session.viewer && session.state === "owner" && !session.stepUpComplete;
+  useEffect(() => {
+    try {
+      if (session.stepUpComplete || session.state === "signed_out") window.sessionStorage.removeItem(CODE_PENDING_KEY);
+      else if (open && needsCode) window.sessionStorage.setItem(CODE_PENDING_KEY, "1");
+      else if (!open && needsCode && window.sessionStorage.getItem(CODE_PENDING_KEY) === "1") setOpen(true);
+    } catch { /* Without storage the Account button still works. */ }
+  }, [open, needsCode, session.stepUpComplete, session.state]);
   if (session.viewer) return null;
-  return <Dialog open={open} onOpenChange={setOpen}>
+  const changeOpen = (next: boolean) => {
+    // Closing on purpose means "not now", so do not reopen after a reload.
+    if (!next) try { window.sessionStorage.removeItem(CODE_PENDING_KEY); } catch { /* Keep page state. */ }
+    setOpen(next);
+  };
+  return <Dialog open={open} onOpenChange={changeOpen}>
     <DialogTrigger asChild>
       <Button variant="outline" className="h-11 shrink-0 gap-2 px-3 text-base" aria-label="Account sign-in and authenticator">
         <UserRound className="h-5 w-5" aria-hidden="true" /> Account

@@ -382,6 +382,16 @@ export function OfficeManager() {
   const session = useOwnerSession();
   const token = session.accessToken ?? "";
   const shared = session.shared;
+  // While a saved sign-in is still being checked, asking for the password
+  // again would only create a second sign-in that needs another code.
+  const askForVerification = () => {
+    if (session.state === "checking" || (session.state === "error" && session.savedSession)) {
+      setError("Elsie is still reconnecting to your saved sign-in. Try again in a few seconds; there is no need to sign in again.");
+      return;
+    }
+    setError("Paid Elsie conversations require owner verification in Account. Nothing was sent.");
+    openOfficeAccount();
+  };
   const context = useMemo(() => buildOfficeContext(), []);
   const managerTeam = useMemo(() => teamForManager(loadTeam()), []);
   const persistSummary = useServerFn(saveConversationSummary);
@@ -879,8 +889,7 @@ export function OfficeManager() {
     }
     const handoffId = decision.kind === "attach" ? decision.id : undefined;
     if (!session.stepUpComplete || !token) {
-      setError("Paid Elsie conversations require owner verification in Account. Nothing was sent.");
-      openOfficeAccount();
+      askForVerification();
       if (handoffId) reportHandoff(handoffId, { status: "blocked", detail: "Authenticator step not complete. Nothing was sent.", canResend: true });
       return;
     }
@@ -1099,8 +1108,7 @@ export function OfficeManager() {
     if (realtimeManager.error) recordVoiceDiag("fallback", "fallback", "switched to record-and-reply");
     if (sendingRef.current) return;
     if (!session.stepUpComplete) {
-      setError("Paid Elsie conversations require owner verification in Account. Nothing was sent.");
-      openOfficeAccount();
+      askForVerification();
       return;
     }
     cancelVoiceActivity();
@@ -1187,8 +1195,7 @@ export function OfficeManager() {
 
   const primaryVoiceAction = () => {
     if (!session.stepUpComplete || !token) {
-      setError("Paid Elsie conversations require owner verification in Account. Nothing was sent.");
-      openOfficeAccount();
+      askForVerification();
       return;
     }
     if (realtimeManager.on || !historyReady) return;

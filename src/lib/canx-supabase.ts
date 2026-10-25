@@ -11,6 +11,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getBrowserBackendConfig } from "@/lib/auth.functions";
 
+/** Where the browser keeps the saved sign-in. owner-session.tsx checks it is present. */
+export const AUTH_STORAGE_KEY = "canx-office-auth";
+
 let client: SupabaseClient | null = null;
 let pending: Promise<SupabaseClient | null> | null = null;
 
@@ -35,7 +38,7 @@ export async function loadCanxSupabase(): Promise<SupabaseClient | null> {
         }
         if (!config) return null;
         client = createClient(config.url, config.publishableKey, {
-          auth: { persistSession: true, autoRefreshToken: true, storageKey: "canx-office-auth" },
+          auth: { persistSession: true, autoRefreshToken: true, storageKey: AUTH_STORAGE_KEY },
         });
         return client;
       } catch {

@@ -6,7 +6,7 @@ vi.mock("react", () => ({
   useState: (initial: unknown) => { const index = h.states.push(initial)-1; return [initial,(value: unknown) => {h.states[index]=value;}]; },
   useEffect: (fn: () => () => void) => {h.cleanup=fn();},
 }));
-vi.mock("./canx-supabase", () => ({loadCanxSupabase: async () => ({auth: {
+vi.mock("./canx-supabase", () => ({AUTH_STORAGE_KEY: "canx-office-auth", loadCanxSupabase: async () => ({auth: {
   getSession: h.getSession,
   onAuthStateChange: (cb: (event: string) => void) => {h.event=cb; return {data:{subscription:{unsubscribe:h.unsubscribe}}};},
 }})}));
