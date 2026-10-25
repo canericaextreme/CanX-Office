@@ -1,7 +1,7 @@
 import { it, expect, vi } from 'vitest';
 import { liveElsieTask } from './elsie-task-loop.server';
 const input = { requestId: '20000000-0000-4000-8000-000000000001', taskId: '20000000-0000-4000-8000-000000000002', ruleId: '20000000-0000-4000-8000-000000000003', specNoteId: 'fixture-spec', colleague: 'claude', instruction: 'Write a two-sentence synthetic readiness explanation.' };
-function fixture(options: { denied?: boolean; budget?: boolean; settlement?: boolean; oversized?: boolean } = {}) {
+function fixture(options: { denied?: boolean; budget?: boolean; settlement?: boolean; oversized?: boolean; providerRefused?: boolean; incomplete?: boolean } = {}) {
   let version = 0;
   const rows = new Map<string, { data: Record<string, unknown>; version: string }>();
   const save = (c: string, id: string, data: Record<string, unknown>) => rows.set(`${c}/${id}`, { data: { id, owner_id: 'owner', ...data }, version: String(++version) });
@@ -14,6 +14,8 @@ function fixture(options: { denied?: boolean; budget?: boolean; settlement?: boo
     const address = String(url); const body = JSON.parse(String(init?.body ?? '{}'));
     if (address.startsWith('https://api.')) {
       providers++;
+      if (options.providerRefused) return Response.json({ error: { code: 'unsupported_parameter', param: 'model', message: 'SENSITIVE FIXTURE MUST NOT BE SAVED' } }, { status: 400 });
+      if (options.incomplete) return Response.json({ id: 'incomplete-response', status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output: [] });
       expect(body.tools).toBeUndefined();
       expect(JSON.stringify(body)).toContain('Fixture request'); expect(JSON.stringify(body)).toContain('Fixture rule');
       if (address.includes('anthropic')) return Response.json({ id: 'worker-response', stop_reason: 'end_turn', content: [{ type: 'text', text: 'Actual fixture worker output' }] });
@@ -59,5 +61,14 @@ it.each(['budget', 'settlement', 'oversized'] as const)('fails closed for %s and
   try {
     const f = fixture({ [condition]: true }); expect(await f.run()).toMatchObject({ ok: false, phase: 'failed' });
     const calls = f.providers(); await f.run(); expect(f.providers()).toBe(calls); expect(calls).toBe(condition === 'budget' ? 0 : 1);
+  } finally { vi.unstubAllEnvs(); }
+});
+it.each(['providerRefused', 'incomplete'] as const)('saves a bounded diagnostic for %s without private provider messages or replay', async condition => {
+  vi.stubEnv('OPENAI_API_KEY', 'fixture-only'); vi.stubEnv('OPENAI_MODEL', 'elsie-configured-model');
+  try {
+    const f = fixture({ [condition]: true }); const result = await f.run();
+    expect(result).toMatchObject({ ok: false, phase: 'failed', detail: expect.stringContaining(condition === 'providerRefused' ? 'provider_http_400:unsupported_parameter:model' : 'provider_incomplete:max_output_tokens') });
+    expect(JSON.stringify(result)).not.toContain('SENSITIVE'); expect(JSON.stringify([...f.rows.values()])).not.toContain('SENSITIVE');
+    await f.run(); expect(f.providers()).toBe(1);
   } finally { vi.unstubAllEnvs(); }
 });

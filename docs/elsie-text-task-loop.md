@@ -24,6 +24,8 @@ The caller continues with **identical arguments only when `continue=true`**. Eac
 
 ## Claims, errors and spending
 
+Provider failures retain a sanitized diagnostic: HTTP status plus only allowlisted provider error codes/parameter names, or the fixed incomplete-response reason. Raw provider error messages, inputs and credentials are never saved. Only the application-specific diagnostic error is exposed; arbitrary exceptions keep the generic failure text. Diagnostics do not authorize replay or change a failed request's state.
+
 Existing `canx_write_office_record` unique inserts and exact-version row-locked CAS provide the authoritative request/phase claim before a paid call. No new table, migration, policy, grant, service-role access or cached session exists. Actual AAL is retained; the ordinary interactive manager's AAL2 checks are unchanged. This entry point exposes only bounded internal text generation, not the general manager tool set, builds, external actions, autonomous pickup or background execution.
 
 Every actual model call rechecks working access, reserves against the existing budget and verifies settlement by independently reading the exact reservation's owner, estimate, outcome and settlement timestamp. Failure never triggers another provider attempt. Source/response size bounds refuse excessive content rather than cutting it. Persistence recovery retries only the exact result write after verifying the unchanged claimed version. Failed readback returns recovery text without a success claim.

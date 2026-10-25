@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie loop provider diagnostics — 24 October 2026
+
+The first published task-message attempt reached the live engine, read the exact sources and saved a failed outcome. A follow-up diagnostic change preserves only allowlisted provider codes/parameter names or fixed incomplete reasons in that failed outcome; generic exceptions and raw provider messages remain hidden. No automatic provider replay or model/configuration change is introduced. A failed attempt is not a loop acceptance pass.
+
 ## Elsie task messages over the existing colleague connection — 24 October 2026
 
 The existing `relay_to_colleague` message channel accepts a strict, explicitly marked `CANX_ELSIE_TEXT_TASK_V1` message carrying the exact Brain spec, standing rule and bounded instruction. It dispatches to the same three-phase Elsie text-task engine; existing client schemas and permissions are unchanged. Each call runs at most one phase and returns its actual Brain record/continuation state. Invalid reserved messages never become ordinary paid relays. This provides a supported task-message path for already-connected clients; it does not claim their cached tool inventory was refreshed. Local and live acceptance results are recorded separately in the shared log and Brain. See [contract and boundaries](elsie-text-task-loop.md).

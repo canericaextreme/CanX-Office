@@ -1,5 +1,5 @@
 import type { BackendConfig, OwnerVerification } from './canx-backend.server';
-import { runElsieTaskWith, type ElsieTaskDeps, type LoopRecord } from './elsie-task-loop';
+import { runElsieTaskWith, ElsieTaskFailure, type ElsieTaskDeps, type LoopRecord } from './elsie-task-loop';
 import { relayWorkbench } from './colleague-relay.server';
 import { callRelayProvider } from './colleague-relay';
 import { MANAGER_SYSTEM_PROMPT } from './manager.functions';
@@ -56,7 +56,8 @@ export async function liveElsieTask(config: BackendConfig, verify: (t: string) =
       const valid = answer.ok && answer.text.length <= 1800;
       // Settlement failure is surfaced, never hidden and never a reason to repeat a call.
       await settle(t, reservation.reservationId, valid ? 'ok' : 'failed', auth.userId);
-      if (!answer.ok || !valid) throw Error('Provider reply incomplete or oversized');
+      if (!answer.ok) throw new ElsieTaskFailure(answer.diagnostic ?? `provider_unconfirmed_http_${answer.status}`);
+      if (!valid) throw new ElsieTaskFailure('provider_response_oversized');
       return { text: answer.text, responseId: answer.id, model };
     },
   };
