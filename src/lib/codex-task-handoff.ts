@@ -40,8 +40,11 @@ export interface CodexHandoffGate {
  * search box at the top of the page") is a code-change request even when the
  * model forgets to set the flag. Risk and protected checks still apply.
  */
-const CHANGE_VERBS = /\b(separate|space|remove|hide|add|apply|change|move|rename|replace|fix|resize|recolou?r|make|put|show|update|create|write|build|implement|code|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)\b/i;
-const UI_TARGETS = /\b(page|screen|buttons?|box|search|header|footer|banner|menu|nav(igation)?|layout|panel|card|icon|logo|text|writing|letters|label|title|colou?r|font|link|field|form|room|reception|sidebar|toolbar|tab)\b/i;
+// 21 Oct 2026 (John: "she needs to hear the tasks"): "separate the ChatGPT and Claude buttons"
+// was refused because "separate" was missing. Layout and wording verbs count like "move".
+export const CHANGE_WORDS = String.raw`build|implement|code|fix|repair|apply|create|write|add|remove|delete|hide|unhide|change|move|shift|nudge|separate|space(?: out)?|spread(?: out)?|split|align|cent(?:er|re)|stack|swap|shrink|enlarge|widen|narrow|shorten|lengthen|rename|relabel|reword|replace|resize|recolou?r|colou?r|highlight|make|put|place|update|adjust|tweak|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy|clean up|simplify|restore|bring back|get rid of|take (?:out|off|away)`;
+const CHANGE_VERBS = new RegExp(String.raw`\b(?:${CHANGE_WORDS}|show)\b`, "i");
+const UI_TARGETS = /\b(page|screen|button|box|search|header|footer|banner|menu|nav(igation)?|layout|panel|card|icon|logo|text|writing|letters|label|title|colou?r|font|link|field|form|room|reception|sidebar|toolbar|tab)(?:s|es)?\b/i;
 const SOURCE_TARGETS = /\b(file|component|function|test)\b|\b(?:src|docs|public)\//i;
 export function looksLikeOfficeCodeChange(text: string): boolean {
   const t = text.trim();
