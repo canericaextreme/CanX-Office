@@ -1,0 +1,32 @@
+# Office Hours — local draft
+
+Owner request: measure how long building an Office takes. Requested reporting start is **24 October 2026, America/Dawson_Creek (UTC−07)**. This draft does not seed or backfill hours from that date. Actual activation is the first observed interval after deployment, owner two-step sign-in, and a successful shared-history read. This checkout has not been deployed or connected to production for acceptance.
+
+## Implemented behavior
+
+- A recorder wraps the existing Office interior and survives navigation between rooms. It does not run in public, signed-out, one-step-only or assistant-viewer sessions.
+- Every 10 seconds, observed elapsed time is checkpointed into an owner-keyed, immutable local-storage record. A normal page close checkpoints the final partial interval. Unexpected termination may lose the last uncheckpointed interval (up to about 10 seconds). Long throttling/sleep gaps over 30 seconds are excluded rather than invented.
+- Existing owner/MFA verification and token-scoped database requests save separate `office_notes` rows with source `Office Hours: v1`. No schema, policy, credential, provider connection, budget or builder control changes. Insert-ignore plus exact content readback makes retries idempotent. Existing records are never overwritten or deleted.
+- Shared saves and control refresh run every 60 seconds, with at most 100 queued records per call. Offline pending records remain on the device across reloads. A reopened Office reads shared history before recording; closed/reload gaps are not backfilled. Clearing browser storage before sync loses pending records. Queue backlog drains over subsequent syncs.
+- Each immutable record has its own device-storage key, so tabs can append and confirm the same records without overwriting each other's queues. Analytics takes the union of open intervals across tabs/devices, and independently the union of estimated active intervals. Duplicate delivery never adds hours twice. Cross-device clocks must be correct; this is browser elapsed evidence, not a certified timesheet.
+- Active time uses input activity and a visible default five-minute idle threshold (configurable from one to 60 minutes). Standard Office voice phases and live Office voice connections supply a content-free activity flag. A connected voice session can be idle, so this remains explicitly an estimate. Native external ChatGPT/Claude voice cannot be observed.
+- Pause/resume and idle settings are durable timestamped control records. The latest control wins (UUID breaks equal-time ties); same-view sequential controls use increasing timestamps. Other online devices pick up controls on their next sync; totals also apply saved pause intervals retrospectively to late uploads. Offline controls are provisional until shared.
+- Daily, Monday-based weekly and monthly views split elapsed intervals at Dawson Creek midnight, show open and estimated-active bars, period values and running totals. Manual signed-minute adjustments require a date since actual activation and a reason; they remain separately itemized with preserved history. Measured totals stay separate from adjusted totals.
+- Tracker records are excluded **before pagination** from generic Notes, Brain, room snapshot, pre-trip and Elsie note readers so they cannot crowd ordinary owner records out of recent-history windows. Existing access checks stay intact. No app writer touches the database-owned work-event logbook.
+- History is fully paginated at first load. Incremental reads use an inclusive server-time cursor and deduplicate on record ID. Failures show unavailable/provisional status rather than converting an unread history into a zero total.
+
+## Limits and protected work
+
+“Whenever the Office is open” is limited to the existing owner two-step session. One-step Office access cannot save these protected notes under the existing rules. Recording before MFA would require separate authorization for a different storage/access design; it is not implemented here. Background browser suspension, app termination, deleted local storage and external voice sessions cannot be fully observed. Manual corrections are available for known missed time.
+
+The existing notes infrastructure avoids a migration but creates about 360 small records per observed hour per tab. Generic room readers exclude this technical source, while generic owner API exports can still contain it. Large histories require performance/retention review; no automatic deletion or compaction is introduced. A dedicated compact telemetry store would be a separately approved database change. No claim of long-history load testing is made.
+
+The existing Codex draft workflow was used by working in this supplied checkout. No new builder run, paid call, push, PR, merge, publication, Brain write or production query was made.
+
+## Validation and acceptance
+
+Local tests cover elapsed calculation, idle cutoff, voice evidence, sleep gaps, overlap union, duplicate delivery, Dawson Creek midnight/week/month grouping, pause reconciliation, correction separation, reload recovery, failed-save retry, owner/viewer denial, exact-content readback, pagination, incremental cursor and desktop/phone DOM display. The full suite passed (221 files, 2,173 tests); the latest focused run also passed 17 tests including three subsequently added cases. Typecheck and production build passed. These are local results, not signed-in production verification.
+
+Offline visual fixture: `tests/office-hours-visual/` has no live service calls and uses synthetic records clearly labeled as simulated. Its Vite build succeeds. Browser execution could not be verified here: the sandbox rejects a local preview listener (`listen EPERM`) and Chromium fails to start its crash handler (`setsockopt: Operation not permitted`). DOM viewport fixtures do not verify CSS layout or touch behavior.
+
+Before deployment acceptance, John must verify on desktop and phone: initial MFA activation time; two devices and two tabs open simultaneously; navigate rooms; reload; disconnect/reconnect; lock/sleep/unlock; standard/live microphone use beyond the idle threshold; pause/resume propagation; manual correction; day/week/month switching; and shared record readback after all tabs close. Check mobile wrapping, horizontal table scrolling and touch controls. Deployment and signed-in health are unverified. **DO NOT PUBLISH YET** as an acceptance status; publication was explicitly excluded from this task.

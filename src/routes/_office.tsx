@@ -1,3 +1,4 @@
+import { OfficeHoursProvider } from "@/components/office/OfficeHours";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { OfficeNav } from "@/components/office/OfficeNav";
 import { RoomReports } from "@/components/office/RoomReports";
@@ -63,9 +64,11 @@ function OfficeLayout() {
   return (
     <OfficeThemeProvider>
       <OwnerSessionProvider>
-        {canBrowseOfficeWithoutSignIn(import.meta.env.DEV)
-          ? <OfficeInterior />
-          : <OfficeGate><OfficeInterior /></OfficeGate>}
+        <OfficeHoursProvider>
+          {canBrowseOfficeWithoutSignIn(import.meta.env.DEV)
+            ? <OfficeInterior />
+            : <OfficeGate><OfficeInterior /></OfficeGate>}
+        </OfficeHoursProvider>
       </OwnerSessionProvider>
     </OfficeThemeProvider>
   );

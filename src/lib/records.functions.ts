@@ -89,7 +89,7 @@ export const listSharedNotes = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ({ accessToken: tokenOf(input) }))
   .handler(async ({ data }): Promise<RecordsResult<OfficeNote[]>> =>
     withOwnerRead<OfficeNote[]>(data.accessToken, async ({ config, token, rest }) => {
-      const response = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=300");
+      const response = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=300&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)");
       if (!response.ok) return fail("backend_error", "The shared records could not be read.");
       const rows = Array.isArray(response.body) ? response.body : [];
       const notes = rows

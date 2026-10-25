@@ -167,6 +167,7 @@ export function noteDefaultCategory(
   if (source === "CanX Brain: continuity") return "memory";
   if (source.startsWith("CanX Brain:")) return "unsorted";
   if (
+    source === "Office Hours: v1" ||
     source === "Legal room: document filing" ||
     source === "Brain shelf: filing" ||
     source === CATEGORY_NOTE_SOURCE ||

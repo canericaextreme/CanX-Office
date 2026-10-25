@@ -1,3 +1,4 @@
+import { OfficeHoursPanel } from "@/components/office/OfficeHours";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -292,6 +293,7 @@ function AnalyticsRoom() {
     <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] px-4 py-4 text-white md:px-6">
       <Backdrop />
       <AnalyticsBoard load={load} onRefresh={() => void refresh()} busy={busy} canAsk={!session.viewer} deviceCheck={deviceCheck} />
+      <OfficeHoursPanel />
       <BrainActivityCharts viewer={!!session.viewer} />
       <div className="relative mx-auto mt-4 max-w-[1500px] space-y-3"><RoomSkillsLink route="/analytics" /><OfficeFiles room="analytics" /></div>
     </main>

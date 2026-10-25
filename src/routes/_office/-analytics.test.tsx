@@ -7,6 +7,8 @@ import { buildAnalyticsOverview } from "@/lib/analytics-overview";
 import { MANAGER_HANDOFF_EVENT, type ManagerHandoff } from "@/lib/companion-bridge";
 import { fixtureRaw } from "@/lib/analytics-overview.fixture";
 
+vi.mock("@/components/office/OfficeHours", () => ({ OfficeHoursPanel: () => <section>Office Hours</section> }));
+
 const session = { accessToken: "fixture" as string | null, viewer: false };
 const snapshotFn = vi.fn();
 vi.mock("@tanstack/react-router", async (importOriginal) => ({ ...(await importOriginal<object>()), createFileRoute: () => (options: unknown) => options }));

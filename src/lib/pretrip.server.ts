@@ -137,7 +137,7 @@ export async function runPreTripWith(deps: PreTripDeps, trigger: PreTripTrigger)
       }));
     }),
     guard(left(), { id: "brain", area: "Brain", label: "CanX Brain" }, async () => {
-      const notes = await get(`office_notes?select=id,updated_at&${owner(deps.ownerId)}&order=updated_at.desc&limit=3`);
+      const notes = await get(`office_notes?select=id,updated_at&${owner(deps.ownerId)}&order=updated_at.desc&limit=3&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)`);
       return { id: "brain", area: "Brain", label: "CanX Brain", status: notes.length ? "green" : "yellow", detail: notes.length ? `Readable; newest note saved ${ago(notes[0]!["updated_at"], start)}.` : "Readable but no notes found." };
     }),
     guard(left(), { id: "continuity", area: "Memory", label: "Yesterday's work and decisions" }, async () => {
