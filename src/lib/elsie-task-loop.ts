@@ -11,6 +11,8 @@ export const elsieTaskInput = z.object({
 export type ElsieTaskInput = z.infer<typeof elsieTaskInput>;
 export interface LoopRecord { data: Record<string, unknown>; version: string }
 export interface LoopAnswer { text: string; responseId: string; model: string }
+/** Only explicitly sanitized application diagnostics may reach saved failures. */
+export class ElsieTaskFailure extends Error {}
 export interface ElsieTaskDeps {
   verify: (token: string) => Promise<OwnerVerification>;
   read: (token: string, collection: string, id: string) => Promise<LoopRecord | null>;
@@ -106,8 +108,10 @@ export async function runElsieTaskWith(deps: ElsieTaskDeps, token: string, value
     if (!recovery.text.trim() || recovery.text.length > 1800 || !recovery.responseId || !recovery.model)
       throw new Error('Incomplete or oversized provider reply');
     next = { ...claimed, phase: step.next, [step.field]: recovery, finishedAt: (deps.now?.() ?? new Date()).toISOString() };
-  } catch {
-    next = { ...claimed, phase: 'failed', failure: 'Provider, budget or settlement failed or returned an incomplete reply. The claimed phase will not be repeated.' };
+  } catch (error) {
+    next = { ...claimed, phase: 'failed', failure: error instanceof ElsieTaskFailure
+      ? `${error.message}. The claimed phase will not be repeated.`
+      : 'Provider, budget or settlement failed or returned an incomplete reply. The claimed phase will not be repeated.' };
   }
   const data = note(next);
   if (new TextEncoder().encode(JSON.stringify(data)).length > 11000)

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { relayToColleagueWith, readColleagueRepliesWith, relayEntries, type RelayDeps } from './colleague-relay';
+import { callRelayProvider, relayToColleagueWith, readColleagueRepliesWith, relayEntries, type RelayDeps } from './colleague-relay';
 import type { ManagerTask, WorkbenchDeps } from './manager-work.functions';
 import { officeWorkBuildWith } from './office-work.server';
 import { OFFICE_WORK_TOOLS, validWorkArguments } from './office-mcp-work';
@@ -30,6 +30,16 @@ function fixture(provider: 'claude' | 'chatgpt' = 'claude') {
 const input = (c: 'claude' | 'chatgpt' = 'claude') => ({ accessToken: 'tok', taskId: 'task-1', requestId: RID, colleague: c, message: 'Please review the welcome note.' });
 
 describe('colleague relay', () => {
+  it.each([
+    ['unsupported_parameter', 'PRIVATE_PARAM', 'unsupported_parameter:unclassified'],
+    ['PRIVATE_CODE', 'model', 'unclassified:model'],
+    ['PRIVATE_CODE', 'PRIVATE_PARAM', 'unclassified:unclassified'],
+  ])('filters diagnostic code and parameter independently: %s/%s', async (code, param, expected) => {
+    const f = fixture('chatgpt'); f.fetchImpl.mockImplementation(async () => Response.json({ error: { code, param, message: 'PRIVATE_MESSAGE' } }, { status: 400 }));
+    const r = await callRelayProvider(f.deps, 'chatgpt', 'system', 'user', new AbortController().signal);
+    expect(r).toMatchObject({ ok: false, diagnostic: `provider_http_400:${expected}` });
+    expect(JSON.stringify(r)).not.toContain('PRIVATE');
+  });
   it('refuses task capacity overflow before charging, using the actual 2000-character database limit', async () => {
     const f = fixture(); const orig = f.rest.getMockImplementation()!;
     f.rest.mockImplementation(async (...args) => args[2].startsWith('manager_tasks') ? { ok: true, data: [{ ...base, result: 'x'.repeat(101) }] } : orig(...args));

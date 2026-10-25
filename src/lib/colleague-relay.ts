@@ -75,7 +75,7 @@ async function loadHandoffs(deps: RelayDeps, token: string, ownerId: string): Pr
   return handoffContext(handoffNotes(rows.flat()));
 }
 
-export async function callRelayProvider(deps: RelayDeps, c: Colleague, system: string, user: string, signal: AbortSignal): Promise<{ ok: true; id: string; text: string } | { ok: false; status: number; definite: boolean }> {
+export async function callRelayProvider(deps: RelayDeps, c: Colleague, system: string, user: string, signal: AbortSignal): Promise<{ ok: true; id: string; text: string } | { ok: false; status: number; definite: boolean; diagnostic?: string }> {
   const claude = c === 'claude';
   const res = await deps.fetchImpl(claude ? 'https://api.anthropic.com/v1/messages' : 'https://api.openai.com/v1/responses', {
     method: 'POST', signal, redirect: 'manual',
@@ -87,7 +87,14 @@ export async function callRelayProvider(deps: RelayDeps, c: Colleague, system: s
       : { model: deps.openaiModel, store: false, instructions: system, input: [{ role: 'user', content: user }], max_output_tokens: 900 }),
   });
   // 4xx (other than 408/409/429) means the provider refused before doing work.
-  if (!res.ok) return { ok: false, status: res.status, definite: res.status >= 300 && res.status < 500 && ![408, 409, 429].includes(res.status) };
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    // Only fixed, allowlisted codes/parameter names; never provider messages,
+    // request bodies, headers, credentials or arbitrary error text.
+    const code = ['unsupported_parameter', 'unsupported_value', 'model_not_found', 'invalid_api_key', 'insufficient_quota', 'context_length_exceeded', 'invalid_request_error'].includes(body?.error?.code) ? body.error.code : 'unclassified';
+    const param = ['model', 'max_output_tokens', 'max_tokens', 'instructions', 'input', 'store', 'reasoning', 'temperature'].includes(body?.error?.param) ? body.error.param : 'unclassified';
+    return { ok: false, status: res.status, definite: res.status >= 300 && res.status < 500 && ![408, 409, 429].includes(res.status), diagnostic: `provider_http_${res.status}:${code}:${param}` };
+  }
   const p = await res.json().catch(() => null) as Record<string, unknown> | null;
   if (!p) return { ok: false, status: res.status, definite: false };
   if (claude) {
@@ -97,7 +104,10 @@ export async function callRelayProvider(deps: RelayDeps, c: Colleague, system: s
   }
   const out = (p['output'] ?? []) as { type: string; content?: { type: string; text?: string }[] }[];
   const text = (typeof p['output_text'] === 'string' ? p['output_text'] as string : out.filter(x => x.type === 'message').flatMap(x => x.content ?? []).filter(x => x.type === 'output_text').map(x => x.text ?? '').join('\n')).trim();
-  if (p['status'] !== 'completed' || typeof p['id'] !== 'string' || !text) return { ok: false, status: res.status, definite: false };
+  if (p['status'] !== 'completed' || typeof p['id'] !== 'string' || !text) {
+    const reason = (p['incomplete_details'] as { reason?: unknown } | undefined)?.reason;
+    return { ok: false, status: res.status, definite: false, diagnostic: reason === 'max_output_tokens' ? 'provider_incomplete:max_output_tokens' : reason === 'content_filter' ? 'provider_incomplete:content_filter' : 'provider_response_incomplete' };
+  }
   return { ok: true, id: p['id'] as string, text };
 }
 
