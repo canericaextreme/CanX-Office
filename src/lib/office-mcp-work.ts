@@ -38,6 +38,9 @@ const tool = (name: string, description: string, inputSchema: unknown, readOnly 
   },
 });
 export const OFFICE_WORK_TOOLS = [
+  tool('run_elsie_text_task',
+    'Run one phase of an explicitly requested internal writing task through Elsie, an Office API worker, and Elsie result reporting. Saves each phase to Brain with readback. Call again with IDENTICAL arguments only when continue=true. A claimed/unknown phase is never replayed. No builds, general tools, unattended execution or native-chat synchronization. Requires exact open green Office Manager task, Brain request and active standing rule. Read the returned Brain record independently before reporting completion.',
+    schema({requestId:{type:'string',format:'uuid'},taskId:{type:'string',format:'uuid'},specNoteId:{type:'string',maxLength:100},ruleId:{type:'string',format:'uuid'},colleague:{type:'string',enum:['claude','chatgpt']},instruction:{type:'string',minLength:10,maxLength:2000}},['requestId','taskId','specNoteId','ruleId','colleague','instruction']),false),
   tool(
     "read_office_records",
     "Read saved owner records, including private records, Brain notes and memory, room files, knowledge content, tasks, Finance and the Brain work logbook (office_work_events: every move of work between rooms and stages, newest first, read-only). Follow nextOffset to read remaining records. Versions are required for updates.",
