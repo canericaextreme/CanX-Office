@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie task messages over the existing colleague connection — 24 October 2026
+
+The existing `relay_to_colleague` message channel accepts a strict, explicitly marked `CANX_ELSIE_TEXT_TASK_V1` message carrying the exact Brain spec, standing rule and bounded instruction. It dispatches to the same three-phase Elsie text-task engine; existing client schemas and permissions are unchanged. Each call runs at most one phase and returns its actual Brain record/continuation state. Invalid reserved messages never become ordinary paid relays. This provides a supported task-message path for already-connected clients; it does not claim their cached tool inventory was refreshed. Local and live acceptance results are recorded separately in the shared log and Brain. See [contract and boundaries](elsie-text-task-loop.md).
+
 ## Elsie bounded text-task loop — local candidate, 24 October 2026
 
 New working-grant connector action coordinates a saved writing task through actual configured Elsie, an Office API worker and Elsie reporting, with exact source reads, one atomic claim per phase, existing budget/settlement checks and independently verified Brain persistence. Original records and normal voice/chat are unchanged. Explicit unknown outcomes never replay. Related relay checks use the live 2,000-character task limits and no silent successful truncation. Local full suite/typecheck/build pass; deployed gateway, live three-phase execution and independent cross-worker retrieval remain unverified. Owner review required for gateway files. See [scope, evidence and acceptance](elsie-text-task-loop.md).

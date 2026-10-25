@@ -5,6 +5,7 @@ import { codexBuildsWith } from './codex-builds.server';
 import { claudeBuildsWith, CLAUDE_BUILD_MAX_USD } from './claude-builds.server';
 import type { OwnerVerification } from './canx-backend.server';
 import { elsieTaskInput } from './elsie-task-loop';
+import { readElsieTaskMessage } from './elsie-task-message';
 const input=z.discriminatedUnion('action',[
  z.object({action:z.literal('submit'),requestId:z.string().uuid(),request:z.string().min(10).max(6000)}).strict(),
  z.object({action:z.literal('status'),builder:z.enum(['codex','claude']),runId:z.number().int().positive().optional(),prNumber:z.number().int().positive().optional()}).strict(),
@@ -26,7 +27,12 @@ export async function officeWorkBuildWith(deps:OfficeWorkBuildDeps,token:string,
  if(!(await deps.verify(token)).ok)throw Error('Current working permission required');
  const data=parsed.data;
  if(data.action==='status')return deps.build(data.builder,token,undefined,data.prNumber,data.runId);
- if(data.action==='relay')return deps.relay?deps.relay(token,{requestId:data.requestId,taskId:data.taskId,colleague:data.colleague,message:data.message}):{ok:false,detail:'Colleague relay is not available. Nothing was sent.'};
+ if(data.action==='relay'){
+  const message=readElsieTaskMessage(data);
+  if(message.kind==='invalid')return {ok:false,detail:'Invalid Elsie task message. Nothing was sent or executed.'};
+  if(message.kind==='elsie')return deps.elsieTask?deps.elsieTask(token,message.input):{ok:false,detail:'Elsie text-task coordinator is unavailable. Nothing was executed.'};
+  return deps.relay?deps.relay(token,{requestId:data.requestId,taskId:data.taskId,colleague:data.colleague,message:data.message}):{ok:false,detail:'Colleague relay is not available. Nothing was sent.'};
+ }
  if(data.action==='relay_read')return deps.relayRead?deps.relayRead(token,data.taskId):{ok:false,detail:'Colleague relay is not available.'};
  if(data.action==='elsie_task'){const {action,...args}=data;return deps.elsieTask?deps.elsieTask(token,args):{ok:false,detail:'Elsie text-task coordinator is unavailable. Nothing was executed.'};}
  const choice=builderChoiceFor(data.request);if('conflict' in choice)return {ok:false,detail:'Your request names both Claude and Codex. Name one builder, or write "Codex only" or "Claude only"; nothing submitted.'};

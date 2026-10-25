@@ -3,6 +3,7 @@ import { runElsieTaskWith, elsieTaskRecordId, type ElsieTaskDeps, type LoopRecor
 import { officeWorkBuildWith } from './office-work.server';
 import { officeMcpWorkWith } from './office-mcp-work-service';
 import { validWorkArguments } from './office-mcp-work';
+import { ELSIE_TASK_MESSAGE_PREFIX } from './elsie-task-message';
 
 const taskId = '10000000-0000-4000-8000-000000000001';
 const ruleId = '10000000-0000-4000-8000-000000000002';
@@ -26,6 +27,22 @@ function fixture() {
   return { deps, rows, put, read, write, call, id: elsieTaskRecordId('owner', input.requestId) };
 }
 describe('bounded Elsie text-task loop', () => {
+  it('runs the same three phases through an explicit existing-relay task message and retains final idempotency', async () => {
+    const f = fixture();
+    const envelope = { action: 'relay', requestId: input.requestId, taskId, colleague: input.colleague,
+      message: ELSIE_TASK_MESSAGE_PREFIX + JSON.stringify({ specNoteId: input.specNoteId, ruleId, instruction: input.instruction }) };
+    const relay = vi.fn(); const build = vi.fn(); const rpc = vi.fn();
+    const invoke = () => officeWorkBuildWith({ verify: f.deps.verify, relay, build, rpc,
+      elsieTask: (token, value) => runElsieTaskWith(f.deps, token, value) }, 'caller', envelope);
+    expect(await invoke()).toMatchObject({ phase: 'planned', continue: true, recordId: f.id });
+    expect(await invoke()).toMatchObject({ phase: 'worked', continue: true });
+    expect(await invoke()).toMatchObject({ phase: 'complete', continue: false, ok: true });
+    expect(await invoke()).toMatchObject({ phase: 'complete', ok: true });
+    expect(f.call.mock.calls.map(c => c[1])).toEqual(['elsie', 'claude', 'elsie']);
+    expect(relay).not.toHaveBeenCalled(); expect(build).not.toHaveBeenCalled(); expect(rpc).not.toHaveBeenCalled();
+    const checked = await f.read('caller', 'office_notes', f.id);
+    expect(JSON.parse(String(checked!.data['detail'])).phase).toBe('complete');
+  });
   it('runs actual coordinator/worker/report callbacks in three phases, records sources and preserves originals', async () => {
     const f = fixture(); const original = structuredClone(f.rows.get(`manager_tasks/${taskId}`));
     expect(await runElsieTaskWith(f.deps, 'caller', input)).toMatchObject({ phase: 'planned', continue: true, ok: false });
