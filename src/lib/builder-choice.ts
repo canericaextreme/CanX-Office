@@ -42,14 +42,14 @@ const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|
 const CHANGE = String.raw`(?:separate|space|build|implement|code|fix|repair|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 // Explicit builder dispatch wording: "Start a new Codex build to repair ...".
-const DIRECT_START = /^(?:please\s+)?(?:(?:elsie|chatgpt)[,:]?\s+)?(?:start|launch|submit|run|kick off)\s+(?:a |the )?(?:new |fresh )?(?:(?:codex|claude)\s+)?build\s+to\s+(?:build|implement|fix|repair|change|update|add|remove)\b/i;
-// Voice transcripts and Office chat can prepend conversational lead-ins; the
-// explicit start-build clause remains owner-authored and still passes all gates.
-const DIRECT_START_CLAUSE = /\\b(?:start|launch|submit|run|kick off)\\s+(?:a |the )?(?:new |fresh )?(?:(?:codex|claude)\\s+)?build\\s+to\\s+(?:build|implement|fix|repair|change|update|add|remove)\\b/i;
+const DIRECT_START = new RegExp(`${COMMAND_PREFIX}(?:start|launch|submit|run|kick off)\\s+(?:a |the )?(?:new |fresh )?(?:(?:codex|claude)\\s+)?build\\s+to\\s+(?:build|implement|fix|repair|change|update|add|remove)\\b`, 'i');
 export const isDirectBuildCommand = (request: string): boolean =>
-  sentences(request).some(part => DIRECT_START.test(part) ||
-    (/^(?:(?:okay|ok|yeah|yes|right|well|so)[,.!]?\\s+)*.{0,100}?(?:elsie|chatgpt)[,:]\\s+/i.test(part) && DIRECT_START_CLAUSE.test(part)));
+  sentences(request).some(part => DIRECT_START.test(part));
 const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:execute|carry out|run|start|do|begin|pass|kick off) (?:the |this |my |that |whatever )?(?:saved |existing |waiting )?(?:task|job|work|assignment)\\b|${COMMAND_PREFIX}(?:send|submit) (?:the |this |my )?(?:saved |existing )?(?:task|job) to (?:claude|codex|the builder)\\b`, "i");
+// Resume wording is permission to address an exact saved task, not permission
+// to invent its scope or start another attempt. The executor still reads its
+// status, existing receipt, owner, risk and protected scope before dispatch.
+const FOLLOWUP_TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:(?:finish|complete|continue|resume)(?: working on| work on)?|carry on(?: with)?|keep (?:working|going)(?: on| with)?)\\s+(?:the |this |that |my |our )?(?:saved |existing |current |waiting |unfinished )?(?:task|job|assignment|fix|repair|loop(?: test)?)\\b|${COMMAND_PREFIX}get\\s+(?:the |this |that )?(?:task|job|fix|repair|loop test)\\s+(?:done|finished|completed)\\b`, 'i');
 
 // What John wants the screen to do, said as a wish: "I want the button to say …",
 // "It should only say Work with Claude". Wishes to know or see status are not changes.
@@ -60,7 +60,7 @@ const sentences = (text: string): string[] =>
   text.trim().split(/(?<=[.!?;])\s+/).map(part => part.replace(OPENER, "").trim()).filter(Boolean);
 /** Any sentence of John's request is a direct change instruction or a clear wish for one. */
 const hasBuildIntent = (text: string): boolean => sentences(text).some(part => BUILD_INTENT.test(part) || DESIRE.test(part));
-const hasTaskIntent = (text: string): boolean => sentences(text).some(part => TASK_INTENT.test(part));
+const hasTaskIntent = (text: string): boolean => sentences(text).some(part => TASK_INTENT.test(part) || FOLLOWUP_TASK_INTENT.test(part));
 
 const EXPLICIT_HANDOFF = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:this |the |my )?(?:task|job|assignment|request)?\s*(?:to\s+claude\b|to\s+codex\b|for\s+claude\b|for\s+codex\b)/i;
 const HANDOFF_PREFIX = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:it |this |the |my )?(?:task |job |assignment |request )?(?:to|for)\s+(?:the\s+)?(?:builder|claude|codex)(?:\s+(?:next|after (?:the|its) current (?:build|job|task)))?\s*[:,\-–—]\s*/i;
@@ -100,7 +100,7 @@ export function directBuildRefusal(request: string, builder: OfficeBuilder): str
   const choice = builderChoiceFor(request);
   if ("conflict" in choice) return "Your request names both Claude and Codex. Say which one builder should do it; nothing was sent.";
   if (choice.builder !== builder) return `Your request chose ${BUILDER_LABEL[choice.builder]}, so nothing was sent to ${BUILDER_LABEL[builder]}.`;
-  if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !hasBuildIntent(text))) return "That was a status question, so no build was started.";
+  if (isCodexStatusCommand(text) || isClaudeStatusCommand(text) || (/\?\s*$/.test(text) && !hasBuildIntent(text) && !isDirectBuildCommand(text))) return "That was a status question, so no build was started.";
   if (requestIsDiscussionOnly(request)) return "That reads as discussion or an example, so no build was started.";
   if (!hasBuildIntent(text) && !isDirectBuildCommand(text)) return "No explicit Office code change was requested, so no build was started.";
   if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";

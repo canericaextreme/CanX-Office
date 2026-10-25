@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Routine phrase variants and precise quota evidence — 24 October 2026
+
+Clear finish/continue/resume/carry-on wording now classifies as existing-task intent instead of requiring a magic execution verb. It does not authorize a new build; the normal saved-task executor retains current state, ownership, risk, budget and existing-attempt checks. Polite explicit build requests use the same command grammar. Stops/status/discussion remain inert. The live loop's separate HTTP429 cause can now retain documented rate/credit/spend/usage codes, an allowlisted type and numeric Retry-After. No limit, model or auto-retry change. See [phrase regression contract](office-phrase-contract.md).
+
 ## Elsie loop provider diagnostics — 24 October 2026
 
 The first published task-message attempt reached the live engine, read the exact sources and saved a failed outcome. A follow-up diagnostic change preserves only allowlisted provider codes/parameter names or fixed incomplete reasons in that failed outcome; generic exceptions and raw provider messages remain hidden. No automatic provider replay or model/configuration change is introduced. A failed attempt is not a loop acceptance pass.
