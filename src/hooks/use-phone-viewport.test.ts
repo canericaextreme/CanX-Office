@@ -44,6 +44,38 @@ describe("Elsie's reachable phone composer", () => {
     expect(result.current.style?.top).toBe(0);
   });
 
+  it("refits the open phone panel on portrait–landscape–portrait rotation", () => {
+    const visual = Object.assign(new EventTarget(), { width: 393, height: 851, offsetLeft: 0, offsetTop: 0 });
+    vi.stubGlobal("visualViewport", visual);
+    vi.stubGlobal("matchMedia", () => Object.assign(new EventTarget(), { matches: true }));
+    const { result } = renderHook(usePhoneViewport);
+
+    for (const size of [{ width: 851, height: 393 }, { width: 393, height: 851 }]) {
+      act(() => { Object.assign(visual, size); visual.dispatchEvent(new Event("resize")); });
+      expect(result.current.phone).toBe(true);
+      expect(result.current.height).toBe(size.height);
+      expect(result.current.style).toMatchObject({ ...size, maxHeight: size.height });
+    }
+  });
+
+  it("refits on rotation through window resize when visualViewport is unavailable", () => {
+    vi.stubGlobal("visualViewport", undefined);
+    vi.stubGlobal("matchMedia", () => Object.assign(new EventTarget(), { matches: true }));
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 851);
+    const { result } = renderHook(usePhoneViewport);
+
+    for (const size of [{ width: 851, height: 393 }, { width: 393, height: 851 }]) {
+      act(() => {
+        vi.stubGlobal("innerWidth", size.width);
+        vi.stubGlobal("innerHeight", size.height);
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(result.current.phone).toBe(true);
+      expect(result.current.style).toMatchObject({ ...size, maxHeight: size.height });
+    }
+  });
+
   it("opens the paste target without autofocus or changing voice handlers", () => {
     const source = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
     const css = readFileSync("src/styles.css", "utf8");
