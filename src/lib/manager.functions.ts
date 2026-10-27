@@ -225,7 +225,7 @@ export interface ManagerDeps {
   driveOp?: (op: "list" | "read" | "create" | "update", input: { fileId?: string; name?: string; text?: string; fileName?: string }) => Promise<import("./google-drive.server").DriveResult>;
   now?: () => Date;
   /** Elsie continuity read, scoped to the server-verified owner id only. */
-  readDocuments?: (token: string, request: string, previous: string) => Promise<import("./document-knowledge").DocumentContext>;
+  readDocuments?: (token: string, request: string, previous: string, route?: string) => Promise<import("./document-knowledge").DocumentContext>;
   /** Fresh owner-scoped room snapshot, read per request (never a startup copy). */
   readRoomSnapshot?: (token: string, aal: string, route: string, buildId: string, device?: import("./room-device-snapshot").DeviceSnapshot | null) => Promise<import("./room-snapshot").RoomSnapshot | null>;
   /** Fresh Brain category index (metadata only), read per request when relevant. */
@@ -316,10 +316,16 @@ async function realDeps(provider: "openai" | "anthropic" = "openai"): Promise<Ma
       ]);
       return { ...base, text: pretrip + "\n\n" + base.text + "\n\n" + recovery };
     },
-    readDocuments: async (token, request, previous) => {
+    readDocuments: async (token, request, previous, route) => {
       const { readDocumentContext } = await import("./document-knowledge");
       if (!config) return { text: "Documents unavailable", sources: [], gaps: ["Documents unavailable"] };
-      return readDocumentContext((path, init) => backend.restRequest(config, token, path, init), request, previous);
+      const knowledge = await readDocumentContext((path, init) => backend.restRequest(config, token, path, init), request, previous);
+      if (route !== "/research") return knowledge;
+      const { createClient } = await import("@supabase/supabase-js");
+      const { readResearchPdfContext } = await import("./research-pdf.server");
+      const db = createClient(config.url, config.publishableKey, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+      const pdf = await readResearchPdfContext(db, request, previous);
+      return { text: knowledge.text + "\n" + pdf.text, sources: [...knowledge.sources, ...pdf.sources], gaps: [...knowledge.gaps, ...pdf.gaps] };
     },
     readRoomSnapshot: async (token, aal, route, buildId, device) => {
       const target = roomTargetForRoute(route);
@@ -1906,7 +1912,7 @@ export async function runManagerChatWith(
       ? deps.readContinuity(data.accessToken, verification.userId)
           .catch(() => ({ ok: false as const, text: CONTINUITY_UNAVAILABLE, message: "Continuity read failed." }))
       : Promise.resolve({ ok: false, text: CONTINUITY_UNAVAILABLE, message: "Continuity not wired." })) as Promise<ContinuityRead>,
-    deps.readDocuments ? deps.readDocuments(data.accessToken, latestUser, previousDocumentRequest) : Promise.resolve({ text: "", sources: [], gaps: [] }),
+    deps.readDocuments ? deps.readDocuments(data.accessToken, latestUser, previousDocumentRequest, data.currentRoute) : Promise.resolve({ text: "", sources: [], gaps: [] }),
     Promise.all(targets.map(async t => ({ target: t, snap: deps.readRoomSnapshot
       ? await deps.readRoomSnapshot(data.accessToken, verification.aal, t.route, data.buildId ?? "unknown", t.why === "current" ? data.device ?? null : null).catch(() => null)
       : null }))),
