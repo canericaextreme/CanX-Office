@@ -109,7 +109,7 @@ export async function readResearchPdfContext(
         "Name one exact PDF filename or file ID to read; ambiguous or unavailable files were not opened.",
       );
     } else {
-      const range = request.match(/\bpages?\s+(\d+)(?:\s*(?:-|–|to)\s*(\d+))?/i);
+      const range = request.match(/\bpages?\s+(\d+)(?:\s*(?:-|–|to|through|thru)\s*(\d+))?/i);
       const start = range ? Number(range[1]) : 1;
       const end = range?.[2] ? Number(range[2]) : range ? start : start + PDF_READ_LIMITS.pages - 1;
       if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 1 || end < start)
