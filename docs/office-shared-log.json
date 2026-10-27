@@ -405,6 +405,15 @@
       "audience": "office-status",
       "summary": "Prepared an explicit versioned Elsie task message over the existing colleague relay, using the unchanged three-phase task engine, current working grant and budget. Ordinary relay unchanged; malformed reserved messages never fall back to a paid relay. No browser sign-in or tool rediscovery needed for this supported message contract. Does not claim native client metadata refreshed.",
       "evidence": "Local 218 test files/2124 tests and production build passed. Claude Office API review of exact adapter found no release-blocking issue; supplied excerpt review, not full repository or live acceptance. Real three-phase and independent readback remain pending release."
+    },
+    {
+      "id": "2026-10-27-codex-research-pdf-draft",
+      "at": "2026-10-27T01:31:27Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Local draft adds selected Research PDF text to Elsie with physical page citations, five-page/24000-character answer bounds and an 8 MB extraction limit. Existing original-file paths, access rules and records are unchanged. No publication or production calls.",
+      "evidence": "Seven focused test files passed (120 tests), including synthetic multi-page PDF parsing and file/manager regressions. TypeScript and new-module ESLint passed. Details and device acceptance limits: docs/research-pdf-reading.md. Signed-in phone/laptop and voice acceptance remain unverified."
     }
   ]
 }

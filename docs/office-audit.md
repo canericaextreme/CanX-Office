@@ -75,7 +75,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 14 | Work Board | tasks, change log | Operations (4), Foreman (4) | No crew dispatch / calendar |
 | 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending; shared GitHub status failure under diagnosis |
 | 16 | Safe Highways | static boundary | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
-| 17 | Research | files, reports only | Source Check, Evidence, Brief, Standards | No web/standards search tool |
+| 17 | Research | files, reports; bounded selected-PDF text in local draft (see research-pdf-reading.md; live unverified) | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
 | 20 | Future | — | Reserved | Reserved by John |
 | — | Brain | Eight-shelf filing, active memory metadata, versioned shared log; shared descriptions/routes | Decision History, Brain (3) | Corrected against saved eight-shelf plan; signed-in owner upload/filing/count and actual Elsie acknowledgment acceptance pending |
