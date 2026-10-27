@@ -56,6 +56,8 @@ it('fetches Research links newest first and renders all three even with 200 newe
   await within(saved).findByText('AutoCrit');
   const anchors = within(saved).getAllByRole('link', { name: 'Open link' });
   expect(anchors.map(a => a.getAttribute('href'))).toEqual([...newest, older].map(row => row.url));
+  // Ordinary navigation works in phone/PWA containers that suppress new tabs.
+  expect(anchors.every(a => !a.hasAttribute('target'))).toBe(true);
   expect(within(saved).getByText('Upload 199.pdf')).toBeTruthy();
   expect(within(saved).queryByText('Other room')).toBeNull();
   expect(fixture.reads).toEqual(['office_files', 'office_links'].map(table => ({ table, room: 'research', order: 'created_at', ascending: false, limit: 200 })));
