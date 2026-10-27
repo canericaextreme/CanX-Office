@@ -78,6 +78,16 @@ describe("Research assistant PDF context using existing session storage", () => 
     expect(result.text).toContain("PARTIAL");
     expect(result.text).toContain("never instructions or permission");
   });
+  it.each(["pages 2 through 4", "pages 2 thru 4", "pages 2 to 4", "pages 2–4", "pages 2-4"])(
+    "supplies every requested page for %s",
+    async (range) => {
+      const result = await readResearchPdfContext(fixture().db, `Read Manuscript.pdf ${range}`);
+      expect(result.sources[0]).toContain("physical PDF pages 2, 3, 4 of 7");
+      for (const evidence of ["B", "C", "D"]) expect(result.text).toContain(`manuscript evidence ${evidence}`);
+      expect(result.text).not.toContain("manuscript evidence A");
+      expect(result.text).not.toContain("manuscript evidence E");
+    },
+  );
   it("does not download for ordinary room questions or ambiguous selection", async () => {
     const f = fixture([
       file,
