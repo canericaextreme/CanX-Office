@@ -192,11 +192,15 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
     "safety_critical",
     "authorize_spend",
   ];
-  // Risk is attached to the action being performed, not to words appearing in
-  // a descriptive task name (for example, 'review_publish_plan'). Do not let
-  // advisory/review operations silently execute the protected operation.
-  const advisory = /^(review|inspect|audit|plan|draft|test|check|explain|summarize|analyze|analyse|propose|document)_/;
-  if (!advisory.test(a) && red.some((word) => a === word || a.startsWith(word + "_"))) return "red";
+  // Only explicitly recognized, non-mutating advisory operations may refer
+  // to a protected action without performing it. A descriptive prefix alone
+  // never authorizes execution; actual side effects must be gated at execution.
+  const safeAdvisory = new Set([
+    "review_publish_plan",
+    "audit_purchase_proposal",
+    "draft_delete_data_policy",
+  ]);
+  if (!safeAdvisory.has(a) && red.some((word) => a.includes(word))) return "red";
   if (s.includes("production") && (a.includes("write") || a.includes("update") || a.includes("delete"))) return "red";
 
   const yellow = [
