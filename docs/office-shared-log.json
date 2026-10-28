@@ -459,6 +459,15 @@
       "audience": "office-status",
       "summary": "Prepared private-preview Systems context repair after owner heard Elsie speak but could not obtain per-connection statuses. Snapshot now includes all nine configured Office inventory entries; live health remains unverified. No connection, provider or permission change.",
       "evidence": "Regression failed before repair. 221 files / 2184 tests, typecheck and production build passed. Added instruction against unsupported generic connector checks. Owner refresh/new-voice-session acceptance remains pending; no merge or publication."
+    },
+    {
+      "id": "elsie-inventory-topic-routing-20261028",
+      "at": "2026-10-28T02:05:06.344965Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared read-only inventory-topic routing fix after owner preview reply referenced Reception and omitted Systems. Explicit connection inventory/stage/status/label questions now read Systems when no other room was named. Current room remains a separate source.",
+      "evidence": "Before-fix routing regression failed. Typed and voice integration tests verify actual provider payload includes the nine configured inventory entries and limitations from Reception. Full suite 221 files / 2186 tests passed; typecheck/build passed. Preview voice acceptance pending; not merged or published."
     }
   ]
 }

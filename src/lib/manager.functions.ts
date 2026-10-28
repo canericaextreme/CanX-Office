@@ -903,7 +903,9 @@ export const VOICE_ANSWER_RULE =
  * first (it overrides "this room"); the open room is added when different.
  */
 export function roomsForRequest(latestUser: string, currentRoute: string | undefined): Array<{ route: string; why: "current" | "named" }> {
-  const named = namedOfficeRoom(latestUser);
+  const named = namedOfficeRoom(latestUser)
+    ?? (/\b(?:connection inventory|connector inventory|office connections?|connection (?:stages?|status(?:es)?|labels?))\b/i.test(latestUser)
+      ? namedOfficeRoom("Systems") : null);
   const namedTarget = named ? roomTargetForRoute(named.route) : null;
   const out: Array<{ route: string; why: "current" | "named" }> = [];
   if (namedTarget && namedTarget.route !== currentRoute) out.push({ route: namedTarget.route, why: "named" });
