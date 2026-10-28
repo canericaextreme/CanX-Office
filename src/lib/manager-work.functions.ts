@@ -192,7 +192,11 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
     "safety_critical",
     "authorize_spend",
   ];
-  if (red.some((word) => a.includes(word))) return "red";
+  // Risk is attached to the action being performed, not to words appearing in
+  // a descriptive task name (for example, 'review_publish_plan'). Do not let
+  // advisory/review operations silently execute the protected operation.
+  const advisory = /^(review|inspect|audit|plan|draft|test|check|explain|summarize|analyze|analyse|propose|document)_/;
+  if (!advisory.test(a) && red.some((word) => a === word || a.startsWith(word + "_"))) return "red";
   if (s.includes("production") && (a.includes("write") || a.includes("update") || a.includes("delete"))) return "red";
 
   const yellow = [
