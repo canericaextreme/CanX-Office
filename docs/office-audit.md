@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Brain opening and voice result consistency — private-preview candidate
+
+Compound open-and-read requests now await confirmed room navigation before the original question reaches the shared manager path, including a trailing missing-record condition. Direct-voice tool replies use the isolated canonical-answer reader instead of an unrestricted second reasoning response; superseded results complete their receipt without interrupting a newer turn. Guidance distinguishes relevant Brain records from recent unrelated tasks and named snapshots from confirmed navigation. Regression failures reproduced; 2,188 tests, typecheck and build pass. Real voice/navigation/relevance acceptance remains pending. No merge/publication. See [audit evidence](elsie-reliability-audit-20261027.md).
+
 ## Systems inventory context — private-preview candidate
 
 Owner voice acceptance exposed a snapshot omitting individual connection entries. The static Systems source now supplies the full nine-entry Office inventory with configured stages/static labels and explicit limits; dynamic panel health is not claimed. Elsie must not offer unsupported live connector checks. Regression reproduced; 2,184 tests, typecheck and build pass. Preview retest pending; no merge/publication. See [acceptance evidence](elsie-reliability-audit-20261027.md).

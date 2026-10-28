@@ -76,3 +76,17 @@ The owner's next preview answer said the inventory was missing and referenced Re
 The routing assertion failed before repair. New integration cases exercise the actual manager provider-request payload in both typed and voice modes from Reception: Systems is read first and the configured Calendar/Drive entries, static status and live-check limitations reach the provider. These checks validate context delivery, not the model's live spoken answer. Owner preview acceptance remains pending after sync.
 
 Routing follow-up validation: 221 files / 2,186 tests, typecheck and production build passed. Existing repository-wide lint failures remain separate and unresolved.
+
+## Brain opening and spoken/written consistency follow-up
+
+Owner acceptance failed: Elsie returned an unrelated Research-link task in writing, reportedly spoke different words and claimed Brain was opened. That report does not establish either navigation or relevant Brain retrieval.
+
+Two local defects were reproduced before repair. The compound request “open CanX Brain and read ... If none is available, say so” was rejected by the room parser because any occurrence of “if” disabled the whole command. The explicit opening is now parsed separately, preserving negation/hypothetical guards. The client awaits actual navigation and verifies the route, then passes the full original saved-record question through the shared manager path using the new current room. It no longer turns this request into a screenshot inspection or silently leaves it to a model with no navigation tool. Unknown/failed navigation returns an explicit failure.
+
+In direct-voice preview mode, an Office tool result was saved as the written answer but followed by an unrestricted second model response for speech. Direct tool replies now use the same isolated, tool-free, exact-text reading request as standard voice, with no second reasoning pass; superseded direct results cannot start playback. This is a reproduced divergence opportunity, not proof that the owner's test used that mode or that live audio now matches. Standard voice remains the default.
+
+Brain index guidance and the manager prompt now explicitly prohibit replacing a relevant-record request with an unrelated recent task, treating titles as full contents/status, or treating a named-room read as confirmed UI navigation. No Brain records or search UI were changed. The bounded metadata search still has its original limits: a lack of matches cannot establish that no relevant record exists anywhere in Brain.
+
+Acceptance after sync: end the old conversation, refresh the private preview, use Standard voice, ask the same compound Brain request, and verify that the screen actually changes to Brain and the main spoken answer matches its written result. Missing relevant evidence must be disclosed. Navigation parser and exact direct-tool playback assertions failed before repair and pass afterward; real signed-in navigation, relevant Brain retrieval and speech parity remain pending. No merge/publication.
+
+Final local validation for the Brain-opening/voice candidate: 221 files / 2,188 tests passed, including a superseded direct-tool test that completes its protocol receipt without speaking over a newer request. Typecheck and production build passed. Full repository lint remains unresolved.

@@ -60,6 +60,24 @@ afterEach(() => {
   hooks.cleanups.forEach((cleanup) => cleanup()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 describe("Astra realtime connection lifecycle", () => {
+  it("completes an old direct tool call without speaking it over a newer request", async () => {
+    const pending = deferred<string>();
+    const transcript = vi.fn();
+    const voice = useRealtimeManager("token", [], transcript, () => pending.promise, undefined, "direct");
+    voice.start(); await flush();
+    const channel = Peer.instances[0]!.channel;
+    const emit = (data: unknown) => channel.onmessage?.({ data: JSON.stringify(data) });
+    emit({ type: "input_audio_buffer.committed", item_id: "u1" });
+    emit({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "Read the task" });
+    emit({ type: "response.created", response: { id: "r1" } });
+    emit({ type: "response.done", response: { id: "r1", status: "completed", output: [{ type: "function_call", name: "submit_office_request", call_id: "c1", arguments: '{"request":"Read the task"}' }] } });
+    emit({ type: "input_audio_buffer.committed", item_id: "u2" });
+    pending.resolve("Old verified result"); await flush();
+    const sent = channel.send.mock.calls.map(c => JSON.parse(String(c[0])));
+    expect(sent.filter(e => e.item?.type === "function_call_output")).toHaveLength(1);
+    expect(sent.filter(e => e.type === "response.create")).toHaveLength(0);
+    expect(transcript).toHaveBeenCalledWith("assistant", "Old verified result", "u1");
+  });
   it.each(["reject", "empty"])(
     "does not let an older %s answer disrupt the latest voice turn",
     async (outcome) => {
@@ -157,6 +175,9 @@ describe("Astra realtime connection lifecycle", () => {
     expect(action).toHaveBeenCalledExactlyOnceWith("Check builder connection");
     expect(transcript).toHaveBeenCalledWith("assistant", "Builder connected. Latest run succeeded. No build was started.", "u1");
     expect(channel.send).toHaveBeenCalledWith(expect.stringContaining('"type":"function_call_output"'));
+    const spoken = channel.send.mock.calls.map(c => JSON.parse(String(c[0]))).find(e => e.type === "response.create");
+    expect(spoken.response).toMatchObject({ conversation: "none", input: [], tool_choice: "none" });
+    expect(spoken.response.instructions).toContain("Builder connected. Latest run succeeded. No build was started.");
   });
   it("keeps a direct Office result until delayed question transcription arrives", async () => {
     const transcript = vi.fn();

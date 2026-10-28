@@ -561,7 +561,10 @@ export function useRealtimeManager(
         saveDirectAnswer(turnId, output.ok ? output.result : output.note);
         if (!current() || channel.readyState !== "open") return;
         sendEvent({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) } });
-        sendEvent({ type: "response.create" });
+        if (turnId !== currentInputId) return;
+        // Read the same authoritative text we saved, rather than asking the
+        // live model to reason about the tool result a second time.
+        sendEvent(spokenOfficeAnswer(output.ok ? output.result : output.note));
         setActivity(output.ok ? "Office answer received. Elsie is replying…" : "The Office request did not finish. Elsie will say so.");
       };
       channel.onmessage = (event) => {

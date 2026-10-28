@@ -4,6 +4,7 @@ export const namedOfficeRoom = namedRoomIdentity;
 type RoomDef = OfficeRoomIdentity;
 
 export type RoomCommand =
+  | { kind: "open-read"; room: RoomDef }
   | { kind: "look"; room: RoomDef; question?: string }
   | { kind: "report"; room: RoomDef; content: string }
   | { kind: "text-size"; size: number }
@@ -28,8 +29,16 @@ function withoutLeadIn(request: string): string {
 }
 
 export function parseRoomCommand(request: string, currentPath: string): RoomCommand | null {
-  if (/\b(don['’]?t|do not|never|hypothetical|example|if|would|could you explain)\b/i.test(request)) return null;
+  if (/\b(don['’]?t|do not|never|hypothetical|example|would|could you explain)\b/i.test(request)) return null;
   const text = withoutLeadIn(request);
+  // A condition about missing records must not cancel an earlier explicit
+  // navigation request. Leave the full question for the guarded Office reader.
+  const compound = text.match(/^((?:(?:can|could|will) you )?(?:open|go (?:to|into)|show(?: me)?)\b.+?)\s+(?:and|then)\s+(?:read|find|retrieve)\b/i);
+  if (compound?.[1]) {
+    const opening = parseRoomCommand(compound[1], currentPath);
+    if (opening?.kind === "look") return { kind: "open-read", room: opening.room };
+  }
+  if (/\b(don['’]?t|do not|never|hypothetical|example|if|would|could you explain)\b/i.test(request)) return null;
   // Visual follow-ups inspect the room open NOW, rather than answering from
   // an older screenshot or the general room description. They never write.
   const visualQuestion = (/^(?:how many|count)\b/i.test(text) && /\b(?:cards?|folders?|papers?|shelves|items?|blue|red|yellow|gold|white|gr[ae]y|green|black|visible)\b/i.test(text))

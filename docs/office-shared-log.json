@@ -468,6 +468,15 @@
       "audience": "office-status",
       "summary": "Prepared read-only inventory-topic routing fix after owner preview reply referenced Reception and omitted Systems. Explicit connection inventory/stage/status/label questions now read Systems when no other room was named. Current room remains a separate source.",
       "evidence": "Before-fix routing regression failed. Typed and voice integration tests verify actual provider payload includes the nine configured inventory entries and limitations from Reception. Full suite 221 files / 2186 tests passed; typecheck/build passed. Preview voice acceptance pending; not merged or published."
+    },
+    {
+      "id": "elsie-brain-navigation-voice-parity-20261028",
+      "at": "2026-10-28T02:18:17.457948Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared Brain opening and voice-result consistency candidate after owner reported unrelated written recall, different spoken wording and an unconfirmed opening claim. Added confirmed navigation before compound saved-record questions and canonical reading of direct-tool results; no Brain record or provider/permission changes.",
+      "evidence": "Navigation parsing and unrestricted direct-tool speech regressions failed before repair. 221 files / 2188 tests passed; typecheck/build passed. Superseded direct-tool response test passes without stale speech. Owner signed-in preview acceptance and repository-wide lint remain unresolved; not merged or published."
     }
   ]
 }
