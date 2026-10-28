@@ -10,6 +10,11 @@ describe("standing approval risk boundaries", () => {
     expect(classifyManagerRisk("run_tests", "office")).toBe("green");
     expect(classifyManagerRisk("file_receipt", "office")).toBe("green");
   });
+  it("does not mistake advisory planning for the protected action itself", () => {
+    expect(classifyManagerRisk("review_publish_plan", "office")).toBe("green");
+    expect(classifyManagerRisk("audit_purchase_proposal", "office")).toBe("green");
+    expect(classifyManagerRisk("draft_delete_data_policy", "office")).toBe("green");
+  });
   it("retains owner review for spending, publishing and destructive actions", () => {
     expect(classifyManagerRisk("purchase", "office")).toBe("red");
     expect(classifyManagerRisk("publish", "production")).toBe("red");
