@@ -66,6 +66,20 @@ describe("room coverage", () => {
 });
 
 describe("source classification", () => {
+  it("gives Elsie every configured Systems inventory entry without claiming a live check", async () => {
+    const rest = fakeRest({});
+    const snap = await read("/systems", rest);
+    const inventory = snap.sources.find((s) => s.key === "connections")!;
+    expect(inventory).toMatchObject({ kind: "static", status: "read", count: 9 });
+    expect(inventory.items).toHaveLength(9);
+    expect(inventory.items.join("\n")).toContain("Google Calendar (scoped)");
+    expect(inventory.items.join("\n")).toContain("static status: disconnected");
+    expect(inventory.items.join("\n")).toContain("Trail Tales");
+    expect(inventory.items.join("\n")).toContain("live status not checked");
+    expect(inventory.detail).toContain("not a count of connected or disconnected services");
+    expect(snapshotForModel(snap, "current")).toContain("Google Drive (selected files only)");
+    expect(rest.calls.some((p) => /connection|provider/i.test(p))).toBe(false);
+  });
   it("static and device sources are never reported as live reads", async () => {
     const snap = await read("/idea-garage", fakeRest({}));
     expect(snap.sources.find((s) => s.key === "idea-cards")).toMatchObject({ kind: "static" });

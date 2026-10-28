@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Systems inventory context — private-preview candidate
+
+Owner voice acceptance exposed a snapshot omitting individual connection entries. The static Systems source now supplies the full nine-entry Office inventory with configured stages/static labels and explicit limits; dynamic panel health is not claimed. Elsie must not offer unsupported live connector checks. Regression reproduced; 2,184 tests, typecheck and build pass. Preview retest pending; no merge/publication. See [acceptance evidence](elsie-reliability-audit-20261027.md).
+
 ## Elsie reliability audit — 27 October 2026, unreleased candidate
 
 Reconnect now retains waiting tasks and partial successful reads; late old voice failures cannot disrupt the current turn; task completion preserves evidence, conditionally writes and independently reads back before reporting success; repeated manager instructions were shortened. Brain originals and runtime permissions are intact. Local full tests/typecheck/build pass; repository lint fails and signed-in live voice, Brain/room access, delegated work and physical-phone acceptance remain blocked. No merge/publication. See [audit, repairs and acceptance evidence](elsie-reliability-audit-20261027.md).

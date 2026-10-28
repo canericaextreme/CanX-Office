@@ -9,6 +9,7 @@
 import type { BackendConfig } from "./canx-backend.server";
 import { IDEA_CARDS } from "./idea-garage";
 import { OFFICE_SKILLS } from "./office-skills";
+import { OFFICE_CONNECTIONS } from "./connections-inventory";
 import { roomReportSource } from "./manager-room-commands";
 import { assembleSnapshot, type RoomSnapshot, type RoomTarget, type SourceDef, type SourceResult } from "./room-snapshot";
 
@@ -72,6 +73,11 @@ async function financeDoc(req: SnapshotRequest, cache: { doc?: Promise<Row | nul
 
 async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: Promise<Row | null | "fail"> }): Promise<SourceResult> {
   if (def.kind === "static") {
+    if (def.key === "connections") return result(def, {
+      count: OFFICE_CONNECTIONS.length,
+      items: OFFICE_CONNECTIONS.map((connection) => `${connection.name} — stage: ${connection.stage}; ${connection.staticStatus ? `static status: ${connection.staticStatus}` : "live status not checked"}${connection.note ? `; ${connection.note}` : ""}`),
+      detail: "Configured inventory only, not a count of connected or disconnected services. Stages and static labels are app configuration, not live verification. Dynamic Systems panel checks are not included in this snapshot; do not guess their results or promise a general live connector check. Historical ChatGPT links are separate and do not grant Office access.",
+    });
     if (def.key === "idea-cards") return result(def, { count: IDEA_CARDS.length, items: IDEA_CARDS.slice(0, MAX_ITEMS).map((c) => text(c.title)), detail: def.note ?? "" });
     if (def.key === "skills-registry") return result(def, { count: OFFICE_SKILLS.length, detail: def.note ?? "" });
     return result(def, { detail: def.note ?? "" });
