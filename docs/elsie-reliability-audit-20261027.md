@@ -50,3 +50,7 @@ The following require the candidate in an authorised private test environment wi
 Review the candidate and resolve lint/acceptance blockers before any merge or live publication. No claim is made that Elsie is now reliable end-to-end or that live Office health has passed.
 
 GitHub CLI authentication was checked in the network-enabled context and reported its existing token invalid. Git proxy access is separate; do not replace the injected authentication or request secret values in chat. A remote branch save, if confirmed, does not create a draft PR or publish the app.
+
+## Remote save after owner authorization
+
+The owner explicitly requested completing the pushes. Candidate commit `e9855a51ccd86f10961bf1f6f49040d443d10b38` was pushed to `origin/codex/elsie-reliability-audit-20261027`; `git ls-remote` independently confirmed that exact remote commit. This is a review branch, not a merge, published application or verified private preview. Live acceptance and lint blockers above remain. No draft PR was created; the existing GitHub CLI authentication was unavailable.

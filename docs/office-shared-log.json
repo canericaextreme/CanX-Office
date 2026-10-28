@@ -432,6 +432,15 @@
       "audience": "office-status",
       "summary": "Unreleased Elsie reliability candidate: preserve waiting/partial reconnect context, isolate stale voice failures, retain and verify task-completion evidence, and shorten repeated instructions. Brain originals, credentials, budgets and permissions preserved. No merge or live publication.",
       "evidence": "Before: 221 files / 2173 tests. After functional repairs: 221 files / 2183 tests, typecheck/build and five Node test files pass. Desktop and two phone-orientation Chromium rendering checks pass without owner access. Repository lint fails. Real microphone, signed-in Brain/rooms, live delegation/completion and physical-phone acceptance remain unverified. Details: docs/elsie-reliability-audit-20261027.md."
+    },
+    {
+      "id": "elsie-reliability-audit-github-save-e9855a5",
+      "at": "2026-10-28T00:35:31.202121Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "After explicit owner authorization, saved Elsie audit candidate to its GitHub review branch. Not merged, published or signed-in acceptance tested.",
+      "evidence": "git push succeeded for codex/elsie-reliability-audit-20261027. Independent git ls-remote confirmed e9855a51ccd86f10961bf1f6f49040d443d10b38. Existing lint and live voice/Brain/room/delegation/physical-phone acceptance blockers remain."
     }
   ]
 }
