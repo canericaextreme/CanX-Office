@@ -479,19 +479,14 @@ export async function verifyManagerTaskWith(
   if (!v.ok) return v;
 
   const resultText = cleanString(input.result, 2000);
-  if (!resultText)
-    return fail(
-      "invalid_input",
-      "A result summary is required to verify a task.",
-    );
+  if (!resultText) return fail("invalid_input", "A result summary is required to verify a task.");
 
   const taskResult = await deps.rest<ManagerTask[]>(
     input.accessToken,
     "GET",
     `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`,
   );
-  if (!taskResult.ok || !taskResult.data?.[0])
-    return fail("not_found", "Task not found.");
+  if (!taskResult.ok || !taskResult.data?.[0]) return fail("not_found", "Task not found.");
   const before = taskResult.data[0];
   if (before.owner_id !== v.userId)
     return fail("forbidden", "That task belongs to a different owner.");
@@ -548,11 +543,7 @@ export async function verifyManagerTaskWith(
       "context_unavailable",
       "Completion was not confirmed; the task may have changed. Check its current status before retrying verification, never the underlying job.",
     );
-  const readback = await deps.rest<ManagerTask[]>(
-    input.accessToken,
-    "GET",
-    taskPath,
-  );
+  const readback = await deps.rest<ManagerTask[]>(input.accessToken, "GET", taskPath);
   const saved = readback.ok ? readback.data?.[0] : undefined;
   if (
     !saved ||

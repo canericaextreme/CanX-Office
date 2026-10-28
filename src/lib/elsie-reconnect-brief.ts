@@ -49,11 +49,7 @@ export function elsieReconnectBrief(
   const active = [...tasks]
     .filter((t) => ["open", "in_progress", "waiting"].includes(t.status))
     .map((t) => ({ t, r: readBuildReceipt(t.evidence) }))
-    .sort(
-      (a, b) =>
-        Number(!!b.r) - Number(!!a.r) ||
-        b.t.updated_at.localeCompare(a.t.updated_at),
-    )
+    .sort((a, b) => Number(!!b.r) - Number(!!a.r) || b.t.updated_at.localeCompare(a.t.updated_at))
     .slice(0, 5);
   const clean = (s: string | null | undefined, n = 250) =>
     (typeof s === "string" ? s : "").replace(/\s+/g, " ").trim().slice(0, n);
@@ -62,22 +58,16 @@ export function elsieReconnectBrief(
     `Recovered at ${clean(now, 40)}. These are prior saved turns, not a complete raw transcript.`,
     "Recent conversation (chronological):",
     ...(!available.turns
-      ? [
-          "- Recent conversation could not be read; do not guess or call it empty.",
-        ]
+      ? ["- Recent conversation could not be read; do not guess or call it empty."]
       : recent.length
         ? recent.map(
             (t) =>
               `- ${t.role === "user" ? "John" : "Elsie"} [${clean(t.created_at, 35)}]: ${clean(t.content, 380)}`,
           )
-        : [
-            "- No recent saved conversation available; do not pretend to remember.",
-          ]),
+        : ["- No recent saved conversation available; do not pretend to remember."]),
     "Unfinished Work Board tasks (saved status is not a live builder run):",
     ...(!available.tasks
-      ? [
-          "- Unfinished tasks could not be read; do not guess or call them empty.",
-        ]
+      ? ["- Unfinished tasks could not be read; do not guess or call them empty."]
       : active.length
         ? active.map(
             ({ t, r }) =>

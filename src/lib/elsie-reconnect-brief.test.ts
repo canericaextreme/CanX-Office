@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  elsieReconnectBrief,
-  readElsieReconnectBrief,
-} from "./elsie-reconnect-brief";
+import { elsieReconnectBrief, readElsieReconnectBrief } from "./elsie-reconnect-brief";
 describe("Elsie reconnect recovery", () => {
   it("returns recent turns and unfinished tasks with truthful status", () => {
     const s = elsieReconnectBrief(
@@ -30,9 +27,7 @@ describe("Elsie reconnect recovery", () => {
       ],
       "2026-10-17T00:04Z",
     );
-    expect(s.indexOf("Please remember charts")).toBeLessThan(
-      s.indexOf("Working on analytics"),
-    );
+    expect(s.indexOf("Please remember charts")).toBeLessThan(s.indexOf("Working on analytics"));
     expect(s).toContain("Analytics dashboard");
     expect(s).toContain("not a live builder run");
   });
@@ -109,18 +104,14 @@ describe("Elsie reconnect recovery", () => {
         "00000000-0000-4000-8000-000000000001",
         "2026-10-17",
       );
-      expect(s).toContain(
-        failed === "turns" ? "Review report" : "Remember the report",
-      );
+      expect(s).toContain(failed === "turns" ? "Review report" : "Remember the report");
       expect(s).toContain(
         failed === "turns"
           ? "Recent conversation could not be read"
           : "Unfinished tasks could not be read",
       );
       expect(s).not.toContain(
-        failed === "turns"
-          ? "No recent saved conversation"
-          : "No readable unfinished tasks",
+        failed === "turns" ? "No recent saved conversation" : "No readable unfinished tasks",
       );
     },
   );
@@ -161,12 +152,8 @@ describe("Elsie resumes an interrupted build safely", () => {
   it("names the task id and the saved receipt, even after a relay note was appended", () => {
     const s = elsieReconnectBrief([], tasks, "2026-10-17T03:00Z");
     expect(s).toContain("task b4ed13d8-947d-a59c-880d-f83f9befba36");
-    expect(s).toContain(
-      "build receipt: Claude, run 38851382385, saved state queued",
-    );
-    expect(s.indexOf("Tidy Finance headings")).toBeLessThan(
-      s.indexOf("Newer idea"),
-    );
+    expect(s).toContain("build receipt: Claude, run 38851382385, saved state queued");
+    expect(s.indexOf("Tidy Finance headings")).toBeLessThan(s.indexOf("Newer idea"));
     expect(s).toContain("call check_task_execution with its task id");
     expect(s).toContain("never call execute_task");
   });

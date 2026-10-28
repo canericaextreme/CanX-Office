@@ -54,3 +54,9 @@ GitHub CLI authentication was checked in the network-enabled context and reporte
 ## Remote save after owner authorization
 
 The owner explicitly requested completing the pushes. Candidate commit `e9855a51ccd86f10961bf1f6f49040d443d10b38` was pushed to `origin/codex/elsie-reliability-audit-20261027`; `git ls-remote` independently confirmed that exact remote commit. This is a review branch, not a merge, published application or verified private preview. Live acceptance and lint blockers above remain. No draft PR was created; the existing GitHub CLI authentication was unavailable.
+
+## Follow-up before private testing
+
+The repaired reconnect module and its tests now pass ESLint with zero errors or warnings. Formatting in the completion-verification function also follows the repository's configured line width; executable syntax was independently compared before/after and is identical. The final full suite still passes: 221 files / 2,183 tests; typecheck and production build pass. Repository-wide lint remains failed outside this limited cleanup, so no merge or live publication is claimed.
+
+The remaining prerequisite is a private test deployment of this review branch using the existing secure Office configuration. This tool session cannot create a Lovable preview, authenticate GitHub API operations with the currently unavailable CLI binding, or access the owner's browser session. The owner must make the candidate available in a private preview and perform the signed-in/MFA and physical-microphone portions of acceptance on their devices. Sharing a preview URL does not transfer the owner's signed-in session. Production must remain unchanged.
