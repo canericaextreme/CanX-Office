@@ -60,6 +60,44 @@ afterEach(() => {
   hooks.cleanups.forEach((cleanup) => cleanup()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 describe("Astra realtime connection lifecycle", () => {
+  it.each(["reject", "empty"])(
+    "does not let an older %s answer disrupt the latest voice turn",
+    async (outcome) => {
+      let reject!: (error: Error) => void;
+      let resolve!: (text: string) => void;
+      const old = new Promise<string>((yes, no) => {
+        resolve = yes;
+        reject = no;
+      });
+      const action = vi
+        .fn()
+        .mockReturnValueOnce(old)
+        .mockResolvedValueOnce("Latest answer");
+      const failed = vi.fn();
+      const voice = useRealtimeManager("token", [], vi.fn(), action, failed);
+      voice.start();
+      await flush();
+      const emit = (data: unknown) =>
+        Peer.instances[0]!.channel.onmessage?.({ data: JSON.stringify(data) });
+      for (const id of ["u1", "u2"]) {
+        emit({ type: "input_audio_buffer.committed", item_id: id });
+        emit({
+          type: "conversation.item.input_audio_transcription.completed",
+          item_id: id,
+          transcript: `Question ${id}`,
+        });
+        await flush();
+      }
+      const phase = hooks.states[0];
+      if (outcome === "reject") reject(new Error("Old connection lost"));
+      else resolve("");
+      await flush();
+      expect(failed).toHaveBeenCalledWith("u1");
+      expect(hooks.states[0]).toBe(phase);
+      expect(hooks.states[2]).toBeNull();
+      expect(action).toHaveBeenCalledTimes(2);
+    },
+  );
   it.each(["direct", "relay"] as const)("greets once after channel and session are ready in %s mode without Office work", async (mode) => {
     const transcript = vi.fn();
     const action = vi.fn();

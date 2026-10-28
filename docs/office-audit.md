@@ -1,5 +1,9 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie reliability audit — 27 October 2026, unreleased candidate
+
+Reconnect now retains waiting tasks and partial successful reads; late old voice failures cannot disrupt the current turn; task completion preserves evidence, conditionally writes and independently reads back before reporting success; repeated manager instructions were shortened. Brain originals and runtime permissions are intact. Local full tests/typecheck/build pass; repository lint fails and signed-in live voice, Brain/room access, delegated work and physical-phone acceptance remain blocked. No merge/publication. See [audit, repairs and acceptance evidence](elsie-reliability-audit-20261027.md).
+
 ## Routine phrase variants and precise quota evidence — 24 October 2026
 
 Clear finish/continue/resume/carry-on wording now classifies as existing-task intent instead of requiring a magic execution verb. It does not authorize a new build; the normal saved-task executor retains current state, ownership, risk, budget and existing-attempt checks. Polite explicit build requests use the same command grammar. Stops/status/discussion remain inert. The live loop's separate HTTP429 cause can now retain documented rate/credit/spend/usage codes, an allowlisted type and numeric Retry-After. No limit, model or auto-retry change. See [phrase regression contract](office-phrase-contract.md).

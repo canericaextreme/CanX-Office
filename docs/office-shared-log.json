@@ -423,6 +423,15 @@
       "audience": "office-status",
       "summary": "Candidate repair adds same-tab original-file opening beside embedded previews, explicit signed-out and preview retry states, same-tab saved web/email links and phone-stacked file controls. Reported phone failure is not reproduced in the signed-out test browser; user records are intact. No owner access or provider settings changed.",
       "evidence": "12 focused component tests, typecheck and production build passed. Full regression and release gates pending. Native phone acceptance remains unverified."
+    },
+    {
+      "id": "2026-10-28-elsie-reliability-audit-local",
+      "at": "2026-10-28T00:26:54.788124Z",
+      "actor": "ChatGPT",
+      "kind": "observation",
+      "audience": "office-status",
+      "summary": "Unreleased Elsie reliability candidate: preserve waiting/partial reconnect context, isolate stale voice failures, retain and verify task-completion evidence, and shorten repeated instructions. Brain originals, credentials, budgets and permissions preserved. No merge or live publication.",
+      "evidence": "Before: 221 files / 2173 tests. After functional repairs: 221 files / 2183 tests, typecheck/build and five Node test files pass. Desktop and two phone-orientation Chromium rendering checks pass without owner access. Repository lint fails. Real microphone, signed-in Brain/rooms, live delegation/completion and physical-phone acceptance remain unverified. Details: docs/elsie-reliability-audit-20261027.md."
     }
   ]
 }
