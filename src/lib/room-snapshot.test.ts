@@ -169,6 +169,13 @@ describe("reply reconciliation", () => {
     expect(roomReplyNote("/legal", "/legal", [ref], ref)).toBe("");
     expect(roomReplyNote("/legal", "/legal", [], ref)).toMatch(/could not be read fresh/);
   });
+  it("treats the home page as Reception, not a failed read", () => {
+    const rec = { ...ref, route: "/reception" };
+    expect(roomReplyNote("/", "/", [rec], null)).toBe("");
+    expect(roomReplyNote("/", "/reception", [rec], null)).toBe("");
+    expect(roomReplyNote("/", "/", [], null)).toMatch(/Reception could not be read fresh/);
+    expect(roomReplyNote("/", "/legal", [rec], null)).toMatch(/moved/);
+  });
   it("fingerprint ignores static/device sources", () => {
     const live = { key: "a", label: "a", kind: "live" as const, status: "read" as const, count: 1, items: [], latestAt: null, detail: "" };
     expect(fingerprintSources([live])).toBe(fingerprintSources([live, { ...live, key: "s", kind: "static" }]));
