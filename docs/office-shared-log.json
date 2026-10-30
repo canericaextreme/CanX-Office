@@ -423,6 +423,15 @@
       "audience": "office-status",
       "summary": "Candidate repair adds same-tab original-file opening beside embedded previews, explicit signed-out and preview retry states, same-tab saved web/email links and phone-stacked file controls. Reported phone failure is not reproduced in the signed-out test browser; user records are intact. No owner access or provider settings changed.",
       "evidence": "12 focused component tests, typecheck and production build passed. Full regression and release gates pending. Native phone acceptance remains unverified."
+    },
+    {
+      "id": "2026-10-30-room-filing-security-checklist-draft",
+      "at": "2026-10-30T21:47:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared local draft room-note editing and destination filing through the normal owner UI, plus an owner-maintained Security progress checklist in Systems. Saves preserve note provenance, reject stale edits and require exact record readback. Not published or verified live.",
+      "evidence": "Eight focused Vitest files / 118 tests passed, including local remount persistence, destination filing, checklist statuses, stale edits, save/read failures and viewer controls. Typecheck passed. Production access, real device reload, assistant-tool field allowlist changes and deployment were outside the request."
     }
   ]
 }
