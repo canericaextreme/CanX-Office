@@ -142,12 +142,14 @@ describe("Elsie's room-navigation command", () => {
     const asked =
       "Okay, Elsie, open the CanX brain and read one saved item relevant to our Elsie repair work. Give its title and save date. If none is available, say so.";
     expect(parseRoomCommand(asked, "/reception")).toMatchObject({
-      kind: "navigate",
+      kind: "open-read",
       room: { route: "/brain" },
-      followUp: true,
     });
     expect(
       parseRoomCommand("Open Finance then read the newest receipt", "/reception"),
+    ).toMatchObject({ kind: "open-read", room: { route: "/finance" } });
+    expect(
+      parseRoomCommand("Open Finance and give me the newest receipt", "/reception"),
     ).toMatchObject({ kind: "navigate", room: { route: "/finance" }, followUp: true });
     expect(parseRoomCommand("Open the Brain", "/reception")).toMatchObject({
       kind: "navigate",

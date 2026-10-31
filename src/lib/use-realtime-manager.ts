@@ -495,9 +495,10 @@ export function useRealtimeManager(
           recordVoiceDiag("failure", sessionMode, "office answer " + (known?.stage ?? "other") + (known?.status ? " " + known.status : ""));
           console.warn("[astra-voice]", { turn: inputId, ...voiceDiagnostic(known?.stage ?? "other", requestStartedAt, 0, known?.status) });
           turnFailedRef.current?.(inputId);
-          if (current()) {
+          if (current() && inputId === latestRequestId) {
             setPhase("listening");
-            setError(known?.userMessage ?? "Elsie received your words, but the Office answer did not finish. Please send that request again.");
+            setStage("listening");
+            setError(known?.userMessage ?? "Elsie received your words, but the Office answer did not finish. Check task and save receipts before asking to repeat any action; its outcome may be unknown.");
             setActivity("The Office answer did not finish. Your spoken request remains visible.");
           }
           return;
@@ -506,9 +507,10 @@ export function useRealtimeManager(
         if (!output) {
           console.warn("[astra-voice]", { stage: "assistant_response_empty", turn: inputId });
           turnFailedRef.current?.(inputId);
-          if (current()) {
+          if (current() && inputId === latestRequestId) {
             setPhase("listening");
-            setError("Elsie received your words, but no usable answer came back. Please send that request again.");
+            setStage("listening");
+            setError("Elsie received your words, but no usable answer came back. Check task and save receipts before asking to repeat any action; its outcome may be unknown.");
           }
           return;
         }
@@ -559,7 +561,10 @@ export function useRealtimeManager(
         saveDirectAnswer(turnId, output.ok ? output.result : output.note);
         if (!current() || channel.readyState !== "open") return;
         sendEvent({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) } });
-        sendEvent({ type: "response.create" });
+        if (turnId !== currentInputId) return;
+        // Read the same authoritative text we saved, rather than asking the
+        // live model to reason about the tool result a second time.
+        sendEvent(spokenOfficeAnswer(output.ok ? output.result : output.note));
         setActivity(output.ok ? "Office answer received. Elsie is replying…" : "The Office request did not finish. Elsie will say so.");
       };
       channel.onmessage = (event) => {

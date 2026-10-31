@@ -5,6 +5,7 @@ export const namedOfficeRoom = namedRoomIdentity;
 type RoomDef = OfficeRoomIdentity;
 
 export type RoomCommand =
+  | { kind: "open-read"; room: RoomDef }
   | { kind: "look"; room: RoomDef; question?: string }
   | { kind: "report"; room: RoomDef; content: string }
   | { kind: "text-size"; size: number }
@@ -37,6 +38,13 @@ export function parseRoomCommand(request: string, currentPath: string): RoomComm
   const firstSentence = request.trim().split(/(?<=[.!?])\s+/)[0] ?? "";
   if (/\b(don['’]?t|do not|never|hypothetical|example|would|could you explain)\b/i.test(request) || /\bif\b/i.test(firstSentence)) return null;
   const text = withoutLeadIn(request);
+  // A condition about missing records must not cancel an earlier explicit
+  // navigation request. Leave the full question for the guarded Office reader.
+  const compound = text.match(/^((?:(?:can|could|will) you )?(?:open|go (?:to|into)|show(?: me)?)\b.+?)\s+(?:and|then)\s+(?:read|find|retrieve)\b/i);
+  if (compound?.[1]) {
+    const opening = parseRoomCommand(compound[1], currentPath);
+    if (opening?.kind === "look" || opening?.kind === "navigate") return { kind: "open-read", room: opening.room };
+  }
   const navigation = parseRoomNavigation(text);
   if (navigation) return navigation;
   // Visual follow-ups inspect the room open NOW, rather than answering from
