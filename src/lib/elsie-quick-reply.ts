@@ -11,11 +11,24 @@ export function isPresenceCheck(text: string): boolean {
   );
 }
 
+/**
+ * The question Elsie's last answer ended on, if it ended on one. 31 Oct: John
+ * said "Hello?" while she waited for his yes, and the greeting reply dropped
+ * the question, so the stale-task sort never happened.
+ */
+export function pendingQuestion(lastAssistant?: string | null): string | null {
+  const t = (lastAssistant ?? "").trim();
+  if (!t.endsWith("?")) return null;
+  const q = t.match(/[^.!?\n]*\?$/)?.[0]?.trim() ?? "";
+  return q.length >= 8 && q.length <= 300 ? q : null;
+}
+
 /** Narrow whole-turn matches: compound requests always reach the normal tools. */
 export function quickOfficeReply(
   request: string,
   route?: string,
   positions: LabelPositions | null = null,
+  lastAssistant?: string | null,
 ): string | null {
   const t = request
     .trim()
@@ -25,8 +38,12 @@ export function quickOfficeReply(
   if (
     isPresenceCheck(request) ||
     /^(?:hi|hello|hey|good (?:morning|afternoon|evening))(?:[, ]+elsie)?$/i.test(t)
-  )
-    return "I'm here, John. What can I help you with?";
+  ) {
+    const asked = pendingQuestion(lastAssistant);
+    return asked
+      ? `I'm here, John. I was asking: ${asked}`
+      : "I'm here, John. What can I help you with?";
+  }
   if (
     /^(?:what|which) (?:office )?rooms (?:are there|do we have|are in (?:the|my|our) office|do you (?:know|know about))$/i.test(
       t,

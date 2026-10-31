@@ -78,7 +78,8 @@ import { routeSkillsForRoom } from "./office-skills";
 import { handoffTextWith } from "./text-colleague-handoff";
 import { saveManagerBrainWith } from "./manager-brain-save";
 import { managerConnectionFailure } from "./manager-connection-errors";
-import { archiveManagerTaskWith, findSavedItemsWith, moveSavedItemWith, restoreManagerTaskWith, MOVABLE_ROOMS } from "./work-sorting";
+import { archiveManagerTaskWith, findSavedItemsWith, moveSavedItemWith, restoreManagerTaskWith, sweepStaleTasksWith, MOVABLE_ROOMS } from "./work-sorting";
+import { STALLED_AFTER_MS } from "./pretrip";
 import { FILE_FOLDERS } from "./office-files";
 import { BRAIN_SHELVES, SHELF_LABELS, type BrainShelf } from "./brain-shelves";
 
@@ -526,6 +527,13 @@ const TOOLS = [
   },
   {
     type: "function" as const,
+    name: "sweep_stale_tasks",
+    description:
+      "Stale sweep: every task still marked in progress with no update for two days moves to Waiting, with a plain reason naming who must report back. Nothing is archived or deleted, each move logs a rollback point, and update_task (status in_progress) puts one back. Green. preview true only lists them.",
+    parameters: { type: "object", additionalProperties: false, properties: { preview: { type: "boolean" } } },
+  },
+  {
+    type: "function" as const,
     name: "find_saved_items",
     description:
       "Read-only search of saved tasks (including archived ones), Brain notes, links and files by a word or two from the name. Returns each item's exact id and where it is now. Use it to get the id before update_task, archive_task, restore_task, move_saved_item or file_on_brain_shelf.",
@@ -717,6 +725,7 @@ const TOOL_ARG_RULES: Record<
   },
   archive_task: { task_id: { type: "string", maxLen: 100 }, reason: { type: "string", maxLen: 300 } },
   restore_task: { task_id: { type: "string", maxLen: 100 } },
+  sweep_stale_tasks: { preview: { type: "boolean" } },
   find_saved_items: { query: { type: "string", maxLen: 80 }, kind: { type: "string", enum: ["task", "note", "link", "file"] } },
   move_saved_item: {
     kind: { type: "string", enum: ["link", "file"] },
@@ -971,6 +980,7 @@ Spoken task commands (Work Board):
 - The office team roster in the context lists who works in the office and which room they belong to. When John names someone, match them to a roster name even if he says it loosely, and use that exact roster name as the worker. If nobody on the roster matches, say who is on the roster and ask which one he means instead of inventing a person.
 - Use assign_task when he names an existing task, verify_task when he says something is done and states the result, and update the project field when he names a project.
 - Sorting the Work Board (31 Oct): edit an existing task with update_task (title, details, project, or status open/in progress/waiting with a reason), take stale, duplicate or dead tasks off the list with archive_task (nothing is deleted; give the reason), and bring one back with restore_task. Refile a saved link or file into the right room with move_saved_item, and a Brain note, link or file onto the right Brain shelf with file_on_brain_shelf. When you do not have an item's exact id, call find_saved_items first; never guess an id. These are green: do them when John asks, or when he asks you to sort or tidy the board, and report each confirmed result. Never use them to delete, and never move anything into or out of Finance.
+- Office manager habit (1 Nov): you keep the board honest without being asked twice. When John says to take care of stale or stalled items, sort the office, or clean up the board, call sweep_stale_tasks right away; do not ask him which rule to use. Then archive_task only clear duplicates or work the records show is finished or replaced, with the reason. Report in one or two plain sentences what moved and what still needs John. Ask John first only for money, legal, deleting, or sign-in and security changes.
 - Say the words back briefly so a misheard command is caught: name the task, the worker and the project you recorded, and stop there.
 - If the work is yellow or red, do not create it as green: use request_approval and tell him it is waiting for his approval.
 - When John says to submit, send, put up or queue something for approval — spoken or typed — call request_approval right then with a short title, the detail and any cost, then report only the confirmed saved result. Never say it was queued unless a real approval id was returned. Nothing protected happens until he approves it.
@@ -1444,7 +1454,7 @@ async function executeToolCalls(
   for (const call of toolCalls) {
     // An action suggested by the provider cannot override John's read-only or
     // hypothetical request, including task writes and status-evidence updates.
-    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "update_task", "archive_task", "restore_task", "move_saved_item", "file_on_brain_shelf", "request_approval", "log_change", "preview_appearance", "hand_to_claude_worker", "create_drive_file", "update_drive_file", "save_brain_note"].includes(call.name)) {
+    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "update_task", "archive_task", "restore_task", "sweep_stale_tasks", "move_saved_item", "file_on_brain_shelf", "request_approval", "log_change", "preview_appearance", "hand_to_claude_worker", "create_drive_file", "update_drive_file", "save_brain_note"].includes(call.name)) {
       actionResults.push({ name: call.name, risk: "green", status: "stopped", detail: "This was discussion or a read-only request. No Office action was carried out." });
       continue;
     }
@@ -1747,6 +1757,19 @@ async function executeToolCalls(
         actionResults.push(isManagerError(result)
           ? { name: call.name, risk, status: "stopped", detail: result.message }
           : { name: call.name, risk, status: "done", detail: `Restored "${result.title}" (${result.id}) to ${result.restoredTo.replace("_", " ")}.` });
+      } else if (call.name === "sweep_stale_tasks") {
+        const result = await sweepStaleTasksWith(workbench, { accessToken, preview: call.arguments["preview"] === true, stalledAfterMs: STALLED_AFTER_MS });
+        if (isManagerError(result)) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
+        } else {
+          const names = result.moved.map(m => `"${m.title}" (no update since ${m.since})`).join("; ");
+          const extra = `${result.failed.length ? ` Could not move: ${result.failed.join("; ")}.` : ""}${result.more ? ` ${result.more} more are stale; run the sweep again for them.` : ""}`;
+          actionResults.push({ name: call.name, risk, status: result.failed.length && !result.moved.length ? "stopped" : "done", detail: !result.moved.length && !result.failed.length
+            ? "No in-progress task has gone two days without an update. Nothing was changed."
+            : result.preview
+              ? `${result.moved.length} stale in-progress task${result.moved.length === 1 ? "" : "s"}: ${names}. Preview only; nothing was changed.${extra}`
+              : `Moved ${result.moved.length} stale task${result.moved.length === 1 ? "" : "s"} from In progress to Waiting: ${names}. Each says who must report back. Nothing was archived or deleted, and a rollback point was logged for each.${extra}` });
+        }
       } else if (call.name === "find_saved_items") {
         const kind = call.arguments["kind"] as "task" | "note" | "link" | "file" | undefined;
         const result = await findSavedItemsWith(workbench, { accessToken, query: String(call.arguments["query"] ?? ""), kind });
@@ -1982,7 +2005,8 @@ export async function runManagerChatWith(
   // Greetings and app-directory facts need no queue polling, private reads or
   // provider round trip. Authentication still precedes every server reply.
   const quickReply = statusRequest?.role === "user"
-    ? quickOfficeReply(statusRequest.content, data.currentRoute, data.labelPositions ?? null) : null;
+    ? quickOfficeReply(statusRequest.content, data.currentRoute, data.labelPositions ?? null,
+      data.messages.slice(0, -1).reverse().find((m) => m.role === "assistant")?.content) : null;
   if (quickReply !== null) return {
     ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
     text: quickReply, toolCalls: [], actionResults: [],

@@ -481,6 +481,7 @@ describe("live office context replaces anything the browser sends", () => {
       "update_task",
       "archive_task",
       "restore_task",
+      "sweep_stale_tasks",
       "find_saved_items",
       "move_saved_item",
       "file_on_brain_shelf",
@@ -752,6 +753,14 @@ describe("Work Board sorting tools (31 Oct)", () => {
     expect(reply.actionResults).toEqual([expect.objectContaining({ name: "update_task", status: "done", detail: expect.stringContaining("project Safe Highways") })]);
     expect(writes.find(w => w.method === "PATCH")!.body).toMatchObject({ project: "Safe Highways", status: "in_progress" });
     expect(writes.find(w => w.url.endsWith("rpc/log_manager_change"))!.body).toMatchObject({ _before: { project: "", status: "open" }, _after: { project: "Safe Highways", status: "in_progress" } });
+  });
+
+  it("sweeps stale in-progress tasks to Waiting in one call, never archiving or deleting", async () => {
+    const stale = { ...task, status: "in_progress", worker: "ChatGPT", updated_at: "2026-01-01T00:00:00Z" };
+    const { reply, writes } = await call("sweep_stale_tasks", {}, { manager_tasks: [stale] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "sweep_stale_tasks", status: "done", detail: expect.stringContaining("from In progress to Waiting") })]);
+    expect(writes.some(w => w.method === "DELETE")).toBe(false);
+    expect(writes.find(w => w.method === "PATCH")!.body).toMatchObject({ status: "waiting" });
   });
 
   it("will not change the status of a finished task without restore_task", async () => {

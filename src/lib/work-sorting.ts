@@ -342,3 +342,88 @@ export async function moveSavedItemWith(
   ).catch(() => undefined);
   return { title: str(before[name]), from, to };
 }
+
+/** Most tasks one stale sweep will touch, so one request can never rewrite the whole board. */
+export const STALE_SWEEP_LIMIT = 25;
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-CA", {
+    day: "numeric",
+    month: "short",
+    timeZone: "America/Dawson_Creek",
+  });
+
+/**
+ * Stale sweep (1 Nov 2026, John: "take care of those stale items").
+ * A task still marked "in progress" with no update for the pre-trip's stalled
+ * window is not really being worked on, so it moves to Waiting with a plain
+ * reason. Nothing is archived or deleted, each move logs a rollback point, and
+ * update_task (status in_progress) puts it back. preview lists without changing.
+ */
+export async function sweepStaleTasksWith(
+  deps: WorkbenchDeps,
+  input: { accessToken: string; preview?: boolean; now?: number; stalledAfterMs: number },
+): Promise<
+  | {
+      moved: Array<{ id: string; title: string; since: string }>;
+      failed: string[];
+      preview: boolean;
+      more: number;
+    }
+  | ManagerWorkError
+> {
+  const v = await owner(deps, input.accessToken);
+  if (!v.ok) return v;
+  const now = input.now ?? Date.now();
+  const cutoff = new Date(now - input.stalledAfterMs).toISOString();
+  const r = await deps.rest<ManagerTask[]>(
+    input.accessToken,
+    "GET",
+    `manager_tasks?select=id,title,status,worker,updated_at,owner_id&status=eq.in_progress&updated_at=lt.${encodeURIComponent(cutoff)}&order=updated_at.asc`,
+  );
+  if (!r.ok || !Array.isArray(r.data))
+    return fail(
+      "context_unavailable",
+      r.error ?? "The Work Board could not be read. Nothing was changed.",
+    );
+  const stale = (r.data as ManagerTask[]).filter(
+    (t) =>
+      t.owner_id === v.userId &&
+      t.status === "in_progress" &&
+      Date.parse(str(t.updated_at)) < now - input.stalledAfterMs,
+  );
+  const batch = stale.slice(0, STALE_SWEEP_LIMIT);
+  const today = shortDate(new Date(now).toISOString());
+  const moved: Array<{ id: string; title: string; since: string }> = [];
+  const failed: string[] = [];
+  for (const t of batch) {
+    const since = shortDate(str(t.updated_at));
+    if (input.preview) {
+      moved.push({ id: t.id, title: t.title, since });
+      continue;
+    }
+    const worker = clean(t.worker, 80);
+    const reason = `Stale sweep ${today}: no update since ${since}. Needs ${worker || "a worker"} to report back, or John to restart it.`;
+    const updated = await deps.rest<ManagerTask[]>(
+      input.accessToken,
+      "PATCH",
+      `manager_tasks?id=eq.${encodeURIComponent(t.id)}&status=eq.in_progress`,
+      { status: "waiting", waiting_reason: reason, updated_at: new Date(now).toISOString() },
+    );
+    if (!updated.ok || !first(updated.data)) {
+      failed.push(t.title);
+      continue;
+    }
+    await log(
+      deps,
+      input.accessToken,
+      v.userId,
+      "task.update",
+      "manager_tasks",
+      t.id,
+      { status: "in_progress", waiting_reason: "" },
+      { status: "waiting", waiting_reason: reason, sweep: "stale" },
+    ).catch(() => undefined);
+    moved.push({ id: t.id, title: t.title, since });
+  }
+  return { moved, failed, preview: Boolean(input.preview), more: stale.length - batch.length };
+}
