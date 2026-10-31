@@ -806,7 +806,7 @@ When John asks to recall the last few minutes, repeat what was just discussed, o
 Continuity is a standing office rule:
 - Your name is Elsie. Astra and Data are former names of this same office role. Use Elsie for your current identity, even when saved history uses a former name. Preserve all existing records, goals, decisions, source labels and audit history; a name change is never a memory reset.
 - Carry forward the owner's saved goals, working preferences, constraints and open ideas before recommending the next step. Explain conflicting or missing history; never invent a memory or silently replace a goal.
-- Keep the conversation natural, connected and concise. Lead with the useful answer, use plain words, and ask at most one focused question when needed. Avoid canned acknowledgments and ending every reply with an offer to help. Use relevant saved context without reciting the owner profile. Accept corrections immediately. Keep ideas distinct from commitments, research distinct from verified evidence, and plans distinct from completed work.
+- Keep the conversation natural, connected and concise. Lead with the useful answer, use plain words, and ask at most one focused question when needed. Avoid canned acknowledgments and ending every reply with an offer to help. Use relevant saved context without reciting the owner profile. Accept corrections immediately. Answer the message John just sent: when he asks "are you there?", gives a short "OK", or asks a new question, never replay or re-run a check you already reported in this conversation; re-check only when he asks for a fresh check, and say "same as a moment ago" in one line instead of repeating it. Speak task names, not long ID numbers, unless he asks for the number. Keep ideas distinct from commitments, research distinct from verified evidence, and plans distinct from completed work.
 - Research opportunities, niches, existing builders and competitors; include source links and relevant video evidence when available. Recommend the best available AI or combination for the task, based on capability and cost. Queue findings for review together before treating a new idea as an approved build or goal. Never claim a research or AI connection is available unless its tool result proves it.
 - You run in a separate Office AI session. You have only the history supplied in the current context and the saved CanX Brain records. Do not claim to be this user's live ChatGPT session, to inherit all ChatGPT memories automatically, or to have tools that are not connected here.
 - Useful office, build and idea summaries may be saved under the owner's standing continuity instruction by the application. Background chatter and microphone tests are excluded. A save is complete only after verified readback. Missing memory is a visible blocker, not permission to guess.
@@ -917,10 +917,6 @@ export const VOICE_ANSWER_RULE =
   "SPOKEN TURN: John is listening, not reading. Answer in one to three short spoken sentences unless he asks for a list or the detail. Lists are names only, with no descriptions unless asked. Never shorten a tool call, an approval or a fact to fit.";
 
 /**
- * Rooms to read fresh for this request: a room John names explicitly comes
- * first (it overrides "this room"); the open room is added when different.
- */
-/**
  * Each paragraph of an answer once. A tool's result was listed both as its
  * outcome and as its text, so Elsie said it twice (33 of 200 saved answers).
  */
@@ -934,6 +930,20 @@ export function uniqueParagraphs(parts: string[]): string[] {
   });
 }
 
+/**
+ * "Are you there?" / "Can you hear me?" only checks Elsie is listening. On 27 Oct
+ * the model re-ran the same build check for it five turns in a row, so a
+ * presence check never runs a tool.
+ */
+export function isPresenceCheck(text: string): boolean {
+  const t = text.trim().replace(/^(?:elsie|okay|ok|hey)[,.!]?\s*/i, "");
+  return /^(?:(?:are )?you (?:still )?there|(?:can|do) you hear me|anyone there|elsie)\s*[?.!]*$/i.test(t);
+}
+
+/**
+ * Rooms to read fresh for this request: a room John names explicitly comes
+ * first (it overrides "this room"); the open room is added when different.
+ */
 export function roomsForRequest(latestUser: string, currentRoute: string | undefined): Array<{ route: string; why: "current" | "named" }> {
   const named = namedOfficeRoom(latestUser);
   const namedTarget = named ? roomTargetForRoute(named.route) : null;
@@ -2022,6 +2032,10 @@ export async function runManagerChatWith(
       // identifier suggested by the model. Existing build gates still run.
       reply.toolCalls = reply.toolCalls.map(call => call.name === "execute_task"
         ? { name: `start_${buildChoice.builder}_build`, arguments: {}, rawArguments: "{}" } : call);
+    }
+    if (reply.ok && reply.toolCalls.length > 0 && isPresenceCheck(latestUser)) {
+      reply.toolCalls = [];
+      if (!reply.text.trim()) reply.text = "I'm here.";
     }
     if (reply.ok && reply.toolCalls.length > 0) {
       const { textAdditions, actionResults, remainingToolCalls, consultations } =
