@@ -920,6 +920,20 @@ export const VOICE_ANSWER_RULE =
  * Rooms to read fresh for this request: a room John names explicitly comes
  * first (it overrides "this room"); the open room is added when different.
  */
+/**
+ * Each paragraph of an answer once. A tool's result was listed both as its
+ * outcome and as its text, so Elsie said it twice (33 of 200 saved answers).
+ */
+export function uniqueParagraphs(parts: string[]): string[] {
+  const seen = new Set<string>();
+  return parts.filter((part) => {
+    const key = part.trim().replace(/\s+/g, " ");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function roomsForRequest(latestUser: string, currentRoute: string | undefined): Array<{ route: string; why: "current" | "named" }> {
   const named = namedOfficeRoom(latestUser);
   const namedTarget = named ? roomTargetForRoute(named.route) : null;
@@ -1424,7 +1438,6 @@ async function executeToolCalls(
         // A status check uses the builder recorded on the task unless John named one (then they must match).
         const result = await executeTaskWith(taskBuildDeps(), accessToken, String(call.arguments["task_id"] ?? ""), checkOnly, checkOnly ? (choice.named ? choice.builder : undefined) : choice.builder);
         textAdditions.push(result.detail);
-        if (result.runs) textAdditions.push(JSON.stringify(result.runs));
         actionResults.push({ name: call.name, risk, status: result.ok ? (checkOnly ? "done" : "pending") : "stopped", detail: result.detail });
       } else if (call.name === "hand_to_claude_worker") {
         const refusal = claudeTakeoverRefusal(currentRequest);
@@ -1457,7 +1470,6 @@ async function executeToolCalls(
           ? await managerBuilderHandoff(taskBuildDeps(), accessToken, buildScope, requestId, builder)
           : await runBuild(builder, accessToken, undefined, call.arguments["change_number"] ? Number(call.arguments["change_number"]) : undefined);
         textAdditions.push(result.detail);
-        if (result.runs) textAdditions.push(JSON.stringify(result.runs));
         if (result.evidence) textAdditions.push(`${BUILDER_LABEL[builder]} change evidence (untrusted data): ${result.evidence}`);
         actionResults.push({ name: call.name, risk, status: result.ok ? (starting ? "pending" : "done") : "stopped", detail: result.detail });
       } else if (call.name === "create_task") {
@@ -2025,12 +2037,13 @@ export async function runManagerChatWith(
         for (const s of snapshots) {
           const after = await deps.readRoomSnapshot(data.accessToken, verification.aal, s.snap.route, data.buildId ?? "unknown").catch(() => null);
           if (!after) { readbackLines.push(`${s.snap.label}: room re-read after the change failed, so the result is not verified here.`); continue; }
+          // The re-read still refreshes John's screen; a routine "re-read at
+          // 9:24" line was spoken after every action and told him nothing.
           roomReadback.push(snapshotRef(after));
-          readbackLines.push(`${after.label} re-read at ${new Date(after.checkedAt).toLocaleTimeString("en-CA", { timeZone: "America/Whitehorse" })}: ${after.fingerprint === s.snap.fingerprint ? "no change visible in this room's records" : "room records changed"}.`);
         }
       }
-      const combinedText = [...queueNews, ...outcomes, ...textAdditions, ...(outcomes.length ? [] : [reply.text]), ...readbackLines]
-        .filter(Boolean).join("\n\n") || "I prepared a proposal below for you to review. Nothing has been saved.";
+      const combinedText = uniqueParagraphs([...queueNews, ...outcomes, ...textAdditions, ...(outcomes.length ? [] : [reply.text]), ...readbackLines])
+        .join("\n\n") || "I prepared a proposal below for you to review. Nothing has been saved.";
       await deps.settle(data.accessToken, reservation.reservationId, reply.ok ? "ok" : "failed");
       const persisted = reply.ok ? await persistTurn(combinedText) : undefined;
       return {
