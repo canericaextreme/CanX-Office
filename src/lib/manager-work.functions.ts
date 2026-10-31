@@ -192,7 +192,15 @@ export function classifyManagerRisk(action: string, scope?: string): RiskLevel {
     "safety_critical",
     "authorize_spend",
   ];
-  if (red.some((word) => a.includes(word))) return "red";
+  // Only explicitly recognized, non-mutating advisory operations may refer
+  // to a protected action without performing it. A descriptive prefix alone
+  // never authorizes execution; actual side effects must be gated at execution.
+  const safeAdvisory = new Set([
+    "review_publish_plan",
+    "audit_purchase_proposal",
+    "draft_delete_data_policy",
+  ]);
+  if (!safeAdvisory.has(a) && red.some((word) => a.includes(word))) return "red";
   if (s.includes("production") && (a.includes("write") || a.includes("update") || a.includes("delete"))) return "red";
 
   const yellow = [
