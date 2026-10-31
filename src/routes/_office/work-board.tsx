@@ -23,6 +23,8 @@ import { taskExecutionEvidence } from "@/lib/task-execution-evidence";
 import { WorkBoardDecision } from "@/components/office/WorkBoardDecision";
 import { decisionsForJohn, type DecisionItem } from "@/lib/work-board-decisions";
 
+import { isInTrash, runTrashSweep } from "@/lib/work-board-trash";
+
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
     meta: [
@@ -123,15 +125,24 @@ export function WorkBoard() {
   const [problem, setProblem] = useState<string | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
 
+  const [view, setView] = useState<"board" | "trash">("board");
+  const [archivedIds, setArchivedIds] = useState<string[]>([]);
+  // Draft markers are deliberately transient; never write task data or history.
+  useEffect(() => {
+    if (!isOwner) setArchivedIds([]);
+  }, [isOwner]);
   const tasks = memory?.tasks ?? null;
+  const [sweepAt, setSweepAt] = useState(0);
+  const trashTasks = memory ? memory.tasks.filter((task) => isInTrash(task, memory, archivedIds, sweepAt)) : [];
+  const boardTasks = tasks?.filter((task) => !trashTasks.includes(task));
   const assignments = memory?.assignments ?? [];
   const approvals = memory?.approvals ?? [];
   // Everything waiting on John: Approval Box requests, tasks on hold and unapproved yellow tasks.
-  const decisions = tasks ? decisionsForJohn(tasks, approvals) : [];
+  const decisions = tasks ? decisionsForJohn(boardTasks ?? [], approvals) : [];
   const decisionFor: Record<string, DecisionItem> = {};
   for (const item of decisions) if (item.kind !== "approval") decisionFor[item.id] = item;
   const approvalDecisions = decisions.filter((item) => item.kind === "approval");
-  const shownTasks = onlyMine ? tasks?.filter((task) => decisionFor[task.id]) : tasks;
+  const shownTasks = view === "trash" ? trashTasks : onlyMine ? boardTasks?.filter((task) => decisionFor[task.id]) : boardTasks;
   const decided = (message: string) => {
     setProblem(null);
     setNotice(message);
@@ -219,6 +230,26 @@ export function WorkBoard() {
           )}
 
           {isOwner && tasks && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Task views">
+                <Button variant={view === "board" ? "default" : "outline"} aria-pressed={view === "board"} onClick={() => setView("board")}>Work Board</Button>
+                <Button variant={view === "trash" ? "default" : "outline"} aria-pressed={view === "trash"} onClick={() => setView("trash")}>Trash ({trashTasks.length})</Button>
+                <Button variant="outline" disabled={loading || busy !== null || !accessToken} onClick={() => {
+                  if (!memory) return;
+                  const at = Date.now();
+                  const next = runTrashSweep(memory, archivedIds, at);
+                  setSweepAt(at);
+                  const added = next.filter((id) => !archivedIds.includes(id)).length;
+                  setArchivedIds(next);
+                  setProblem(null);
+                  setNotice(`${added} task${added === 1 ? "" : "s"} moved to Trash in this draft session. No saved records changed.`);
+                }}>Run sweep now</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Draft for John's review — Trash lasts only while this page stays open. Shared archive storage is not implemented. The manual sweep uses loaded records: only done or cancelled tasks with no live blocker and no recorded activity for at least 7 days qualify. No automatic schedule. Task data and history are kept.</p>
+            </div>
+          )}
+
+          {isOwner && tasks && view === "board" && (
             <section
               aria-labelledby="needs-john-heading"
               className={
@@ -304,7 +335,7 @@ export function WorkBoard() {
             </p>
           )}
 
-          {tasks && tasks.length === 0 && <p className="text-sm text-muted-foreground">No records yet.</p>}
+          {tasks && shownTasks?.length === 0 && <p className="text-sm text-muted-foreground">{view === "trash" ? "Trash is empty. No tasks have been deleted." : "No tasks in this view."}</p>}
 
           {shownTasks?.map((task) => {
             const needs = decisionFor[task.id];
