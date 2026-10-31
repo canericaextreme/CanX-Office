@@ -610,7 +610,8 @@ export function OfficeManager() {
     roomOutcomeRef.current = null;
     // Same app-fact answer as the server, without a network/model round trip.
     // The existing typed/voice completion path still checkpoints the answer.
-    const quick = quickOfficeReply(request, router.state.location.pathname, readOfficeLabelPositions());
+    const quick = quickOfficeReply(request, router.state.location.pathname, readOfficeLabelPositions(),
+      [...messagesRef.current].reverse().find((m) => m.role === "assistant")?.content);
     if (quick !== null) { roomOutcomeRef.current = "display"; return quick; }
     // The Synopsis list is read from the menu itself, never from a model guess.
     if (isSynopsisListRequest(request)) {

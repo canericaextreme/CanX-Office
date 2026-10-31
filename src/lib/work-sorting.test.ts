@@ -5,6 +5,7 @@ import {
   findSavedItemsWith,
   moveSavedItemWith,
   restoreManagerTaskWith,
+  sweepStaleTasksWith,
 } from "./work-sorting";
 
 const OWNER = { ok: true as const, userId: "owner-1", email: "", aal: "aal2" };
@@ -224,5 +225,47 @@ describe("find_saved_items", () => {
     const { deps, calls } = fake({});
     await findSavedItemsWith(deps, { accessToken: "t", query: "receipt", kind: "file" });
     expect(calls.map((c) => c.path.split("?")[0])).toEqual(["office_files"]);
+  });
+});
+
+describe("sweep_stale_tasks", () => {
+  const NOW = Date.parse("2026-11-01T00:00:00Z");
+  const DAY = 24 * 3_600_000;
+  const rowsFor = () => ({
+    manager_tasks: [
+      task({ id: "old", title: "Old job", status: "in_progress", worker: "ChatGPT", updated_at: "2026-10-29T00:25:43+00:00" }),
+      task({ id: "fresh", title: "Fresh job", status: "in_progress", updated_at: "2026-10-31T12:00:00+00:00" }),
+      task({ id: "other", owner_id: "someone-else", status: "in_progress", updated_at: "2026-10-01T00:00:00+00:00" }),
+    ],
+  });
+
+  it("moves only this owner's in-progress tasks older than two days to Waiting, with a reason and a rollback point", async () => {
+    const { deps, calls } = fake(rowsFor(), (_p, body) => [{ id: "old", ...body }]);
+    const out = await sweepStaleTasksWith(deps, { accessToken: "t", now: NOW, stalledAfterMs: 2 * DAY });
+    if ("ok" in out) throw new Error(out.message);
+    expect(out.moved.map((m) => m.id)).toEqual(["old"]);
+    const patches = calls.filter((c) => c.method === "PATCH");
+    expect(patches).toHaveLength(1);
+    expect(patches[0]!.path).toContain("status=eq.in_progress");
+    expect(patches[0]!.body).toMatchObject({ status: "waiting" });
+    expect(String(patches[0]!.body!["waiting_reason"])).toMatch(/no update since Oct 28.*ChatGPT to report back/);
+    expect(logs(calls)).toEqual([expect.objectContaining({ _action: "task.update", _entity_id: "old", _before: { status: "in_progress", waiting_reason: "" } })]);
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+  });
+
+  it("preview lists without changing anything", async () => {
+    const { deps, calls } = fake(rowsFor());
+    const out = await sweepStaleTasksWith(deps, { accessToken: "t", now: NOW, stalledAfterMs: 2 * DAY, preview: true });
+    if ("ok" in out) throw new Error(out.message);
+    expect(out.moved.map((m) => m.title)).toEqual(["Old job"]);
+    expect(calls.filter((c) => c.method !== "GET")).toEqual([]);
+  });
+
+  it("reports a failed save instead of claiming it moved", async () => {
+    const { deps } = fake(rowsFor(), () => []);
+    const out = await sweepStaleTasksWith(deps, { accessToken: "t", now: NOW, stalledAfterMs: 2 * DAY });
+    if ("ok" in out) throw new Error(out.message);
+    expect(out.moved).toEqual([]);
+    expect(out.failed).toEqual(["Old job"]);
   });
 });
