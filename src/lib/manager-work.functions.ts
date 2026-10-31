@@ -377,8 +377,9 @@ export async function updateManagerTaskWith(deps: WorkbenchDeps, input: UpdateTa
     _action: "task.update",
     _entity: "manager_tasks",
     _entity_id: input.taskId,
-    _before: { title: before.title, detail: before.detail, risk: before.risk },
-    _after: { title: row.title, detail: row.detail, risk: row.risk },
+    // Every edited field is kept on both sides so any edit can be rolled back.
+    _before: { title: before.title, detail: before.detail, risk: before.risk, project: before.project ?? "", status: before.status, waiting_reason: before.waiting_reason ?? "" },
+    _after: { title: row.title, detail: row.detail, risk: row.risk, project: row.project ?? "", status: row.status, waiting_reason: row.waiting_reason ?? "" },
   }).catch(() => undefined);
 
   return row;

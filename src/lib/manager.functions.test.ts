@@ -477,6 +477,13 @@ describe("live office context replaces anything the browser sends", () => {
       "create_task",
       "assign_task",
       "verify_task",
+      // Work Board sorting (31 Oct): edit, archive/restore, find, refile. No delete tool.
+      "update_task",
+      "archive_task",
+      "restore_task",
+      "find_saved_items",
+      "move_saved_item",
+      "file_on_brain_shelf",
       "request_approval",
       "log_change",
       "save_brain_note",
@@ -710,5 +717,57 @@ describe("Research document context handoff", () => {
     const readDocuments = vi.fn();
     await runManagerChatWith(deps({ readDocuments }), { ...CHAT, currentRoute: "/research" });
     expect(readDocuments).not.toHaveBeenCalled();
+  });
+});
+
+describe("Work Board sorting tools (31 Oct)", () => {
+  async function call(name: string, args: Record<string, unknown>, rows: Record<string, unknown[]>, extra: Partial<ManagerDeps> = {}) {
+    vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("CANX_SUPABASE_PUBLISHABLE_KEY", "test-key");
+    const writes: Array<{ method: string; url: string; body: unknown }> = [];
+    const fetchImpl = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/v1/models/")) return new Response("{}");
+      if (url.includes("/v1/responses")) return Response.json({ output: [{ type: "function_call", name, arguments: JSON.stringify(args) }] });
+      const method = init?.method ?? "GET";
+      const table = url.split("/rest/v1/")[1]?.split("?")[0] ?? "";
+      if (method !== "GET") writes.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : null });
+      if (method === "PATCH") return Response.json([{ ...(rows[table]?.[0] as object), ...JSON.parse(String(init?.body)) }]);
+      return Response.json(method === "GET" ? rows[table] ?? [] : {});
+    }) as unknown as typeof fetch;
+    try { return { reply: await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, ...extra }), { accessToken: "t", messages: [{ role: "user", content: "Sort the work board please" }] }), writes }; }
+    finally { vi.unstubAllEnvs(); }
+  }
+  const task = { id: "t1", owner_id: "u1", title: "Old review", status: "open", result: "", project: "" };
+
+  it("archives a task through Elsie without deleting anything", async () => {
+    const { reply, writes } = await call("archive_task", { task_id: "t1", reason: "Duplicate" }, { manager_tasks: [task] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "archive_task", status: "done", detail: expect.stringContaining("Nothing was deleted") })]);
+    expect(writes.some(w => w.method === "DELETE")).toBe(false);
+    expect(writes.find(w => w.method === "PATCH")!.body).toMatchObject({ status: "cancelled" });
+  });
+
+  it("edits a task's project and status, and logs both sides", async () => {
+    const { reply, writes } = await call("update_task", { task_id: "t1", project: "Safe Highways", status: "in_progress" }, { manager_tasks: [task] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "update_task", status: "done", detail: expect.stringContaining("project Safe Highways") })]);
+    expect(writes.find(w => w.method === "PATCH")!.body).toMatchObject({ project: "Safe Highways", status: "in_progress" });
+    expect(writes.find(w => w.url.endsWith("rpc/log_manager_change"))!.body).toMatchObject({ _before: { project: "", status: "open" }, _after: { project: "Safe Highways", status: "in_progress" } });
+  });
+
+  it("will not change the status of a finished task without restore_task", async () => {
+    const { reply, writes } = await call("update_task", { task_id: "t1", status: "open" }, { manager_tasks: [{ ...task, status: "done" }] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ status: "stopped", detail: expect.stringContaining("restore_task") })]);
+    expect(writes).toEqual([]);
+  });
+
+  it("files a note on a Brain shelf through the shared shelf save", async () => {
+    const fileOnShelf = vi.fn(async () => ({ ok: true, detail: "Filed on the Rulebook shelf." }));
+    const { reply } = await call("file_on_brain_shelf", { kind: "note", item_id: "canx-brain-rule-1", shelf: "rulebook" }, {}, { fileOnShelf });
+    expect(fileOnShelf).toHaveBeenCalledWith("t", "u1", "note:canx-brain-rule-1", "rulebook");
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "file_on_brain_shelf", status: "done" })]);
+  });
+
+  it("drops a Finance destination before any write", () => {
+    expect(sanitizeToolArgs("move_saved_item", '{"kind":"link","item_id":"l1","room":"finance"}')).toEqual({ kind: "link", item_id: "l1" });
   });
 });
