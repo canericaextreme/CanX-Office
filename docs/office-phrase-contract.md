@@ -11,6 +11,7 @@ current task state, previous attempts, risk, protected scope and budget.
 | Carry on with that job / Keep working on the repair | Existing-task intent | Exact task must be resolved by the normal task tool |
 | Get the fix done | Existing-task intent | Protected or completed tasks remain protected/closed |
 | Elsie, could you start a new Codex build to fix the label? | Explicit build intent | Named builder, green scope, budget and no-retry checks remain |
+| Claude, move the search box to the footer | Explicit build intent (routine, green) | "Move" alone is never a protected word; deleting, publishing, legal or money wording in the same request is still refused (`builder-move-request.test.ts`) |
 | Is the task finished? / Explain how to finish the task | Status/discussion | No execution intent |
 | Finish the task, but do not send it yet | Stop/discussion | Explicit stop wins |
 
