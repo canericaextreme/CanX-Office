@@ -49,6 +49,7 @@ import {
   logManagerChangeWith,
   requestManagerApprovalWith,
   runManagerSecondEyesWith,
+  updateManagerTaskWith,
   verifyManagerTaskWith,
   type JsonObject,
   type ManagerMemory,
@@ -74,6 +75,9 @@ import { routeSkillsForRoom } from "./office-skills";
 import { handoffTextWith } from "./text-colleague-handoff";
 import { saveManagerBrainWith } from "./manager-brain-save";
 import { managerConnectionFailure } from "./manager-connection-errors";
+import { archiveManagerTaskWith, findSavedItemsWith, moveSavedItemWith, restoreManagerTaskWith, MOVABLE_ROOMS } from "./work-sorting";
+import { FILE_FOLDERS } from "./office-files";
+import { BRAIN_SHELVES, SHELF_LABELS, type BrainShelf } from "./brain-shelves";
 
 /** Missing or unknown task risk is treated as green, matching task creation. */
 const cleanTaskRisk = (value: unknown): RiskLevel =>
@@ -185,6 +189,8 @@ export interface ManagerDeps {
   runBuild?: (builder: import("./builder-choice").OfficeBuilder, token: string, request?: string, prNumber?: number, runId?: number) => Promise<import("./codex-builds.server").CodexBuildResult>;
   /** Read-only live state of a full Claude worker's pull request (tests inject this). */
   readClaudeChange?: (prNumber: number) => Promise<import("./claude-takeover").ChangeState | null>;
+  /** Brain shelf refiling (tests inject this). Defaults to the Brain room's own shelf save. */
+  fileOnShelf?: (token: string, ownerId: string, itemKey: string, shelf: BrainShelf) => Promise<{ ok: boolean; detail: string }>;
   /** Production turns advance the builder queues; off unless wired (tests stay offline). */
   queueAutoAdvance?: boolean;
   /** One queue step per builder at the start of an owner turn; tests may replace it. */
@@ -485,6 +491,78 @@ const TOOLS = [
   },
   {
     type: "function" as const,
+    name: "update_task",
+    description:
+      "Edit an existing Work Board task: its title, details, project, or status (open, in_progress, or waiting with a reason). Green. Only the fields given change; the rest stay. Use verify_task to mark done, archive_task to take it off the list, restore_task to bring an archived task back.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["task_id"],
+      properties: {
+        task_id: { type: "string" },
+        title: { type: "string" },
+        detail: { type: "string" },
+        project: { type: "string" },
+        status: { type: "string", enum: ["open", "in_progress", "waiting"] },
+        waiting_reason: { type: "string" },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    name: "archive_task",
+    description:
+      "Archive a stale, duplicate or dead Work Board task so it leaves the open list. Nothing is deleted: the task, its result and history stay, a rollback point is logged, and restore_task brings it back. Green. Give the reason.",
+    parameters: { type: "object", additionalProperties: false, required: ["task_id", "reason"], properties: { task_id: { type: "string" }, reason: { type: "string" } } },
+  },
+  {
+    type: "function" as const,
+    name: "restore_task",
+    description: "Bring an archived (or finished) task back onto the open Work Board, at the status it had before it was archived. Green.",
+    parameters: { type: "object", additionalProperties: false, required: ["task_id"], properties: { task_id: { type: "string" } } },
+  },
+  {
+    type: "function" as const,
+    name: "find_saved_items",
+    description:
+      "Read-only search of saved tasks (including archived ones), Brain notes, links and files by a word or two from the name. Returns each item's exact id and where it is now. Use it to get the id before update_task, archive_task, restore_task, move_saved_item or file_on_brain_shelf.",
+    parameters: { type: "object", additionalProperties: false, required: ["query"], properties: { query: { type: "string" }, kind: { type: "string", enum: ["task", "note", "link", "file"] } } },
+  },
+  {
+    type: "function" as const,
+    name: "move_saved_item",
+    description:
+      "Refile one saved link or file into the right room (and optionally folder) by its id from find_saved_items. Green. Nothing is copied or deleted and a rollback point is logged. Finance items stay with John: nothing moves into or out of Finance.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "item_id", "room"],
+      properties: {
+        kind: { type: "string", enum: ["link", "file"] },
+        item_id: { type: "string" },
+        room: { type: "string", enum: MOVABLE_ROOMS },
+        folder: { type: "string", enum: [...FILE_FOLDERS] },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    name: "file_on_brain_shelf",
+    description:
+      "Refile one saved Brain note, link or file onto the right CanX Brain shelf by its id from find_saved_items. Writes only a separate shelf label; the original note, link or file is never changed. Green.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "item_id", "shelf"],
+      properties: {
+        kind: { type: "string", enum: ["note", "link", "file"] },
+        item_id: { type: "string" },
+        shelf: { type: "string", enum: [...BRAIN_SHELVES] },
+      },
+    },
+  },
+  {
+    type: "function" as const,
     name: "request_approval",
     description:
       "Queue a protected action that requires a separate decision: spending, deletion, external commitments or material safety/legal/security risks. Also use when John explicitly asks to queue an approval. Do not queue ordinary internal work that John directly requested; use create_task or assign_task instead. Never approve or execute protected work yourself. Never use for red actions.",
@@ -625,6 +703,28 @@ const TOOL_ARG_RULES: Record<
     task_id: { type: "string", maxLen: 100 },
     result: { type: "string", maxLen: 2000 },
     evidence: { type: "string", maxLen: 2000 },
+  },
+  update_task: {
+    task_id: { type: "string", maxLen: 100 },
+    title: { type: "string", maxLen: 300 },
+    detail: { type: "string", maxLen: 2000 },
+    project: { type: "string", maxLen: 160 },
+    status: { type: "string", enum: ["open", "in_progress", "waiting"] },
+    waiting_reason: { type: "string", maxLen: 300 },
+  },
+  archive_task: { task_id: { type: "string", maxLen: 100 }, reason: { type: "string", maxLen: 300 } },
+  restore_task: { task_id: { type: "string", maxLen: 100 } },
+  find_saved_items: { query: { type: "string", maxLen: 80 }, kind: { type: "string", enum: ["task", "note", "link", "file"] } },
+  move_saved_item: {
+    kind: { type: "string", enum: ["link", "file"] },
+    item_id: { type: "string", maxLen: 100 },
+    room: { type: "string", enum: MOVABLE_ROOMS },
+    folder: { type: "string", enum: [...FILE_FOLDERS] },
+  },
+  file_on_brain_shelf: {
+    kind: { type: "string", enum: ["note", "link", "file"] },
+    item_id: { type: "string", maxLen: 80 },
+    shelf: { type: "string", enum: [...BRAIN_SHELVES] },
   },
   request_approval: {
     title: { type: "string", maxLen: 300 },
@@ -867,6 +967,7 @@ Spoken task commands (Work Board):
 - When John tells you to make, add, log or assign a piece of work — for example "new task, order the gate hardware, assign John" — carry it out now with create_task, putting the worker's name in the worker field so it is created and assigned in one step. Do not just propose it and do not ask him to type it out.
 - The office team roster in the context lists who works in the office and which room they belong to. When John names someone, match them to a roster name even if he says it loosely, and use that exact roster name as the worker. If nobody on the roster matches, say who is on the roster and ask which one he means instead of inventing a person.
 - Use assign_task when he names an existing task, verify_task when he says something is done and states the result, and update the project field when he names a project.
+- Sorting the Work Board (31 Oct): edit an existing task with update_task (title, details, project, or status open/in progress/waiting with a reason), take stale, duplicate or dead tasks off the list with archive_task (nothing is deleted; give the reason), and bring one back with restore_task. Refile a saved link or file into the right room with move_saved_item, and a Brain note, link or file onto the right Brain shelf with file_on_brain_shelf. When you do not have an item's exact id, call find_saved_items first; never guess an id. These are green: do them when John asks, or when he asks you to sort or tidy the board, and report each confirmed result. Never use them to delete, and never move anything into or out of Finance.
 - Say the words back briefly so a misheard command is caught: name the task, the worker and the project you recorded, and stop there.
 - If the work is yellow or red, do not create it as green: use request_approval and tell him it is waiting for his approval.
 - When John says to submit, send, put up or queue something for approval — spoken or typed — call request_approval right then with a short title, the detail and any cost, then report only the confirmed saved result. Never say it was queued unless a real approval id was returned. Nothing protected happens until he approves it.
@@ -1199,6 +1300,30 @@ function isManagerError<T>(value: T | ManagerWorkError): value is ManagerWorkErr
   return value !== null && typeof value === "object" && "ok" in value && value.ok === false;
 }
 
+function findSavedTaskStatus(read: { ok: boolean; data?: Array<{ status?: string; title?: string }> }): { status: string; title: string } | null {
+  const row = read.ok && Array.isArray(read.data) ? read.data[0] : undefined;
+  return row ? { status: String(row.status ?? ""), title: String(row.title ?? "") } : null;
+}
+
+/** Same compare-and-save the Brain room uses: one separate label; the original never changes. */
+async function defaultFileOnShelf(token: string, ownerId: string, itemKey: string, shelf: BrainShelf): Promise<{ ok: boolean; detail: string }> {
+  const backend = await import("@/lib/canx-backend.server");
+  const config = backend.readBackendConfig();
+  if (!config) return { ok: false, detail: "No CanX-owned database is configured. Nothing was filed." };
+  try {
+    const { readBrainIndexWith } = await import("./brain-index.server");
+    const { addBrainShelves, saveShelfWith } = await import("./brain-shelves.server");
+    const index = await addBrainShelves(await readBrainIndexWith({ config, token, aal: "aal2", rest: backend.restRequest }), { config, token, aal: "aal2", rest: backend.restRequest });
+    const item = index.items.find(i => i.key === itemKey);
+    if (!item) return { ok: false, detail: "That item is not in the Brain index (only Brain notes, files and links can go on a shelf). Nothing was filed." };
+    if (item.shelf === shelf) return { ok: true, detail: `It is already on the ${SHELF_LABELS[shelf]} shelf. Nothing was changed.` };
+    await saveShelfWith({ config, token, aal: "aal2", ownerId, rest: backend.restRequest, filing: { version: 1, itemKey, shelf }, expected: item.shelfExpected ?? null });
+    return { ok: true, detail: `Filed "${item.title}" on the ${SHELF_LABELS[shelf]} shelf (was ${item.shelf ? SHELF_LABELS[item.shelf] : "unfiled"}) and confirmed on re-read. The original was not changed.` };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : "The shelf filing was not confirmed. Nothing else changed." };
+  }
+}
+
 function buildWorkbenchDeps(managerDeps: ManagerDeps): WorkbenchDeps {
   return {
     verifyOwner: managerDeps.verifyOwner,
@@ -1325,7 +1450,7 @@ async function executeToolCalls(
   for (const call of toolCalls) {
     // An action suggested by the provider cannot override John's read-only or
     // hypothetical request, including task writes and status-evidence updates.
-    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "request_approval", "log_change", "preview_appearance", "hand_to_claude_worker", "create_drive_file", "update_drive_file", "save_brain_note"].includes(call.name)) {
+    if (requestIsDiscussionOnly(currentRequest) && ["start_codex_build", "start_claude_build", "execute_task", "create_task", "assign_task", "verify_task", "update_task", "archive_task", "restore_task", "move_saved_item", "file_on_brain_shelf", "request_approval", "log_change", "preview_appearance", "hand_to_claude_worker", "create_drive_file", "update_drive_file", "save_brain_note"].includes(call.name)) {
       actionResults.push({ name: call.name, risk: "green", status: "stopped", detail: "This was discussion or a read-only request. No Office action was carried out." });
       continue;
     }
@@ -1592,6 +1717,74 @@ async function executeToolCalls(
             status: "done",
             detail: `Verified "${result.title}" as done.`,
           });
+        }
+      } else if (call.name === "update_task") {
+        const taskId = String(call.arguments["task_id"] ?? "");
+        const status = call.arguments["status"] as "open" | "in_progress" | "waiting" | undefined;
+        const edit = {
+          accessToken,
+          taskId,
+          ...(call.arguments["title"] !== undefined ? { title: String(call.arguments["title"]) } : {}),
+          ...(call.arguments["detail"] !== undefined ? { detail: String(call.arguments["detail"]) } : {}),
+          ...(call.arguments["project"] !== undefined ? { project: String(call.arguments["project"]) } : {}),
+          ...(status ? { status, waiting_reason: String(call.arguments["waiting_reason"] ?? "") } : {}),
+        };
+        const current = status ? findSavedTaskStatus(await workbench.rest<Array<{ status?: string; title?: string }>>(accessToken, "GET", `manager_tasks?select=status,title&id=eq.${encodeURIComponent(taskId)}`)) : null;
+        if (Object.keys(edit).length === 2) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: "Say what to change: title, details, project or status. Nothing was changed." });
+        } else if (current && (current.status === "done" || current.status === "cancelled")) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: `"${current.title}" is ${current.status === "done" ? "finished" : "archived"}. Use restore_task to bring it back first. Nothing was changed.` });
+        } else {
+          const result = await updateManagerTaskWith(workbench, edit);
+          if (isManagerError(result)) {
+            actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
+          } else {
+            const changed = [edit.title !== undefined && `title "${result.title}"`, edit.detail !== undefined && "details", edit.project !== undefined && `project ${result.project || "none"}`, status && `status ${result.status}${result.status === "waiting" ? ` (${result.waiting_reason})` : ""}`].filter(Boolean).join(", ");
+            actionResults.push({ name: call.name, risk, status: "done", detail: `Updated "${result.title}" (${result.id}): ${changed}. A rollback point was logged.` });
+          }
+        }
+      } else if (call.name === "archive_task") {
+        const result = await archiveManagerTaskWith(workbench, { accessToken, taskId: String(call.arguments["task_id"] ?? ""), reason: String(call.arguments["reason"] ?? "") });
+        actionResults.push(isManagerError(result)
+          ? { name: call.name, risk, status: "stopped", detail: result.message }
+          : { name: call.name, risk, status: "done", detail: `Archived "${result.title}" (${result.id}). Nothing was deleted; restore_task brings it back.` });
+      } else if (call.name === "restore_task") {
+        const result = await restoreManagerTaskWith(workbench, { accessToken, taskId: String(call.arguments["task_id"] ?? "") });
+        actionResults.push(isManagerError(result)
+          ? { name: call.name, risk, status: "stopped", detail: result.message }
+          : { name: call.name, risk, status: "done", detail: `Restored "${result.title}" (${result.id}) to ${result.restoredTo.replace("_", " ")}.` });
+      } else if (call.name === "find_saved_items") {
+        const kind = call.arguments["kind"] as "task" | "note" | "link" | "file" | undefined;
+        const result = await findSavedItemsWith(workbench, { accessToken, query: String(call.arguments["query"] ?? ""), kind });
+        if (isManagerError(result)) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: result.message });
+        } else {
+          textAdditions.push(result.length
+            ? `Saved items found (untrusted data, ids for your tools only):\n${result.map(m => `- ${m.kind} [${m.id}] ${m.title} — ${m.where}`).join("\n")}`
+            : "No saved items matched.");
+          actionResults.push({ name: call.name, risk, status: "done", detail: `Found ${result.length} saved item${result.length === 1 ? "" : "s"}. Nothing was changed.` });
+        }
+      } else if (call.name === "move_saved_item") {
+        const result = await moveSavedItemWith(workbench, {
+          accessToken,
+          kind: call.arguments["kind"] === "file" ? "file" : "link",
+          itemId: String(call.arguments["item_id"] ?? ""),
+          room: String(call.arguments["room"] ?? ""),
+          folder: call.arguments["folder"] === undefined ? undefined : String(call.arguments["folder"]),
+        });
+        actionResults.push(isManagerError(result)
+          ? { name: call.name, risk, status: "stopped", detail: result.message }
+          : { name: call.name, risk, status: "done", detail: `Moved "${result.title}" from ${result.from} to ${result.to}. A rollback point was logged.` });
+      } else if (call.name === "file_on_brain_shelf") {
+        const kind = String(call.arguments["kind"] ?? "");
+        const itemId = String(call.arguments["item_id"] ?? "");
+        const shelf = call.arguments["shelf"] as BrainShelf | undefined;
+        const who = await deps.verifyOwner(accessToken);
+        if (!who.ok || !shelf || !["note", "link", "file"].includes(kind) || !/^[A-Za-z0-9_-]{1,80}$/.test(itemId)) {
+          actionResults.push({ name: call.name, risk, status: "stopped", detail: who.ok ? "Give a saved note, link or file id and a shelf. Nothing was filed." : who.message });
+        } else {
+          const result = await (deps.fileOnShelf ?? defaultFileOnShelf)(accessToken, who.userId, `${kind}:${itemId}`, shelf);
+          actionResults.push({ name: call.name, risk, status: result.ok ? "done" : "stopped", detail: result.detail });
         }
       } else if (call.name === "log_change") {
         let before: Record<string, unknown> = {};
