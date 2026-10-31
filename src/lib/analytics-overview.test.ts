@@ -189,3 +189,13 @@ describe("Work Board build receipts", () => {
     expect(taskBuildLink(taskView({ id: "z", evidence: "{not json" }))).toBeNull();
   });
 });
+
+it('shows the exact Safe Highways assignment without implying active scheduling', () => {
+  const raw = fixtureRaw();
+  raw.tasks = { status: 'read', at: raw.now.toISOString(), data: [{ id: '43da2350-e1aa-4d22-a1da-9885295888be', status: 'waiting', evidence: '' }] };
+  const metrics = cardOf(buildAnalyticsOverview(raw).cards, 'builders').metrics;
+  expect(metrics.find((m) => m.label === 'Safe Highways assignment')).toMatchObject({ state: 'live', value: 'waiting' });
+  expect(metrics.find((m) => m.label === 'Background execution')).toMatchObject({ state: 'not-connected', value: null });
+  raw.tasks = { status: 'read', at: raw.now.toISOString(), data: [] };
+  expect(cardOf(buildAnalyticsOverview(raw).cards, 'builders').metrics.find((m) => m.label === 'Safe Highways assignment')).toMatchObject({ state: 'not-measured', value: null });
+});
