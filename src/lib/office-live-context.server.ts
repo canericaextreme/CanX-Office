@@ -249,7 +249,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const { config, token, rest } = request;
   const goals = await readOfficeGoals(path => rest(config, token, path));
 
-  const notesResponse = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=200").catch(
+  const notesResponse = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=200&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)").catch(
     () => null,
   );
   if (!notesResponse?.ok) {

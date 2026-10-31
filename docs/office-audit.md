@@ -48,6 +48,8 @@ The Brain room has a new **Live Brain view**, beside the shelf map. It is a thre
 
 **New room source.** Brain → `brain-view` (live). Elsie reads it as text through the room snapshot. Read-only viewers get "denied", not an empty logbook.
 
+**Analytics — Office Hours draft.** Owner/MFA-scoped elapsed recorder and separate active-time estimates, daily/weekly/monthly views, pause/resume and corrections are implemented locally using separate existing notes records. No earlier hours seeded; no production activation or signed-in/device verification. One-step sessions and browser-suspended gaps are excluded; see `docs/office-hours-draft.md`.
+
 **Analytics.** Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
 
 **Needs you.** Under the view, a list of what is waiting on John: approval-box requests, tasks on hold (with their reason) and work with no change for 7 days. Each item has Approve, Archive and Ask Elsie. Every action is confirmed first and uses the existing owner-checked Office actions. Archive never deletes.
