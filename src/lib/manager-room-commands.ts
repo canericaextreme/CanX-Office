@@ -1,4 +1,5 @@
 import { namedRoomIdentity, roomIdentityForRoute, type OfficeRoomIdentity } from "./office-room-identity";
+import { parseRoomNavigation, type RoomNavigationCommand } from "./room-navigation";
 
 export const namedOfficeRoom = namedRoomIdentity;
 type RoomDef = OfficeRoomIdentity;
@@ -7,7 +8,9 @@ export type RoomCommand =
   | { kind: "look"; room: RoomDef; question?: string }
   | { kind: "report"; room: RoomDef; content: string }
   | { kind: "text-size"; size: number }
-  | { kind: "move-panel"; side: "left" | "right" };
+  | { kind: "move-panel"; side: "left" | "right" }
+  // Display only: move this screen to a room. Separate from "look", which reads it.
+  | RoomNavigationCommand;
 
 /** Direct requests only. Quoted examples, negation and hypothetical requests do not execute. */
 /**
@@ -28,8 +31,14 @@ function withoutLeadIn(request: string): string {
 }
 
 export function parseRoomCommand(request: string, currentPath: string): RoomCommand | null {
-  if (/\b(don['’]?t|do not|never|hypothetical|example|if|would|could you explain)\b/i.test(request)) return null;
+  // "If" only makes the command hypothetical in its own sentence: on 28 Oct
+  // "open the CanX Brain and read one item. If none is available, say so."
+  // never opened the Brain.
+  const firstSentence = request.trim().split(/(?<=[.!?])\s+/)[0] ?? "";
+  if (/\b(don['’]?t|do not|never|hypothetical|example|would|could you explain)\b/i.test(request) || /\bif\b/i.test(firstSentence)) return null;
   const text = withoutLeadIn(request);
+  const navigation = parseRoomNavigation(text);
+  if (navigation) return navigation;
   // Visual follow-ups inspect the room open NOW, rather than answering from
   // an older screenshot or the general room description. They never write.
   const visualQuestion = (/^(?:how many|count)\b/i.test(text) && /\b(?:cards?|folders?|papers?|shelves|items?|blue|red|yellow|gold|white|gr[ae]y|green|black|visible)\b/i.test(text))

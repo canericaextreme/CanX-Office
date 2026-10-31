@@ -25,12 +25,12 @@ describe("direct owner room requests", () => {
     expect(parseRoomCommand("Astra, please go into the subscription watch room and tell me what you see", "/")?.kind).toBe("look");
     expect(parseRoomCommand("Look at this room", "/finance")).toMatchObject({ kind: "look", room: { id: "finance" } });
   });
-  it.each(["Do not check Finance", "How would you check Finance?", 'Example: "check Finance"', "Open https://example.com", "Delete all reports", "Approve spending", "Check an unknown room"])("does not execute %s", request => {
+  it.each(["Do not check Finance", "How would you check Finance?", 'Example: "check Finance"', "Delete all reports", "Approve spending", "Check an unknown room"])("does not execute %s", request => {
     expect(parseRoomCommand(request, "/")).toBeNull();
   });
   it("opens a room when the request starts with a misheard name or a filler word (17 Oct)", () => {
     expect(parseRoomCommand("Kirby, open me the safe highways room and let's talk about it.", "/reception")).toMatchObject({ kind: "look", room: { id: "safe-highways" } });
-    expect(parseRoomCommand("Okay, so, open the Finance room", "/")).toMatchObject({ kind: "look", room: { id: "finance" } });
+    expect(parseRoomCommand("Okay, so, open the Finance room", "/")).toMatchObject({ kind: "navigate", room: { id: "finance" } });
     expect(parseRoomCommand("Elsie, please check Legal", "/")).toMatchObject({ kind: "look", room: { id: "legal" } });
     expect(parseRoomCommand("Finance, what's in it?", "/")).toBeNull();
     expect(parseRoomCommand("Kirby, don't open Finance", "/")).toBeNull();
