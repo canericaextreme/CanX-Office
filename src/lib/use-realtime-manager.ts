@@ -1,5 +1,6 @@
 "use client";
 
+import { fixElsieName } from "./elsie-name";
 import { SILENT_AUDIO_DATA_URL } from "./use-manager-voice";
 import { voiceProviderFailure } from "./voice-provider-error";
 import { VoiceTurnError, voiceDiagnostic } from "./voice-turn-outcome";
@@ -715,7 +716,9 @@ export function useRealtimeManager(
           setPhase(next);
           if (payload.type === "input_audio_buffer.speech_started") setError(null);
         }
-        const text = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
+        const rawText = typeof payload.transcript === "string" ? payload.transcript.trim() : "";
+        // John's words only: the transcriber hears "Elsie" as "LC".
+        const text = payload.type === "conversation.item.input_audio_transcription.completed" ? fixElsieName(rawText) : rawText;
         if (!text) return;
         // Standard voice: a sound with no words is neither saved nor answered.
         if (sessionMode === "relay" && payload.type === "conversation.item.input_audio_transcription.completed" && !hasSpokenWords(text)) {

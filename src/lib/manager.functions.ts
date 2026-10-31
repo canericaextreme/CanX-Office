@@ -1,4 +1,5 @@
 import { isElsieContinuation, continueElsieTaskWith } from "./elsie-continuation.server";
+import { fixElsieName } from "./elsie-name";
 import { managerBuilderHandoff } from "./manager-builder-handoff";
 import { sha256Hex } from "./sha256";
 /**
@@ -1079,7 +1080,8 @@ export function validate(input: unknown): ChatInput {
       (m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string",
     )
     .slice(-MAX_MESSAGES)
-    .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
+    // The transcriber hears "Elsie" as "LC"; fix it before any command check.
+    .map((m) => ({ role: m.role, content: (m.role === "user" ? fixElsieName(m.content) : m.content).slice(0, MAX_CHARS) }));
   const route = (raw as { currentRoute?: unknown } | undefined)?.currentRoute;
   const buildId = (raw as { buildId?: unknown } | undefined)?.buildId;
   return {
