@@ -626,6 +626,16 @@ export function OfficeManager() {
     if (roomActionLock.current) return out("blocked", "A room request is already running. Wait for its result.");
     roomActionLock.current = true;
     try {
+      if (command.kind === "open-read") {
+        setDelivery(`Opening ${command.room.shortLabel} for your saved-record question…`);
+        await router.navigate({ to: command.room.route });
+        if (router.state.location.pathname !== command.room.route)
+          return out("read_failed", "The requested room did not open. No record was read; do not treat navigation as complete.");
+        // Continue the original question through the shared manager path,
+        // with the newly opened room. A screenshot is not a Brain retrieval.
+        roomOutcomeRef.current = "read";
+        return null;
+      }
       if (command.kind === "move-panel") {
         setFullScreen(false);
         panel.moveToSide(command.side);

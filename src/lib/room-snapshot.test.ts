@@ -66,6 +66,20 @@ describe("room coverage", () => {
 });
 
 describe("source classification", () => {
+  it("gives Elsie every configured Systems inventory entry without claiming a live check", async () => {
+    const rest = fakeRest({});
+    const snap = await read("/systems", rest);
+    const inventory = snap.sources.find((s) => s.key === "connections")!;
+    expect(inventory).toMatchObject({ kind: "static", status: "read", count: 9 });
+    expect(inventory.items).toHaveLength(9);
+    expect(inventory.items.join("\n")).toContain("Google Calendar (scoped)");
+    expect(inventory.items.join("\n")).toContain("static status: disconnected");
+    expect(inventory.items.join("\n")).toContain("Trail Tales");
+    expect(inventory.items.join("\n")).toContain("live status not checked");
+    expect(inventory.detail).toContain("not a count of connected or disconnected services");
+    expect(snapshotForModel(snap, "current")).toContain("Google Drive (selected files only)");
+    expect(rest.calls.some((p) => /connection|provider/i.test(p))).toBe(false);
+  });
   it("static and device sources are never reported as live reads", async () => {
     const snap = await read("/idea-garage", fakeRest({}));
     expect(snap.sources.find((s) => s.key === "idea-cards")).toMatchObject({ kind: "static" });
@@ -131,6 +145,9 @@ describe("room targeting and skills", () => {
     expect(roomsForRequest("what is in finance?", "/legal")).toEqual([{ route: "/finance", why: "named" }, { route: "/legal", why: "current" }]);
     expect(roomsForRequest("what's in this room?", "/legal")).toEqual([{ route: "/legal", why: "current" }]);
     expect(roomsForRequest("hello", undefined)).toEqual([]);
+    expect(roomsForRequest("Name the saved Office connection inventory entries and read their configured stages and status labels", "/reception")).toEqual([{ route: "/systems", why: "named" }, { route: "/reception", why: "current" }]);
+    expect(roomsForRequest("Read the connection inventory", undefined)).toEqual([{ route: "/systems", why: "named" }]);
+    expect(roomsForRequest("Read the Finance connection inventory", "/legal")).toEqual([{ route: "/finance", why: "named" }, { route: "/legal", why: "current" }]);
   });
   it("room routing selects the requested installed skill; empty requests keep only the always-on pair", () => {
     const fin = routeSkillsForRoom("subscription review", "/subscriptions");
@@ -191,6 +208,23 @@ describe("Elsie reads the room fresh for every typed or voice request", () => {
   const base = (readRoomSnapshot: NonNullable<ManagerDeps["readRoomSnapshot"]>): ManagerDeps => ({
     verifyOwner: async () => OWNER, reserve: async () => ({ allowed: true, reservationId: "r", remainingToday: 5 }), settle: async () => undefined,
     buildContext: async () => ({ ok: true, text: "CTX" }), fetchImpl, openaiKey: "sk-test", model: "m", readRoomSnapshot,
+  });
+  it.each([false, true])("supplies Systems inventory to the actual provider request from Reception (voice=%s)", async (voice) => {
+    const reader = vi.fn(async (_token: string, _aal: string, route: string) => read(route, fakeRest({})));
+    const reply = await runManagerChatWith(base(reader), {
+      accessToken: "t", voice, currentRoute: "/reception",
+      messages: [{ role: "user", content: "Name the saved Office connection inventory entries and read their configured stages and status labels. Don't run live checks." }],
+    });
+    expect(reply.ok).toBe(true);
+    expect(reader.mock.calls.map((c) => c[2])).toEqual(["/systems", "/reception"]);
+    expect(reply.roomSnapshots?.[0]?.route).toBe("/systems");
+    const calls = (fetchImpl as unknown as { mock: { calls: Array<[unknown, RequestInit]> } }).mock.calls;
+    const payload = JSON.parse(String(calls.at(-1)![1].body));
+    const input = JSON.stringify(payload.input);
+    expect(input).toContain("Google Calendar (scoped)");
+    expect(input).toContain("Google Drive (selected files only)");
+    expect(input).toContain("static status: disconnected");
+    expect(input).toContain("not a count of connected or disconnected services");
   });
   it("uses the route sent with each request (route change between turns) and returns the read it used", async () => {
     let n = 0;
