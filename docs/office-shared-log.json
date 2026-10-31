@@ -477,6 +477,15 @@
       "audience": "office-status",
       "summary": "Prepared Brain opening and voice-result consistency candidate after owner reported unrelated written recall, different spoken wording and an unconfirmed opening claim. Added confirmed navigation before compound saved-record questions and canonical reading of direct-tool results; no Brain record or provider/permission changes.",
       "evidence": "Navigation parsing and unrestricted direct-tool speech regressions failed before repair. 221 files / 2188 tests passed; typecheck/build passed. Superseded direct-tool response test passes without stale speech. Owner signed-in preview acceptance and repository-wide lint remain unresolved; not merged or published."
+    },
+    {
+      "id": "2026-10-31-elsie-relay-integration",
+      "at": "2026-10-31T23:47:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Integrated the existing colleague-relay capacity repair against current main. Prior task replies are preserved, available space is computed before a paid call, and failures name the exact step. Confirmed claim content and database-returned version; complete receipts cannot overrun task limits. Release pending.",
+      "evidence": "2,311 tests in 226 files, typecheck and production build passed locally. Existing save RPC array/CAS contract inspected. No schema, credentials, budgets, providers or voice settings changed; actual live relay and phone acceptance unverified."
     }
   ]
 }
