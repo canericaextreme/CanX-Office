@@ -21,6 +21,8 @@ import { sha256Hex } from "./sha256";
  */
 
 import { CONTINUITY_UNAVAILABLE, type ContinuityRead } from "./astra-continuity";
+import { isPresenceCheck, quickOfficeReply } from "./elsie-quick-reply";
+export { isPresenceCheck } from "./elsie-quick-reply";
 import { createServerFn } from "@tanstack/react-start";
 import type { BudgetResult, OwnerVerification } from "@/lib/canx-backend.server";
 import type { LiveContextResult } from "@/lib/office-live-context.server";
@@ -1015,16 +1017,6 @@ export function uniqueParagraphs(parts: string[]): string[] {
 }
 
 /**
- * "Are you there?" / "Can you hear me?" only checks Elsie is listening. On 27 Oct
- * the model re-ran the same build check for it five turns in a row, so a
- * presence check never runs a tool.
- */
-export function isPresenceCheck(text: string): boolean {
-  const t = text.trim().replace(/^(?:elsie|okay|ok|hey)[,.!]?\s*/i, "");
-  return /^(?:(?:are )?you (?:still )?there|(?:can|do) you hear me|anyone there|elsie)\s*[?.!]*$/i.test(t);
-}
-
-/**
  * Rooms to read fresh for this request: a room John names explicitly comes
  * first (it overrides "this room"); the open room is added when different.
  */
@@ -1985,6 +1977,14 @@ export async function runManagerChatWith(
   }
 
   const statusRequest = data.messages.at(-1);
+  // Greetings and app-directory facts need no queue polling, private reads or
+  // provider round trip. Authentication still precedes every server reply.
+  const quickReply = statusRequest?.role === "user"
+    ? quickOfficeReply(statusRequest.content, data.currentRoute, data.labelPositions ?? null) : null;
+  if (quickReply !== null) return {
+    ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
+    text: quickReply, toolCalls: [], actionResults: [],
+  };
   const statusBuilder: OfficeBuilder | null = statusRequest?.role !== "user" ? null
     : isClaudeStatusCommand(statusRequest.content) ? "claude" : isCodexStatusCommand(statusRequest.content) ? "codex" : null;
   // Deterministic, read-only, and before any paid Elsie call.

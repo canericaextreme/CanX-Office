@@ -36,6 +36,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { captureOfficeView } from "@/lib/office-observe";
 import { observeCurrentRoom } from "@/lib/manager-observe.functions";
 import { parseRoomCommand, roomReportSource } from "@/lib/manager-room-commands";
+import { quickOfficeReply } from "@/lib/elsie-quick-reply";
 import { isOfficeRoomRoute, roomNavigationRefusal, roomNavigationResult } from "@/lib/room-navigation";
 import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { readOfficeLabelPositions } from "@/lib/office-map";
@@ -607,6 +608,10 @@ export function OfficeManager() {
   };
   const runRoomCommand = async (request: string): Promise<string | null> => {
     roomOutcomeRef.current = null;
+    // Same app-fact answer as the server, without a network/model round trip.
+    // The existing typed/voice completion path still checkpoints the answer.
+    const quick = quickOfficeReply(request, router.state.location.pathname, readOfficeLabelPositions());
+    if (quick !== null) { roomOutcomeRef.current = "display"; return quick; }
     // The Synopsis list is read from the menu itself, never from a model guess.
     if (isSynopsisListRequest(request)) {
       roomOutcomeRef.current = "display";
