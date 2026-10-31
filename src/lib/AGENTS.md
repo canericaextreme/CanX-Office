@@ -48,3 +48,7 @@
 
 ## Shared Office goals
 - `office-goals.ts` reads the canonical owner-scoped goal note by exact ID independently of recent-summary windows. It feeds typed Elsie context, voice/continuity context, both Office API colleague prompts, and MCP initialization through the existing working-grant read. Missing/failed reads say unavailable; goals are saved data, not executable instructions or new approvals. Native connector startup is a snapshot: refresh the record before material work. Never claim a native external client has read it until that client is tested.
+
+## Elsie response speed and room identity — 31 October 2026
+- Greetings, presence, the open-page identity and defined room purposes use the shared `elsie-quick-reply.ts` path in typed chat and live voice. These app facts must not poll builders, read private records or make an AI call. They never establish screen inspection or current saved contents. Compound requests continue through existing tools. Regression checks: `elsie-immediate-answer.test.ts`; existing `elsie-quick-reply.test.ts` separately protects spoken acknowledgments and interruptions.
+- Independent Office context GETs start together, under the same verified owner. Retain source-specific failure checks, separate stable memory/continuity queries and no private-record cache. `office-live-context.test.ts` holds the reads behind one barrier to detect accidental serialization. Actual phone latency and Elsie's visual answers still need live verification after publication.

@@ -34,7 +34,7 @@ function deps(overrides: Partial<ManagerDeps> = {}): ManagerDeps {
   };
 }
 
-const CHAT = { accessToken: "t", messages: [{ role: "user" as const, content: "hello" }] };
+const CHAT = { accessToken: "t", messages: [{ role: "user" as const, content: "Explain how the Office works." }] };
 
 describe("access control — no paid call without a verified owner", () => {
   it("preserves the executable tools and code-change flag through argument filtering", () => {
@@ -554,7 +554,7 @@ describe("Astra reply repair", () => {
       if (url.endsWith("/manager_tasks")) return Response.json([{ id: "task-1", title: "Input test", status: "open" }], { status: taskStatus });
       return Response.json({});
     }) as unknown as typeof fetch;
-    try { return await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, settle }), CHAT); }
+    try { return await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, settle }), { ...CHAT, messages: [{ role: "user", content: "Save a reminder to call the supplier." }] }); }
     finally { vi.unstubAllEnvs(); }
   };
 
@@ -710,7 +710,7 @@ describe("Research document context handoff", () => {
     const readDocuments = vi.fn(async () => ({ text: "PDF EVIDENCE physical page 3", sources: ["Manuscript.pdf page 3"], gaps: [] }));
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "Read page 3." }] }] }), { status: 200 }));
     await runManagerChatWith(deps({ verifyOwner: async () => OWNER, readDocuments, fetchImpl: fetchImpl as unknown as typeof fetch }), { ...CHAT, currentRoute: "/research" });
-    expect(readDocuments).toHaveBeenCalledWith("t", "hello", "", "/research");
+    expect(readDocuments).toHaveBeenCalledWith("t", "Explain how the Office works.", "", "/research");
     expect(JSON.stringify(fetchImpl.mock.calls)).toContain("PDF EVIDENCE physical page 3");
   });
   it("does not read documents when existing owner verification denies access", async () => {
