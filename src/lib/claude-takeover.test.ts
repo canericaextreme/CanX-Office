@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { claudeTakeoverRefusal, hasTakeover, needsFullClaude, newTakeoverNoteDetail, parseTakeoverNote, takeoverMarker, takeoverStatusText } from './claude-takeover';
+import { claudeTakeoverRefusal, hasTakeover, needsFullClaude, newTakeoverNoteDetail, parseTakeoverNote, takeoverMarker, takeoverStatusText, pickupTimingText, CLAUDE_PICKUP_RUNNING } from './claude-takeover';
 import { executeTaskWith, handTaskToClaudeWith, type TaskExecutionDeps } from './task-execution.server';
 import { managerBuilderHandoff } from './manager-builder-handoff';
 import type { ManagerTask, WorkbenchDeps } from './manager-work.functions';
@@ -112,5 +112,14 @@ describe('handing a task to a full Claude worker', () => {
     const result = await managerBuilderHandoff(deps, 't', 'Claude, build a ChatGPT-style chat panel for the Office.', '12345678-1234-1234-1234-123456789abc', 'claude');
     expect(buildClaude).not.toHaveBeenCalled();
     expect(result.detail).toContain('Handed to a full Claude worker');
+  });
+});
+
+describe("pickup timing is honest about the paused hourly routine (1 Nov 2026)", () => {
+  it("does not promise an hourly pickup while the routine is paused", () => {
+    expect(CLAUDE_PICKUP_RUNNING).toBe(false);
+    expect(pickupTimingText()).toMatch(/paused/);
+    expect(pickupTimingText()).not.toMatch(/about every hour/);
+    expect(pickupTimingText(true)).toMatch(/about every hour/);
   });
 });
