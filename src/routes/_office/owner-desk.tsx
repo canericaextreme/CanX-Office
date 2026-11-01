@@ -8,6 +8,7 @@ import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
 import { useOwnerSession } from "@/lib/owner-session";
 import { loadViewerDeskMemory, type ViewerDeskMemory } from "@/lib/owner-desk-viewer.functions";
 import { PreTripCard } from "@/components/office/PreTripCard";
+import { EmailsCard } from "@/components/office/EmailsCard";
 
 export const Route = createFileRoute("/_office/owner-desk")({
   head: () => ({
@@ -80,6 +81,7 @@ function OwnersDesk() {
       <p className="mb-4 text-xs text-muted-foreground">{statusLine}</p>
       <div className="grid gap-6 lg:grid-cols-2">
         {!viewer && <PreTripCard />}
+        {!viewer && <EmailsCard />}
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Today's priorities</CardTitle>
