@@ -22,8 +22,10 @@ fallback, and test midnight rollover, concurrent creation, retries and legacy
 records. No migration or partial number generator is included in this change.
 
 Status colours are presentation only. Red risk overrides completion and stale
-states; yellow denotes waiting, stale, cancelled, unknown or active yellow-risk
-work; green denotes clear planned/assigned work or done. Labels and evidence
+states; yellow denotes waiting, stale, unknown or active yellow-risk work;
+grey denotes not started (no worker yet) or cancelled; green denotes assigned
+work or done. (1 Nov 2026: grey added after review so unstarted work never
+looks green.) Labels and evidence
 still distinguish assignment from execution and verification. Permission and
 approval checks are unchanged.
 

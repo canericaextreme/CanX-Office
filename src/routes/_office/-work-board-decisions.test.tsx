@@ -230,11 +230,11 @@ describe("Work Board decisions waiting on John", () => {
 
 describe("Work Board status colours", () => {
   it.each([
-    [{ status: "open" }, "Green — clear / planned", "border-canx-green/60"],
+    [{ status: "open" }, "Grey — not started", "border-border"],
     [{ status: "in_progress" }, "Green — clear / assigned", "border-canx-green/60"],
     [{ status: "done" }, "Green — done", "border-canx-green/60"],
     [{ status: "waiting" }, "Yellow — waiting", "border-canx-yellow"],
-    [{ status: "cancelled" }, "Yellow — cancelled", "border-canx-yellow"],
+    [{ status: "cancelled" }, "Grey — cancelled", "border-border"],
     [{ risk: "yellow" }, "Yellow — needs attention", "border-canx-yellow"],
     [{ updated_at: "2020-01-01T00:00:00Z" }, "Yellow — stale", "border-canx-yellow"],
     [{ risk: "red", status: "done" }, "Red — protected / integrity risk", "border-destructive"],

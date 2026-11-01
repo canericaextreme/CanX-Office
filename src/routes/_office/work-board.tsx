@@ -43,7 +43,7 @@ const RISK_WORDS: Record<RiskLevel, string> = {
   red: "Red — stopped",
 };
 
-type StatusTone = "green" | "yellow" | "red";
+type StatusTone = "green" | "yellow" | "red" | "grey";
 
 interface TaskStatus {
   tone: StatusTone;
@@ -101,11 +101,11 @@ function taskStatus(task: ManagerTask): TaskStatus {
         reason: "Assignment alone does not confirm that work is running.",
       };
     case "cancelled":
-      return { tone: "yellow", label: "Yellow — cancelled", reason: null };
+      return { tone: "grey", label: "Grey — cancelled", reason: null };
     case "open":
       return {
-        tone: "green",
-        label: "Green — clear / planned",
+        tone: "grey",
+        label: "Grey — not started",
         reason: "Not assigned to a worker yet.",
       };
     default:
@@ -380,7 +380,9 @@ export function WorkBoard() {
                     ? "border-destructive bg-destructive/5"
                     : status.tone === "yellow"
                       ? "border-canx-yellow bg-canx-yellow/5"
-                      : "border-canx-green/60 bg-canx-green/5"
+                      : status.tone === "grey"
+                        ? "border-border bg-muted/30"
+                        : "border-canx-green/60 bg-canx-green/5"
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-2">
