@@ -4,10 +4,15 @@ name: CanX PR checks
 on:
   pull_request:
     branches: [main]
+    # ready_for_review: builder drafts are opened by the workflow token, which starts no checks;
+    # marking one ready now runs pr-checks so the merge robot can judge it.
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Builder changes start this on their branch (workflow-token pull requests start no checks).
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: canx-pr-checks-${{ github.event.pull_request.number }}
+  group: canx-pr-checks-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   pr-checks:
