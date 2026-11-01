@@ -6,6 +6,9 @@ import {
   moveSavedItemWith,
   restoreManagerTaskWith,
   sweepStaleTasksWith,
+  isAdviceOnlySeat,
+  staleReason,
+  adviceOnlyWarning,
 } from "./work-sorting";
 
 const OWNER = { ok: true as const, userId: "owner-1", email: "", aal: "aal2" };
@@ -251,6 +254,19 @@ describe("sweep_stale_tasks", () => {
     expect(String(patches[0]!.body!["waiting_reason"])).toMatch(/no update since Oct 28.*ChatGPT to report back/);
     expect(logs(calls)).toEqual([expect.objectContaining({ _action: "task.update", _entity_id: "old", _before: { status: "in_progress", waiting_reason: "" } })]);
     expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+  });
+
+  it("says plainly when the assigned seat is advice-only or nobody is assigned", () => {
+    expect(isAdviceOnlySeat("Systems & Security")).toBe(true);
+    expect(isAdviceOnlySeat("office manager")).toBe(true);
+    expect(isAdviceOnlySeat("Codex")).toBe(false);
+    expect(staleReason("Systems & Security", "Nov 1", "Oct 21")).toMatch(
+      /Systems & Security is an advice-only Office seat and cannot do the work.*real worker/,
+    );
+    expect(staleReason("", "Nov 1", "Oct 21")).toMatch(/No one is assigned/);
+    expect(staleReason("ChatGPT", "Nov 1", "Oct 21")).toMatch(/Needs ChatGPT to report back/);
+    expect(adviceOnlyWarning("Finance Officer")).toMatch(/advice-only Office seat/);
+    expect(adviceOnlyWarning("Codex")).toBe("");
   });
 
   it("preview lists without changing anything", async () => {

@@ -56,7 +56,7 @@ The Brain room has a new **Live Brain view**, beside the shelf map. It is a thre
 
 **New room source.** Brain → `brain-view` (live). Elsie reads it as text through the room snapshot. Read-only viewers get "denied", not an empty logbook.
 
-**Analytics.** Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
+**Analytics.** Shared owner-only Safe Highways assignment progress uses the same canonical task as the Safe Highways room; recorded evidence is separate from live runtime (see docs/safe-highways-progress-display.md). Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
 
 **Needs you.** Under the view, a list of what is waiting on John: approval-box requests, tasks on hold (with their reason) and work with no change for 7 days. Each item has Approve, Archive and Ask Elsie. Every action is confirmed first and uses the existing owner-checked Office actions. Archive never deletes.
 
@@ -65,6 +65,9 @@ The Brain room has a new **Live Brain view**, beside the shelf map. It is a thre
 **Elsie as advisor (20 Oct 2026).** "Ask Elsie" on a Needs-you item shows Elsie's advice under it: approve, archive or not sure, with reasons and the facts she used. The fact sheet is read fresh on the server: the full task, approval history, logbook, change log and live GitHub state of the draft changes and builds it mentions. Checked against the 6 real items on hold: it found draft #122 merged on 16 Oct (both Finance tasks were still waiting on it) and #77 merged on 10 Oct. Elsie's live answer has not been seen yet; the provider call runs only on the Office server.
 
 **Not yet verified.** The live view has not been opened signed in on a phone or laptop on the published build. Live updates depend on Supabase realtime with John's sign-in, and fall back to a check every minute. Nothing records "brainstorming" except open Ideas & Research tasks.
+## Actionable approval inbox — 17 October 2026
+
+John reported that approval boxes could not be opened, leaving him unsure how to decide. Each request now has an explicit Open details control. Pending requests appear under Needs your decision, while approved/declined records remain accessible under Past decisions without decision controls. Owner's Desk and the global approval notice link to the exact request and open its details. Dismissal tracks request IDs so a different request with the same count is announced again. Controls have phone-sized touch targets, readable details and status feedback. A linked request opens once; refreshing records preserves the card John chose to open or close. Existing owner checks and server decision actions are unchanged; no actual owner request was approved or declined during testing. Populated UI fixtures cover opening, linked history, explicit decisions, missing owner verification, pending saves and refreshed outcomes. Signed-in desktop/mobile acceptance remains separate from fixture and publication checks.
 
 ## Work Board receipt display repair — 17 October 2026
 
@@ -94,7 +97,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 13 | Finance | receipt totals (two-step) | Finance (4) | No bank/accounting ledger |
 | 14 | Work Board | tasks, change log | Operations (4), Foreman (4) | No crew dispatch / calendar |
 | 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending; shared GitHub status failure under diagnosis |
-| 16 | Safe Highways | static boundary | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
+| 16 | Safe Highways | static boundary plus exact owner-only Work Board assignment progress (43da2350-e1aa-4d22-a1da-9885295888be); no Safe Highways system connection | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
 | 17 | Research | files, reports; bounded selected-PDF text in local draft (see research-pdf-reading.md; live unverified) | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
 | 20 | Future | — | Reserved | Reserved by John |
@@ -227,3 +230,12 @@ Task verification now saves and independently reads an immutable Brain evidence 
 ### Canonical goals delivery follow-up
 
 Live blind relay checks on 21 October found both Office API colleagues received only the goal record reference, not its contents. Added one exact-ID goal reader to both colleague prompts, typed Elsie context, voice continuity and working-grant MCP initialization. Tests assert the content arrives without copying it into user messages and failures remain labelled unavailable. External native client recall and live deployment remain acceptance checks. No goal content or private interview answers are committed to the repository.
+
+### Room filing and Systems Security checklist — 30 October 2026 local draft
+
+- Normal in-room notes/reports now offer Add, Edit and Destination room. Filing uses the existing `source = Data room report: <canonical room id>` convention; there is no `room` column on an Office note. Only room-report notes are edited here; project imports and other special-purpose notes retain their established editors.
+- Systems offers an owner-maintained Security work-in-progress checklist grouped as Complete, Currently working, Needs testing and Needs improvement. It starts empty; statuses are owner-entered progress, not audit findings or live security verification. The versioned checklist is stored as an ordinary room-report note and remains visible to the existing room snapshot reader.
+- Owner verification, MFA and row security are reused unchanged. Editing PATCHes only title/detail/source on the exact owner/note, compares previous values, preserves original provenance and creation metadata, and independently reads the exact saved record before confirming. New notes are inserted without upsert. Notes are loaded by room rather than competing with the latest 300 notes across the Office; the 300-per-room cap is disclosed.
+- The assistant tool's `Field is not editable through this tool` refusal remains unchanged: the database tool allowlist accepts note `source`, not a destination `room` field. This draft fixes filing through the normal UI; it does not widen tool permissions or change migrations/functions outside `src/`.
+- Checks: eight focused Vitest files / 118 tests passed; TypeScript passed. Local fixture tests edit and remount notes, move them to another room and remount there, persist all four checklist groups, reject stale/wrong-owner writes, and disclose failed readback. Fixtures do not establish signed-in Office health.
+- Acceptance still needed on an owner-authorised test environment: edit a populated room note, change its room, reload both rooms, reopen the checklist, and repeat on a phone with the keyboard open. Test real database persistence and multiple devices separately. No production systems were called; no publication, push, merge, database migration, credentials, permissions, dependencies or spending controls changed.
