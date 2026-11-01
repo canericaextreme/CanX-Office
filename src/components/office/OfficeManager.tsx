@@ -36,6 +36,8 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { captureOfficeView } from "@/lib/office-observe";
 import { observeCurrentRoom } from "@/lib/manager-observe.functions";
 import { parseRoomCommand, roomReportSource } from "@/lib/manager-room-commands";
+import { quickOfficeReply } from "@/lib/elsie-quick-reply";
+import { isOfficeRoomRoute, roomNavigationRefusal, roomNavigationResult } from "@/lib/room-navigation";
 import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { readOfficeLabelPositions } from "@/lib/office-map";
 import { isSynopsisListRequest, synopsisListAnswer } from "@/lib/synopsis-context";
@@ -104,6 +106,7 @@ import { deleteSharedNote, listSharedNotes, saveSharedNotes } from "@/lib/record
 import { useDraggablePanel } from "@/lib/use-draggable-panel";
 import { useBackgroundScrollLock } from "@/lib/use-background-scroll-lock";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePhoneViewport } from "@/hooks/use-phone-viewport";
 import { useMobileOverlayShield } from "@/lib/use-mobile-overlay-shield";
 import { useTranscriptScrollContainment } from "@/lib/use-transcript-scroll-containment";
 import {
@@ -189,7 +192,9 @@ export function OfficeManager() {
   // The office underneath stays fixed while the Elsie panel is open.
   useBackgroundScrollLock(open && !minimized);
   // On phones the open panel sits inside a full-viewport layer so the office is never a touch target.
-  const isMobile = useIsMobile();
+  const narrowScreen = useIsMobile();
+  const phoneViewport = usePhoneViewport();
+  const isMobile = narrowScreen || phoneViewport.phone;
   const mobileShieldActive = isMobile && open && !minimized;
   const mobileShieldRef = useMobileOverlayShield<HTMLDivElement>(mobileShieldActive);
   const [tab, setTab] = useState<Tab>("now");
@@ -257,6 +262,10 @@ export function OfficeManager() {
   };
   const [composerHeight, setComposerHeight] = useState(60);
   const [composerCollapsed, setComposerCollapsed] = useState(true);
+  // Open a reachable paste target on phones, without autofocus/starting audio.
+  useEffect(() => {
+    if (isMobile && open) setComposerCollapsed(false);
+  }, [isMobile, open]);
   const dividerDrag = useRef<{ y: number; height: number } | null>(null);
   const resizeComposer = (height: number) => {
     setComposerHeight(Math.max(60, Math.min(height, window.innerHeight * 0.4)));
@@ -609,6 +618,11 @@ export function OfficeManager() {
   };
   const runRoomCommand = async (request: string): Promise<string | null> => {
     roomOutcomeRef.current = null;
+    // Same app-fact answer as the server, without a network/model round trip.
+    // The existing typed/voice completion path still checkpoints the answer.
+    const quick = quickOfficeReply(request, router.state.location.pathname, readOfficeLabelPositions(),
+      [...messagesRef.current].reverse().find((m) => m.role === "assistant")?.content);
+    if (quick !== null) { roomOutcomeRef.current = "display"; return quick; }
     // The Synopsis list is read from the menu itself, never from a model guess.
     if (isSynopsisListRequest(request)) {
       roomOutcomeRef.current = "display";
@@ -622,10 +636,22 @@ export function OfficeManager() {
     const command = parseRoomCommand(request, router.state.location.pathname);
     if (!command) return null;
     const out = (o: RoomOutcome, text: string) => { roomOutcomeRef.current = o; return text; };
+    // Websites, tabs and unknown rooms are refused before anything runs.
+    if (command.kind === "navigate-refused") return out("blocked", command.message);
     if (!session.stepUpComplete || !token) return out("blocked", "Complete owner verification before changing or inspecting a room.");
     if (roomActionLock.current) return out("blocked", "A room request is already running. Wait for its result.");
     roomActionLock.current = true;
     try {
+      if (command.kind === "open-read") {
+        setDelivery(`Opening ${command.room.shortLabel} for your saved-record question…`);
+        await router.navigate({ to: command.room.route });
+        if (router.state.location.pathname !== command.room.route)
+          return out("read_failed", "The requested room did not open. No record was read; do not treat navigation as complete.");
+        // Continue the original question through the shared manager path,
+        // with the newly opened room. A screenshot is not a Brain retrieval.
+        roomOutcomeRef.current = "read";
+        return null;
+      }
       if (command.kind === "move-panel") {
         setFullScreen(false);
         panel.moveToSide(command.side);
@@ -636,6 +662,21 @@ export function OfficeManager() {
         changeTextSize(command.size);
         roomOutcomeRef.current = "display";
         return `Conversation text is now ${command.size} pixels on this device. You can change it back with the Text size control.`;
+      }
+      if (command.kind === "navigate") {
+        // Display only: move this screen to an Office room route. No room
+        // read, picture or record change; "look" stays the inspection path.
+        const { room } = command;
+        if (!isOfficeRoomRoute(room.route)) return out("blocked", roomNavigationRefusal("external"));
+        try { await router.navigate({ to: room.route }); } catch { /* reported by the landing check below */ }
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        const result = roomNavigationResult(room, router.state.location.pathname);
+        if (!result.ok) return out("navigate_failed", result.message);
+        // The rest of "open X and read ..." goes to Elsie, who now reads room X.
+        if (command.followUp) { roomOutcomeRef.current = null; return null; }
+        // On a phone the panel covers the room; on a desktop it sits beside it.
+        if (isMobile) setMinimized(true);
+        return out("display", result.message);
       }
       const { room } = command;
       if (command.kind === "report") {
@@ -1245,14 +1286,16 @@ export function OfficeManager() {
           ref={mobileShieldRef}
           data-testid="astra-mobile-overlay"
           data-active={mobileShieldActive ? "true" : "false"}
+          style={mobileShieldActive ? phoneViewport.style : undefined}
           className={mobileShieldActive ? "pointer-events-auto fixed inset-0 z-[60] h-screen h-[100svh] h-[100dvh] w-screen overflow-hidden overscroll-none bg-background" : "contents"}
         >
         <aside
           ref={panel.ref as React.RefObject<HTMLElement>}
           id="office-manager-panel"
+          data-phone={mobileShieldActive ? "true" : undefined}
           aria-label="Office Manager"
           hidden={minimized}
-          style={mobileShieldActive ? undefined : fullScreen ? { top: 8, bottom: 8, left: 8, right: 56, width: "auto", height: "auto", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
+          style={mobileShieldActive ? phoneViewport.style : fullScreen ? { top: 8, bottom: 8, left: 8, right: 56, width: "auto", height: "auto", maxWidth: "none", maxHeight: "none" } : { ...panel.style, bottom: Math.min(panel.style.bottom, 16) }}
           className={`fixed z-40 ${
             minimized ? "hidden" : "flex"
           } flex-col overflow-hidden overscroll-contain border border-border bg-card shadow-2xl ${
@@ -1591,13 +1634,13 @@ export function OfficeManager() {
                 </div>
                 <div>
 
-                  {!composerCollapsed && <div className="relative">
+                  {(!composerCollapsed || isMobile) && <div className="relative">
                   <Textarea
                     ref={inputRef}
                     rows={2}
                     value={draft}
                     className="canx-elsie-message min-h-[120px] max-h-[50dvh] resize-none overflow-y-auto overscroll-contain pr-16 leading-relaxed"
-                    style={{ fontSize: textSize, height: composerHeight }}
+                    style={{ fontSize: textSize, height: isMobile ? Math.max(88, Math.min(160, phoneViewport.height * 0.22)) : composerHeight }}
 
                     aria-label="Message the Office Manager"
                     onChange={(event) => {

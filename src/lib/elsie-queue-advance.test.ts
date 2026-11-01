@@ -42,6 +42,8 @@ function office() {
       return { ok: true, data: { ok: true } };
     }
     if (method === 'POST') return { ok: true, data: [] };
+    // Claude takeover notes (a failed small Claude build is handed to a full Claude worker).
+    if (table === 'office_notes') return { ok: true, data: [] };
     if (table !== 'manager_tasks') throw new Error('unexpected ' + path);
     const rows = [...tasks.values()].filter(r => matches(r, query));
     if (method === 'GET') return { ok: true, data: rows.map(r => ({ ...r })) };
@@ -107,6 +109,8 @@ describe('Elsie builder queue', () => {
     expect(o.tasks.get(a)!.status).toBe('open');
     o.runs[2]!.state = 'failure';
     step = await advanceElsieQueueWith(o.deps, 't', 'claude');
+    expect(step.finished[0]).toContain('a full Claude worker has it now');
+    expect(o.tasks.get(b)!.status).toBe('waiting');
     expect(step.started?.taskId).toBe(c);
     o.runs[3]!.state = 'success';
     step = await advanceElsieQueueWith(o.deps, 't', 'claude');

@@ -86,11 +86,25 @@ const tokenOf = (input: unknown) => {
 /* ----------------------------- notes ----------------------------- */
 
 export const listSharedNotes = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => ({ accessToken: tokenOf(input) }))
+  .inputValidator((input: unknown) => {
+    const raw = input as { source?: unknown; title?: unknown } | undefined;
+    return {
+      accessToken: tokenOf(input),
+      source: str(raw?.source, 120),
+      title: str(raw?.title, 300),
+    };
+  })
   .handler(async ({ data }): Promise<RecordsResult<OfficeNote[]>> =>
     withOwnerRead<OfficeNote[]>(data.accessToken, async ({ config, token, rest }) => {
-      const response = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=300");
-      if (!response.ok) return fail("backend_error", "The shared records could not be read.");
+      const literal = (value: string) => encodeURIComponent(JSON.stringify(value));
+      const filter = `${data.source ? `&source=eq.${literal(data.source)}` : ""}${data.title ? `&title=eq.${literal(data.title)}` : ""}`;
+      const response = await rest(
+        config,
+        token,
+        `office_notes?select=*&order=created_at.desc&limit=300${filter}`,
+      );
+      if (!response.ok)
+        return fail("backend_error", "The shared records could not be read.");
       const rows = Array.isArray(response.body) ? response.body : [];
       const notes = rows
         .map((row) => {
@@ -146,6 +160,48 @@ export const saveSharedNotes = createServerFn({ method: "POST" })
         body: JSON.stringify({ owner_id: userId, action: "notes.save", entity: "office_notes", detail: { count: rows.length } }),
       });
       return { ok: true, reason: null, message: "Saved to the CanX account.", data: { saved: rows.length } };
+    }),
+  );
+
+/** Normal in-room editing; keeps the existing owner verification and row security. */
+export const saveSharedRoomNote = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { accessToken: string; note: OfficeNote; previous: OfficeNote | null }) =>
+      input,
+  )
+  .handler(async ({ data }): Promise<RecordsResult<OfficeNote>> =>
+    withOwner<OfficeNote>(tokenOf(data), async ({ config, token, userId, rest }) => {
+      try {
+        const { saveRoomNoteWith } = await import("./room-note-save.server");
+        const saved = await saveRoomNoteWith(
+          (path, init) => rest(config, token, path, init),
+          userId,
+          data.note,
+          data.previous,
+        );
+        await rest(config, token, "office_audit", {
+          method: "POST",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({
+            owner_id: userId,
+            action: "notes.save",
+            entity: "office_notes",
+            entity_id: saved.id,
+            detail: { count: 1 },
+          }),
+        });
+        return {
+          ok: true,
+          reason: null,
+          message: "Saved and re-read from the CanX account.",
+          data: saved,
+        };
+      } catch (error) {
+        return fail(
+          "backend_error",
+          error instanceof Error ? error.message : "Room note save was not confirmed.",
+        );
+      }
     }),
   );
 

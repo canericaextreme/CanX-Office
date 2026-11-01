@@ -3,8 +3,8 @@
  * others left off with John.
  *
  * Each outside assistant keeps ONE "latest handoff" Brain note (office_notes)
- * that it overwrites at the end of a conversation with John, plus a dated
- * copy for history. Elsie's own side is already saved in
+ * that it updates after material work, plus a stable job-specific
+ * history copy verified by brain-handoff.ts. Legacy dated copies remain readable. Elsie's own side is already saved in
  * astra_conversation_summaries. Everyone reads all three at the start.
  *
  * Fixed ids keep the read cheap (two lookups by id, no paging through the
@@ -36,7 +36,10 @@ export function handoffNotes(rows: unknown[]): HandoffNote[] {
   for (const agent of HANDOFF_AGENTS) {
     const row = rows.find((r): r is Record<string, unknown> => !!r && typeof r === 'object' && (r as Record<string, unknown>)['id'] === latestHandoffId(agent));
     if (!row) continue;
-    const detail = clean(row['detail'], HANDOFF_MAX_CHARS);
+    // Structured material-work receipts must retain test evidence and next steps.
+    let structured = false;
+    try { structured = JSON.parse(String(row['detail'])).schema === 'brain-handoff-v1'; } catch { /* legacy prose */ }
+    const detail = clean(row['detail'], structured ? 11000 : HANDOFF_MAX_CHARS);
     if (!detail) continue;
     out.push({ agent, title: clean(row['title'], 160), detail, updatedAt: clean(row['updated_at'], 40) });
   }

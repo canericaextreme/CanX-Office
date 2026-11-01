@@ -27,12 +27,13 @@ describe("compact CanX companion", () => {
   });
 
   it("keeps a compact footprint with room for the ChatGPT link and drags from the shell", () => {
-    expect(dockSource).toContain("h-36 w-28");
-    expect(dockSource).toContain("sm:h-40 sm:w-32");
+    // 21 Oct 2026: taller to hold Work with Claude and Claude reviews under Open ChatGPT.
+    expect(dockSource).toContain("h-[12.5rem] w-28");
+    expect(dockSource).toContain("sm:h-[14rem] sm:w-32");
     expect(dockSource).toContain("canx-companion-drag-handle");
     expect(dockSource).toContain("onPointerDown={onPointerDown}");
-    // Minimize and the external link must not begin a drag.
-    expect(dockSource.match(/onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/g)).toHaveLength(2);
+    // Minimize, the ChatGPT and Claude links and Claude reviews must not begin a drag.
+    expect(dockSource.match(/onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/g)).toHaveLength(4);
   });
 
   it("offers the requested ChatGPT link without embedding it or showing transcript text", () => {

@@ -80,6 +80,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
+      actions: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -90,7 +92,7 @@ jobs:
           name: codex-candidate
           path: /tmp/canx-candidate
       # The fixed publisher applies data only; it never executes candidate code.
-      - name: Open draft change
+      - name: Open change for the merge robot
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/codex/propose.mjs

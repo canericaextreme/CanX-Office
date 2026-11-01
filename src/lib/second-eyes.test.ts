@@ -26,6 +26,7 @@ const IMAGE = `data:image/jpeg;base64,${"A".repeat(400)}`;
 
 const panel = readFileSync("src/components/office/SecondEyesPanel.tsx", "utf8");
 const nav = readFileSync("src/components/office/OfficeNav.tsx", "utf8");
+const layout = readFileSync("src/routes/_office.tsx", "utf8");
 const manager = readFileSync("src/components/office/OfficeManager.tsx", "utf8");
 const reviewSource = readFileSync("src/lib/claude-review.functions.ts", "utf8");
 const observe = readFileSync("src/lib/office-observe.ts", "utf8");
@@ -58,8 +59,35 @@ const BASE = {
 };
 
 describe("reachable from every room without adding a destination", () => {
-  it("the shared control lives in the office shell navigation", () => {
-    expect(nav).toContain("SecondEyesPanel");
+  it("the shared control lives in the office shell, as a tab instead of a header button", () => {
+    expect(layout).toContain("<SecondEyesPanel />");
+    expect(nav).not.toContain("SecondEyesPanel");
+  });
+
+  it("shows the tab to the signed-in owner only, never in a read-only viewing session", () => {
+    expect(panel).toContain("if (!signedIn) return null;");
+    const viewerBranch = layout.slice(layout.indexOf("readOnlyViewer ? ("), layout.indexOf(") : ("));
+    expect(viewerBranch).not.toContain("SecondEyesPanel");
+    expect(layout.slice(layout.indexOf(") : (")).includes("<SecondEyesPanel />")).toBe(true);
+  });
+
+  it("Work with Claude sits in the chatbot card, identical to Open ChatGPT, with no floating tab over Elsie", () => {
+    const dock = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
+    const chatgpt = dock.slice(dock.indexOf('href="https://chatgpt.com/"'));
+    expect(chatgpt).toContain('data-testid="claude-tab"');
+    expect(chatgpt).toContain('href="https://claude.ai/"');
+    expect(chatgpt).toContain("Work with Claude");
+    expect(panel).not.toContain("function ClaudeTab");
+    expect(panel).not.toMatch(/fixed \$\{place\}/);
+    expect(panel).not.toContain("TooltipContent");
+  });
+
+  it("keeps the paid review panel one press away and never starts a review from the button", () => {
+    const dock = readFileSync("src/components/office/CompanionDock.tsx", "utf8");
+    expect(dock).toContain("window.dispatchEvent(new Event(CLAUDE_REVIEWS_EVENT))");
+    expect(dock).toContain('aria-controls="claude-connection-dashboard"');
+    expect(panel).toContain("window.addEventListener(CLAUDE_REVIEWS_EVENT, toggle)");
+    expect(dock).not.toMatch(/requestClaudeReview|reviewThisRoom|reviewWholeOffice|reserve/);
   });
 
   it("adds no new office route file", () => {
