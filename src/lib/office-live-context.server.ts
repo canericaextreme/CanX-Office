@@ -247,45 +247,34 @@ function staticRoomCatalogue(): string {
  */
 export async function buildLiveOfficeContext(request: LiveContextRequest): Promise<LiveContextResult> {
   const { config, token, rest } = request;
-  const goals = await readOfficeGoals(path => rest(config, token, path));
-
-  const notesResponse = await rest(config, token, "office_notes?select=*&order=created_at.desc&limit=200&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)").catch(
-    () => null,
-  );
+  // Independent GETs under the same verified owner. Previously goals, notes,
+  // memory, continuity, meetings, Finance and then Work Board waited in series
+  // on every typed/voice turn and when opening a voice session.
+  const [goals, notesResponse, memoryResponse, continuityResponse,
+    roundTableResponse, receiptsResponse, workbench] = await Promise.all([
+    readOfficeGoals(path => rest(config, token, path)),
+    rest(config, token, "office_notes?select=*&order=created_at.desc&limit=200&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)").catch(() => null),
+    // Separate reads preserve memory and stable continuity outside the recent-note cap.
+    rest(config, token, "office_notes?select=title,detail,source,provenance,created_at&source=like.CanX%20Brain%3A*&order=created_at.desc&limit=30").catch(() => null),
+    rest(config, token, "office_notes?select=title,detail,source,provenance,created_at&source=eq.CanX%20Brain%3A%20continuity&order=created_at.desc&limit=20").catch(() => null),
+    rest(config, token, "round_tables?select=key,updated_at&order=updated_at.desc&limit=5").catch(() => null),
+    rest(config, token, "finance_receipts?select=doc&order=created_at.desc&limit=1").catch(() => null),
+    readWorkbench(config, token, rest),
+  ]);
+  // Preserve all existing source failures; a faster read is not permission to
+  // answer from incomplete private records or stale cached facts.
   if (!notesResponse?.ok) {
     return { ok: false, message: "The office records could not be read just now, so no answer was requested." };
   }
-
-  // Read memory separately so ordinary office notes cannot crowd it out.
-  const memoryResponse = await rest(config, token,
-    "office_notes?select=title,detail,source,provenance,created_at&source=like.CanX%20Brain%3A*&order=created_at.desc&limit=30"
-  ).catch(() => null);
   if (!memoryResponse?.ok || !Array.isArray(memoryResponse.body)) {
     return { ok: false, message: "Elsie could not load its saved Brain memory. Please try again; no history was guessed." };
   }
-
-  // Stable goals and the handover must not fall out of the recent-summary window.
-  const continuityResponse = await rest(config, token,
-    "office_notes?select=title,detail,source,provenance,created_at&source=eq.CanX%20Brain%3A%20continuity&order=created_at.desc&limit=20"
-  ).catch(() => null);
   if (!continuityResponse?.ok || !Array.isArray(continuityResponse.body)) {
     return { ok: false, message: "Elsie could not load the continuity records. No history was guessed." };
   }
-
-  const roundTableResponse = await rest(
-    config,
-    token,
-    "round_tables?select=key,updated_at&order=updated_at.desc&limit=5",
-  ).catch(() => null);
   if (!roundTableResponse?.ok) {
     return { ok: false, message: "The meeting records could not be read just now, so no answer was requested." };
   }
-
-  const receiptsResponse = await rest(
-    config,
-    token,
-    "finance_receipts?select=doc&order=created_at.desc&limit=1",
-  ).catch(() => null);
   if (!receiptsResponse?.ok) {
     return { ok: false, message: "The finance records could not be read just now, so no answer was requested." };
   }
@@ -315,7 +304,6 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   // Room reads across the rest of the office. These are read-only and
   // tolerant: if a table cannot be read, the context says so plainly instead
   // of failing the whole answer or inventing records.
-  const workbench = await readWorkbench(config, token, rest);
   const roomCatalogue = staticRoomCatalogue();
 
   const receiptRows = Array.isArray(receiptsResponse.body) ? (receiptsResponse.body as Array<{ doc?: unknown }>) : [];

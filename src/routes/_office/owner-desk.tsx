@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/office/StatusBadge";
@@ -8,6 +8,7 @@ import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
 import { useOwnerSession } from "@/lib/owner-session";
 import { loadViewerDeskMemory, type ViewerDeskMemory } from "@/lib/owner-desk-viewer.functions";
 import { PreTripCard } from "@/components/office/PreTripCard";
+import { EmailsCard } from "@/components/office/EmailsCard";
 
 export const Route = createFileRoute("/_office/owner-desk")({
   head: () => ({
@@ -80,6 +81,7 @@ function OwnersDesk() {
       <p className="mb-4 text-xs text-muted-foreground">{statusLine}</p>
       <div className="grid gap-6 lg:grid-cols-2">
         {!viewer && <PreTripCard />}
+        {!viewer && <EmailsCard />}
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Today's priorities</CardTitle>
@@ -133,6 +135,10 @@ function OwnersDesk() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           Cost: {formatCents(item.cost_cents)} · Risk: {item.risk}
                         </p>
+                        <Link to="/approvals" hash={`approval-${item.id}`}
+                          className="mt-3 inline-flex min-h-11 items-center rounded border border-canx-yellow px-3 text-sm font-semibold text-canx-yellow">
+                          Open details and decide
+                        </Link>
                       </div>
                     ))
               : <p className="text-sm text-muted-foreground">Live approvals are unavailable. This does not mean the approval box is empty.</p>}

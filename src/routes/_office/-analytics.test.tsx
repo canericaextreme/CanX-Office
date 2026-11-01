@@ -13,6 +13,7 @@ const session = { accessToken: "fixture" as string | null, viewer: false };
 const snapshotFn = vi.fn();
 vi.mock("@tanstack/react-router", async (importOriginal) => ({ ...(await importOriginal<object>()), createFileRoute: () => (options: unknown) => options }));
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => snapshotFn }));
+vi.mock("@/lib/safe-highways-progress.functions", () => ({ getSafeHighwaysProgress: vi.fn() }));
 vi.mock("@/lib/room-snapshot.functions", () => ({ getRoomSnapshot: vi.fn() }));
 vi.mock("@/lib/owner-session", () => ({ useOwnerSession: () => session }));
 vi.mock("@/components/office/OfficeFiles", () => ({ OfficeFiles: ({ room }: { room: string }) => <section>Files for {room}</section> }));

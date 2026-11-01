@@ -1,6 +1,7 @@
 /** Server-only GitHub build bridge. No credentials or owner tokens enter job inputs. */
 import type { OwnerVerification } from './canx-backend.server';
 import { buildChangeStatus } from './build-change-status';
+import { buildFailureReason } from './build-failure-reason';
 import { newBuildGitHubTrace, traceBuildGitHubRequest, readBuildGitHubJson, buildGitHubFailure, buildGitHubHttpFailure, type BuildGitHubTrace } from './build-github-diagnostic';
 export const CLAUDE_REPO = 'canericaextreme/CanX-Office';
 export const CLAUDE_WORKFLOW = 'canx-claude.yml';
@@ -59,6 +60,13 @@ export async function claudeBuildsWith(deps: ClaudeBuildDeps, token: string, req
           pr = Array.isArray(body) ? body.find(p => p.head?.ref === `claude/office-${runId}` && p.head?.repo?.full_name === CLAUDE_REPO) : undefined;
         }
         detail += buildChangeStatus(pr, CLAUDE_REPO);
+      }
+      if (state === 'failure') {
+        // Best effort: a failed read keeps the plain "failure" status.
+        try {
+          const jobs = await api(deps, `/actions/runs/${runId}/jobs?per_page=10`, trace);
+          if (jobs.ok) detail += buildFailureReason(await readBuildGitHubJson(jobs, trace));
+        } catch { /* keep the plain status */ }
       }
       return { ok: true, detail, runs: [{ id: runId, title: plain(run.display_title), state, url }] };
     }

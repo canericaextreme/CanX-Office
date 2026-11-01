@@ -41,3 +41,11 @@ describe("Daily Pre-Trip Card", () => {
     expect(screen.getByText("Claude (Office helper) message test")).toBeTruthy();
   });
 });
+
+describe("Reception pre-trip light", () => {
+  it("renders nothing at all for a viewer or signed-out session, so no empty box shows", async () => {
+    const { PreTripBadge } = await import("./PreTripCard");
+    const { container } = render(<PreTripBadge className="box" />);
+    expect(container.innerHTML).toBe("");
+  });
+});

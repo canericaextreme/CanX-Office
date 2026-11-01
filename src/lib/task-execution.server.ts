@@ -6,7 +6,7 @@ import { BUILDER_LABEL, type OfficeBuilder } from './builder-choice';
 import { splitLeadingJson } from './task-receipt';
 import { ACTIVE_RUN_STATES, MAX_QUEUED_PER_BUILDER, hasQueueMarker, queueMarker, queuedTasksFor, selectElsieQueueTask } from './elsie-task-queue';
 import { AUTOPILOT_NOTE_ID, autopilotCommand, autopilotDetail, parseAutopilot, type AutopilotMode } from './autopilot';
-import { FAILED_RUN_STATES, hasTakeover, newTakeoverNoteDetail, parseTakeoverNote, takeoverMarker, takeoverNoteId, takeoverStatusText, type ChangeState, type TakeoverReason } from './claude-takeover';
+import { FAILED_RUN_STATES, hasTakeover, newTakeoverNoteDetail, parseTakeoverNote, takeoverMarker, takeoverNoteId, takeoverStatusText, pickupTimingText, type ChangeState, type TakeoverReason } from './claude-takeover';
 
 type BuildFn = (token: string, request?: string, prNumber?: number, runId?: number) => Promise<CodexBuildResult>;
 interface Execution { kind: 'codex-task-v1' | 'office-task-v2'; builder: OfficeBuilder; attempt: string; runId?: number; state: string; prior: string; }
@@ -288,7 +288,7 @@ export async function handTaskToClaudeWith(deps: TaskExecutionDeps, token: strin
   }
   const saved = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&evidence=eq.${encodeURIComponent(task.evidence)}&status=not.in.(done,cancelled)`, {
     status: 'waiting', worker: 'Claude', evidence: (task.evidence ? task.evidence + '\n' : '') + takeoverMarker(at, reason),
-    waiting_reason: `With a full Claude worker (Brain note ${noteId}). Claude picks up handed-over jobs about every hour.`,
+    waiting_reason: `With a full Claude worker (Brain note ${noteId}). ${pickupTimingText()}`,
     updated_at: at,
   });
   if (!saved.ok || !firstRow(saved.data)) return { ok: false, detail: 'The task changed while it was being handed over; nothing was handed over. Check it again.' };
@@ -296,7 +296,7 @@ export async function handTaskToClaudeWith(deps: TaskExecutionDeps, token: strin
     _owner_id: owner.userId, _action: 'task.claude_takeover', _entity: 'manager_tasks', _entity_id: task.id,
     _before: { status: task.status, worker: task.worker }, _after: { reason, note: noteId },
   }).catch(() => undefined);
-  return { ok: true, detail: 'Handed to a full Claude worker; no paid re-run was started. Claude picks it up within about an hour, builds it with tests, and its change merges itself once checks pass. Ask me for its status any time.' };
+  return { ok: true, detail: `Handed to a full Claude worker; no paid re-run was started. ${pickupTimingText()} Claude builds it with tests, and its change merges itself once checks pass. Ask me for its status any time.` };
 }
 
 /** Claude's real progress on a handed-over task: its Brain note, then the live PR when it names one. */

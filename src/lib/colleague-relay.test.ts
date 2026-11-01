@@ -9,8 +9,8 @@ const RID = '11111111-2222-4333-8444-555555555555';
 const base: ManagerTask = { id: 'task-1', owner_id: 'owner', title: 'Welcome note', detail: 'Write it.', status: 'open', risk: 'green', worker: 'Office Manager', result: 'Earlier', evidence: 'Earlier evidence', created_at: '2026-10-08T00:00:00Z', updated_at: '2026-10-08T00:00:00Z' } as ManagerTask;
 const note = { id: 'canx-communication-20261008', title: 'Communication', detail: 'Explain once; no prompt carrying.', source: 'John', updated_at: '2026-10-08T01:00:00Z' };
 
-function fixture(provider: 'claude' | 'chatgpt' = 'claude') {
-  let row = { ...base }; let t = 0;
+function fixture(provider: 'claude' | 'chatgpt' = 'claude', start: Partial<ManagerTask> = {}) {
+  let row = { ...base, ...start } as ManagerTask; let t = 0;
   const rest = vi.fn(async (_tk: string, method: string, path: string, body?: Record<string, unknown>): Promise<{ ok: boolean; data: unknown[] }> => {
     if (path.includes(`id=eq.${OFFICE_GOALS_ID}`)) return { ok: true, data: [{ id: OFFICE_GOALS_ID, title: 'Example goals', detail: 'GOAL_FIXTURE: prioritize checked prototypes', provenance: 'john' }] };
     if (path.startsWith('office_notes')) return { ok: true, data: [note] };
@@ -47,10 +47,108 @@ describe('colleague relay', () => {
     expect(JSON.stringify(r)).not.toContain('PRIVATE');
   });
   it('refuses task capacity overflow before charging, using the actual 2000-character database limit', async () => {
+    for (const full of [{ result: 'x'.repeat(1750) }, { evidence: 'x'.repeat(1700) }]) {
+      const f = fixture(); const orig = f.rest.getMockImplementation()!;
+      f.rest.mockImplementation(async (...args) => args[2].startsWith('manager_tasks') ? { ok: true, data: [{ ...base, ...full }] } : orig(...args));
+      expect(await relayToColleagueWith(f.deps, input())).toMatchObject({ ok: false, step: 'check task room', detail: expect.stringContaining('no room') });
+      expect(f.fetchImpl).not.toHaveBeenCalled(); expect(f.deps.workbench.reserve).not.toHaveBeenCalled();
+      expect(f.rest.mock.calls.some(c => c[1] === 'PATCH')).toBe(false);
+    }
+  });
+  it('relay_to_colleague completes on a saved green task that already has result and evidence history', async () => {
+    const savedResult = 'Earlier build notes for the welcome page. '.repeat(15).trim();
+    const savedEvidence = 'Earlier receipt line for the welcome page. '.repeat(18).trim();
+    const f = fixture('claude', { result: savedResult, evidence: savedEvidence, status: 'in_progress' });
+    const r = await relayToColleagueWith(f.deps, input());
+    expect(r).toMatchObject({ ok: true, text: 'Claude reply', detail: expect.stringContaining('reply saved and read back on task task-1') });
+    expect(r.step).toBeUndefined();
+    expect(f.fetchImpl).toHaveBeenCalledTimes(1);
+    const sent = JSON.parse((f.fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    const limit = Number(/At most (\d+) characters/.exec(sent.system)?.[1]);
+    expect(limit).toBeGreaterThanOrEqual(200); expect(limit).toBeLessThanOrEqual(2000 - savedResult.length);
+    const saved = f.row();
+    expect(saved.result.startsWith(savedResult)).toBe(true); expect(saved.result).toContain('Claude reply');
+    expect(saved.evidence.startsWith(savedEvidence)).toBe(true); expect(saved.evidence).toContain(`Relay receipt ${RID}: Anthropic response msg_1`);
+    expect(saved.result.length).toBeLessThanOrEqual(2000); expect(saved.evidence.length).toBeLessThanOrEqual(2000);
+    expect(saved.status).toBe('in_progress'); expect(saved.risk).toBe('green');
+    const read = await readColleagueRepliesWith(f.deps, 'tok', 'task-1');
+    expect(read.entries).toEqual([expect.objectContaining({ requestId: RID, state: 'replied', reply: 'Claude reply', receipt: expect.stringContaining('msg_1') })]);
+  });
+  it('names the step that could not complete', async () => {
+    const owner = fixture(); owner.deps.workbench.verifyOwner = async () => { throw new Error('CANX_WORK_GRANT_REQUIRED'); };
+    expect(await relayToColleagueWith(owner.deps, input())).toMatchObject({ ok: false, step: 'verify owner', detail: expect.stringContaining('Relay step "verify owner" could not complete') });
+    expect(owner.fetchImpl).not.toHaveBeenCalled();
+
+    const read = fixture(); read.rest.mockImplementation(async () => { throw new Error('network'); });
+    expect(await relayToColleagueWith(read.deps, input())).toMatchObject({ ok: false, step: 'read task' });
+
+    const green = fixture(); green.rest.mockImplementation(async () => ({ ok: true, data: [{ ...base, risk: 'yellow' }] }));
+    expect(await relayToColleagueWith(green.deps, input())).toMatchObject({ ok: false, step: 'check task', detail: expect.stringContaining('Only a green task') });
+
+    const call = fixture(); call.fetchImpl.mockImplementation(async () => Response.json({ error: { code: 'invalid_api_key' } }, { status: 401 }));
+    expect(await relayToColleagueWith(call.deps, input())).toMatchObject({ ok: false, step: 'call colleague', detail: expect.stringContaining('invalid_api_key') });
+
+    const save = fixture(); const orig = save.rest.getMockImplementation()!; let patches = 0;
+    save.rest.mockImplementation(async (...a: Parameters<typeof orig>) => a[1] === 'PATCH' && ++patches === 2 ? { ok: false, data: [] } : orig(...a));
+    expect(await relayToColleagueWith(save.deps, input())).toMatchObject({ ok: false, step: 'save reply', text: 'Claude reply', detail: expect.stringContaining('Relay step "save reply"') });
+    expect(save.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it('uses the database-returned claim version for the reply save', async () => {
     const f = fixture(); const orig = f.rest.getMockImplementation()!;
-    f.rest.mockImplementation(async (...args) => args[2].startsWith('manager_tasks') ? { ok: true, data: [{ ...base, result: 'x'.repeat(101) }] } : orig(...args));
-    expect(await relayToColleagueWith(f.deps, input())).toMatchObject({ ok: false, detail: expect.stringContaining('no room') });
-    expect(f.fetchImpl).not.toHaveBeenCalled(); expect(f.deps.workbench.reserve).not.toHaveBeenCalled();
+    const databaseTime = '2026-10-09T01:00:00.123456+00:00';
+    f.rest.mockImplementation(async (...a: Parameters<typeof orig>) => {
+      if (a[1] === 'PATCH' && !Object.hasOwn(a[3] ?? {}, 'result'))
+        return orig(a[0], a[1], a[2], { ...a[3], updated_at: databaseTime });
+      return orig(...a);
+    });
+    expect(await relayToColleagueWith(f.deps, input())).toMatchObject({ ok: true });
+    const saves = f.rest.mock.calls.filter(c => c[1] === 'PATCH');
+    expect(saves[1]?.[2]).toContain(`updated_at=eq.${encodeURIComponent(databaseTime)}`);
+    expect(f.fetchImpl).toHaveBeenCalledOnce();
+  });
+  it.each(['wrong id', 'wrong owner', 'missing claim', 'changed history'])('does not charge for an unverified claim: %s', async fault => {
+    const f = fixture(); const orig = f.rest.getMockImplementation()!;
+    f.rest.mockImplementation(async (...a: Parameters<typeof orig>) => {
+      const r = await orig(...a);
+      if (a[1] !== 'PATCH') return r;
+      const patch = fault === 'wrong id' ? { id: 'other-task' }
+        : fault === 'wrong owner' ? { owner_id: 'other-owner' }
+        : fault === 'missing claim' ? { evidence: base.evidence }
+        : { result: 'changed concurrently' };
+      return { ok: true, data: [{ ...f.row(), ...patch }] };
+    });
+    expect(await relayToColleagueWith(f.deps, input())).toMatchObject({ ok: false, step: 'claim task' });
+    expect(f.deps.workbench.reserve).not.toHaveBeenCalled();
+    expect(f.fetchImpl).not.toHaveBeenCalled();
+  });
+  it('preserves recovery text if an unexpectedly long provider id makes the receipt too large', async () => {
+    const f = fixture();
+    f.fetchImpl.mockImplementation(async () => Response.json({ id: 'msg_' + 'x'.repeat(2000), stop_reason: 'end_turn', content: [{ type: 'text', text: 'Full reply' }] }));
+    expect(await relayToColleagueWith(f.deps, input())).toMatchObject({ ok: false, step: 'check reply', text: 'Full reply', receipt: expect.stringContaining('msg_') });
+    expect(f.row().result).toBe(base.result);
+    expect(f.rest.mock.calls.filter(c => c[1] === 'PATCH')).toHaveLength(1);
+    expect((await relayToColleagueWith(f.deps, input())).uncertain).toBe(true);
+    expect(f.fetchImpl).toHaveBeenCalledOnce();
+  });
+  it('uses the remaining reply space exactly and retains two saved replies without resending', async () => {
+    const f = fixture('claude', { result: 'Earlier '.repeat(150) });
+    f.fetchImpl.mockImplementation(async (_url?: unknown, init?: unknown) => {
+      const body = JSON.parse((init as RequestInit).body as string);
+      const limit = Number(/At most (\d+) characters/.exec(body.system)?.[1]);
+      return Response.json({ id: 'msg_full', stop_reason: 'end_turn', content: [{ type: 'text', text: 'x'.repeat(limit) }] });
+    });
+    expect((await relayToColleagueWith(f.deps, input())).ok).toBe(true);
+    expect(f.row().result.length).toBe(2000);
+    const next = { ...input(), requestId: '22222222-2222-4333-8444-555555555555' };
+    expect(await relayToColleagueWith(f.deps, next)).toMatchObject({ ok: false, step: 'check task room' });
+    expect(f.fetchImpl).toHaveBeenCalledOnce();
+
+    const g = fixture();
+    expect((await relayToColleagueWith(g.deps, input())).ok).toBe(true);
+    expect((await relayToColleagueWith(g.deps, next)).ok).toBe(true);
+    expect((await readColleagueRepliesWith(g.deps, 'tok', 'task-1')).entries).toHaveLength(2);
+    expect((await relayToColleagueWith(g.deps, next)).repeated).toBe(true);
+    expect(g.fetchImpl).toHaveBeenCalledTimes(2);
   });
   it('returns a full oversized response for recovery without silently cutting it or claiming saved success', async () => {
     const f = fixture(); f.fetchImpl.mockImplementation(async () => Response.json({ id: 'msg_long', stop_reason: 'end_turn', content: [{ type: 'text', text: 'x'.repeat(1801) }] }));

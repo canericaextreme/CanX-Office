@@ -38,6 +38,8 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { captureOfficeView } from "@/lib/office-observe";
 import { observeCurrentRoom } from "@/lib/manager-observe.functions";
 import { parseRoomCommand, roomReportSource } from "@/lib/manager-room-commands";
+import { quickOfficeReply } from "@/lib/elsie-quick-reply";
+import { isOfficeRoomRoute, roomNavigationRefusal, roomNavigationResult } from "@/lib/room-navigation";
 import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { readOfficeLabelPositions } from "@/lib/office-map";
 import { isSynopsisListRequest, synopsisListAnswer } from "@/lib/synopsis-context";
@@ -608,6 +610,11 @@ export function OfficeManager() {
   };
   const runRoomCommand = async (request: string): Promise<string | null> => {
     roomOutcomeRef.current = null;
+    // Same app-fact answer as the server, without a network/model round trip.
+    // The existing typed/voice completion path still checkpoints the answer.
+    const quick = quickOfficeReply(request, router.state.location.pathname, readOfficeLabelPositions(),
+      [...messagesRef.current].reverse().find((m) => m.role === "assistant")?.content);
+    if (quick !== null) { roomOutcomeRef.current = "display"; return quick; }
     // The Synopsis list is read from the menu itself, never from a model guess.
     if (isSynopsisListRequest(request)) {
       roomOutcomeRef.current = "display";
@@ -621,10 +628,22 @@ export function OfficeManager() {
     const command = parseRoomCommand(request, router.state.location.pathname);
     if (!command) return null;
     const out = (o: RoomOutcome, text: string) => { roomOutcomeRef.current = o; return text; };
+    // Websites, tabs and unknown rooms are refused before anything runs.
+    if (command.kind === "navigate-refused") return out("blocked", command.message);
     if (!session.stepUpComplete || !token) return out("blocked", "Complete owner verification before changing or inspecting a room.");
     if (roomActionLock.current) return out("blocked", "A room request is already running. Wait for its result.");
     roomActionLock.current = true;
     try {
+      if (command.kind === "open-read") {
+        setDelivery(`Opening ${command.room.shortLabel} for your saved-record question…`);
+        await router.navigate({ to: command.room.route });
+        if (router.state.location.pathname !== command.room.route)
+          return out("read_failed", "The requested room did not open. No record was read; do not treat navigation as complete.");
+        // Continue the original question through the shared manager path,
+        // with the newly opened room. A screenshot is not a Brain retrieval.
+        roomOutcomeRef.current = "read";
+        return null;
+      }
       if (command.kind === "move-panel") {
         setFullScreen(false);
         panel.moveToSide(command.side);
@@ -635,6 +654,21 @@ export function OfficeManager() {
         changeTextSize(command.size);
         roomOutcomeRef.current = "display";
         return `Conversation text is now ${command.size} pixels on this device. You can change it back with the Text size control.`;
+      }
+      if (command.kind === "navigate") {
+        // Display only: move this screen to an Office room route. No room
+        // read, picture or record change; "look" stays the inspection path.
+        const { room } = command;
+        if (!isOfficeRoomRoute(room.route)) return out("blocked", roomNavigationRefusal("external"));
+        try { await router.navigate({ to: room.route }); } catch { /* reported by the landing check below */ }
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        const result = roomNavigationResult(room, router.state.location.pathname);
+        if (!result.ok) return out("navigate_failed", result.message);
+        // The rest of "open X and read ..." goes to Elsie, who now reads room X.
+        if (command.followUp) { roomOutcomeRef.current = null; return null; }
+        // On a phone the panel covers the room; on a desktop it sits beside it.
+        if (isMobile) setMinimized(true);
+        return out("display", result.message);
       }
       const { room } = command;
       if (command.kind === "report") {
