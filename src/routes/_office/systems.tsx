@@ -3,6 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { RoomReports } from "@/components/office/RoomReports";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BudgetPanel } from "@/components/office/BudgetPanel";
@@ -202,6 +203,8 @@ function Systems() {
             })}
           </CardContent>
         </Card>
+
+        <RoomReports securityOnly />
 
         <ClaudeReviewPanel />
 
