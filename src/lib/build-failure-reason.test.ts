@@ -15,6 +15,7 @@ describe('buildFailureReason', () => {
   it('reports a run with no code change from the second job', () => {
     const body = { jobs: [{ conclusion: 'success', steps: [{ name: 'Verify candidate', conclusion: 'success' }] }, { conclusion: 'failure', steps: [{ name: 'Open draft change', conclusion: 'failure' }] }] };
     expect(buildFailureReason(body)).toContain('no usable code change');
+    expect(buildFailureReason(jobs(['Open change for the merge robot', 'failure']))).toContain('nothing was sent to the merge robot');
   });
   it('names an unknown step without guessing a reason', () => {
     expect(buildFailureReason(jobs(['Something new', 'failure']))).toBe(' Stopped at "Something new".');
