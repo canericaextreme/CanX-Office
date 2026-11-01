@@ -310,3 +310,35 @@ describe('Elsie explains a handoff the safety check stopped', () => {
     expect(r.text).toMatch(/not sent to Claude: .*protected area \(purchase\)/);
   });
 });
+
+
+describe("We Belong internal Elsie intake (mock storage only)", () => {
+  const id = "6e689bf0-065a-4fd6-b66f-48cb82fd09dc";
+  it.each([false, true])("keeps the exact task and reports rejected writes separately (reject=%s)", async reject => {
+    const task = { id, owner_id: "u1", title: "We Belong campaign", detail: "Prepare a campaign proposal with cost estimates", project: "We Belong", status: "open", worker: "", evidence: "existing receipt", risk: "green" };
+    const original = { ...task };
+    const patches: Record<string, unknown>[] = [];
+    const h = chatDeps("assign_task", {}, { task_id: id, worker: "Elsie" });
+    const providerFetch = h.deps.fetchImpl;
+    h.deps.fetchImpl = vi.fn(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/rest/v1/manager_tasks")) {
+        expect(url).toContain(`id=eq.${id}`);
+        if (init?.method === "PATCH") {
+          patches.push(JSON.parse(String(init.body)));
+          if (reject) return Response.json({ message: "record write rejected" }, { status: 403 });
+          Object.assign(task, patches.at(-1));
+        }
+        return Response.json([{ ...task }]);
+      }
+      return providerFetch(input, init);
+    }) as typeof fetch;
+    const reply = await runManagerChatWith(h.deps, say(`Pass this to Elsie: prepare the We Belong campaign proposal with cost estimates, existing task ${id}`));
+    expect(h.runBuild).not.toHaveBeenCalled();
+    expect(patches).toHaveLength(1);
+    expect(patches[0]).toEqual({ worker: "Elsie", updated_at: expect.any(String) });
+    expect(task).toMatchObject({ ...original, worker: reject ? "" : "Elsie" });
+    expect(reply.actionResults.find(a => a.name === "assign_task")).toMatchObject({ status: reject ? "stopped" : "done" });
+    expect(reply.actionResults.find(a => a.name === "assign_task")?.detail).not.toMatch(/picked up|completed/i);
+  });
+});
