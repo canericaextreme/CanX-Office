@@ -253,7 +253,7 @@ export async function buildLiveOfficeContext(request: LiveContextRequest): Promi
   const [goals, notesResponse, memoryResponse, continuityResponse,
     roundTableResponse, receiptsResponse, workbench] = await Promise.all([
     readOfficeGoals(path => rest(config, token, path)),
-    rest(config, token, "office_notes?select=*&order=created_at.desc&limit=200").catch(() => null),
+    rest(config, token, "office_notes?select=*&order=created_at.desc&limit=200&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)").catch(() => null),
     // Separate reads preserve memory and stable continuity outside the recent-note cap.
     rest(config, token, "office_notes?select=title,detail,source,provenance,created_at&source=like.CanX%20Brain%3A*&order=created_at.desc&limit=30").catch(() => null),
     rest(config, token, "office_notes?select=title,detail,source,provenance,created_at&source=eq.CanX%20Brain%3A%20continuity&order=created_at.desc&limit=20").catch(() => null),

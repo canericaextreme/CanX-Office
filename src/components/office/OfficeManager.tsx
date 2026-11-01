@@ -1,5 +1,7 @@
 "use client";
 
+import { OFFICE_HOURS_VOICE } from "@/lib/office-hours";
+
 import { OfficeFiles } from "./OfficeFiles";
 import { openOfficeAccount } from "@/lib/office-account-dialog";
 import { VoiceDiagnosticsPanel } from "./VoiceDiagnosticsPanel";
@@ -741,6 +743,19 @@ export function OfficeManager() {
     failSpokenTurn,
     liveVoiceMode,
   );
+
+  // Telemetry only: no audio, transcripts, provider calls or voice controls change.
+  useEffect(() => {
+    const active = realtimeManager.on ||
+      ["listening", "preparing", "speaking", "transcribing"].includes(managerVoice.phase);
+    const report = () => window.dispatchEvent(new CustomEvent(OFFICE_HOURS_VOICE, { detail: active }));
+    report();
+    const timer = setInterval(report, 2000);
+    return () => {
+      clearInterval(timer);
+      window.dispatchEvent(new CustomEvent(OFFICE_HOURS_VOICE, { detail: false }));
+    };
+  }, [realtimeManager.on, managerVoice.phase]);
 
   // One attempt per new completed discussion; a failed save needs an explicit retry.
   // No unload request: never claim a browser shutdown can finish an in-flight save.

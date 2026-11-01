@@ -101,7 +101,7 @@ export const listSharedNotes = createServerFn({ method: "POST" })
       const response = await rest(
         config,
         token,
-        `office_notes?select=*&order=created_at.desc&limit=300${filter}`,
+        `office_notes?select=*&order=created_at.desc&limit=300&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)${filter}`,
       );
       if (!response.ok)
         return fail("backend_error", "The shared records could not be read.");

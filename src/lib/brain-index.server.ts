@@ -29,7 +29,7 @@ export async function readBrainIndexWith(input: { config: BackendConfig; token: 
     get(`office_files?select=id,filename,room,folder,mime_type,size_bytes,content_hash,created_at${finFilter}&order=created_at.desc&limit=500`),
     get(`office_links?select=id,title,room,folder,created_at${finFilter}&order=created_at.desc&limit=500`),
     get("knowledge_documents?select=id,title,project,filename,content_hash,character_count,chunk_count,created_at&order=created_at.desc&limit=200"),
-    twoStep ? get("office_notes?select=id,kind,title,detail,source,provenance,created_at&order=created_at.desc&limit=1000") : Promise.resolve(null),
+    twoStep ? get("office_notes?select=id,kind,title,detail,source,provenance,created_at&order=created_at.desc&limit=1000&or=(source.is.null,source.neq.Office%20Hours%3A%20v1)") : Promise.resolve(null),
     get("manager_tasks?select=id,title,project,status,updated_at&order=updated_at.desc&limit=300"),
   ]);
   const items: BrainItem[] = [];
