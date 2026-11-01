@@ -74,6 +74,14 @@ describe("builder choice is John's, never the model's", () => {
 });
 
 describe("Elsie builder routing", () => {
+  it("routes the actual clear screen change instead of a model-selected unrelated saved task", async () => {
+    const h = chatDeps("execute_task", {}, { task_id: "unrelated-task" });
+    const words = "separate the ChatGPT and Claude buttons by a quarter inch";
+    const reply = await runManagerChatWith(h.deps, say(words));
+    expect(h.runBuild).toHaveBeenCalledExactlyOnceWith("codex", "t", expect.stringContaining(words), undefined, undefined);
+    expect(h.runBuild.mock.calls[0]?.[2]).not.toContain("unrelated-task");
+    expect(reply.actionResults.some(a => a.detail.includes("No explicit request"))).toBe(false);
+  });
   it("answers a Claude status command read-only without any OpenAI call", async () => {
     const checkClaudeStatus = vi.fn().mockResolvedValue({ ok: true, detail: "Live Claude run status.", runs: [] });
     const reply = await runManagerChatWith({ verifyOwner: async () => OWNER, reserve: async () => ({ allowed: true, reservationId: "r", remainingToday: 1 }), settle: async () => undefined, buildContext: async () => ({ ok: true, text: "" }), fetchImpl: noFetch, openaiKey: "sk", model: "m", checkClaudeStatus }, say("Check Claude builds"));
@@ -275,7 +283,7 @@ describe('Elsie Finance handoff to Claude', () => {
     const h = chatDeps(null, { advanceBuilderQueue });
     const original = vi.mocked(h.fetchImpl).getMockImplementation()!;
     vi.mocked(h.fetchImpl).mockImplementation(async (input, init) => String(input).includes('/v1/responses') ? Response.json({ output_text: 'Good morning John.' }) : original(input, init));
-    const r = await runManagerChatWith(h.deps, say('Good morning Elsie'));
+    const r = await runManagerChatWith(h.deps, say('Check the queued work'));
     expect(advanceBuilderQueue).toHaveBeenCalledTimes(2);
     expect(r.text).toContain('finished: success');
     expect(r.text).toContain('Run 8');
@@ -286,7 +294,7 @@ describe('Elsie Finance handoff to Claude', () => {
     const ordered = chatDeps(null, { advanceBuilderQueue: async (builder: 'claude' | 'codex') => { order.push('queue'); return { builder, checked: false, finished: [] as string[], detail: '' }; } });
     const readBoard = ordered.deps.buildContext;
     ordered.deps.buildContext = async (...a: Parameters<typeof readBoard>) => { order.push('board'); return readBoard(...a); };
-    await runManagerChatWith(ordered.deps, say('Good morning Elsie'));
+    await runManagerChatWith(ordered.deps, say('Check the queued work'));
     expect(order).toEqual(['queue', 'queue', 'board']);
     advanceBuilderQueue.mockClear();
     await runManagerChatWith(h.deps, say('Just checking, do not send anything yet'));

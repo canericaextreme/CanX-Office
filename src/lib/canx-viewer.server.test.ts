@@ -133,7 +133,7 @@ describe("the viewer allowlist", () => {
 
   it("never lets a viewer reach a write or spend path through the viewer verifier", () => {
     // In each file, the lines that call the viewer verifier belong to a handler that must not write.
-    for (const site of ["src/lib/brain-index.functions.ts", "src/lib/room-snapshot.functions.ts"]) {
+    for (const site of ["src/lib/brain-index.functions.ts", "src/lib/room-snapshot.functions.ts", "src/lib/owner-desk-viewer.functions.ts"]) {
       const text = src(site);
       const handlers = text.split(/export const /).slice(1);
       for (const h of handlers) {
@@ -152,6 +152,7 @@ describe("the viewer allowlist", () => {
     expectOnly("src/lib/brain-index.functions.ts", ["getBrainIndex"]);
     expectOnly("src/lib/room-snapshot.functions.ts", ["getRoomSnapshot", "checkRoomReportPresence"]);
     expectOnly("src/lib/project-register.functions.ts", ["getProjectRegister"]);
+    expectOnly("src/lib/owner-desk-viewer.functions.ts", ["loadViewerDeskMemory"]);
     // The Stage 1 Office status function stays owner-only; its own test pins that.
     expect(src("src/lib/office-status.functions.ts")).not.toContain("canx-viewer.server");
     const subs = src("src/lib/subscriptions.functions.ts");

@@ -66,6 +66,20 @@ describe("room coverage", () => {
 });
 
 describe("source classification", () => {
+  it("gives Elsie every configured Systems inventory entry without claiming a live check", async () => {
+    const rest = fakeRest({});
+    const snap = await read("/systems", rest);
+    const inventory = snap.sources.find((s) => s.key === "connections")!;
+    expect(inventory).toMatchObject({ kind: "static", status: "read", count: 9 });
+    expect(inventory.items).toHaveLength(9);
+    expect(inventory.items.join("\n")).toContain("Google Calendar (scoped)");
+    expect(inventory.items.join("\n")).toContain("static status: disconnected");
+    expect(inventory.items.join("\n")).toContain("Trail Tales");
+    expect(inventory.items.join("\n")).toContain("live status not checked");
+    expect(inventory.detail).toContain("not a count of connected or disconnected services");
+    expect(snapshotForModel(snap, "current")).toContain("Google Drive (selected files only)");
+    expect(rest.calls.some((p) => /connection|provider/i.test(p))).toBe(false);
+  });
   it("static and device sources are never reported as live reads", async () => {
     const snap = await read("/idea-garage", fakeRest({}));
     expect(snap.sources.find((s) => s.key === "idea-cards")).toMatchObject({ kind: "static" });
@@ -131,6 +145,9 @@ describe("room targeting and skills", () => {
     expect(roomsForRequest("what is in finance?", "/legal")).toEqual([{ route: "/finance", why: "named" }, { route: "/legal", why: "current" }]);
     expect(roomsForRequest("what's in this room?", "/legal")).toEqual([{ route: "/legal", why: "current" }]);
     expect(roomsForRequest("hello", undefined)).toEqual([]);
+    expect(roomsForRequest("Name the saved Office connection inventory entries and read their configured stages and status labels", "/reception")).toEqual([{ route: "/systems", why: "named" }, { route: "/reception", why: "current" }]);
+    expect(roomsForRequest("Read the connection inventory", undefined)).toEqual([{ route: "/systems", why: "named" }]);
+    expect(roomsForRequest("Read the Finance connection inventory", "/legal")).toEqual([{ route: "/finance", why: "named" }, { route: "/legal", why: "current" }]);
   });
   it("room routing selects the requested installed skill; empty requests keep only the always-on pair", () => {
     const fin = routeSkillsForRoom("subscription review", "/subscriptions");
@@ -169,6 +186,13 @@ describe("reply reconciliation", () => {
     expect(roomReplyNote("/legal", "/legal", [ref], ref)).toBe("");
     expect(roomReplyNote("/legal", "/legal", [], ref)).toMatch(/could not be read fresh/);
   });
+  it("treats the home page as Reception, not a failed read", () => {
+    const rec = { ...ref, route: "/reception" };
+    expect(roomReplyNote("/", "/", [rec], null)).toBe("");
+    expect(roomReplyNote("/", "/reception", [rec], null)).toBe("");
+    expect(roomReplyNote("/", "/", [], null)).toMatch(/Reception could not be read fresh/);
+    expect(roomReplyNote("/", "/legal", [rec], null)).toMatch(/moved/);
+  });
   it("fingerprint ignores static/device sources", () => {
     const live = { key: "a", label: "a", kind: "live" as const, status: "read" as const, count: 1, items: [], latestAt: null, detail: "" };
     expect(fingerprintSources([live])).toBe(fingerprintSources([live, { ...live, key: "s", kind: "static" }]));
@@ -184,6 +208,23 @@ describe("Elsie reads the room fresh for every typed or voice request", () => {
   const base = (readRoomSnapshot: NonNullable<ManagerDeps["readRoomSnapshot"]>): ManagerDeps => ({
     verifyOwner: async () => OWNER, reserve: async () => ({ allowed: true, reservationId: "r", remainingToday: 5 }), settle: async () => undefined,
     buildContext: async () => ({ ok: true, text: "CTX" }), fetchImpl, openaiKey: "sk-test", model: "m", readRoomSnapshot,
+  });
+  it.each([false, true])("supplies Systems inventory to the actual provider request from Reception (voice=%s)", async (voice) => {
+    const reader = vi.fn(async (_token: string, _aal: string, route: string) => read(route, fakeRest({})));
+    const reply = await runManagerChatWith(base(reader), {
+      accessToken: "t", voice, currentRoute: "/reception",
+      messages: [{ role: "user", content: "Name the saved Office connection inventory entries and read their configured stages and status labels. Don't run live checks." }],
+    });
+    expect(reply.ok).toBe(true);
+    expect(reader.mock.calls.map((c) => c[2])).toEqual(["/systems", "/reception"]);
+    expect(reply.roomSnapshots?.[0]?.route).toBe("/systems");
+    const calls = (fetchImpl as unknown as { mock: { calls: Array<[unknown, RequestInit]> } }).mock.calls;
+    const payload = JSON.parse(String(calls.at(-1)![1].body));
+    const input = JSON.stringify(payload.input);
+    expect(input).toContain("Google Calendar (scoped)");
+    expect(input).toContain("Google Drive (selected files only)");
+    expect(input).toContain("static status: disconnected");
+    expect(input).toContain("not a count of connected or disconnected services");
   });
   it("uses the route sent with each request (route change between turns) and returns the read it used", async () => {
     let n = 0;
@@ -245,5 +286,37 @@ describe("canonical room identity", () => {
     const src = readFileSync("src/components/office/RoomConnectionCheck.tsx", "utf8");
     expect(src).toMatch(/\[TEST\] Room connection check/);
     expect(src).toMatch(/session\.stepUpComplete \? session\.accessToken : null/);
+  });
+});
+
+describe("Work Board and approvals reading (1 Nov 2026)", () => {
+  it("lists counts by status and every unfinished task, not just the six newest titles", async () => {
+    const recent = [
+      ...Array.from({ length: 8 }, (_, i) => ({ title: `Old ${i}`, status: "cancelled", updated_at: `2026-10-3${i % 2}` })),
+      { title: "Fix header", status: "waiting", updated_at: "2026-10-01" },
+    ];
+    const unfinished = [{ title: "Fix header", status: "waiting", worker: "Claude", waiting_reason: "Claude to report back", updated_at: "2026-10-01" }];
+    const rest = fakeRest({ "manager_tasks?select=title,status,project,worker": unfinished, "manager_tasks?select=title,status,project,updated_at": recent });
+    const snap = await read("/work-board", rest);
+    const tasks = snap.sources.find((s) => s.key === "tasks")!;
+    expect(tasks.count).toBe(9);
+    expect(tasks.items[0]).toBe("By status: cancelled 8, waiting 1");
+    expect(tasks.items[1]).toContain("UNFINISHED Fix header — waiting · worker Claude · waiting because: Claude to report back");
+    expect(rest.calls.some((p) => p.includes("status=in.(open,in_progress,waiting)"))).toBe(true);
+  });
+  it("says so when the unfinished list cannot be read, and still reports the room", async () => {
+    const rest = fakeRest({ "manager_tasks?select=title,status,project,worker": "fail", "manager_tasks?select=title,status,project,updated_at": [{ title: "A", status: "open", updated_at: "1" }] });
+    const tasks = (await read("/work-board", rest)).sources.find((s) => s.key === "tasks")!;
+    expect(tasks.status).toBe("read");
+    expect(tasks.detail).toMatch(/unfinished-task list could not be read/);
+  });
+  it("puts pending approvals first with a status count", async () => {
+    const rows = [
+      ...Array.from({ length: 7 }, (_, i) => ({ title: `Done ${i}`, status: "approved", created_at: "2026-10-30" })),
+      { title: "Pay for build", status: "pending", created_at: "2026-10-01" },
+    ];
+    const ap = (await read("/approvals", fakeRest({ manager_approvals: rows }))).sources.find((s) => s.key === "approvals")!;
+    expect(ap.items[0]).toBe("By status: approved 7, pending 1");
+    expect(ap.items[1]).toBe("PENDING Pay for build (2026-10-01)");
   });
 });

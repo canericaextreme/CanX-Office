@@ -75,6 +75,11 @@ export function pageProblem(text) {
   return hit ? `page shows "${hit}"` : null;
 }
 
+/** Hidden error messages cannot invalidate an otherwise ready screenshot. */
+export function visiblePageProblem(signals) {
+  return pageProblem(signals.visibleText ?? "");
+}
+
 async function post(brokerUrl, route, oidc, body) {
   const response = await fetch(`${brokerUrl}/${route}`, {
     method: "POST",
@@ -95,6 +100,18 @@ async function workflowIdentity(env) {
   const { value } = await response.json();
   if (typeof value !== "string" || value.split(".").length !== 3) throw new Error("oidc_unavailable");
   return value;
+}
+
+/** Runs started together can meet "viewer_busy" while the broker opens another viewer session. Wait and ask again. */
+export const CLAIM_ATTEMPTS = 4;
+export async function claimWithRetry(attempt, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  let result = null;
+  for (let i = 1; i <= CLAIM_ATTEMPTS; i++) {
+    result = await attempt();
+    if (!(result?.status === 503 && result.json?.code === "viewer_busy") || i === CLAIM_ATTEMPTS) return result;
+    await sleep(1500 * i);
+  }
+  return result;
 }
 
 const mask = (value) => { if (process.env.GITHUB_ACTIONS === "true" && value) console.log(`::add-mask::${value}`); };
@@ -119,7 +136,7 @@ export async function runCapture({ requestId, env = process.env }) {
     return 1;
   };
 
-  const claim = await post(brokerUrl, "claim", oidc, { requestId }).catch(() => null);
+  const claim = await claimWithRetry(() => post(brokerUrl, "claim", oidc, { requestId }).catch(() => null));
   if (!claim || claim.status !== 200 || !claim.json?.claimed?.accessToken) { say("failed", { code: "claim_refused", http: claim?.status ?? 0, why: claim?.json?.code }); return 1; }
   claimed = claim.json.claimed;
   mask(claimed.accessToken);
@@ -156,13 +173,24 @@ export async function runCapture({ requestId, env = process.env }) {
         hasSignIn: Boolean(document.querySelector('[aria-label="CanX Office entrance"]')),
         textLength: (root?.textContent ?? "").trim().length,
         text: (root?.textContent ?? "").slice(0, 200_000),
+        visibleText: (root?.innerText ?? "").slice(0, 200_000),
       };
     });
     const outcome = classifyCapture({ route, finalPath: signals.finalPath, httpStatus: response ? response.status() : NaN, hasOfficeView: signals.hasOfficeView, hasSignIn: signals.hasSignIn, textLength: signals.textLength });
     if (outcome === "sign_in_page") return finish("session_not_accepted");
-    if (outcome !== "ok") return finish(outcome === "wrong_route" ? "wrong_room" : "page_not_ready");
+    if (outcome !== "ok") {
+      say("readiness_check", { outcome, httpStatus: response ? response.status() : 0, hasOfficeView: signals.hasOfficeView, hasSignIn: signals.hasSignIn, hasViewerBadge: Boolean(badge) });
+      return finish(outcome === "wrong_route" ? "wrong_room" : "page_not_ready");
+    }
     if (!badge) return finish("session_not_accepted");
-    if (pageProblem(signals.text)) return finish("page_not_ready");
+    // Hidden/previous room errors remain in textContent but are not in the visible screenshot.
+    // Only a currently visible error blocks a fresh room capture.
+    const notReady = visiblePageProblem(signals);
+    if (notReady) {
+      // Only a predefined phrase, never room text, records, credentials or URLs.
+      say("readiness_check", { outcome: "blocked_phrase", reason: notReady, visibleReason: pageProblem(signals.visibleText) });
+      return finish("page_not_ready");
+    }
 
     await page.addStyleTag({ content: MASK_CSS });
     if (state === "synopsis_open") {

@@ -7,6 +7,7 @@
  * context under that owner's RLS policy, and reserves the Manager AI budget.
  */
 
+import { ELSIE_TRANSCRIPTION_PROMPT } from "./elsie-name";
 import { safeProviderErrorFields, voiceProviderFailure } from "./voice-provider-error";
 import { CONTINUITY_UNAVAILABLE, type ContinuityRead } from "./astra-continuity";
 import { createServerFn } from "@tanstack/react-start";
@@ -204,7 +205,7 @@ export function managerRealtimeSessionBody(model: string, instructions: string, 
   if (mode === "direct") {
     return { session: { ...body.session,
       output_modalities: ["audio"],
-      audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "auto", create_response: true, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } },
+      audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "auto", create_response: true, interrupt_response: true }, transcription: { model: "gpt-4o-mini-transcribe", language: "en", prompt: ELSIE_TRANSCRIPTION_PROMPT } } },
       tools: [{ type: "function", name: "submit_office_request", description: "Send John's request about office records, approvals, tasks, rooms, saving, memory, or any change to the Office Manager's authenticated server controls. Required for every office fact or action except builder status, which uses check_codex_builds. Returns the authoritative written result.", parameters: { type: "object", properties: { request: { type: "string", description: "John's request in his own words." } }, required: ["request"], additionalProperties: false } },
         { type: "function", name: "check_codex_builds", description: "Read the builder connection and latest GitHub build status. No build is started, no change number is needed, and nothing is changed. Use this for builder status questions instead of submit_office_request.", parameters: { type: "object", properties: {}, additionalProperties: false } },
         { type: "function", name: "check_claude_builds", description: "Read the Claude builder connection and latest Claude GitHub build status. No build is started and nothing is changed.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
@@ -217,7 +218,7 @@ export function managerRealtimeSessionBody(model: string, instructions: string, 
     output_modalities: ["audio"],
     // interrupt_response is off: on 17 Oct paper shuffling cut Elsie off. The
     // browser stops her only when John's words are actually transcribed.
-    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "high", create_response: false, interrupt_response: false }, transcription: { model: "gpt-4o-mini-transcribe", language: "en" } } },
+    audio: { ...body.session.audio, input: { ...body.session.audio.input, noise_reduction: { type: "near_field" }, turn_detection: { type: "semantic_vad", eagerness: "high", create_response: false, interrupt_response: false }, transcription: { model: "gpt-4o-mini-transcribe", language: "en", prompt: ELSIE_TRANSCRIPTION_PROMPT } } },
     tools: [{ type: "function", name: "submit_office_request", description: "Submit John's current spoken request to the Office Manager's existing authenticated action and approval controls. Use for every turn, including discussion and hypothetical questions; the server must honor requests not to act. Sending a question here is not authorization for a mutation.", parameters: { type: "object", properties: {}, additionalProperties: false } }],
     tool_choice: "auto",
   } };
@@ -360,7 +361,13 @@ async function realDeps(): Promise<ManagerRealtimeDeps> {
       const astra = await import("@/lib/astra-continuity");
       if (!config) return { ok: false, text: astra.CONTINUITY_UNAVAILABLE, message: "No database configured." };
       // Voice keeps only a small slice of memory, so the newest turns lead.
-      return astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId, { recentFirst: true });
+      // The pre-trip line goes first and is read in parallel with a 1.5 s cap, so it never delays voice.
+      const { readPreTripForElsie } = await import("./pretrip.server");
+      const [base, pretrip] = await Promise.all([
+        astra.readAstraContinuity((path, init) => backend.restRequest(config, token, path, init), ownerId, { recentFirst: true }),
+        readPreTripForElsie((path, init) => backend.restRequest(config, token, path, init), ownerId, new Date()),
+      ]);
+      return { ...base, text: pretrip + "\n\n" + base.text };
     },
     fetchImpl: (input, init) => fetch(input, init),
     openaiKey: readSetting(process.env["OPENAI_API_KEY"]),

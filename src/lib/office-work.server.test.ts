@@ -1,8 +1,19 @@
 import { describe,it,expect,vi } from 'vitest';
 import { officeWorkBuildWith, type OfficeWorkBuildDeps } from './office-work.server';
+import { ELSIE_TASK_MESSAGE_PREFIX } from './elsie-task-message';
 const id='00000000-0000-4000-8000-000000000001';
 const deps=():OfficeWorkBuildDeps=>({verify:vi.fn(async()=>({ok:true as const,userId:id,email:'',aal:'aal1'})),rpc:vi.fn(async(_t,n)=>n==='canx_mcp_claim_build'?{dispatch:true}:true),build:vi.fn(async()=>({ok:true,detail:'queued'}))});
 describe('Delegated Office builds',()=>{
+ it('preserves ordinary relay messages, even when their text mentions Elsie',async()=>{const d=deps();d.relay=vi.fn(async()=>({ok:true}));d.elsieTask=vi.fn();const value={action:'relay',requestId:id,taskId:id,colleague:'claude',message:'Ask Elsie to coordinate a writing assignment.'};await officeWorkBuildWith(d,'token',value);expect(d.relay).toHaveBeenCalledOnce();expect(d.elsieTask).not.toHaveBeenCalled();expect(d.build).not.toHaveBeenCalled();});
+ it.each([
+  'CANX_ELSIE_TEXT_TASK_V2\n{}',
+  ELSIE_TASK_MESSAGE_PREFIX+'bad json',
+  ELSIE_TASK_MESSAGE_PREFIX+JSON.stringify({specNoteId:'note',ruleId:id,instruction:'Write the readiness check.',colleague:'chatgpt'}),
+  ELSIE_TASK_MESSAGE_PREFIX+JSON.stringify({specNoteId:'note',ruleId:id,instruction:'Write the readiness check.',requestId:id}),
+  ELSIE_TASK_MESSAGE_PREFIX+JSON.stringify({specNoteId:'note',ruleId:'invalid',instruction:'Write the readiness check.'}),
+ ])('refuses invalid/reserved coordinator messages without ordinary-relay fallback: %s',async(message)=>{const d=deps();d.relay=vi.fn();d.elsieTask=vi.fn();expect(await officeWorkBuildWith(d,'token',{action:'relay',requestId:id,taskId:id,colleague:'claude',message})).toMatchObject({ok:false});expect(d.relay).not.toHaveBeenCalled();expect(d.elsieTask).not.toHaveBeenCalled();expect(d.build).not.toHaveBeenCalled();});
+ it('refuses a coordinator message when the engine is unavailable instead of sending it to the worker',async()=>{const d=deps();d.relay=vi.fn();const message=ELSIE_TASK_MESSAGE_PREFIX+JSON.stringify({specNoteId:'note',ruleId:id,instruction:'Write the readiness check.'});expect(await officeWorkBuildWith(d,'token',{action:'relay',requestId:id,taskId:id,colleague:'claude',message})).toMatchObject({ok:false});expect(d.relay).not.toHaveBeenCalled();});
+ it('checks current authorization before a coordinator message reaches any engine',async()=>{const d=deps();d.verify=vi.fn(async()=>({ok:false as const,reason:'expired_session' as const,message:'denied'}));d.relay=vi.fn();d.elsieTask=vi.fn();const message=ELSIE_TASK_MESSAGE_PREFIX+JSON.stringify({specNoteId:'note',ruleId:id,instruction:'Write the readiness check.'});await expect(officeWorkBuildWith(d,'token',{action:'relay',requestId:id,taskId:id,colleague:'claude',message})).rejects.toThrow();expect(d.elsieTask).not.toHaveBeenCalled();expect(d.relay).not.toHaveBeenCalled();});
  it('accepts a direct repair command as authorized build intent without bypassing any separate risk gate',async()=>{const d=deps();const request='Repair the visible Office dashboard button';const result=await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request});expect(result).toMatchObject({ok:true});expect(d.build).toHaveBeenCalledWith('codex','token',request);});
  it('rejects discussion about a repair rather than dispatching work',async()=>{const d=deps();await officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'How would you repair the Office dashboard button?'});expect(d.build).not.toHaveBeenCalled();});
  it('checks working authorization before any dispatch',async()=>{const d=deps();d.verify=vi.fn(async()=>({ok:false as const,reason:'backend_error' as const,message:'denied'}));await expect(officeWorkBuildWith(d,'token',{action:'submit',requestId:id,request:'Build a blue button'})).rejects.toThrow();expect(d.build).not.toHaveBeenCalled();});
