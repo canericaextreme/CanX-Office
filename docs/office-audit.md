@@ -56,7 +56,7 @@ The Brain room has a new **Live Brain view**, beside the shelf map. It is a thre
 
 **New room source.** Brain → `brain-view` (live). Elsie reads it as text through the room snapshot. Read-only viewers get "denied", not an empty logbook.
 
-**Analytics.** Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
+**Analytics.** Shared owner-only Safe Highways assignment progress uses the same canonical task as the Safe Highways room; recorded evidence is separate from live runtime (see docs/safe-highways-progress-display.md). Static charts from the same logbook: work by stage, changes per day, and where work is stalled, with a table view.
 
 **Needs you.** Under the view, a list of what is waiting on John: approval-box requests, tasks on hold (with their reason) and work with no change for 7 days. Each item has Approve, Archive and Ask Elsie. Every action is confirmed first and uses the existing owner-checked Office actions. Archive never deletes.
 
@@ -65,6 +65,9 @@ The Brain room has a new **Live Brain view**, beside the shelf map. It is a thre
 **Elsie as advisor (20 Oct 2026).** "Ask Elsie" on a Needs-you item shows Elsie's advice under it: approve, archive or not sure, with reasons and the facts she used. The fact sheet is read fresh on the server: the full task, approval history, logbook, change log and live GitHub state of the draft changes and builds it mentions. Checked against the 6 real items on hold: it found draft #122 merged on 16 Oct (both Finance tasks were still waiting on it) and #77 merged on 10 Oct. Elsie's live answer has not been seen yet; the provider call runs only on the Office server.
 
 **Not yet verified.** The live view has not been opened signed in on a phone or laptop on the published build. Live updates depend on Supabase realtime with John's sign-in, and fall back to a check every minute. Nothing records "brainstorming" except open Ideas & Research tasks.
+## Actionable approval inbox — 17 October 2026
+
+John reported that approval boxes could not be opened, leaving him unsure how to decide. Each request now has an explicit Open details control. Pending requests appear under Needs your decision, while approved/declined records remain accessible under Past decisions without decision controls. Owner's Desk and the global approval notice link to the exact request and open its details. Dismissal tracks request IDs so a different request with the same count is announced again. Controls have phone-sized touch targets, readable details and status feedback. A linked request opens once; refreshing records preserves the card John chose to open or close. Existing owner checks and server decision actions are unchanged; no actual owner request was approved or declined during testing. Populated UI fixtures cover opening, linked history, explicit decisions, missing owner verification, pending saves and refreshed outcomes. Signed-in desktop/mobile acceptance remains separate from fixture and publication checks.
 
 ## Work Board receipt display repair — 17 October 2026
 
@@ -94,7 +97,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 13 | Finance | receipt totals (two-step) | Finance (4) | No bank/accounting ledger |
 | 14 | Work Board | tasks, change log | Operations (4), Foreman (4) | No crew dispatch / calendar |
 | 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending; shared GitHub status failure under diagnosis |
-| 16 | Safe Highways | static boundary | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
+| 16 | Safe Highways | static boundary plus exact owner-only Work Board assignment progress (43da2350-e1aa-4d22-a1da-9885295888be); no Safe Highways system connection | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
 | 17 | Research | files, reports; bounded selected-PDF text in local draft (see research-pdf-reading.md; live unverified) | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
 | 20 | Future | — | Reserved | Reserved by John |

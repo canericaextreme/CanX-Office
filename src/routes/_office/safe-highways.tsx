@@ -1,3 +1,4 @@
+import { SafeHighwaysProgress } from "@/components/office/SafeHighwaysProgress";
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,8 @@ function SafeHighways() {
             architecture. This room is read-only and disconnected in Phase 1.
           </p>
         </header>
+
+        <SafeHighwaysProgress />
 
         <section aria-label="Safe Highways components">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

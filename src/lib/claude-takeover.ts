@@ -92,6 +92,22 @@ export function newTakeoverNoteDetail(input: { taskId: string; reason: TakeoverR
 
 export interface ChangeState { state: "open" | "draft" | "merged" | "closed"; url: string }
 
+/**
+ * Is the hourly Claude pickup routine ("CanX: pick up jobs Elsie hands to Claude")
+ * switched on? John paused it on 24 Oct 2026 (it was failing on the Claude
+ * spending limit). While it is off, nothing picks handed-over jobs up on its
+ * own, so Elsie must not promise "within about an hour". Flip this to true in
+ * the same change that turns the routine back on.
+ */
+export const CLAUDE_PICKUP_RUNNING = false;
+
+/** One sentence on when a handed-over job is picked up, true to the routine's state. */
+export function pickupTimingText(running: boolean = CLAUDE_PICKUP_RUNNING): string {
+  return running
+    ? "Claude checks for handed-over jobs about every hour."
+    : "The hourly Claude pickup is paused right now, so it starts when John asks Claude in the CanX Office project to pick it up.";
+}
+
 /** What Elsie tells John. A live PR read, when there is one, wins over the saved note. */
 export function takeoverStatusText(note: TakeoverNote | null, change?: ChangeState | null): string {
   const link = note?.link ? ` Claude's session: ${note.link}.` : "";
@@ -100,7 +116,7 @@ export function takeoverStatusText(note: TakeoverNote | null, change?: ChangeSta
   if (change?.state === "closed") return `Claude's change for this job was closed without merging (${change.url}).${link} Ask Claude in its thread what happened.`;
   if (!note) return "This task was handed to a full Claude worker, but Claude's progress note could not be read. Do not re-run the small builder; ask again shortly.";
   switch (note.state) {
-    case "waiting": return "Handed to a full Claude worker. It has not been picked up yet; Claude checks for handed-over jobs about every hour. Nothing needs re-running.";
+    case "waiting": return `Handed to a full Claude worker. It has not been picked up yet. ${pickupTimingText()} Nothing needs re-running.`;
     case "taken":
     case "working": return `A full Claude worker has this job and is building it now.${link} Nothing needs re-running.`;
     case "pr-open": return `Claude has built it and opened change #${note.pr ?? "?"}${change ? ` (${change.url})` : ""}. It merges itself once its checks pass; after that you press Publish.${link}`;
