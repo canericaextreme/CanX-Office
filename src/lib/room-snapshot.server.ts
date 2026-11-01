@@ -32,8 +32,18 @@ export interface SnapshotRequest {
 }
 
 const MAX_ITEMS = 6;
+/** Unfinished Work Board tasks are listed in full up to this many (bounded prompt size). */
+const MAX_UNFINISHED = 15;
+const UNFINISHED_TASK = ["open", "in_progress", "waiting"];
 const text = (v: unknown, max = 140) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, max) : "");
 type Row = Record<string, unknown>;
+
+/** "open 18, waiting 11, done 16" — busiest first, so the room's shape is clear at a glance. */
+function statusCounts(list: Row[]): string {
+  const counts = new Map<string, number>();
+  for (const r of list) { const k = text(r["status"], 20) || "unknown"; counts.set(k, (counts.get(k) ?? 0) + 1); }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, v]) => `${k} ${v}`).join(", ") || "none";
+}
 
 async function rows(req: SnapshotRequest, path: string): Promise<Row[] | null> {
   const res = await req.rest(req.config, req.token, path).catch(() => null);
@@ -159,11 +169,40 @@ async function readSource(req: SnapshotRequest, def: SourceDef, cache: { doc?: P
     }
     case "reports":
       return fromRows(def, await rows(req, `office_notes?select=id,title,created_at&source=eq.${encodeURIComponent(roomReportSource(req.target.id))}&order=created_at.desc&limit=100`), (r) => `${text(r["title"])} (${text(r["created_at"], 10)})`, "created_at", 100);
-    case "tasks":
-      return fromRows(def, await rows(req, "manager_tasks?select=title,status,project,updated_at&order=updated_at.desc&limit=100"),
-        (r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}${text(r["project"], 60) ? ` · project ${text(r["project"], 60)}` : ""} · updated ${text(r["updated_at"], 16)}`, "updated_at", 100);
-    case "approvals":
-      return fromRows(def, await rows(req, "manager_approvals?select=title,status,created_at&order=created_at.desc&limit=100"), (r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}`, "created_at", 100);
+    case "tasks": {
+      // 1 Nov 2026: Elsie saw only the 6 newest titles (often archived ones), so
+      // "what is waiting?" was guessed. Now: a count by status, then the
+      // unfinished tasks themselves (read separately so none hide past the cap).
+      const [recent, unfinished] = await Promise.all([
+        rows(req, "manager_tasks?select=title,status,project,updated_at&order=updated_at.desc&limit=100"),
+        rows(req, `manager_tasks?select=title,status,project,worker,waiting_reason,updated_at&status=in.(${UNFINISHED_TASK.join(",")})&order=updated_at.desc&limit=${MAX_UNFINISHED + 1}`),
+      ]);
+      const base = fromRows(def, recent, (r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}${text(r["project"], 60) ? ` · project ${text(r["project"], 60)}` : ""} · updated ${text(r["updated_at"], 16)}`, "updated_at", 100);
+      if (!recent) return base;
+      if (!unfinished) return { ...base, detail: [base.detail, "unfinished-task list could not be read; the titles below are only the newest tasks"].filter(Boolean).join("; ") };
+      const shown = unfinished.slice(0, MAX_UNFINISHED);
+      const items = [
+        `${base.capped ? "By status among the newest 100" : "By status"}: ${statusCounts(recent)}`,
+        ...(shown.length
+          ? shown.map((r) => `UNFINISHED ${text(r["title"], 100)} — ${text(r["status"], 20)}${text(r["worker"], 40) ? ` · worker ${text(r["worker"], 40)}` : ""}${text(r["project"], 60) ? ` · project ${text(r["project"], 60)}` : ""}${text(r["waiting_reason"], 140) ? ` · waiting because: ${text(r["waiting_reason"], 140)}` : ""} · updated ${text(r["updated_at"], 16)}`)
+          : ["No unfinished tasks (open, in progress or waiting)."]),
+        ...(unfinished.length > MAX_UNFINISHED ? [`More than ${MAX_UNFINISHED} unfinished tasks exist; only the ${MAX_UNFINISHED} most recently updated are listed.`] : []),
+      ];
+      return { ...base, items };
+    }
+    case "approvals": {
+      const list = await rows(req, "manager_approvals?select=title,status,created_at&order=created_at.desc&limit=100");
+      const base = fromRows(def, list, (r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}`, "created_at", 100);
+      if (!list) return base;
+      // Waiting approvals first: they are what John must act on.
+      const pending = list.filter((r) => text(r["status"], 20) === "pending");
+      const rest = list.filter((r) => text(r["status"], 20) !== "pending");
+      return { ...base, items: [
+        `${base.capped ? "By status among the newest 100" : "By status"}: ${statusCounts(list)}`,
+        ...[...pending.slice(0, MAX_UNFINISHED).map((r) => `PENDING ${text(r["title"], 100)} (${text(r["created_at"], 10)})`),
+          ...rest.slice(0, Math.max(0, MAX_ITEMS - pending.length)).map((r) => `${text(r["title"], 100)} — ${text(r["status"], 20) || "unknown"}`)],
+      ] };
+    }
     case "changes":
       return fromRows(def, await rows(req, "manager_changes?select=action,entity,at&entity=neq.manager_conversation&order=at.desc&limit=30"), (r) => `${text(r["action"], 60)} on ${text(r["entity"], 60)}`, "at", 30);
     case "notes":

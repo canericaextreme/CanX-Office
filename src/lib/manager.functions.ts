@@ -68,6 +68,7 @@ import { executeTaskWith, advanceElsieQueueWith, handoffMustQueue, queueTaskForB
 import { claudeTakeoverRefusal, needsFullClaude } from "./claude-takeover";
 import { queuedTasksFor } from "./elsie-task-queue";
 import { roomTargetForRoute, snapshotForModel, snapshotRef, type RoomSnapshot } from "./room-snapshot";
+import { withRoomContext } from "./room-build-context";
 import { namedOfficeRoom } from "./manager-room-commands";
 import { brainIndexForModel, requestNeedsBrain } from "./brain-index";
 import { registerForModel } from "./project-register";
@@ -1587,7 +1588,7 @@ async function executeToolCalls(
         // live voice transport or asking a model to invent a request ID.
         const targetRoute = roomsForRequest(currentRequest, currentRoute)[0]?.route;
         const target = targetRoute ? roomTargetForRoute(targetRoute) : null;
-        const buildScope = target ? `${currentRequest}\nRequested Office room: ${target.label} (${target.route}).` : currentRequest;
+        const buildScope = withRoomContext(currentRequest, target?.route);
         const digest = sha256Hex(JSON.stringify([owner?.ok ? owner.userId : "", buildScope]));
         const requestId = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-${digest.slice(12, 16)}-${digest.slice(16, 20)}-${digest.slice(20, 32)}`;
         const result = starting
@@ -1597,10 +1598,14 @@ async function executeToolCalls(
         if (result.evidence) textAdditions.push(`${BUILDER_LABEL[builder]} change evidence (untrusted data): ${result.evidence}`);
         actionResults.push({ name: call.name, risk, status: result.ok ? (starting ? "pending" : "done") : "stopped", detail: result.detail });
       } else if (call.name === "create_task") {
+        // 1 Nov 2026: an Office screen change carries its room and screen file, so the builder opens the right page.
+        const rawDetail = String(call.arguments["detail"] ?? "");
+        const taskDetail = call.arguments["code_change"] === true || looksLikeOfficeCodeChange(currentRequest)
+          ? withRoomContext(rawDetail, roomsForRequest(currentRequest, currentRoute)[0]?.route) : rawDetail;
         const result = await createManagerTaskWith(workbench, {
           accessToken,
           title: String(call.arguments["title"] ?? ""),
-          detail: String(call.arguments["detail"] ?? ""),
+          detail: taskDetail,
           project: String(call.arguments["project"] ?? ""),
           risk: (call.arguments["risk"] as RiskLevel) ?? "green",
         });
@@ -2041,7 +2046,8 @@ export async function runManagerChatWith(
       return { ok: true, code: "ok", provider: "none", state: "configured_unverified", model: null,
         text: refusal, toolCalls: [], actionResults: [{ name: "start_build", risk: "green", status: "stopped", detail: refusal }] };
     }
-    const request = statusRequest.content;
+    // 1 Nov 2026: name the room (named first, else the open one) and its screen file for the builder.
+    const request = withRoomContext(statusRequest.content, roomsForRequest(statusRequest.content, data.currentRoute)[0]?.route);
     const digest = sha256Hex(JSON.stringify([verification.userId, request]));
     const requestId = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-${digest.slice(12, 16)}-${digest.slice(16, 20)}-${digest.slice(20, 32)}`;
     const runBuild = deps.runBuild ?? defaultRunBuild;

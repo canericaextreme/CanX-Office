@@ -288,3 +288,35 @@ describe("canonical room identity", () => {
     expect(src).toMatch(/session\.stepUpComplete \? session\.accessToken : null/);
   });
 });
+
+describe("Work Board and approvals reading (1 Nov 2026)", () => {
+  it("lists counts by status and every unfinished task, not just the six newest titles", async () => {
+    const recent = [
+      ...Array.from({ length: 8 }, (_, i) => ({ title: `Old ${i}`, status: "cancelled", updated_at: `2026-10-3${i % 2}` })),
+      { title: "Fix header", status: "waiting", updated_at: "2026-10-01" },
+    ];
+    const unfinished = [{ title: "Fix header", status: "waiting", worker: "Claude", waiting_reason: "Claude to report back", updated_at: "2026-10-01" }];
+    const rest = fakeRest({ "manager_tasks?select=title,status,project,worker": unfinished, "manager_tasks?select=title,status,project,updated_at": recent });
+    const snap = await read("/work-board", rest);
+    const tasks = snap.sources.find((s) => s.key === "tasks")!;
+    expect(tasks.count).toBe(9);
+    expect(tasks.items[0]).toBe("By status: cancelled 8, waiting 1");
+    expect(tasks.items[1]).toContain("UNFINISHED Fix header — waiting · worker Claude · waiting because: Claude to report back");
+    expect(rest.calls.some((p) => p.includes("status=in.(open,in_progress,waiting)"))).toBe(true);
+  });
+  it("says so when the unfinished list cannot be read, and still reports the room", async () => {
+    const rest = fakeRest({ "manager_tasks?select=title,status,project,worker": "fail", "manager_tasks?select=title,status,project,updated_at": [{ title: "A", status: "open", updated_at: "1" }] });
+    const tasks = (await read("/work-board", rest)).sources.find((s) => s.key === "tasks")!;
+    expect(tasks.status).toBe("read");
+    expect(tasks.detail).toMatch(/unfinished-task list could not be read/);
+  });
+  it("puts pending approvals first with a status count", async () => {
+    const rows = [
+      ...Array.from({ length: 7 }, (_, i) => ({ title: `Done ${i}`, status: "approved", created_at: "2026-10-30" })),
+      { title: "Pay for build", status: "pending", created_at: "2026-10-01" },
+    ];
+    const ap = (await read("/approvals", fakeRest({ manager_approvals: rows }))).sources.find((s) => s.key === "approvals")!;
+    expect(ap.items[0]).toBe("By status: approved 7, pending 1");
+    expect(ap.items[1]).toBe("PENDING Pay for build (2026-10-01)");
+  });
+});
