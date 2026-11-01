@@ -109,6 +109,27 @@ const FULL = {
 };
 
 describe("live office context", () => {
+  it("starts independent owner-scoped reads together instead of stacking their latency", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const paths: string[] = [];
+    const pending = buildLiveOfficeContext(request(async (config, token, path) => {
+      expect(config).toBe(CONFIG);
+      expect(token).toBe("token");
+      paths.push(path);
+      await gate;
+      return { ok: true, status: 200, body: [] };
+    }));
+    await Promise.resolve();
+    // Goals, ordinary notes, memory, continuity, meetings, Finance and the
+    // three Work Board sources must all start before any source returns.
+    expect(paths).toHaveLength(9);
+    expect(paths.some(path => path.startsWith("manager_tasks?"))).toBe(true);
+    expect(paths.some(path => path.startsWith("finance_receipts?"))).toBe(true);
+    expect(paths.some(path => path.includes("source=eq.CanX"))).toBe(true);
+    release();
+    expect((await pending).ok).toBe(true);
+  });
   it('reads canonical goals separately from recent summaries', async () => {
     const ordinary = rest(FULL);
     const read: RestImpl = async (config, token, path, init) => path.includes('id=eq.office-goals-master-20261021')

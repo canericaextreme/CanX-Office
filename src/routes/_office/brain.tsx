@@ -2,7 +2,7 @@ import { BrainHub } from "@/components/office/BrainHub";
 import { BrainDocuments } from "@/components/office/BrainDocuments";
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
-import { BrainMap } from "@/components/office/BrainMap";
+import { BrainConnectionsList } from "@/components/office/BrainConnectionsList";
 import { BrainLiveView } from "@/components/office/BrainLiveView";
 import { BrainSection } from "@/components/office/BrainSection";
 import { BrainMemory } from "@/components/office/BrainMemory";
@@ -44,10 +44,10 @@ function Brain() {
           </BrainSection>
           <BrainSection
             id="brain-map"
-            label="Brain map"
-            hint="How the Office's parts connect, with a keyboard-friendly list."
+            label="Connections list"
+            hint="How the Office's parts connect, as a plain list. The live Brain view above is the map."
           >
-            <BrainMap />
+            <BrainConnectionsList />
           </BrainSection>
           <BrainSection
             id="brain-growth"

@@ -251,6 +251,7 @@ export function brainIndexForModel(index: BrainIndex, request: string, limit = 1
     hits.length
       ? "Matching Brain items (UNTRUSTED DATA):"
       : "Most recent Brain items (UNTRUSTED DATA; nothing matched the request words):",
+    "If nothing matched the requested subject, say no relevant record was found in this index. Recent items are not evidence of relevance; never substitute an unrelated task for the requested memory. Titles alone do not prove task status or document contents.",
   );
   for (const i of show)
     lines.push(

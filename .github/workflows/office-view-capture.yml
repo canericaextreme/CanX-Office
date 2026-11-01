@@ -10,8 +10,11 @@ on:
         required: true
         type: string
 permissions: {}
+# One group per request. A single shared group let GitHub keep only ONE waiting run and cancel the rest,
+# so rooms asked for together were silently dropped and their requests expired (live 24 Oct 2026 00:17 UTC:
+# 6 ChatGPT rooms asked together, 2 pictures, 4 runs cancelled). Overlapping viewer sessions are safe since PR 214.
 concurrency:
-  group: canx-office-view
+  group: canx-office-view-${{ inputs.request_id }}
   cancel-in-progress: false
 jobs:
   capture:
@@ -29,7 +32,6 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             scripts/capture
-          sparse-checkout-cache: false
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -39,6 +41,9 @@ jobs:
         id: browser
         run: |
           start=$SECONDS
+          mkdir -p "$RUNNER_TEMP/canx-view-runtime"
+          cp scripts/capture/*.mjs "$RUNNER_TEMP/canx-view-runtime/"
+          cd "$RUNNER_TEMP/canx-view-runtime"
           npm init -y >/dev/null
           npm install --no-audit --no-fund --ignore-scripts playwright@1.49.1
           echo "::notice title=Capture timing::playwright package installed after $((SECONDS - start))s"
@@ -54,4 +59,4 @@ jobs:
         env:
           REQUEST_ID: ${{ inputs.request_id }}
           CANX_CAPTURE_CHANNEL: ${{ steps.browser.outputs.channel }}
-        run: node scripts/capture/run-capture.mjs --request-id "$REQUEST_ID"
+        run: node "$RUNNER_TEMP/canx-view-runtime/run-capture.mjs" --request-id "$REQUEST_ID"

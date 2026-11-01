@@ -1,8 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/office/StatusBadge";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
+import { useOwnerSession } from "@/lib/owner-session";
+import { loadViewerDeskMemory, type ViewerDeskMemory } from "@/lib/owner-desk-viewer.functions";
+import { PreTripCard } from "@/components/office/PreTripCard";
 
 export const Route = createFileRoute("/_office/owner-desk")({
   head: () => ({
@@ -18,16 +23,54 @@ export const Route = createFileRoute("/_office/owner-desk")({
   component: OwnersDesk,
 });
 
+/** An assistant's read-only viewing session reads the desk through its own grant; the owner path is unchanged. */
+function useViewerDesk(): { desk: ViewerDeskMemory | null; error: string | null } {
+  const { viewer, accessToken } = useOwnerSession();
+  const load = useServerFn(loadViewerDeskMemory);
+  const [desk, setDesk] = useState<ViewerDeskMemory | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!viewer || !accessToken) {
+      setDesk(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    load({ data: { accessToken } })
+      .then((result) => {
+        if (cancelled) return;
+        setDesk(result.ok ? result : null);
+        setError(result.ok ? null : result.message);
+      })
+      .catch(() => {
+        if (!cancelled) setError("The shared workbench could not be reached.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewer, accessToken, load]);
+
+  return { desk, error };
+}
+
 function OwnersDesk() {
-  const { memory, error, isOwner, sessionMessage } = useManagerMemory();
+  const { viewer } = useOwnerSession();
+  const owner = useManagerMemory();
+  const viewed = useViewerDesk();
+  const { isOwner, sessionMessage } = owner;
+  const memory = viewer ? viewed.desk : owner.memory;
+  const error = viewer ? viewed.error : owner.error;
 
   const tasks = memory?.tasks.filter((task) => task.status === "open" || task.status === "in_progress" || task.status === "waiting") ?? null;
   const approvals = memory?.approvals ?? null;
-  const budget = memory?.budget ?? null;
+  const budget = owner.memory?.budget ?? null;
   const changes = memory?.changes ?? null;
 
   const statusLine = memory
-    ? "Shared memory — saved in the CanX-owned database."
+    ? viewer
+      ? "Read-only viewer copy — the same saved records, read under John's viewing permission. The AI budget is not shared with viewers."
+      : "Shared memory — saved in the CanX-owned database."
     : isOwner
       ? error ?? "Shared memory is not available yet. No current status can be reported."
       : sessionMessage;
@@ -36,6 +79,7 @@ function OwnersDesk() {
     <RoomShell showSample={false}>
       <p className="mb-4 text-xs text-muted-foreground">{statusLine}</p>
       <div className="grid gap-6 lg:grid-cols-2">
+        {!viewer && <PreTripCard />}
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Today's priorities</CardTitle>
@@ -89,6 +133,10 @@ function OwnersDesk() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           Cost: {formatCents(item.cost_cents)} · Risk: {item.risk}
                         </p>
+                        <Link to="/approvals" hash={`approval-${item.id}`}
+                          className="mt-3 inline-flex min-h-11 items-center rounded border border-canx-yellow px-3 text-sm font-semibold text-canx-yellow">
+                          Open details and decide
+                        </Link>
                       </div>
                     ))
               : <p className="text-sm text-muted-foreground">Live approvals are unavailable. This does not mean the approval box is empty.</p>}
