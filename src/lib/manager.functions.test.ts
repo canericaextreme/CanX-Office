@@ -34,7 +34,7 @@ function deps(overrides: Partial<ManagerDeps> = {}): ManagerDeps {
   };
 }
 
-const CHAT = { accessToken: "t", messages: [{ role: "user" as const, content: "hello" }] };
+const CHAT = { accessToken: "t", messages: [{ role: "user" as const, content: "Explain how the Office works." }] };
 
 describe("access control — no paid call without a verified owner", () => {
   it("preserves the executable tools and code-change flag through argument filtering", () => {
@@ -477,6 +477,14 @@ describe("live office context replaces anything the browser sends", () => {
       "create_task",
       "assign_task",
       "verify_task",
+      // Work Board sorting (31 Oct): edit, archive/restore, find, refile. No delete tool.
+      "update_task",
+      "archive_task",
+      "restore_task",
+      "sweep_stale_tasks",
+      "find_saved_items",
+      "move_saved_item",
+      "file_on_brain_shelf",
       "request_approval",
       "log_change",
       "save_brain_note",
@@ -547,7 +555,7 @@ describe("Astra reply repair", () => {
       if (url.endsWith("/manager_tasks")) return Response.json([{ id: "task-1", title: "Input test", status: "open" }], { status: taskStatus });
       return Response.json({});
     }) as unknown as typeof fetch;
-    try { return await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, settle }), CHAT); }
+    try { return await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, settle }), { ...CHAT, messages: [{ role: "user", content: "Save a reminder to call the supplier." }] }); }
     finally { vi.unstubAllEnvs(); }
   };
 
@@ -703,12 +711,72 @@ describe("Research document context handoff", () => {
     const readDocuments = vi.fn(async () => ({ text: "PDF EVIDENCE physical page 3", sources: ["Manuscript.pdf page 3"], gaps: [] }));
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "Read page 3." }] }] }), { status: 200 }));
     await runManagerChatWith(deps({ verifyOwner: async () => OWNER, readDocuments, fetchImpl: fetchImpl as unknown as typeof fetch }), { ...CHAT, currentRoute: "/research" });
-    expect(readDocuments).toHaveBeenCalledWith("t", "hello", "", "/research");
+    expect(readDocuments).toHaveBeenCalledWith("t", "Explain how the Office works.", "", "/research");
     expect(JSON.stringify(fetchImpl.mock.calls)).toContain("PDF EVIDENCE physical page 3");
   });
   it("does not read documents when existing owner verification denies access", async () => {
     const readDocuments = vi.fn();
     await runManagerChatWith(deps({ readDocuments }), { ...CHAT, currentRoute: "/research" });
     expect(readDocuments).not.toHaveBeenCalled();
+  });
+});
+
+describe("Work Board sorting tools (31 Oct)", () => {
+  async function call(name: string, args: Record<string, unknown>, rows: Record<string, unknown[]>, extra: Partial<ManagerDeps> = {}) {
+    vi.stubEnv("CANX_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("CANX_SUPABASE_PUBLISHABLE_KEY", "test-key");
+    const writes: Array<{ method: string; url: string; body: unknown }> = [];
+    const fetchImpl = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/v1/models/")) return new Response("{}");
+      if (url.includes("/v1/responses")) return Response.json({ output: [{ type: "function_call", name, arguments: JSON.stringify(args) }] });
+      const method = init?.method ?? "GET";
+      const table = url.split("/rest/v1/")[1]?.split("?")[0] ?? "";
+      if (method !== "GET") writes.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : null });
+      if (method === "PATCH") return Response.json([{ ...(rows[table]?.[0] as object), ...JSON.parse(String(init?.body)) }]);
+      return Response.json(method === "GET" ? rows[table] ?? [] : {});
+    }) as unknown as typeof fetch;
+    try { return { reply: await runManagerChatWith(deps({ verifyOwner: async () => OWNER, fetchImpl, ...extra }), { accessToken: "t", messages: [{ role: "user", content: "Sort the work board please" }] }), writes }; }
+    finally { vi.unstubAllEnvs(); }
+  }
+  const task = { id: "t1", owner_id: "u1", title: "Old review", status: "open", result: "", project: "" };
+
+  it("archives a task through Elsie without deleting anything", async () => {
+    const { reply, writes } = await call("archive_task", { task_id: "t1", reason: "Duplicate" }, { manager_tasks: [task] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "archive_task", status: "done", detail: expect.stringContaining("Nothing was deleted") })]);
+    expect(writes.some(w => w.method === "DELETE")).toBe(false);
+    expect(writes.find(w => w.method === "PATCH")!.body).toMatchObject({ status: "cancelled" });
+  });
+
+  it("edits a task's project and status, and logs both sides", async () => {
+    const { reply, writes } = await call("update_task", { task_id: "t1", project: "Safe Highways", status: "in_progress" }, { manager_tasks: [task] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "update_task", status: "done", detail: expect.stringContaining("project Safe Highways") })]);
+    expect(writes.find(w => w.method === "PATCH")!.body).toMatchObject({ project: "Safe Highways", status: "in_progress" });
+    expect(writes.find(w => w.url.endsWith("rpc/log_manager_change"))!.body).toMatchObject({ _before: { project: "", status: "open" }, _after: { project: "Safe Highways", status: "in_progress" } });
+  });
+
+  it("sweeps stale in-progress tasks to Waiting in one call, never archiving or deleting", async () => {
+    const stale = { ...task, status: "in_progress", worker: "ChatGPT", updated_at: "2026-01-01T00:00:00Z" };
+    const { reply, writes } = await call("sweep_stale_tasks", {}, { manager_tasks: [stale] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "sweep_stale_tasks", status: "done", detail: expect.stringContaining("from In progress to Waiting") })]);
+    expect(writes.some(w => w.method === "DELETE")).toBe(false);
+    expect(writes.find(w => w.method === "PATCH")!.body).toMatchObject({ status: "waiting" });
+  });
+
+  it("will not change the status of a finished task without restore_task", async () => {
+    const { reply, writes } = await call("update_task", { task_id: "t1", status: "open" }, { manager_tasks: [{ ...task, status: "done" }] });
+    expect(reply.actionResults).toEqual([expect.objectContaining({ status: "stopped", detail: expect.stringContaining("restore_task") })]);
+    expect(writes).toEqual([]);
+  });
+
+  it("files a note on a Brain shelf through the shared shelf save", async () => {
+    const fileOnShelf = vi.fn(async () => ({ ok: true, detail: "Filed on the Rulebook shelf." }));
+    const { reply } = await call("file_on_brain_shelf", { kind: "note", item_id: "canx-brain-rule-1", shelf: "rulebook" }, {}, { fileOnShelf });
+    expect(fileOnShelf).toHaveBeenCalledWith("t", "u1", "note:canx-brain-rule-1", "rulebook");
+    expect(reply.actionResults).toEqual([expect.objectContaining({ name: "file_on_brain_shelf", status: "done" })]);
+  });
+
+  it("drops a Finance destination before any write", () => {
+    expect(sanitizeToolArgs("move_saved_item", '{"kind":"link","item_id":"l1","room":"finance"}')).toEqual({ kind: "link", item_id: "l1" });
   });
 });

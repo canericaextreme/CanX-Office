@@ -283,7 +283,7 @@ describe('Elsie Finance handoff to Claude', () => {
     const h = chatDeps(null, { advanceBuilderQueue });
     const original = vi.mocked(h.fetchImpl).getMockImplementation()!;
     vi.mocked(h.fetchImpl).mockImplementation(async (input, init) => String(input).includes('/v1/responses') ? Response.json({ output_text: 'Good morning John.' }) : original(input, init));
-    const r = await runManagerChatWith(h.deps, say('Good morning Elsie'));
+    const r = await runManagerChatWith(h.deps, say('Check the queued work'));
     expect(advanceBuilderQueue).toHaveBeenCalledTimes(2);
     expect(r.text).toContain('finished: success');
     expect(r.text).toContain('Run 8');
@@ -294,7 +294,7 @@ describe('Elsie Finance handoff to Claude', () => {
     const ordered = chatDeps(null, { advanceBuilderQueue: async (builder: 'claude' | 'codex') => { order.push('queue'); return { builder, checked: false, finished: [] as string[], detail: '' }; } });
     const readBoard = ordered.deps.buildContext;
     ordered.deps.buildContext = async (...a: Parameters<typeof readBoard>) => { order.push('board'); return readBoard(...a); };
-    await runManagerChatWith(ordered.deps, say('Good morning Elsie'));
+    await runManagerChatWith(ordered.deps, say('Check the queued work'));
     expect(order).toEqual(['queue', 'queue', 'board']);
     advanceBuilderQueue.mockClear();
     await runManagerChatWith(h.deps, say('Just checking, do not send anything yet'));
