@@ -486,6 +486,15 @@
       "audience": "office-status",
       "summary": "Integrated the existing colleague-relay capacity repair against current main. Prior task replies are preserved, available space is computed before a paid call, and failures name the exact step. Confirmed claim content and database-returned version; complete receipts cannot overrun task limits. Release pending.",
       "evidence": "2,311 tests in 226 files, typecheck and production build passed locally. Existing save RPC array/CAS contract inspected. No schema, credentials, budgets, providers or voice settings changed; actual live relay and phone acceptance unverified."
+    },
+    {
+      "id": "2026-10-17-actionable-approval-inbox",
+      "at": "2026-10-18T02:06:02Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared owner-requested approval navigation repair: explicit Open details, separate pending/history, exact-request links from Owner Desk and approval notices, existing owner-only decision path retained. No real approval decisions taken.",
+      "evidence": "Independent review found refresh could reopen an older linked card; corrected to handle each link once and preserve manual card selection, including delayed loads. Nine UI regressions plus related server tests pass (37 related tests); full suite 1829 tests in 187 files, typecheck, targeted lint and production build passed. Permission/spending rules and server decision functions unchanged. No owner decisions taken; signed-in desktop/mobile acceptance unverified."
     }
   ]
 }
