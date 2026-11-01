@@ -156,7 +156,8 @@ export function WorkBoard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [filter, setFilter] = useState("All");
+  // Opens on unfinished work; finished and cancelled tasks live under History.
+  const [filter, setFilter] = useState("Active");
 
   const tasks = memory?.tasks ?? null;
   const assignments = memory?.assignments ?? [];
@@ -166,9 +167,23 @@ export function WorkBoard() {
   const decisionFor: Record<string, DecisionItem> = {};
   for (const item of decisions) if (item.kind !== "approval") decisionFor[item.id] = item;
   const approvalDecisions = decisions.filter((item) => item.kind === "approval");
-  const filters = ["All", "Needs John", "Ready", "Working", "Blocked", "Done"];
+  const filters = [
+    "Active",
+    "Needs John",
+    "Ready",
+    "Working",
+    "Blocked",
+    "Done",
+    "History",
+    "All",
+  ];
+  const isFinished = (task: ManagerTask) => task.status === "done" || task.status === "cancelled";
+  // Filters that also show the "waiting on John" panel and pending Approval Box requests.
+  const showsDecisions = filter === "Active" || filter === "All" || filter === "Needs John";
   const matchesFilter = (task: ManagerTask, selected: string) => {
     if (selected === "All") return true;
+    if (selected === "Active") return !isFinished(task);
+    if (selected === "History") return isFinished(task);
     if (selected === "Needs John") return Boolean(decisionFor[task.id]);
     if (selected === "Done") return task.status === "done";
     if (selected === "Blocked")
@@ -292,13 +307,14 @@ export function WorkBoard() {
           )}
           {tasks && (
             <p className="text-xs text-muted-foreground">
-              Needs John comes first. Ready means planned and not waiting on John; Working means
-              assigned, not confirmed running. Blocked includes waiting and stopped red tasks.
-              Cancelled tasks remain in All.
+              Needs John comes first. Active shows every unfinished task. Ready means planned and
+              not waiting on John; Working means assigned, not confirmed running. Blocked includes
+              waiting and stopped red tasks. History holds done and cancelled tasks; All shows
+              everything.
             </p>
           )}
 
-          {isOwner && tasks && (filter === "All" || filter === "Needs John") && (
+          {isOwner && tasks && showsDecisions && (
             <section
               aria-labelledby="needs-john-heading"
               className={
@@ -342,7 +358,7 @@ export function WorkBoard() {
                     ))}
                 </ul>
               )}
-              {(filter === "All" || filter === "Needs John") &&
+              {showsDecisions &&
                 approvalDecisions.map((item) => (
                   <div
                     key={item.id}

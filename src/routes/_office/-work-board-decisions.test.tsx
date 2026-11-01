@@ -241,16 +241,25 @@ describe("Work Board compact filters", () => {
     expect(within(card("review")).getByRole("button", { name: /Approve Task/ })).toBeTruthy();
   });
 
+  // Saved order: ready, working, blocked, red, done, cancelled, yellow.
+  // The board's existing sort (stable) puts tasks that need John (blocked = waiting,
+  // yellow = unapproved yellow risk) first, then keeps saved order for the rest.
+  const mixedTasks = () => [
+    task({ id: "ready", title: "Ready job" }),
+    task({ id: "working", status: "in_progress", title: "Assigned job" }),
+    task({ id: "blocked", status: "waiting", title: "Waiting job" }),
+    task({ id: "red", risk: "red", title: "Stopped job" }),
+    task({ id: "done", status: "done", title: "Finished job" }),
+    task({ id: "cancelled", status: "cancelled", title: "Cancelled job" }),
+    task({ id: "yellow", risk: "yellow", title: "Approval job" }),
+  ];
+  const shownIds = () =>
+    Array.from(document.querySelectorAll('[id^="task-"]')).map((el) => el.id.slice(5));
+  const ACTIVE_ORDER = ["blocked", "yellow", "ready", "working", "red"];
+  const HISTORY_ORDER = ["done", "cancelled"];
+
   it("filters saved states, preserves cancelled history and never writes on filter clicks", () => {
-    memory.tasks = [
-      task({ id: "ready", title: "Ready job" }),
-      task({ id: "working", status: "in_progress", title: "Assigned job" }),
-      task({ id: "blocked", status: "waiting", title: "Waiting job" }),
-      task({ id: "red", risk: "red", title: "Stopped job" }),
-      task({ id: "done", status: "done", title: "Finished job" }),
-      task({ id: "cancelled", status: "cancelled", title: "Cancelled job" }),
-      task({ id: "yellow", risk: "yellow", title: "Approval job" }),
-    ];
+    memory.tasks = mixedTasks();
     render(<WorkBoard />);
     for (const [filter, ids] of [
       ["Ready", ["ready"]],
@@ -258,19 +267,71 @@ describe("Work Board compact filters", () => {
       ["Blocked", ["blocked", "red"]],
       ["Done", ["done"]],
       ["Needs John", ["blocked", "yellow"]],
+      ["History", HISTORY_ORDER],
+      ["All", [...ACTIVE_ORDER, ...HISTORY_ORDER]],
+      ["Active", ACTIVE_ORDER],
     ] as const) {
       fireEvent.click(screen.getByRole("button", { name: filter }));
       expect(screen.getByRole("button", { name: filter }).getAttribute("aria-pressed")).toBe(
         "true",
       );
-      expect(Array.from(document.querySelectorAll('[id^="task-"]')).map((el) => el.id)).toEqual(
-        ids.map((id) => `task-${id}`),
+      expect(shownIds()).toEqual(ids);
+      expect(screen.queryByText("Buy a domain") !== null).toBe(
+        filter === "Needs John" || filter === "All" || filter === "Active",
       );
-      expect(screen.queryByText("Buy a domain") !== null).toBe(filter === "Needs John");
     }
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
-    expect(card("cancelled")).toBeTruthy();
+    expect(memory.tasks.map((t) => t.id)).toEqual([
+      "ready",
+      "working",
+      "blocked",
+      "red",
+      "done",
+      "cancelled",
+      "yellow",
+    ]);
     for (const fn of Object.values(fns)) expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("opens on Active, switches to History and back, in priority order", () => {
+    memory.tasks = mixedTasks();
+    render(<WorkBoard />);
+    // Active is the initial filter: unfinished tasks only, Needs John first.
+    expect(screen.getByRole("button", { name: "Active" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "All" }).getAttribute("aria-pressed")).toBe("false");
+    expect(shownIds()).toEqual(ACTIVE_ORDER);
+    expect(document.getElementById("task-done")).toBeNull();
+    expect(document.getElementById("task-cancelled")).toBeNull();
+    expect(screen.getByText("Buy a domain")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(screen.getByRole("button", { name: "History" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Active" }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    expect(shownIds()).toEqual(HISTORY_ORDER);
+    for (const id of ACTIVE_ORDER) expect(document.getElementById(`task-${id}`)).toBeNull();
+    expect(within(card("done")).getByText("Green — done")).toBeTruthy();
+    expect(within(card("cancelled")).getByText("Grey — cancelled")).toBeTruthy();
+    expect(screen.queryByText("Buy a domain")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Active" }));
+    expect(shownIds()).toEqual(ACTIVE_ORDER);
+    expect(within(card("blocked")).getByText("John — review needed")).toBeTruthy();
+    for (const fn of Object.values(fns)) expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("shows empty History feedback when nothing is finished", () => {
+    memory.tasks = [task({ id: "plain" })];
+    memory.approvals = [];
+    render(<WorkBoard />);
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(screen.getByRole("status").textContent).toBe("No tasks match History.");
+    fireEvent.click(screen.getByRole("button", { name: "Active" }));
+    expect(shownIds()).toEqual(["plain"]);
   });
 
   it("shows empty filter feedback and leaves the controls available", () => {
@@ -308,6 +369,11 @@ describe("Work Board status colours", () => {
         tasks: [task({ id: "original-id", updated_at: new Date().toISOString(), ...over })],
       };
       render(<WorkBoard />);
+      // Done and cancelled tasks are listed under History, not the initial Active view.
+      if (over.status === "done" || over.status === "cancelled") {
+        expect(document.getElementById("task-original-id")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "History" }));
+      }
       const item = card("original-id");
       expect(within(item).getByText(label)).toBeTruthy();
       expect(item.className).toContain(border);
