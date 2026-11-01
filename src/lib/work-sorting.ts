@@ -13,6 +13,8 @@ import type {
   WorkbenchDeps,
 } from "./manager-work.functions";
 import { FILE_FOLDERS, FILE_ROOMS } from "./office-files";
+import { DEFAULT_TEAM } from "./office-team";
+import { WORKER_SEATS } from "./manager-workers";
 
 type Row = Record<string, unknown>;
 const fail = (code: ManagerWorkError["code"], message: string): ManagerWorkError => ({
@@ -343,6 +345,37 @@ export async function moveSavedItemWith(
   return { title: str(before[name]), from, to };
 }
 
+/**
+ * Office seat names (Office Manager, Systems & Security, Finance Officer, ...)
+ * are advice-only: they have no tools and can never report back on their own
+ * (see manager-workers.ts). 1 Nov 2026: the stale sweep told John such tasks
+ * "need Systems & Security to report back", so they sat forever. Say plainly
+ * who can actually move them instead.
+ */
+const ADVICE_ONLY_SEATS = new Set(
+  [...DEFAULT_TEAM.map((m) => m.name), ...WORKER_SEATS.map((s) => s.name)].map((n) => n.toLowerCase()),
+);
+
+export function isAdviceOnlySeat(worker: string): boolean {
+  return ADVICE_ONLY_SEATS.has(worker.trim().toLowerCase());
+}
+
+/** Appended to "Assigned to X." so John hears that assignment alone will not move the work. */
+export function adviceOnlyWarning(worker: string): string {
+  return isAdviceOnlySeat(worker)
+    ? ` Note: ${worker.trim()} is an advice-only Office seat, so nothing will happen on this task until a real worker (Codex or Claude builder, a Claude thread, or ChatGPT) takes it.`
+    : "";
+}
+
+export function staleReason(worker: string, today: string, since: string): string {
+  const head = `Stale sweep ${today}: no update since ${since}.`;
+  if (!worker)
+    return `${head} No one is assigned. Needs a real worker (Codex or Claude builder, a Claude thread, or ChatGPT) or John's decision.`;
+  if (isAdviceOnlySeat(worker))
+    return `${head} ${worker} is an advice-only Office seat and cannot do the work or report back by itself. Needs a real worker (Codex or Claude builder, a Claude thread, or ChatGPT) or John's decision.`;
+  return `${head} Needs ${worker} to report back, or John to restart it.`;
+}
+
 /** Most tasks one stale sweep will touch, so one request can never rewrite the whole board. */
 export const STALE_SWEEP_LIMIT = 25;
 const shortDate = (iso: string) =>
@@ -401,8 +434,7 @@ export async function sweepStaleTasksWith(
       moved.push({ id: t.id, title: t.title, since });
       continue;
     }
-    const worker = clean(t.worker, 80);
-    const reason = `Stale sweep ${today}: no update since ${since}. Needs ${worker || "a worker"} to report back, or John to restart it.`;
+    const reason = staleReason(clean(t.worker, 80), today, since);
     const updated = await deps.rest<ManagerTask[]>(
       input.accessToken,
       "PATCH",

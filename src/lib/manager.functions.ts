@@ -79,7 +79,7 @@ import { routeSkillsForRoom } from "./office-skills";
 import { handoffTextWith } from "./text-colleague-handoff";
 import { saveManagerBrainWith } from "./manager-brain-save";
 import { managerConnectionFailure } from "./manager-connection-errors";
-import { archiveManagerTaskWith, findSavedItemsWith, moveSavedItemWith, restoreManagerTaskWith, sweepStaleTasksWith, MOVABLE_ROOMS } from "./work-sorting";
+import { archiveManagerTaskWith, findSavedItemsWith, moveSavedItemWith, restoreManagerTaskWith, sweepStaleTasksWith, adviceOnlyWarning, MOVABLE_ROOMS } from "./work-sorting";
 import { STALLED_AFTER_MS } from "./pretrip";
 import { FILE_FOLDERS } from "./office-files";
 import { BRAIN_SHELVES, SHELF_LABELS, type BrainShelf } from "./brain-shelves";
@@ -1687,7 +1687,7 @@ async function executeToolCalls(
             status: "done",
             detail: `Created task "${result.title}" (${result.id}).${
               assignedTo
-                ? ` Assigned to ${assignedTo}.`
+                ? ` Assigned to ${assignedTo}.${adviceOnlyWarning(assignedTo)}`
                 : assignFailed
                   ? ` It could not be assigned: ${assignFailed}`
                   : ""
@@ -1707,7 +1707,7 @@ async function executeToolCalls(
             name: call.name,
             risk,
             status: "done",
-            detail: `Assigned "${result.title}" to ${result.worker}.`,
+            detail: `Assigned "${result.title}" to ${result.worker}.${adviceOnlyWarning(result.worker)}`,
           });
         }
       } else if (call.name === "verify_task") {
