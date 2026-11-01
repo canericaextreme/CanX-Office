@@ -1,5 +1,41 @@
 # CanX Office — whole-office wiring checklist
 
+## Elsie relay integration — 31 October 2026
+
+Integrated PR246 against current main, preserving PR253. Capacity now uses available task space instead of the fixed reservation that rejected 101-character histories. Errors name their failing step. Checked the existing relay-save RPC array/CAS contract; claim content and owner must match before reserving budget, reply saves use the returned database version, and complete receipts are size-checked before save. No schema, access, budget, voice or provider changes. All 2,311 tests across 226 files, typecheck, production build and whitespace checks pass locally. Physical voice and live delegated handoff acceptance remain unverified; merge and deployment are tracked separately.
+
+## Brain opening and voice result consistency — private-preview candidate
+
+Compound open-and-read requests now await confirmed room navigation before the original question reaches the shared manager path, including a trailing missing-record condition. Direct-voice tool replies use the isolated canonical-answer reader instead of an unrestricted second reasoning response; superseded results complete their receipt without interrupting a newer turn. Guidance distinguishes relevant Brain records from recent unrelated tasks and named snapshots from confirmed navigation. Regression failures reproduced; 2,188 tests, typecheck and build pass. Real voice/navigation/relevance acceptance remains pending. No merge/publication. See [audit evidence](elsie-reliability-audit-20261027.md).
+
+## Systems inventory context — private-preview candidate
+
+Owner voice acceptance exposed a snapshot omitting individual connection entries. The static Systems source now supplies the full nine-entry Office inventory with configured stages/static labels and explicit limits; dynamic panel health is not claimed. Elsie must not offer unsupported live connector checks. Regression reproduced; 2,184 tests, typecheck and build pass. Preview retest pending; no merge/publication. See [acceptance evidence](elsie-reliability-audit-20261027.md).
+
+## Elsie reliability audit — 27 October 2026, unreleased candidate
+
+Reconnect now retains waiting tasks and partial successful reads; late old voice failures cannot disrupt the current turn; task completion preserves evidence, conditionally writes and independently reads back before reporting success; repeated manager instructions were shortened. Brain originals and runtime permissions are intact. Local full tests/typecheck/build pass; repository lint fails and signed-in live voice, Brain/room access, delegated work and physical-phone acceptance remain blocked. No merge/publication. See [audit, repairs and acceptance evidence](elsie-reliability-audit-20261027.md).
+
+## Colleague relay on saved green tasks — 28 October 2026 (local candidate)
+
+`relay_to_colleague` refused almost every real saved green task before sending. The 24 October pre-call room check reserved a fixed 1,900 characters of `result` and 1,100 of `evidence`, so any task with more than 100 characters of saved result (or 900 of evidence) was rejected as having "no room", and a task could take at most one reply. The relay now works out the room actually left on that task under the same live 2,000-character limits, before any claim or paid call. It tells the colleague that exact limit (never more than the existing 1,800) and refuses below 200 characters. Existing history is still never shortened, and oversized replies are still returned for recovery rather than cut. Each failure now returns `step` and a detail starting `Relay step "<step>" could not complete:`. Steps are: check request, verify owner, check colleague setup, read task, check request id, check task, check budget, check task room, claim task, reserve budget, call colleague, check reply, save reply and read back reply. Thrown permission or network errors are caught and named instead of escaping. Sanitised provider diagnostics are included. The reply save uses the version the database returned from the claim. Green-only, owner, single-claim, budget, no-retry and readback rules are unchanged. No migration, RPC, credential or permission change. Live signed-in round trip remains unverified.
+
+## Routine phrase variants and precise quota evidence — 24 October 2026
+
+Clear finish/continue/resume/carry-on wording now classifies as existing-task intent instead of requiring a magic execution verb. It does not authorize a new build; the normal saved-task executor retains current state, ownership, risk, budget and existing-attempt checks. Polite explicit build requests use the same command grammar. Stops/status/discussion remain inert. The live loop's separate HTTP429 cause can now retain documented rate/credit/spend/usage codes, an allowlisted type and numeric Retry-After. No limit, model or auto-retry change. See [phrase regression contract](office-phrase-contract.md).
+
+## Elsie loop provider diagnostics — 24 October 2026
+
+The first published task-message attempt reached the live engine, read the exact sources and saved a failed outcome. A follow-up diagnostic change preserves only allowlisted provider codes/parameter names or fixed incomplete reasons in that failed outcome; generic exceptions and raw provider messages remain hidden. No automatic provider replay or model/configuration change is introduced. A failed attempt is not a loop acceptance pass.
+
+## Elsie task messages over the existing colleague connection — 24 October 2026
+
+The existing `relay_to_colleague` message channel accepts a strict, explicitly marked `CANX_ELSIE_TEXT_TASK_V1` message carrying the exact Brain spec, standing rule and bounded instruction. It dispatches to the same three-phase Elsie text-task engine; existing client schemas and permissions are unchanged. Each call runs at most one phase and returns its actual Brain record/continuation state. Invalid reserved messages never become ordinary paid relays. This provides a supported task-message path for already-connected clients; it does not claim their cached tool inventory was refreshed. Local and live acceptance results are recorded separately in the shared log and Brain. See [contract and boundaries](elsie-text-task-loop.md).
+
+## Elsie bounded text-task loop — local candidate, 24 October 2026
+
+New working-grant connector action coordinates a saved writing task through actual configured Elsie, an Office API worker and Elsie reporting, with exact source reads, one atomic claim per phase, existing budget/settlement checks and independently verified Brain persistence. Original records and normal voice/chat are unchanged. Explicit unknown outcomes never replay. Related relay checks use the live 2,000-character task limits and no silent successful truncation. Local full suite/typecheck/build pass; deployed gateway, live three-phase execution and independent cross-worker retrieval remain unverified. Owner review required for gateway files. See [scope, evidence and acceptance](elsie-text-task-loop.md).
+
 ## Brain handoff capacity — 23 October 2026 (pending deployment)
 
 John requested preserving complete handoffs rather than shortening them. PR213 raises only `office_notes.detail` storage from 2,000 to 12,000 characters, accommodating the existing 11,000-byte serialized handoff contract; RPC byte bounds, ownership, RLS, grants, audit and triggers remain unchanged. Rollback-only PostgreSQL tests preserved full boundary content and rejected 12,001 characters. Migration planning tests isolate the historical baseline and verify the capacity migration is planned once. After merge, confirm the live constraint and original full MCP handoff history/latest readback. Capacity alone does not implement Elsie pickup; acknowledgement and campaign execution remain unverified.
@@ -59,7 +95,7 @@ Levels: **Code** = written and tested by fixtures · **Read live** = Elsie reads
 | 14 | Work Board | tasks, change log | Operations (4), Foreman (4) | No crew dispatch / calendar |
 | 15 | Build & Testing | change log, device room checks | Post-update Room Check | Owner-triggered only; Claude API and build routes added, live runner verification pending; shared GitHub status failure under diagnosis |
 | 16 | Safe Highways | static boundary | Defect Review + 4 advisory jobs | Never reads/changes Safe Highways (by design) |
-| 17 | Research | files, reports only | Source Check, Evidence, Brief, Standards | No web/standards search tool |
+| 17 | Research | files, reports; bounded selected-PDF text in local draft (see research-pdf-reading.md; live unverified) | Source Check, Evidence, Brief, Standards | No web/standards search tool |
 | 19 | Family Continuity | skills registry | Training (4) | No learner records |
 | 20 | Future | — | Reserved | Reserved by John |
 | — | Brain | Eight-shelf filing, active memory metadata, versioned shared log; shared descriptions/routes | Decision History, Brain (3) | Corrected against saved eight-shelf plan; signed-in owner upload/filing/count and actual Elsie acknowledgment acceptance pending |

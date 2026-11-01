@@ -68,9 +68,8 @@ function ReceptionRoom() {
               Talk to Elsie
             </Button>
           </div>
-          <div className="mt-4 inline-block rounded-md px-3 py-2" style={{ backgroundColor: C.pale, color: C.ink }}>
-            <PreTripBadge />
-          </div>
+          {/* The badge draws its own pale box, so viewers (who get no badge) see no empty box. */}
+          <PreTripBadge className="mt-4 rounded-md px-3 py-2" style={{ backgroundColor: C.pale, color: C.ink }} />
         </header>
 
         <section aria-label="Rooms">

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -161,14 +161,14 @@ export function PreTripCard() {
 }
 
 /** Small light for Reception. */
-export function PreTripBadge() {
+export function PreTripBadge({ className = "", style }: { className?: string; style?: CSSProperties } = {}) {
   const actions = usePreTripActions();
   const s = usePreTripStore();
   useEffect(() => { if (actions.token && !s.loaded) void actions.refresh(); }, [actions.token, s.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!actions.token) return null;
   const view = cardState(s.record, new Date());
   return (
-    <p className="inline-flex flex-wrap items-center gap-2 text-sm" data-canx-pretrip-badge="true">
+    <p className={`inline-flex flex-wrap items-center gap-2 text-sm ${className}`} style={style} data-canx-pretrip-badge="true">
       <span className="font-medium">Today's pre-trip:</span>
       {s.running ? <StatusBadge tone="blue" label="Checking now" />
         : view.state === "checked" ? <StatusBadge tone={TONE[view.record.overall]} label={`${WORD[view.record.overall]} · ${view.record.rooms.verified}/${view.record.rooms.total} rooms · saved-data readability`} />
