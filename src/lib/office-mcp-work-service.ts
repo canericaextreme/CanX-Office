@@ -1,8 +1,10 @@
 import { handoffAgentForId, saveBrainHandoff } from './brain-handoff.ts';
 import { OFFICE_SKILLS, SKILLS_REGISTRY_VERSION } from './office-skills.ts';
 // Safe, fixed database messages from the Office record functions; anything else stays generic.
-export const KNOWN_RECORD_ERRORS=['Office working grant required','Invalid record','Field is not editable through this tool','Record changed; read it again before updating','Record missing; nothing replaced','Use the established import, approval or build workflow for this collection','Imported project originals are preserved; use separate project plan records','Finance document patch required','Owner Finance record required','Initialize Finance inside the Office before editing'];
+export const KNOWN_RECORD_ERRORS=['Office working grant required','Invalid record','Field is not editable through this tool','Record changed; read it again before updating','Record missing; nothing replaced','Use the established import, approval or build workflow for this collection','Imported project originals are preserved; use separate project plan records','Finance document patch required','Owner Finance record required','Initialize Finance inside the Office before editing','Invalid receipts batch','Receipts append could not be verified; nothing was saved'];
 export class OfficeWorkError extends Error {}
+/** Key-order independent JSON, for comparing a receipt with its stored copy. */
+export const canonical=(v:unknown):string=>v===null||typeof v!=='object'?JSON.stringify(v)??'undefined':Array.isArray(v)?`[${v.map(canonical).join(',')}]`:`{${Object.keys(v).sort().map(k=>`${JSON.stringify(k)}:${canonical((v as Record<string,unknown>)[k])}`).join(',')}}`;
 export interface OfficeWorkServiceDeps {
  url:string;key:string;serviceKey?:string;fetch:typeof fetch;
 }
@@ -16,6 +18,19 @@ export async function officeMcpWorkWith(deps:OfficeWorkServiceDeps,token:string,
  switch(name){
  case 'read_office_records':return rpc('canx_office_records',{_collection:args['collection'],_id:args['id']??null,_offset:args['offset']??0,_limit:args['limit']??50});
  case 'write_office_record':if(args['collection']==='office_notes' && handoffAgentForId(args['id']))return saveBrainHandoff(rpc,args);return rpc('canx_write_office_record',{_collection:args['collection'],_id:args['id'],_data:args['data'],_expected_version:args['expectedVersion']??null});
+ case 'append_finance_receipts':{
+  const sent=args['receipts'] as Record<string,unknown>[];
+  const saved=await rpc('canx_append_finance_receipts',{_receipts:sent}) as {appended?:{id?:unknown}[];alreadySaved?:unknown[];countBefore?:number;countAfter?:number};
+  // A separate read after the save commits: only receipts found stored exactly as sent count as confirmed.
+  const read=await rpc('canx_office_records',{_collection:'finance_receipts',_offset:0,_limit:1}) as {records?:{data?:{doc?:{receipts?:unknown}}}[]};
+  const list=read.records?.[0]?.data?.doc?.receipts;
+  const stored=new Map((Array.isArray(list)?list:[]).map(r=>[String((r as Record<string,unknown>)?.['id']),r]));
+  const appended=(saved.appended??[]).map(r=>String(r?.id));
+  const alreadySaved=(saved.alreadySaved??[]).map(String);
+  const missing=sent.filter(r=>appended.includes(String(r['id']))&&canonical(stored.get(String(r['id'])))!==canonical(r)).map(r=>String(r['id']));
+  const confirmed=missing.length===0&&appended.length+alreadySaved.length===sent.length&&(Array.isArray(list)?list.length:0)>=(saved.countAfter??0);
+  return {confirmed,appended,alreadySaved,notConfirmed:missing,countBefore:saved.countBefore,countAfter:saved.countAfter,readBackCount:Array.isArray(list)?list.length:0,detail:confirmed?'Receipts saved and read back. Saved receipts were not changed.':'Receipts were not confirmed by read-back. Read Finance before retrying with the same ids.'};
+ }
  case 'read_office_skills':return {version:SKILLS_REGISTRY_VERSION,skills:args['id']?OFFICE_SKILLS.filter(s=>s.id===args['id']):OFFICE_SKILLS};
  case 'open_office_file':{
   const result=await rpc('canx_office_records',{_collection:'office_files',_id:args['id'],_limit:1}) as {records?:{data:Record<string,unknown>}[]};

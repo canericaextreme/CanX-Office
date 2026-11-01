@@ -88,3 +88,18 @@ test("apply SQL is one transaction with its history record, safely quoted", () =
   const tag = sql.match(/\$canx_[0-9a-f]+\$/)[0];
   assert.ok(!f.sql.includes(tag));
 });
+
+// Live history read from Supabase on 1 Nov 2026 (read-only), after the 23 Oct capacity changes.
+const LIVE_20261101 = [
+  ...LIVE,
+  { version: "20261020020000", name: "lock_down_public_db_functions" },
+  { version: "20261023180453", name: "expand_brain_note_capacity" },
+  { version: "20261023190635", name: "increase_office_view_hourly_capacity" },
+];
+
+test("against the 1 Nov live history, only the Finance append-only save is applied, once", () => {
+  const p = plan(currentRepo, LIVE_20261101);
+  assert.deepEqual(p.apply.map((f) => f.file), ["20261101031000_finance_receipts_append_only.sql"]);
+  const after = [...LIVE_20261101, { version: "20261101031000", name: "finance_receipts_append_only" }];
+  assert.equal(plan(currentRepo, after).apply.length, 0);
+});
