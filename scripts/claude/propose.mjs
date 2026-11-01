@@ -23,6 +23,13 @@ const entries = paths.map(path => {
   if (content.includes('\0')) throw Error('Binary candidate requires manual review');
   return { path, mode: '100644', type: 'blob', content };
 });
+async function dispatch(path, data) {
+  // Workflow dispatch answers 204 with no body.
+  const response = await fetch(root + path, { method: 'POST', redirect: 'error',
+    headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2026-03-10', 'Content-Type': 'application/json' },
+    body: JSON.stringify(data) });
+  if (!response.ok) throw Error(`GitHub dispatch failed (${response.status})`);
+}
 async function api(path, data) {
   const response = await fetch(root + path, { method: data ? 'POST' : 'GET', redirect: 'error',
     headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2026-03-10', 'Content-Type': 'application/json' },
@@ -36,6 +43,18 @@ const commit = await api('/git/commits', { message: `CanX Claude build ${runId}`
 const branch = `claude/office-${runId}`;
 await api('/git/refs', { ref: `refs/heads/${branch}`, sha: commit.sha });
 const result = readFileSync('/tmp/canx-candidate/result.md', 'utf8').slice(0, 12000);
-const pr = await api('/pulls', { title: `CanX Claude build ${runId}`, head: branch, base: 'main', draft: true,
-  body: `Claude prepared this change in response to an office build request.\n\nAutomated typecheck, tests and build passed on the candidate. Device testing, independent review and publication are not verified.\n\nBuild evidence: https://github.com/canericaextreme/CanX-Office/actions/runs/${runId}\n\nClaude report (agent-generated, requires review):\n\n${result}` });
-console.log(`Draft change created: ${pr.html_url}`);
+// John 1 Nov 2026: passing builds go straight to the merge robot (its file rules, checks and other-company
+// review still decide; builder-choice, paid-build and workflow changes are still held for John).
+const pr = await api('/pulls', { title: `CanX Claude build ${runId}`, head: branch, base: 'main', draft: false,
+  body: `Claude prepared this change in response to an office build request.\n\nAutomated typecheck, tests and build passed on the candidate. Device testing and publication are not verified. The CanX merge robot runs pr-checks and an independent review before it merges anything.\n\nBuild evidence: https://github.com/canericaextreme/CanX-Office/actions/runs/${runId}\n\nClaude report (agent-generated, requires review):\n\n${result}` });
+console.log(`Change created: ${pr.html_url}`);
+// Hand it to the merge robot. A pull request opened with the workflow token starts no checks by itself,
+// so start pr-checks on the branch; when it finishes the robot wakes (it also sweeps every 30 minutes).
+// Best effort: a failure here leaves an open pull request that anyone can label or re-check.
+try {
+  await api(`/issues/${pr.number}/labels`, { labels: ['canx:auto-merge'] });
+  await dispatch('/actions/workflows/canx-pr-checks.yml/dispatches', { ref: branch });
+  console.log('Sent to the CanX merge robot (label canx:auto-merge, pr-checks started).');
+} catch (error) {
+  console.log(`Could not hand the change to the merge robot automatically: ${error.message}`);
+}

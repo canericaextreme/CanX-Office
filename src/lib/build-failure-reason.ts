@@ -12,6 +12,7 @@ const STEP_REASONS: Record<string, string> = {
   'Reject protected changes before running candidate code': 'the change touched files builders are not allowed to change, so it was thrown away.',
   'Verify candidate': 'the change was made but the automatic typecheck, tests or build failed, so no draft was opened.',
   'Open draft change': 'the builder made no usable code change, so no draft was opened.',
+  'Open change for the merge robot': 'the builder made no usable code change, so nothing was sent to the merge robot.',
 };
 
 interface Step { name?: unknown; conclusion?: unknown }
