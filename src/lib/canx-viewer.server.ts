@@ -38,6 +38,7 @@ export const VIEWER_READ_SITES = [
   "src/lib/legal-room.server.ts",
   "src/lib/mail-preferences.functions.ts",
   "src/lib/office-files.functions.ts",
+  "src/lib/owner-desk-viewer.functions.ts",
 ] as const;
 
 export async function verifyViewerWith(

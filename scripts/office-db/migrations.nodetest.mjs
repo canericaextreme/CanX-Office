@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { plan, isOnHold, buildApplySql, readMigrationFiles, parseFileName } from "./migrations.mjs";
 
-// What the live database had recorded on 21 Oct 2026 (read-only list from Supabase; the logbook went live via this job).
+// What the live database had recorded on 19 Oct 2026 (read-only list from Supabase; the logbook went live via this job).
 const LIVE = [
   ["20260923200738", "astra_memory_core"], ["20260923200827", "astra_conversation_summaries"],
   ["20260923200848", "astra_recent_context"], ["20260923200913", "astra_context_retrieval"],
@@ -17,14 +17,27 @@ const LIVE = [
   ["20261016021437", "elsie_scoped_task_claim_20261016"], ["20261018000946", "office_build_permission_status"],
   ["20261019021500", "office_work_events"],
   ["20261019040000", "office_work_event_recorder"], ["20261019050000", "office_work_events_assistant_read"],
-  ["20261020020000", "lock_down_public_db_functions"],
 ].map(([version, name]) => ({ version, name }));
 
-const repo = readMigrationFiles("supabase/migrations");
+const currentRepo = readMigrationFiles("supabase/migrations");
+// Freeze this historical fixture at its original date; later migrations have
+// their own acceptance cases and must not change the 19 October assertions.
+const repo = currentRepo.filter(f => f.version <= "20261020020000");
 
-test("against the real repo and live history, only the new Finance append-only save is applied", () => {
+test("Brain capacity migration is planned once after the historical baseline", () => {
+  const capacity = currentRepo.find(f => f.name === "expand_brain_note_capacity");
+  assert.ok(capacity, "capacity migration must exist");
+  assert.ok(!isOnHold(capacity.sql));
+  const afterBaseline = [...LIVE, { version: "20261020020000", name: "lock_down_public_db_functions" }];
+  const pending = plan(currentRepo, afterBaseline);
+  assert.ok(pending.apply.some(f => f.file === capacity.file));
+  const afterCapacity = [...afterBaseline, { version: capacity.version, name: capacity.name }];
+  assert.ok(!plan(currentRepo, afterCapacity).apply.some(f => f.file === capacity.file));
+});
+
+test("against the real repo and live history, only the new function lock-down is applied", () => {
   const p = plan(repo, LIVE);
-  assert.deepEqual(p.apply.map((f) => f.file), ["20261021150000_finance_receipts_append_only.sql"]);
+  assert.deepEqual(p.apply.map((f) => f.file), ["20261020020000_lock_down_public_db_functions.sql"]);
 });
 
 test("Elsie's held extended-sessions file is never applied automatically", () => {
@@ -35,7 +48,7 @@ test("Elsie's held extended-sessions file is never applied automatically", () =>
 
 test("older files already live under other dates are not re-run", () => {
   const p = plan(repo, LIVE);
-  for (const f of p.apply) assert.ok(f.version > "20261020020000");
+  for (const f of p.apply) assert.ok(f.version > "20261019050000");
 });
 
 test("a held file stays held even when asked for by name", () => {
@@ -45,7 +58,7 @@ test("a held file stays held even when asked for by name", () => {
 });
 
 test("nothing is applied twice", () => {
-  const after = [...LIVE, { version: "20261021150000", name: "finance_receipts_append_only" }];
+  const after = [...LIVE, { version: "20261020020000", name: "lock_down_public_db_functions" }];
   assert.equal(plan(repo, after).apply.length, 0);
 });
 
@@ -74,4 +87,19 @@ test("apply SQL is one transaction with its history record, safely quoted", () =
   assert.match(sql, /insert into supabase_migrations\.schema_migrations/);
   const tag = sql.match(/\$canx_[0-9a-f]+\$/)[0];
   assert.ok(!f.sql.includes(tag));
+});
+
+// Live history read from Supabase on 1 Nov 2026 (read-only), after the 23 Oct capacity changes.
+const LIVE_20261101 = [
+  ...LIVE,
+  { version: "20261020020000", name: "lock_down_public_db_functions" },
+  { version: "20261023180453", name: "expand_brain_note_capacity" },
+  { version: "20261023190635", name: "increase_office_view_hourly_capacity" },
+];
+
+test("against the 1 Nov live history, only the Finance append-only save is applied, once", () => {
+  const p = plan(currentRepo, LIVE_20261101);
+  assert.deepEqual(p.apply.map((f) => f.file), ["20261101031000_finance_receipts_append_only.sql"]);
+  const after = [...LIVE_20261101, { version: "20261101031000", name: "finance_receipts_append_only" }];
+  assert.equal(plan(currentRepo, after).apply.length, 0);
 });

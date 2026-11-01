@@ -5,7 +5,8 @@ import { looksLikeOfficeCodeChange, shouldHandOffToCodex, officeBuildProtectedCa
 import { BUILDER_LABEL, type OfficeBuilder } from './builder-choice';
 import { splitLeadingJson } from './task-receipt';
 import { ACTIVE_RUN_STATES, MAX_QUEUED_PER_BUILDER, hasQueueMarker, queueMarker, queuedTasksFor, selectElsieQueueTask } from './elsie-task-queue';
-import { FAILED_RUN_STATES, hasTakeover, newTakeoverNoteDetail, parseTakeoverNote, takeoverMarker, takeoverNoteId, takeoverStatusText, type ChangeState, type TakeoverReason } from './claude-takeover';
+import { AUTOPILOT_NOTE_ID, autopilotCommand, autopilotDetail, parseAutopilot, type AutopilotMode } from './autopilot';
+import { FAILED_RUN_STATES, hasTakeover, newTakeoverNoteDetail, parseTakeoverNote, takeoverMarker, takeoverNoteId, takeoverStatusText, pickupTimingText, type ChangeState, type TakeoverReason } from './claude-takeover';
 
 type BuildFn = (token: string, request?: string, prNumber?: number, runId?: number) => Promise<CodexBuildResult>;
 interface Execution { kind: 'codex-task-v1' | 'office-task-v2'; builder: OfficeBuilder; attempt: string; runId?: number; state: string; prior: string; }
@@ -287,7 +288,7 @@ export async function handTaskToClaudeWith(deps: TaskExecutionDeps, token: strin
   }
   const saved = await deps.workbench.rest<ManagerTask[]>(token, 'PATCH', `${path}&evidence=eq.${encodeURIComponent(task.evidence)}&status=not.in.(done,cancelled)`, {
     status: 'waiting', worker: 'Claude', evidence: (task.evidence ? task.evidence + '\n' : '') + takeoverMarker(at, reason),
-    waiting_reason: `With a full Claude worker (Brain note ${noteId}). Claude picks up handed-over jobs about every hour.`,
+    waiting_reason: `With a full Claude worker (Brain note ${noteId}). ${pickupTimingText()}`,
     updated_at: at,
   });
   if (!saved.ok || !firstRow(saved.data)) return { ok: false, detail: 'The task changed while it was being handed over; nothing was handed over. Check it again.' };
@@ -295,7 +296,7 @@ export async function handTaskToClaudeWith(deps: TaskExecutionDeps, token: strin
     _owner_id: owner.userId, _action: 'task.claude_takeover', _entity: 'manager_tasks', _entity_id: task.id,
     _before: { status: task.status, worker: task.worker }, _after: { reason, note: noteId },
   }).catch(() => undefined);
-  return { ok: true, detail: 'Handed to a full Claude worker; no paid re-run was started. Claude picks it up within about an hour, builds it with tests, and its change merges itself once checks pass. Ask me for its status any time.' };
+  return { ok: true, detail: `Handed to a full Claude worker; no paid re-run was started. ${pickupTimingText()} Claude builds it with tests, and its change merges itself once checks pass. Ask me for its status any time.` };
 }
 
 /** Claude's real progress on a handed-over task: its Brain note, then the live PR when it names one. */
@@ -306,4 +307,33 @@ export async function takeoverStatusWith(deps: TaskExecutionDeps, token: string,
   const note = read?.ok ? parseTakeoverNote(firstRow<{ detail: string }>(read.data)?.detail) : null;
   const change = note?.pr && deps.readChange ? await deps.readChange(note.pr).catch(() => null) : null;
   return { ok: !!note, detail: takeoverStatusText(note, change) };
+}
+
+export interface AutopilotStep { mode: AutopilotMode; changed: boolean; detail: string }
+
+/** Reads the Office autopilot switch and flips it when John's own words say stop or resume.
+ * Writes only the one Brain note; never starts, cancels or deletes any work. */
+export async function autopilotStepWith(workbench: TaskExecutionDeps['workbench'], token: string, request: string): Promise<AutopilotStep> {
+  const owner = await workbench.verifyOwner(token);
+  if (!owner.ok) return { mode: 'on', changed: false, detail: owner.message };
+  const path = `office_notes?id=eq.${encodeURIComponent(AUTOPILOT_NOTE_ID)}&owner_id=eq.${encodeURIComponent(owner.userId)}`;
+  const read = await workbench.rest<{ detail: string }[]>(token, 'GET', `${path}&select=detail&limit=1`);
+  if (!read.ok || !Array.isArray(read.data)) return { mode: 'on', changed: false, detail: 'The autopilot switch could not be read.' };
+  const current = parseAutopilot(firstRow<{ detail: string }>(read.data)?.detail);
+  const wanted = autopilotCommand(request);
+  if (!wanted || wanted === current.mode) {
+    return { mode: current.mode, changed: false, detail: current.mode === 'stopped' ? 'Autopilot is stopped: queued work waits until John says resume.' : 'Autopilot is on.' };
+  }
+  const at = new Date().toISOString();
+  const body = { title: `Office autopilot: ${wanted}`, detail: autopilotDetail(wanted, at, 'Elsie for John', request), updated_at: at };
+  const saved = read.data.length
+    ? await workbench.rest(token, 'PATCH', path, body)
+    : await workbench.rest(token, 'POST', 'office_notes', { id: AUTOPILOT_NOTE_ID, owner_id: owner.userId, kind: 'decision', owner_name: '', provenance: 'john', source: 'John via Elsie', ...body });
+  if (!saved.ok) return { mode: current.mode, changed: false, detail: 'The autopilot switch could not be saved; nothing changed.' };
+  return {
+    mode: wanted, changed: true,
+    detail: wanted === 'stopped'
+      ? 'Autopilot stopped. Nothing new starts on its own: Elsie\'s queue and the hourly Claude worker wait until you say resume. Work already running finishes its current step.'
+      : 'Autopilot back on. Queued jobs and Claude\'s handed-over jobs keep moving; money, security, sign-in, database and legal changes still wait for you.',
+  };
 }

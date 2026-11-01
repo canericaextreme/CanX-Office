@@ -1,4 +1,4 @@
--- Database test for 20261021150000_finance_receipts_append_only.sql, run on a throwaway local Postgres
+-- Database test for 20261101031000_finance_receipts_append_only.sql, run on a throwaway local Postgres
 -- by finance-append.nodetest.mjs. Minimal stand-ins replace Supabase's auth and the Office grant.
 \set ON_ERROR_STOP 1
 create role authenticated;

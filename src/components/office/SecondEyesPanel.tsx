@@ -15,12 +15,12 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Eye, Minus, Loader2, Building2, MonitorSmartphone } from "lucide-react";
+import { Loader2, Building2, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOwnerSession } from "@/lib/owner-session";
+import { CLAUDE_REVIEWS_EVENT } from "@/lib/companion-bridge";
 import {
   ESTIMATED_CENTS_BY_SCOPE,
   getClaudeStatus,
@@ -251,33 +251,20 @@ export function SecondEyesPanel() {
   const canReview = signedIn && session.stepUpComplete;
   const working = busy !== null;
 
+  // 21 Oct 2026: the floating Claude tab covered Elsie on phones. "Work with Claude" now sits in
+  // the chatbot card under Open ChatGPT; its "Claude reviews" button opens this panel.
+  useEffect(() => {
+    const toggle = () => setOpen(value => !value);
+    window.addEventListener(CLAUDE_REVIEWS_EVENT, toggle);
+    return () => window.removeEventListener(CLAUDE_REVIEWS_EVENT, toggle);
+  }, []);
+
+  // The review panel is for John only: not for signed-out visitors, and the
+  // layout leaves it out of read-only viewing sessions.
+  if (!signedIn) return null;
+
   return (
     <>
-      <TooltipProvider delayDuration={250}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          aria-label={open ? "Minimize Claude connection" : "Open Claude connection"}
-          aria-expanded={open}
-          aria-controls="claude-connection-dashboard"
-          onClick={() => setOpen(value => !value)}
-          className="relative h-10 w-10 shrink-0 border border-[#e8d99b] bg-[#f3e7b8] text-[#5c4916] hover:bg-[#f7ecc9] hover:text-[#5c4916] [&_svg]:size-5"
-        >
-          {open ? <Minus className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-          <span
-            aria-hidden="true"
-            className={`absolute bottom-1 right-1 h-2 w-2 rounded-full border ${TONE_CLASS[tone]}`}
-          />
-        </Button>
-        </TooltipTrigger>
-      <TooltipContent side="bottom" align="end" collisionPadding={12} className="w-48 max-w-[calc(100vw-2rem)] whitespace-normal break-words border border-slate-600 bg-slate-950 px-3 py-2 text-center text-sm leading-relaxed text-white">
-        Claude connection
-      </TooltipContent>
-      </Tooltip>
-      </TooltipProvider>
 
       <div id="claude-connection-dashboard" hidden={!open} data-canx-no-capture="true">
       <section

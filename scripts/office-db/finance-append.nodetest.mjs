@@ -9,7 +9,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync, chmodSync } from "node:fs
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const MIGRATION = resolve("supabase/migrations/20261021150000_finance_receipts_append_only.sql");
+const MIGRATION = resolve("supabase/migrations/20261101031000_finance_receipts_append_only.sql");
 const SCRIPT = resolve("scripts/office-db/finance-append.test.sql");
 const root = "/usr/lib/postgresql";
 const version = existsSync(root) ? readdirSync(root).filter((v) => existsSync(join(root, v, "bin", "initdb"))).sort().pop() : undefined;

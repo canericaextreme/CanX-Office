@@ -1,12 +1,13 @@
 import { ClaudeSpendApproval } from "@/components/office/ClaudeSpendApproval";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useLocation } from "@tanstack/react-router";
+import { ApprovalInbox } from "@/components/office/ApprovalInbox";
 import { RoomShell } from "@/components/office/RoomShell";
 import { OfficeFiles } from "@/components/office/OfficeFiles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useManagerMemory, formatCents } from "@/lib/use-manager-memory";
+import { useManagerMemory } from "@/lib/use-manager-memory";
 import {
   decideManagerApproval,
   requestManagerApproval,
@@ -28,12 +29,6 @@ const APPROVALS_COLORS = {
 } as const;
 
 const C = APPROVALS_COLORS;
-
-const STATUS_LOOK = {
-  pending: { strip: C.acid, text: C.ink },
-  approved: { strip: C.leaf, text: C.ink },
-  declined: { strip: C.stone, text: C.pale },
-} as const;
 
 const STEPS = [
   ["Send", "Write what needs approval, why, the cost and the risk."],
@@ -57,6 +52,7 @@ export const Route = createFileRoute("/_office/approvals")({
 });
 
 function Approvals() {
+  const location = useLocation();
   const { memory, loading, error, isOwner, accessToken, sessionMessage, refresh } =
     useManagerMemory();
   const decide = useServerFn(decideManagerApproval);
@@ -149,8 +145,8 @@ function Approvals() {
           </p>
           <h2 className="mt-3 font-serif text-3xl font-semibold sm:text-4xl">One decision inbox</h2>
           <p className="mt-3 max-w-2xl text-sm font-medium leading-relaxed">
-            Approvals are owner-controlled, time-limited, and non-transferable. MFA and session
-            integrity checks are required before any approval can execute external effects.
+            Open a request to read what needs your decision, then choose Approve or Decline. Past
+            decisions are kept separately below. Only the verified owner can decide.
           </p>
           <div
             className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 text-xs"
@@ -177,7 +173,11 @@ function Approvals() {
           </div>
         </header>
 
-        {notice && <p className="text-xs text-canx-yellow">{notice}</p>}
+        {notice && (
+          <p role="status" aria-live="polite" className="text-sm text-canx-yellow">
+            {notice}
+          </p>
+        )}
         {problem && <p className="text-xs text-canx-red">{problem}</p>}
 
         <section aria-label="Approval requests">
@@ -186,78 +186,15 @@ function Approvals() {
             Each request shows what it is, what it costs, how risky it is and where it stands.
           </p>
           {durable ? (
-            durable.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">
-                Nothing is waiting for your approval.
-              </p>
-            ) : (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {durable.map((item, i) => {
-                  const look =
-                    item.status === "approved" || item.status === "declined"
-                      ? STATUS_LOOK[item.status]
-                      : STATUS_LOOK.pending;
-                  return (
-                    <article
-                      key={item.id}
-                      className="flex flex-col overflow-hidden rounded-lg shadow-sm"
-                      style={{ backgroundColor: C.pale, color: C.ink }}
-                    >
-                      <div
-                        className="flex justify-between gap-2 px-4 py-3 text-[10px] font-bold uppercase tracking-wider"
-                        style={{ backgroundColor: look.strip, color: look.text }}
-                      >
-                        <span>{String(i + 1).padStart(2, "0")} · Request</span>
-                        <span>{item.status}</span>
-                      </div>
-                      <div className="flex flex-1 flex-col p-4">
-                        <h3 className="font-serif text-xl font-semibold leading-tight">
-                          {item.title}
-                        </h3>
-                        {item.detail && (
-                          <p className="mt-3 text-sm leading-relaxed">{item.detail}</p>
-                        )}
-                        <dl className="mt-3 space-y-1 text-sm" style={{ color: C.forest }}>
-                          <p>Cost: {formatCents(item.cost_cents)}</p>
-                          <p>Risk: {item.risk}</p>
-                          <p>Requested: {new Date(item.created_at).toLocaleString()}</p>
-                        </dl>
-                        {item.status === "approved" && (
-                          <p className="mt-2 text-sm font-medium">
-                            {item.task_id
-                              ? "On the Work Board as approved work."
-                              : "Not linked to a Work Board item."}
-                          </p>
-                        )}
-                        {item.status === "pending" && (
-                          <div className="mt-4 flex gap-2">
-                            <Button
-                              size="sm"
-                              disabled={busy === item.id}
-                              onClick={() => onDecide(item.id, "approved")}
-                              className="hover:opacity-90"
-                              style={{ backgroundColor: C.ink, color: C.acid }}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={busy === item.id}
-                              onClick={() => onDecide(item.id, "declined")}
-                              className="bg-transparent hover:bg-black/10"
-                              style={{ borderColor: C.ink, color: C.ink }}
-                            >
-                              Decline
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )
+            <div className="mt-4">
+              <ApprovalInbox
+                approvals={durable}
+                busy={busy}
+                canDecide={isOwner && !!accessToken}
+                onDecide={onDecide}
+                focusedId={location.hash.replace(/^#/, "")}
+              />
+            </div>
           ) : (
             <p role="status" className="mt-4 text-sm text-muted-foreground">
               {loading ? "Loading your approval requests…" : error || sessionMessage}

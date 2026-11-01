@@ -1,5 +1,6 @@
 // edge function `office-view` (approved by John 10 Oct 2026). Install guide: docs/proposed/office-view/INSTALL.md
 // broker (src/lib/office-view-broker.ts). Every rule lives in the broker, not here.
+import { endViewerSession } from "../../../src/lib/office-view-auth.ts";
 import {
   BROKER_MESSAGES, BrokerError, claimForRunner, failFromRunner, fetchCapture, precheckForRunner, readRoomInformation, redactForLog,
   requestCapture, storeFromRunner, waitForCapture, requestStatus, verifyGithubOidc,
@@ -62,7 +63,7 @@ const deps: BrokerDeps = {
     if (typeof token !== "string") throw new Error("mint");
     return token;
   },
-  async endSession(token) { await rest(`/auth/v1/logout`, { method: "POST", key: ANON, bearer: token }).catch(() => undefined); },
+  endSession: (token) => endViewerSession(token, (path, bearer) => rest(path, { method: "POST", key: ANON, bearer })),
   storage: {
     async put(path, bytes) {
       const r = await fetch(`${URL_}/storage/v1/object/${BUCKET}/${path}`, { method: "POST", headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, "Content-Type": "image/png", "x-upsert": "false" }, body: bytes as unknown as BodyInit, redirect: "error", signal: T.signal() });

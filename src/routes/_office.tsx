@@ -5,6 +5,8 @@ import { RoomAccessBar } from "@/components/office/RoomAccessBar";
 import { OfficeManager } from "@/components/office/OfficeManager";
 import { ApprovalAlert } from "@/components/office/ApprovalAlert";
 import { CompanionDock } from "@/components/office/CompanionDock";
+import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
+import { DailyPreTripStarter } from "@/components/office/PreTripCard";
 import { canBrowseOfficeWithoutSignIn } from "@/lib/office-development-access";
 import { OfficeGate } from "@/components/office/OfficeGate";
 import { OfficeThemeProvider } from "@/lib/office-theme";
@@ -44,6 +46,10 @@ function OfficeInterior() {
             <ApprovalAlert />
           </div>
           <CompanionDock />
+          {/* Elsie's once-a-day pre-trip: runs beside her, never inside a reply. */}
+          <DailyPreTripStarter />
+          {/* Work with Claude tab, beside the Chatbot tab, reachable from every room. */}
+          <SecondEyesPanel />
           <div data-canx-no-capture="true">
             <OfficeManager />
           </div>
