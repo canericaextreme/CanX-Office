@@ -4,6 +4,9 @@ name: CanX PR checks
 on:
   pull_request:
     branches: [main]
+    # ready_for_review: builder drafts are opened by the workflow token, which starts no checks;
+    # marking one ready now runs pr-checks so the merge robot can judge it.
+    types: [opened, synchronize, reopened, ready_for_review]
 permissions:
   contents: read
 concurrency:
