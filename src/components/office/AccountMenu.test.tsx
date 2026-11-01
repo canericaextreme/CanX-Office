@@ -57,4 +57,20 @@ describe("one deliberate Account verification flow", () => {
     expect(h.session.signIn).not.toHaveBeenCalled();
     expect(h.session.submitMfaCode).not.toHaveBeenCalled();
   });
+  it("reopens the code step after a page reload in the middle of it, and not after closing on purpose", async () => {
+    h.session.state = "owner";
+    window.sessionStorage.setItem("canx-account-code-pending", "1");
+    render(<AccountMenu />);
+    await screen.findByLabelText("Six digit code");
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(window.sessionStorage.getItem("canx-account-code-pending")).toBeNull();
+  });
+  it("forgets the pending code step once the authenticator is done", () => {
+    h.session.state = "owner"; h.session.stepUpComplete = true;
+    window.sessionStorage.setItem("canx-account-code-pending", "1");
+    render(<AccountMenu />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(window.sessionStorage.getItem("canx-account-code-pending")).toBeNull();
+  });
 });
