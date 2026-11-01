@@ -1,3 +1,4 @@
+import { ELSIE_TRANSCRIPTION_PROMPT, fixElsieName } from "./elsie-name";
 import { createServerFn } from "@tanstack/react-start";
 
 export type ManagerVoiceCode =
@@ -85,6 +86,7 @@ export const transcribeManagerAudio = createServerFn({ method: "POST" })
     const body = new FormData();
     body.append("model", readSetting(process.env["OPENAI_TRANSCRIBE_MODEL"]) ?? "gpt-4o-mini-transcribe");
     body.append("language", "en");
+    body.append("prompt", ELSIE_TRANSCRIPTION_PROMPT);
     const audioBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     body.append("file", new Blob([audioBuffer], { type: data.mimeType }), `manager-turn.${extension}`);
     const controller = new AbortController();
@@ -101,7 +103,7 @@ export const transcribeManagerAudio = createServerFn({ method: "POST" })
         return { ok: false, code: "provider_error", text: "", detail: providerDetail(response.status) };
       }
       const payload = (await response.json()) as { text?: unknown };
-      const text = typeof payload.text === "string" ? payload.text.trim().slice(0, 6000) : "";
+      const text = typeof payload.text === "string" ? fixElsieName(payload.text.trim()).slice(0, 6000) : "";
       await backend.settleAiCallWith(config, data.accessToken, reservation.reservationId, text ? "ok" : "failed");
       return text
         ? { ok: true, code: "ok", text, detail: "" }

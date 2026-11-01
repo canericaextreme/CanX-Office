@@ -377,8 +377,9 @@ export async function updateManagerTaskWith(deps: WorkbenchDeps, input: UpdateTa
     _action: "task.update",
     _entity: "manager_tasks",
     _entity_id: input.taskId,
-    _before: { title: before.title, detail: before.detail, risk: before.risk },
-    _after: { title: row.title, detail: row.detail, risk: row.risk },
+    // Every edited field is kept on both sides so any edit can be rolled back.
+    _before: { title: before.title, detail: before.detail, risk: before.risk, project: before.project ?? "", status: before.status, waiting_reason: before.waiting_reason ?? "" },
+    _after: { title: row.title, detail: row.detail, risk: row.risk, project: row.project ?? "", status: row.status, waiting_reason: row.waiting_reason ?? "" },
   }).catch(() => undefined);
 
   return row;
@@ -471,49 +472,120 @@ export interface VerifyTaskInput {
   evidence?: string;
 }
 
-export async function verifyManagerTaskWith(deps: WorkbenchDeps, input: VerifyTaskInput): Promise<ManagerTask | ManagerWorkError> {
+export async function verifyManagerTaskWith(
+  deps: WorkbenchDeps,
+  input: VerifyTaskInput,
+): Promise<ManagerTask | ManagerWorkError> {
   const v = await verify(input.accessToken, deps);
   if (!v.ok) return v;
 
   const resultText = cleanString(input.result, 2000);
   if (!resultText) return fail("invalid_input", "A result summary is required to verify a task.");
 
-  const taskResult = await deps.rest<ManagerTask[]>(input.accessToken, "GET", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`);
+  const taskResult = await deps.rest<ManagerTask[]>(
+    input.accessToken,
+    "GET",
+    `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`,
+  );
   if (!taskResult.ok || !taskResult.data?.[0]) return fail("not_found", "Task not found.");
   const before = taskResult.data[0];
-  if (before.owner_id !== v.userId) return fail("forbidden", "That task belongs to a different owner.");
+  if (before.owner_id !== v.userId)
+    return fail("forbidden", "That task belongs to a different owner.");
+
+  if (before.status === "cancelled" || before.status === "done")
+    return fail(
+      "invalid_input",
+      "That task is already finished. Its status and evidence were not changed.",
+    );
+  if (!before.updated_at)
+    return fail(
+      "context_unavailable",
+      "The task version could not be read. Nothing was marked complete.",
+    );
 
   const evidence = cleanString(input.evidence, 2000);
-  const checkpoint = await taskBrainCheckpoint(deps, input.accessToken, before, resultText, evidence);
-  if (!checkpoint) return fail("context_unavailable", "Brain handoff could not be saved and read back. Task remains open; retry verification, not the underlying job.");
-  const verifiedEvidence = `${evidence}\nBrain handoff: ${checkpoint}`.trim();
+  const checkpoint = await taskBrainCheckpoint(
+    deps,
+    input.accessToken,
+    before,
+    resultText,
+    evidence,
+  );
+  if (!checkpoint)
+    return fail(
+      "context_unavailable",
+      "Brain handoff could not be saved and read back. Task remains open; retry verification, not the underlying job.",
+    );
+  const verifiedEvidence = [
+    ...new Set([before.evidence, evidence].filter(Boolean)),
+    `Brain handoff: ${checkpoint}`,
+  ].join("\n");
+  if (verifiedEvidence.length > 2000)
+    return fail(
+      "invalid_input",
+      "Completion evidence exceeds the task's storage limit. The Brain checkpoint is saved, but the task remains unfinished and prior evidence is preserved.",
+    );
   const now = new Date().toISOString();
 
-  const [updated] = await Promise.all([
-    deps.rest<ManagerTask[]>(input.accessToken, "PATCH", `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}`, {
+  const taskPath = `manager_tasks?id=eq.${encodeURIComponent(input.taskId)}&owner_id=eq.${encodeURIComponent(v.userId)}`;
+  const updated = await deps.rest<ManagerTask[]>(
+    input.accessToken,
+    "PATCH",
+    `${taskPath}&updated_at=eq.${encodeURIComponent(before.updated_at)}&status=eq.${before.status}`,
+    {
       status: "done",
       result: resultText,
       evidence: verifiedEvidence,
       updated_at: now,
-    }),
-    deps.rest(input.accessToken, "PATCH", `manager_assignments?task_id=eq.${encodeURIComponent(input.taskId)}&completed_at=is.null`, {
-      completed_at: now,
-      result: resultText,
-      evidence: verifiedEvidence,
-    }),
-  ]);
-  if (!updated.ok || !updated.data?.[0]) return fail("context_unavailable", updated.error ?? "Verification could not be saved.");
+    },
+  );
+  if (!updated.ok || !updated.data?.[0])
+    return fail(
+      "context_unavailable",
+      "Completion was not confirmed; the task may have changed. Check its current status before retrying verification, never the underlying job.",
+    );
+  const readback = await deps.rest<ManagerTask[]>(input.accessToken, "GET", taskPath);
+  const saved = readback.ok ? readback.data?.[0] : undefined;
+  if (
+    !saved ||
+    saved.owner_id !== v.userId ||
+    saved.status !== "done" ||
+    saved.result !== resultText ||
+    saved.evidence !== verifiedEvidence
+  )
+    return fail(
+      "context_unavailable",
+      "Task completion readback failed. Its outcome is unverified; check the task before retrying verification, never the underlying job.",
+    );
+  await deps
+    .rest(
+      input.accessToken,
+      "PATCH",
+      `manager_assignments?task_id=eq.${encodeURIComponent(input.taskId)}&completed_at=is.null`,
+      {
+        completed_at: now,
+        result: resultText,
+        evidence: verifiedEvidence,
+      },
+    )
+    .catch(() => undefined);
 
-  await deps.rest(input.accessToken, "POST", "rpc/log_manager_change", {
-    _owner_id: v.userId,
-    _action: "task.verify",
-    _entity: "manager_tasks",
-    _entity_id: input.taskId,
-    _before: { status: before.status, result: before.result },
-    _after: { status: "done", result: resultText, evidence: verifiedEvidence },
-  }).catch(() => undefined);
+  await deps
+    .rest(input.accessToken, "POST", "rpc/log_manager_change", {
+      _owner_id: v.userId,
+      _action: "task.verify",
+      _entity: "manager_tasks",
+      _entity_id: input.taskId,
+      _before: { status: before.status, result: before.result },
+      _after: {
+        status: "done",
+        result: resultText,
+        evidence: verifiedEvidence,
+      },
+    })
+    .catch(() => undefined);
 
-  return updated.data[0];
+  return saved;
 }
 
 /* ------------------------------- approvals ------------------------------- */

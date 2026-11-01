@@ -133,6 +133,7 @@ export type RoomOutcome =
   | "save_unverified"
   | "not_saved"
   | "too_long"
+  | "navigate_failed"
   | "error";
 
 export function handoffStatusFromRoomOutcome(outcome: RoomOutcome | null): {
@@ -157,6 +158,8 @@ export function handoffStatusFromRoomOutcome(outcome: RoomOutcome | null): {
       return { status: "failed", detail: "The room report was not saved. Check Records before repeating.", canResend: false };
     case "read_failed":
       return { status: "failed", detail: "The room look did not complete.", canResend: false };
+    case "navigate_failed":
+      return { status: "failed", detail: "The room did not open on this screen. Nothing was changed.", canResend: true };
     default:
       return { status: "failed", detail: "The room request could not be confirmed.", canResend: false };
   }
