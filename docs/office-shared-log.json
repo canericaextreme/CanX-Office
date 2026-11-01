@@ -92,6 +92,78 @@
       "evidence": "Local typecheck and production build passed; 216 test files / 2089 tests passed, including viewport geometry and keyboard/pan listener regression coverage. Real-browser download failed; signed-in Samsung paste acceptance remains unverified."
     },
     {
+      "id": "2026-10-22-codex-elsie-continuation-local-draft",
+      "at": "2026-10-22T14:51:49Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared a local draft repair for Elsie short task continuations, persisted owner task resolution, receipt-based reopen checks and colleague button spacing. No production calls, publication or changes to drafts 208–210.",
+      "evidence": "src/lib/elsie-continuation.server.ts; src/lib/elsie-continuation.test.ts; docs/elsie-continuation-draft-candidate.md. Full local suite: 209 files / 2030 tests passed; typecheck and build passed. Local verification only; not a live execution receipt."
+    },
+    {
+      "id": "2026-10-22-chatgpt-elsie-continuation-review",
+      "at": "2026-10-22T15:02:30.549976+00:00",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Reviewed PR211: added finish it and task continuation forms, recent discussed-task selection among multiple jobs, saved task reference checkpoints, original clear change routing; reverted unrelated button spacing. Existing execution gates retained. Candidate only; not live.",
+      "evidence": "Full local suite:209 files/2043 tests passed; TypeScript, production build and whitespace checks passed. Signed-in phone/voice acceptance pending."
+    },
+    {
+      "id": "2026-10-23-brain-capacity-repair",
+      "at": "2026-10-23T18:15:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared owner-requested Brain note capacity increase from 2000 to 12000 characters. Full handoff text is preserved. Migration planning regression tests corrected; direct Elsie pickup remains unverified.",
+      "evidence": "PR213; PostgreSQL logs identified office_notes_detail_check. Rollback-only boundary tests passed at 2001,11000,12000 characters, with rejection at12001. 33 migration/merge-policy tests passed locally. Deployment and live MCP handoff readback remain pending."
+    },
+    {
+      "id": "2026-10-25-elsie-bounded-text-loop-candidate",
+      "at": "2026-10-25T00:01:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Implemented local bounded Elsie-to-worker text-task candidate with exact Brain context, per-phase atomic claims, existing budget/settlement readback and separate per-request Brain outcomes. Original voice/chat and access controls unchanged. Not deployed or live-verified.",
+      "evidence": "218 files / 2115 local tests, typecheck and build passed. Claude excerpt review led to explicit unknown state for stale claims; no automatic replay. Remote build40144302720 failed before implementation due provider quota. Live schema confirms task result/evidence max2000; relay preflight and oversized-output reporting corrected. Gateway files require owner review. See docs/elsie-text-task-loop.md."
+    },
+    {
+      "id": "2026-10-24-elsie-task-message",
+      "at": "2026-10-25T00:40:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared an explicit versioned Elsie task message over the existing colleague relay, using the unchanged three-phase task engine, current working grant and budget. Ordinary relay unchanged; malformed reserved messages never fall back to a paid relay. No browser sign-in or tool rediscovery needed for this supported message contract. Does not claim native client metadata refreshed.",
+      "evidence": "Local 218 test files/2124 tests and production build passed. Claude Office API review of exact adapter found no release-blocking issue; supplied excerpt review, not full repository or live acceptance. Real three-phase and independent readback remain pending release."
+    },
+    {
+      "id": "2026-10-27-codex-research-pdf-draft",
+      "at": "2026-10-27T01:31:27Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Local draft adds selected Research PDF text to Elsie with physical page citations, five-page/24000-character answer bounds and an 8 MB extraction limit. Existing original-file paths, access rules and records are unchanged. No publication or production calls.",
+      "evidence": "Seven focused test files passed (120 tests), including synthetic multi-page PDF parsing and file/manager regressions. TypeScript and new-module ESLint passed. Details and device acceptance limits: docs/research-pdf-reading.md. Signed-in phone/laptop and voice acceptance remain unverified."
+    },
+    {
+      "id": "2026-10-27-codex-research-opening-repair",
+      "at": "2026-10-27T19:15:00Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Candidate repair adds same-tab original-file opening beside embedded previews, explicit signed-out and preview retry states, same-tab saved web/email links and phone-stacked file controls. Reported phone failure is not reproduced in the signed-out test browser; user records are intact. No owner access or provider settings changed.",
+      "evidence": "12 focused component tests, typecheck and production build passed. Full regression and release gates pending. Native phone acceptance remains unverified."
+    },
+    {
+      "id": "2026-10-30-room-filing-security-checklist-draft",
+      "at": "2026-10-30T21:47:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared local draft room-note editing and destination filing through the normal owner UI, plus an owner-maintained Security progress checklist in Systems. Saves preserve note provenance, reject stale edits and require exact record readback. Not published or verified live.",
+      "evidence": "Eight focused Vitest files / 118 tests passed, including local remount persistence, destination filing, checklist statuses, stale edits, save/read failures and viewer controls. Typecheck passed. Production access, real device reload, assistant-tool field allowlist changes and deployment were outside the request."
+    },
+    {
       "id": "2026-10-05-stage1-approved",
       "at": "2026-10-05T16:05:10Z",
       "actor": "John",
@@ -443,76 +515,13 @@
       "evidence": "Full local suite: 206 files / 1988 tests passed. Typecheck/build being checked separately. Existing working-grant handoff validation in PR204 retained. No changes to Claude PR201. External native assistant replies cannot be globally gated by this Office code."
     },
     {
-      "id": "2026-10-22-codex-elsie-continuation-local-draft",
-      "at": "2026-10-22T14:51:49Z",
+      "id": "2026-10-22-work-board-filters-local",
+      "at": "2026-10-22T02:00:00Z",
       "actor": "Codex",
       "kind": "action",
       "audience": "office-status",
-      "summary": "Prepared a local draft repair for Elsie short task continuations, persisted owner task resolution, receipt-based reopen checks and colleague button spacing. No production calls, publication or changes to drafts 208–210.",
-      "evidence": "src/lib/elsie-continuation.server.ts; src/lib/elsie-continuation.test.ts; docs/elsie-continuation-draft-candidate.md. Full local suite: 209 files / 2030 tests passed; typecheck and build passed. Local verification only; not a live execution receipt."
-    },
-    {
-      "id": "2026-10-22-chatgpt-elsie-continuation-review",
-      "at": "2026-10-22T15:02:30.549976+00:00",
-      "actor": "ChatGPT",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "Reviewed PR211: added finish it and task continuation forms, recent discussed-task selection among multiple jobs, saved task reference checkpoints, original clear change routing; reverted unrelated button spacing. Existing execution gates retained. Candidate only; not live.",
-      "evidence": "Full local suite:209 files/2043 tests passed; TypeScript, production build and whitespace checks passed. Signed-in phone/voice acceptance pending."
-    },
-    {
-      "id": "2026-10-23-brain-capacity-repair",
-      "at": "2026-10-23T18:15:00Z",
-      "actor": "ChatGPT",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "Prepared owner-requested Brain note capacity increase from 2000 to 12000 characters. Full handoff text is preserved. Migration planning regression tests corrected; direct Elsie pickup remains unverified.",
-      "evidence": "PR213; PostgreSQL logs identified office_notes_detail_check. Rollback-only boundary tests passed at 2001,11000,12000 characters, with rejection at12001. 33 migration/merge-policy tests passed locally. Deployment and live MCP handoff readback remain pending."
-    },
-    {
-      "id": "2026-10-25-elsie-bounded-text-loop-candidate",
-      "at": "2026-10-25T00:01:00Z",
-      "actor": "ChatGPT",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "Implemented local bounded Elsie-to-worker text-task candidate with exact Brain context, per-phase atomic claims, existing budget/settlement readback and separate per-request Brain outcomes. Original voice/chat and access controls unchanged. Not deployed or live-verified.",
-      "evidence": "218 files / 2115 local tests, typecheck and build passed. Claude excerpt review led to explicit unknown state for stale claims; no automatic replay. Remote build40144302720 failed before implementation due provider quota. Live schema confirms task result/evidence max2000; relay preflight and oversized-output reporting corrected. Gateway files require owner review. See docs/elsie-text-task-loop.md."
-    },
-    {
-      "id": "2026-10-24-elsie-task-message",
-      "at": "2026-10-25T00:40:00Z",
-      "actor": "ChatGPT",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "Prepared an explicit versioned Elsie task message over the existing colleague relay, using the unchanged three-phase task engine, current working grant and budget. Ordinary relay unchanged; malformed reserved messages never fall back to a paid relay. No browser sign-in or tool rediscovery needed for this supported message contract. Does not claim native client metadata refreshed.",
-      "evidence": "Local 218 test files/2124 tests and production build passed. Claude Office API review of exact adapter found no release-blocking issue; supplied excerpt review, not full repository or live acceptance. Real three-phase and independent readback remain pending release."
-    },
-    {
-      "id": "2026-10-27-codex-research-pdf-draft",
-      "at": "2026-10-27T01:31:27Z",
-      "actor": "Codex",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "Local draft adds selected Research PDF text to Elsie with physical page citations, five-page/24000-character answer bounds and an 8 MB extraction limit. Existing original-file paths, access rules and records are unchanged. No publication or production calls.",
-      "evidence": "Seven focused test files passed (120 tests), including synthetic multi-page PDF parsing and file/manager regressions. TypeScript and new-module ESLint passed. Details and device acceptance limits: docs/research-pdf-reading.md. Signed-in phone/laptop and voice acceptance remain unverified."
-    },
-    {
-      "id": "2026-10-27-codex-research-opening-repair",
-      "at": "2026-10-27T19:15:00Z",
-      "actor": "Codex",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "Candidate repair adds same-tab original-file opening beside embedded previews, explicit signed-out and preview retry states, same-tab saved web/email links and phone-stacked file controls. Reported phone failure is not reproduced in the signed-out test browser; user records are intact. No owner access or provider settings changed.",
-      "evidence": "12 focused component tests, typecheck and production build passed. Full regression and release gates pending. Native phone acceptance remains unverified."
-    },
-    {
-      "id": "2026-10-30-room-filing-security-checklist-draft",
-      "at": "2026-10-30T21:47:00Z",
-      "actor": "ChatGPT",
-      "kind": "action",
-      "audience": "office-status",
-      "summary": "Prepared local draft room-note editing and destination filing through the normal owner UI, plus an owner-maintained Security progress checklist in Systems. Saves preserve note provenance, reject stale edits and require exact record readback. Not published or verified live.",
-      "evidence": "Eight focused Vitest files / 118 tests passed, including local remount persistence, destination filing, checklist statuses, stale edits, save/read failures and viewer controls. Typecheck passed. Production access, real device reload, assistant-tool field allowlist changes and deployment were outside the request."
+      "summary": "Implemented local Work Board state filters and compact task details, with John decision tasks first. No publication or production checks; date-based numbering excluded.",
+      "evidence": "src/routes/_office/work-board.tsx; Work Board decision/filter, decision helper and task evidence tests: 24 passed; TypeScript check passed. Device and signed-in acceptance unverified."
     }
   ]
 }
