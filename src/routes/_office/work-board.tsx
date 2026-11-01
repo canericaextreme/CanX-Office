@@ -43,32 +43,47 @@ const RISK_WORDS: Record<RiskLevel, string> = {
   red: "Red — stopped",
 };
 
-type StatusTone = "green" | "blue" | "yellow" | "red" | "grey";
+type StatusTone = "green" | "yellow" | "red" | "grey";
 
 interface TaskStatus {
   tone: StatusTone;
   label: string;
-  /** Plain-language reason, always shown for Grey statuses. */
+  /** Plain-language context; colour alone never conveys task state. */
   reason: string | null;
 }
 
 /** Milliseconds after which an unfinished task with no update is stale. */
 const STALE_MS = 14 * 24 * 60 * 60 * 1000;
 
-/**
- * Written work status for a task. Colour is never the only signal: every badge
- * carries words, and Grey always names Planned, Disconnected, Unknown or Stale
- * with its reason. Grey stays separate from Green/Blue/Yellow/Red.
- */
+/** Display only: these colours never change risk gates or task permissions. */
 function taskStatus(task: ManagerTask): TaskStatus {
+  // Protection takes precedence even over a saved done/stale state.
+  if (task.risk === "red") {
+    return {
+      tone: "red",
+      label: "Red — protected / integrity risk",
+      reason: "Protected task: review its saved risk and evidence before taking action.",
+    };
+  }
   const updated = new Date(task.updated_at).getTime();
   const isStale =
     (task.status === "open" || task.status === "in_progress") &&
     Number.isFinite(updated) &&
     Date.now() - updated > STALE_MS;
 
+  if (task.risk === "yellow" && (task.status === "open" || task.status === "in_progress")) {
+    return {
+      tone: "yellow",
+      label: "Yellow — needs attention",
+      reason: "Yellow-risk work: check its approval and evidence before proceeding.",
+    };
+  }
   if (isStale) {
-    return { tone: "grey", label: "Grey — stale", reason: "No update recorded in over 14 days." };
+    return {
+      tone: "yellow",
+      label: "Yellow — stale",
+      reason: "No update recorded in over 14 days.",
+    };
   }
   switch (task.status) {
     case "done":
@@ -76,23 +91,27 @@ function taskStatus(task: ManagerTask): TaskStatus {
     case "waiting":
       return {
         tone: "yellow",
-        label: "Waiting",
+        label: "Yellow — waiting",
         reason: task.waiting_reason || "Waiting reason not recorded.",
       };
     case "in_progress":
       return {
-        tone: "blue",
-        label: "Assigned — activity unconfirmed",
+        tone: "green",
+        label: "Green — clear / assigned",
         reason: "Assignment alone does not confirm that work is running.",
       };
     case "cancelled":
-      return { tone: "red", label: "Red — cancelled", reason: null };
+      return { tone: "grey", label: "Grey — cancelled", reason: null };
     case "open":
-      return { tone: "grey", label: "Grey — planned", reason: "Not assigned to a worker yet." };
-    default:
       return {
         tone: "grey",
-        label: "Grey — unknown",
+        label: "Grey — not started",
+        reason: "Not assigned to a worker yet.",
+      };
+    default:
+      return {
+        tone: "yellow",
+        label: "Yellow — unknown",
         reason: "The saved status is not recognized.",
       };
   }
@@ -237,6 +256,10 @@ export function WorkBoard() {
           </div>
           <p className="text-sm text-muted-foreground">
             Assigned jobs start when a worker begins execution
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Green — clear/good · Yellow — needs attention · Red — protected or integrity risk. Clear
+            does not mean running or verified; check the status and evidence.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -390,11 +413,15 @@ export function WorkBoard() {
               <div
                 key={task.id}
                 id={`task-${task.id}`}
-                className={
-                  needs
-                    ? "scroll-mt-24 rounded-lg border-2 border-canx-yellow bg-canx-yellow/5 p-3 shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-canx-yellow)_25%,transparent)]"
-                    : "scroll-mt-24 rounded-lg border border-border/50 p-3"
-                }
+                className={`min-w-0 scroll-mt-24 rounded-lg border-2 p-3 [overflow-wrap:anywhere] ${
+                  status.tone === "red"
+                    ? "border-destructive bg-destructive/5"
+                    : status.tone === "yellow"
+                      ? "border-canx-yellow bg-canx-yellow/5"
+                      : status.tone === "grey"
+                        ? "border-border bg-muted/30"
+                        : "border-canx-green/60 bg-canx-green/5"
+                }`}
               >
                 <div className="flex flex-wrap items-center gap-2">
                   {needs && (
@@ -403,7 +430,7 @@ export function WorkBoard() {
                     </span>
                   )}
                   <StatusBadge tone={status.tone} label={status.label} />
-                  <span className="font-medium">{task.title}</span>
+                  <span className="min-w-0 font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}
                   </span>

@@ -159,7 +159,7 @@ describe("task lifecycle", () => {
   });
 
   it("keeps a task unfinished when Brain checkpoint readback fails", async () => {
-    const task = { id: 't1', owner_id: 'owner-1', title: 'Task', worker: 'Elsie', status: 'in_progress' };
+    const task = { id: 't1', owner_id: 'owner-1', title: 'Task', worker: 'Elsie', status: 'in_progress', updated_at: '2026-10-27T00:00:00Z' };
     const rest = vi.fn().mockImplementation((_token, method, path) =>
       Promise.resolve(path.startsWith('manager_tasks?')
         ? { ok: true, data: [task] }
@@ -169,22 +169,88 @@ describe("task lifecycle", () => {
     expect(rest.mock.calls.some(c => c[1] === 'PATCH')).toBe(false);
   });
 
-  it("verifyManagerTaskWith marks a task done and logs the change", async () => {
-    const updated = { id: "t1", owner_id: "owner-1", title: "Task", status: "done", worker: "Claude" };
+  it.each([
+    "success",
+    "concurrent",
+    "readback",
+    "overflow",
+    "cancelled",
+    "done",
+  ])("task completion preserves evidence and handles %s", async (scenario) => {
+    let task = {
+      id: "t1",
+      owner_id: "owner-1",
+      title: "Task",
+      status:
+        scenario === "cancelled" || scenario === "done"
+          ? scenario
+          : "in_progress",
+      worker: "Claude",
+      updated_at: "2026-10-27T00:00:00Z",
+      evidence:
+        scenario === "overflow" ? "x".repeat(1950) : "Original build receipt",
+      result: "",
+    };
     let savedNote: unknown;
+    let wroteTask = false;
     const rest = vi.fn().mockImplementation((_token, method, path, body) => {
-      if (path === "office_notes" && method === "POST") { savedNote = body; return Promise.resolve({ ok: true }); }
-      if (path.startsWith("office_notes?")) return Promise.resolve({ ok: true, data: savedNote ? [savedNote] : [] });
-      if (path.startsWith("manager_tasks?id=eq")) return Promise.resolve({ ok: true, data: [updated] });
-      if (path.startsWith("manager_tasks")) return Promise.resolve({ ok: true, data: [updated] });
-      if (path === "rpc/log_manager_change") return Promise.resolve({ ok: true });
+      if (path === "office_notes" && method === "POST") {
+        savedNote = body;
+        return Promise.resolve({ ok: true });
+      }
+      if (path.startsWith("office_notes?"))
+        return Promise.resolve({
+          ok: true,
+          data: savedNote ? [savedNote] : [],
+        });
+      if (path.startsWith("manager_tasks?") && method === "PATCH") {
+        if (scenario === "concurrent")
+          return Promise.resolve({ ok: true, data: [] });
+        wroteTask = true;
+        task = { ...task, ...body };
+        return Promise.resolve({ ok: true, data: [task] });
+      }
+      if (path.startsWith("manager_tasks?"))
+        return Promise.resolve({
+          ok: scenario !== "readback" || !wroteTask,
+          data: [task],
+        });
       return Promise.resolve({ ok: true, data: [] });
     });
-    const deps = mockDeps({ rest });
-    const result = await verifyManagerTaskWith(deps, { accessToken: "token", taskId: "t1", result: "Done", evidence: "Test passed" });
-    expect(result).toEqual(updated);
-    expect(rest).toHaveBeenCalledWith("token", "PATCH", "manager_tasks?id=eq.t1", expect.objectContaining({ status: "done" }));
+    const result = await verifyManagerTaskWith(mockDeps({ rest }), {
+      accessToken: "token",
+      taskId: "t1",
+      result: "Done",
+      evidence: "Test passed",
+    });
+    if (scenario === "success") {
+      expect(result).toMatchObject({ status: "done", result: "Done" });
+      expect(task.evidence).toContain("Original build receipt");
+      expect(task.evidence).toContain("Test passed");
+      expect(task.evidence).toContain("Brain handoff:");
+      expect(rest).toHaveBeenCalledWith(
+        "token",
+        "PATCH",
+        expect.stringContaining(
+          "&updated_at=eq.2026-10-27T00%3A00%3A00Z&status=eq.in_progress",
+        ),
+        expect.objectContaining({ status: "done" }),
+      );
+      expect(
+        rest.mock.calls.some((c) => c[2] === "rpc/log_manager_change"),
+      ).toBe(true);
+    } else {
+      expect(result).toMatchObject({ ok: false });
+      expect(
+        rest.mock.calls.some(
+          (c) => c[1] === "PATCH" && c[2].startsWith("manager_assignments"),
+        ),
+      ).toBe(false);
+      if (["overflow", "cancelled", "done"].includes(scenario))
+        expect(wroteTask).toBe(false);
+    }
   });
+
 });
 
 describe("approval box", () => {
