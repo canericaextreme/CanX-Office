@@ -2,6 +2,87 @@
   "version": 1,
   "entries": [
     {
+      "id": "2026-10-27-codex-research-pdf-draft",
+      "at": "2026-10-27T01:31:27Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Local draft adds selected Research PDF text to Elsie with physical page citations, five-page/24000-character answer bounds and an 8 MB extraction limit. Existing original-file paths, access rules and records are unchanged. No publication or production calls.",
+      "evidence": "Seven focused test files passed (120 tests), including synthetic multi-page PDF parsing and file/manager regressions. TypeScript and new-module ESLint passed. Details and device acceptance limits: docs/research-pdf-reading.md. Signed-in phone/laptop and voice acceptance remain unverified."
+    },
+    {
+      "id": "2026-10-27-codex-research-opening-repair",
+      "at": "2026-10-27T19:15:00Z",
+      "actor": "Codex",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Candidate repair adds same-tab original-file opening beside embedded previews, explicit signed-out and preview retry states, same-tab saved web/email links and phone-stacked file controls. Reported phone failure is not reproduced in the signed-out test browser; user records are intact. No owner access or provider settings changed.",
+      "evidence": "12 focused component tests, typecheck and production build passed. Full regression and release gates pending. Native phone acceptance remains unverified."
+    },
+    {
+      "id": "2026-10-28-elsie-reliability-audit-local",
+      "at": "2026-10-28T00:26:54.788124Z",
+      "actor": "ChatGPT",
+      "kind": "observation",
+      "audience": "office-status",
+      "summary": "Unreleased Elsie reliability candidate: preserve waiting/partial reconnect context, isolate stale voice failures, retain and verify task-completion evidence, and shorten repeated instructions. Brain originals, credentials, budgets and permissions preserved. No merge or live publication.",
+      "evidence": "Before: 221 files / 2173 tests. After functional repairs: 221 files / 2183 tests, typecheck/build and five Node test files pass. Desktop and two phone-orientation Chromium rendering checks pass without owner access. Repository lint fails. Real microphone, signed-in Brain/rooms, live delegation/completion and physical-phone acceptance remain unverified. Details: docs/elsie-reliability-audit-20261027.md."
+    },
+    {
+      "id": "elsie-reliability-audit-github-save-e9855a5",
+      "at": "2026-10-28T00:35:31.202121Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "After explicit owner authorization, saved Elsie audit candidate to its GitHub review branch. Not merged, published or signed-in acceptance tested.",
+      "evidence": "git push succeeded for codex/elsie-reliability-audit-20261027. Independent git ls-remote confirmed e9855a51ccd86f10961bf1f6f49040d443d10b38. Existing lint and live voice/Brain/room/delegation/physical-phone acceptance blockers remain."
+    },
+    {
+      "id": "elsie-reliability-private-test-prerequisite-20261028",
+      "at": "2026-10-28T00:45:32.307529Z",
+      "actor": "ChatGPT",
+      "kind": "observation",
+      "audience": "office-status",
+      "summary": "Elsie candidate rechecked before private testing: full suite/typecheck/build pass; reconnect module and tests now lint clean. Awaiting an owner-accessible private deployment, not a production release.",
+      "evidence": "221 files / 2183 tests passed. Reconnect ESLint: zero errors/warnings. Formatting-only cleanup verified to preserve executable syntax. Existing whole-repository lint failures and real signed-in/voice/physical-phone acceptance remain unresolved. This session has no Lovable preview management or owner session."
+    },
+    {
+      "id": "elsie-systems-inventory-context-20261028",
+      "at": "2026-10-28T01:50:15.937416Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared private-preview Systems context repair after owner heard Elsie speak but could not obtain per-connection statuses. Snapshot now includes all nine configured Office inventory entries; live health remains unverified. No connection, provider or permission change.",
+      "evidence": "Regression failed before repair. 221 files / 2184 tests, typecheck and production build passed. Added instruction against unsupported generic connector checks. Owner refresh/new-voice-session acceptance remains pending; no merge or publication."
+    },
+    {
+      "id": "elsie-inventory-topic-routing-20261028",
+      "at": "2026-10-28T02:05:06.344965Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared read-only inventory-topic routing fix after owner preview reply referenced Reception and omitted Systems. Explicit connection inventory/stage/status/label questions now read Systems when no other room was named. Current room remains a separate source.",
+      "evidence": "Before-fix routing regression failed. Typed and voice integration tests verify actual provider payload includes the nine configured inventory entries and limitations from Reception. Full suite 221 files / 2186 tests passed; typecheck/build passed. Preview voice acceptance pending; not merged or published."
+    },
+    {
+      "id": "elsie-brain-navigation-voice-parity-20261028",
+      "at": "2026-10-28T02:18:17.457948Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Prepared Brain opening and voice-result consistency candidate after owner reported unrelated written recall, different spoken wording and an unconfirmed opening claim. Added confirmed navigation before compound saved-record questions and canonical reading of direct-tool results; no Brain record or provider/permission changes.",
+      "evidence": "Navigation parsing and unrestricted direct-tool speech regressions failed before repair. 221 files / 2188 tests passed; typecheck/build passed. Superseded direct-tool response test passes without stale speech. Owner signed-in preview acceptance and repository-wide lint remain unresolved; not merged or published."
+    },
+    {
+      "id": "2026-10-31-elsie-relay-integration",
+      "at": "2026-10-31T23:47:00Z",
+      "actor": "ChatGPT",
+      "kind": "action",
+      "audience": "office-status",
+      "summary": "Integrated the existing colleague-relay capacity repair against current main. Prior task replies are preserved, available space is computed before a paid call, and failures name the exact step. Confirmed claim content and database-returned version; complete receipts cannot overrun task limits. Release pending.",
+      "evidence": "2,311 tests in 226 files, typecheck and production build passed locally. Existing save RPC array/CAS contract inspected. No schema, credentials, budgets, providers or voice settings changed; actual live relay and phone acceptance unverified."
+    },
+    {
       "id": "2026-10-24-elsie-phone-composer",
       "at": "2026-10-24T14:20:00Z",
       "actor": "ChatGPT",
