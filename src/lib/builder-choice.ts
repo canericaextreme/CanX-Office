@@ -77,7 +77,7 @@ export const requestAsksToQueue = (request: string): boolean =>
 /** Treat clear handoffs as actions, without overriding explicit stop conditions. */
 export const requestIsDiscussionOnly = (request: string): boolean => {
   const text = request.trim();
-  const explicitStop = /\b(?:do not|don't|don’t|never|must not|no)\s+(?:prepare|draft|put together|work on|broaden|pass|assign|queue|hand off|build|start|send|submit|execute|run|act|create|save|make changes)\b|\b(?:not yet|read[ -]?only|hypothetical(?:ly)?|for example|just (?:asking|checking|discussing|planning))\b|\bput (?:it |that |this |them |everything |the [\w'’ -]{1,30}?)?on (?:pause|hold)\b|\b(?:hold off|pause (?:it|that|this))\b|^(?:okay,?\s+)?(?:stop|wait|pause)\b/i;
+  const explicitStop = /\b(?:do not|don't|don’t|never|must not|no)\s+(?:prepare|draft|put together|work on|broaden|pass|assign|queue|hand off|build|start|send|submit|execute|run|act|create|save|make changes)\b|\b(?:not yet|read[ -]?only|hypothetical(?:ly)?|for example|just (?:asking|checking|discussing|planning))\b|\bput (?:it |that |this |them |everything |the [\w'’ -]{1,30}?)?on (?:pause|hold)\b|\b(?:hold off|pause (?:it|that|this))\b|^(?:okay,?\s+)?stop\b|(?:^|[,;.:]\s*|\bbut\s+|\band\s+)(?:okay,?\s+)?(?:wait|pause)\b(?!\s+(?:button|time|timer|screen|icon|label))/i;
   if (explicitStop.test(text) || /^no[,:]\s*(?:please\s+)?(?:prepare|draft|put together|work on|broaden|pass|send|assign|queue)\b/i.test(text)) return true;
   if (EXPLICIT_HANDOFF.test(text) && !/\b(?:what if|suppose|imagine|how (?:would|could|to)|should (?:we|I)|just discuss(?:ing)?|discuss whether)\b/i.test(text)) return false;
   return DISCUSSION.test(text);

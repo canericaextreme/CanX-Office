@@ -46,3 +46,14 @@ describe("John's broader Elsie intake", () => {
     expect(directBuildRefusal(words, "codex")).toBeNull();
   });
 });
+
+describe('pause and wait only stop at the start of a clause (1 Nov 2026)', () => {
+  it('still builds screen changes that mention a pause button or wait time', () => {
+    expect(requestIsDiscussionOnly('Add a pause button to the voice panel')).toBe(false);
+    expect(requestIsDiscussionOnly('Show the wait time on the Work Board')).toBe(false);
+  });
+  it('stops on a spoken wait or pause', () => {
+    expect(requestIsDiscussionOnly('Wait, don\'t do that')).toBe(true);
+    expect(requestIsDiscussionOnly('Prepare the task; pause everything')).toBe(true);
+  });
+});
