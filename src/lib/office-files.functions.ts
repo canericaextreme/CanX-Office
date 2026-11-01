@@ -25,12 +25,9 @@ export const finishOfficeUpload = createServerFn({method:'POST'}).inputValidator
  return confirmOriginalUpload(db, owner.userId, data);
 });
 export const listOfficeFiles = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string;room?:string})=>({accessToken:token(v.accessToken),room:v.room})).handler(async({data})=>{
- const {db} = await client(data.accessToken,data.room,true); let query = db.from('office_files').select('*').order('created_at',{ascending:false}).limit(200);
- if(data.room && data.room!=='brain') query=query.eq('room',data.room);
- const {data: rows,error}=await query; if(error) throw new Error('Saved files could not be loaded.'); let linksQuery=db.from('office_links').select('*').order('created_at',{ascending:false}).limit(200);
- if(data.room && data.room!=='brain') linksQuery=linksQuery.eq('room',data.room);
- const {data:links,error:linkError}=await linksQuery; if(linkError) throw new Error('Saved links could not be loaded.');
- return [...(rows??[]),...(links??[]).map(link=>({...link,filename:link.title,source_url:link.url,size_bytes:0,object_path:'',content_hash:'',mime_type:'text/uri-list'}))].sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,200) as OfficeFile[];
+ const {db} = await client(data.accessToken,data.room,true);
+ const {readOfficeFileList} = await import('./office-files-list.server');
+ return readOfficeFileList(db,data.room);
 });
 export const openOfficeFile = createServerFn({method:'POST'}).inputValidator((v:{accessToken:string;id:string;download?:boolean})=>({accessToken:token(v.accessToken),id:v.id,download:v.download===true})).handler(async({data})=>{
  const {db}=await client(data.accessToken); const {data:row,error}=await db.from('office_files').select('object_path,room,filename').eq('id',data.id).single();

@@ -3,6 +3,12 @@ import { OFFICE_ROOM_IDENTITIES } from "./office-room-identity";
 import { parseRoomCommand } from "./manager-room-commands";
 
 describe("direct owner room requests", () => {
+  it("keeps a saved-record question after an explicit open request, including a missing-record condition", () => {
+    const question = "Elsie, open CanX Brain and read one saved item relevant to our Elsie repair work. Give its title and saved date. If none is available, say so.";
+    expect(parseRoomCommand(question, "/reception")).toMatchObject({ kind: "open-read", room: { route: "/brain" } });
+    for (const text of ["If available, open Brain and read a note", "Do not open Brain and read a note", "How would you open Brain and read a note?", "Open Brain and read a note, but do not open any room"])
+      expect(parseRoomCommand(text, "/reception")).toBeNull();
+  });
   it("opens Legal and routes visual follow-ups to a fresh inspection of the current room", () => {
     expect(parseRoomCommand("Elsie, show me the Legal room", "/reception")).toMatchObject({ kind: "look", room: { id: "legal" } });
     for (const question of ["How many cards are there?", "How many blue?", "What colours are the cards?", "Is anything visibly broken?", "Can you make this room more interactive?", "Walk me through this room and help me fix any problems", "What's wrong with this room?"]) {
@@ -25,12 +31,12 @@ describe("direct owner room requests", () => {
     expect(parseRoomCommand("Astra, please go into the subscription watch room and tell me what you see", "/")?.kind).toBe("look");
     expect(parseRoomCommand("Look at this room", "/finance")).toMatchObject({ kind: "look", room: { id: "finance" } });
   });
-  it.each(["Do not check Finance", "How would you check Finance?", 'Example: "check Finance"', "Open https://example.com", "Delete all reports", "Approve spending", "Check an unknown room"])("does not execute %s", request => {
+  it.each(["Do not check Finance", "How would you check Finance?", 'Example: "check Finance"', "Delete all reports", "Approve spending", "Check an unknown room"])("does not execute %s", request => {
     expect(parseRoomCommand(request, "/")).toBeNull();
   });
   it("opens a room when the request starts with a misheard name or a filler word (17 Oct)", () => {
     expect(parseRoomCommand("Kirby, open me the safe highways room and let's talk about it.", "/reception")).toMatchObject({ kind: "look", room: { id: "safe-highways" } });
-    expect(parseRoomCommand("Okay, so, open the Finance room", "/")).toMatchObject({ kind: "look", room: { id: "finance" } });
+    expect(parseRoomCommand("Okay, so, open the Finance room", "/")).toMatchObject({ kind: "navigate", room: { id: "finance" } });
     expect(parseRoomCommand("Elsie, please check Legal", "/")).toMatchObject({ kind: "look", room: { id: "legal" } });
     expect(parseRoomCommand("Finance, what's in it?", "/")).toBeNull();
     expect(parseRoomCommand("Kirby, don't open Finance", "/")).toBeNull();

@@ -15,7 +15,7 @@ import { useManagerMemory } from "@/lib/use-manager-memory";
 export function ApprovalAlert() {
   const { memory, refresh } = useManagerMemory();
   const location = useLocation();
-  const [dismissedCount, setDismissedCount] = useState<number | null>(null);
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
   useEffect(() => {
     const onChanged = () => refresh();
@@ -23,10 +23,15 @@ export function ApprovalAlert() {
     return () => window.removeEventListener("canx:workbench-changed", onChanged);
   }, [refresh]);
 
-  const pending = (memory?.approvals ?? []).filter((a) => a.status === "pending").length;
+  const requests = (memory?.approvals ?? []).filter((a) => a.status === "pending");
+  const pending = requests.length;
+  const pendingKey = requests
+    .map((item) => item.id)
+    .sort()
+    .join(",");
 
   if (pending === 0) return null;
-  if (dismissedCount === pending) return null;
+  if (dismissedKey === pendingKey) return null;
   if (location.pathname.startsWith("/approvals")) return null;
 
   return (
@@ -39,15 +44,17 @@ export function ApprovalAlert() {
       <span className="truncate text-sm text-foreground">
         {pending === 1 ? "1 item needs your approval" : `${pending} items need your approval`}
       </span>
-      <Button asChild size="sm" variant="outline" className="h-8">
-        <Link to="/approvals">Review</Link>
+      <Button asChild size="sm" variant="outline" className="min-h-11">
+        <Link to="/approvals" hash={requests[0] ? `approval-${requests[0].id}` : ""}>
+          Open review
+        </Link>
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-11 w-11 shrink-0"
         aria-label="Hide the approval notice"
-        onClick={() => setDismissedCount(pending)}
+        onClick={() => setDismissedKey(pendingKey)}
       >
         <X className="h-4 w-4" />
       </Button>

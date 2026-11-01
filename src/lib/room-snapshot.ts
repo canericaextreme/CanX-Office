@@ -282,8 +282,10 @@ export function unknownRoomSkillIds(): string[] {
 export function roomReplyNote(sentRoute: string, nowRoute: string, refs: SnapshotRef[] | undefined, view: SnapshotRef | null): string {
   const notes: string[] = [];
   const sentTarget = roomTargetForRoute(sentRoute);
-  if (sentTarget && sentRoute !== nowRoute) notes.push(`This answer is about ${sentTarget.label}; you have since moved to another page.`);
-  const current = refs?.find((r) => r.route === sentRoute);
+  if (sentTarget && sentTarget.route !== roomTargetForRoute(nowRoute)?.route) notes.push(`This answer is about ${sentTarget.label}; you have since moved to another page.`);
+  // The home page "/" is Reception: compare the room, not the raw path (30 Oct:
+  // 48 of 200 saved answers wrongly said Reception could not be read).
+  const current = sentTarget ? refs?.find((r) => r.route === sentTarget.route) : undefined;
   if (sentTarget && !current) notes.push(`${sentTarget.label} could not be read fresh for this answer.`);
   if (current) {
     const state = reconcile(view, current);

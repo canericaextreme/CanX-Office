@@ -14,6 +14,8 @@ export type Colleague = "chatgpt" | "claude";
 export const PING_ESTIMATED_CENTS = 1;
 export const PING_TIMEOUT_MS = 20_000;
 export const PING_MAX_TOKENS = 60;
+/** OpenAI reasoning models spend output tokens on thinking first; 60 cut the reply off after the code (24 Oct 2026). */
+export const OPENAI_PING_MAX_OUTPUT_TOKENS = 400;
 
 export interface PingDeps {
   fetchImpl: typeof fetch;
@@ -59,7 +61,7 @@ export async function pingColleague(deps: PingDeps, c: Colleague, code: string, 
         : { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify(claude
         ? { model, max_tokens: PING_MAX_TOKENS, messages: [{ role: "user", content: prompt }] }
-        : { model, store: false, input: [{ role: "user", content: prompt }], max_output_tokens: PING_MAX_TOKENS }),
+        : { model, store: false, input: [{ role: "user", content: prompt }], max_output_tokens: OPENAI_PING_MAX_OUTPUT_TOKENS }),
     });
     const ms = now() - started;
     if (!res.ok) {
@@ -77,7 +79,10 @@ export async function pingColleague(deps: PingDeps, c: Colleague, code: string, 
     ok = check.code;
     return {
       ...base, sent: true, replied: true, ms, responseId, verified: check.code && check.shared,
-      failure: !check.code ? "reply arrived but did not carry the one-time code" : !check.shared ? "reply arrived but did not quote the shared task title" : null,
+      // A short quote of a failed reply makes the next diagnosis possible without another paid call.
+      failure: !check.code || !check.shared
+        ? `reply arrived but did not ${!check.code ? "carry the one-time code" : "quote the shared task title"}${!claude && p?.["status"] === "incomplete" ? " (reply was cut off)" : ""}; reply began: "${text.replace(/\s+/g, " ").trim().slice(0, 80)}"`
+        : null,
     };
   } catch {
     const ms = now() - started;

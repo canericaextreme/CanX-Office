@@ -43,6 +43,17 @@ describe("Elsie handoff reaches the builder gate", () => {
 // 21 Oct 2026: John's real spoken requests were saved as tasks but never built,
 // because the gate only accepted sentences that began with a command word.
 describe("John's spoken requests reach the builder gate", () => {
+  it.each(['Finish loop test PR230.', 'Finish this task.', 'Okay, continue the fix.', 'Resume the saved task.', 'Carry on with that job.', 'Keep working on the repair.', 'Continue working on the existing task.', 'Get the fix done.'])('accepts a clear saved-task continuation: %s', said => {
+    expect(taskExecutionRefusal(said)).toBeNull();
+    expect(directBuildRefusal(said, 'codex')).not.toBeNull();
+  });
+  it('accepts polite spoken build commands without a permissive any-clause search', () => {
+    expect(directBuildRefusal('Okay, Elsie, could you start a new Codex build to fix the Reception label?', 'codex')).toBeNull();
+    expect(directBuildRefusal('Elsie, I wonder whether we should start a new Codex build to fix the label.', 'codex')).not.toBeNull();
+  });
+  it.each(['Is the task finished?', 'We discussed continuing the fix.', 'Explain how to finish the task.', 'Finish the task, but do not send it yet.', 'Resume the saved task; read-only for now.', 'For example, finish loop test PR230.'])('keeps status, discussion and stop phrases inert: %s', said => {
+    expect(taskExecutionRefusal(said)).not.toBeNull();
+  });
   it("accepts a wish said after a spoken opener", () => {
     const said = "No, it's not done. I just opened up the Claude button and it's still a great big square with a whole bunch of useless stuff on it. I want the button just to open up the same as OpenChatGPT, and I want it to say work with Claude.";
     expect(directBuildRefusal(said, "claude")).toBeNull();
