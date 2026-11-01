@@ -44,3 +44,24 @@ describe("owner_approval: descriptive context vs requested approval", () => {
     expect(protectedCategoryOf("John approved this")).toBe("owner_approval");
   });
 });
+
+// 24 Oct 2026: build requests match whole words, and deleting a screen element is a screen edit.
+describe("protected build words match whole words", () => {
+  it("does not hold ordinary screen edits", () => {
+    for (const t of ["Separate the ChatGPT and Claude buttons", "Add a control panel card", "Make the dropdown wider", "Delete the Claude button at the top of the screen"]) {
+      expect(protectedBuildCategoryOf(t)).toBeNull();
+    }
+  });
+  it("still holds real protected work, with any ending", () => {
+    expect(protectedBuildCategoryOf("Delete the receipts table")).toBe("destructive");
+    expect(protectedBuildCategoryOf("Delete the Claude button and the backup file")).toBe("destructive");
+    expect(protectedBuildCategoryOf("Stop deleting things and wipe it")).toBe("destructive");
+    expect(protectedBuildCategoryOf("We dropped the table")).toBe("destructive");
+    expect(protectedBuildCategoryOf("Add a button to unsubscribe from the plan")).toBe("purchase");
+    expect(protectedBuildCategoryOf("Publish the office")).toBe("publish_deploy");
+    expect(protectedBuildCategoryOf("Change the user's role")).toBe("role_ownership");
+    expect(protectedBuildCategoryOf("Store the API key")).toBe("secrets_security");
+    expect(protectedBuildCategoryOf("Email the bank")).toBe("external_send");
+    expect(protectedBuildCategoryOf("Approving it now")).toBe("owner_approval");
+  });
+});

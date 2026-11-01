@@ -4,7 +4,7 @@
  * Codex stays the default when John has not named Claude.
  */
 import { classifyManagerRisk } from "./manager-work.functions";
-import { officeBuildProtectedCategory } from "./codex-task-handoff";
+import { officeBuildProtectedCategory, CHANGE_WORDS } from "./codex-task-handoff";
 import { isClaudeStatusCommand, isCodexStatusCommand } from "./codex-status-command";
 
 export type OfficeBuilder = "codex" | "claude";
@@ -19,7 +19,10 @@ const exclusive = (name: string) => new RegExp(String.raw`\b${name}[ -]only\b|\b
  * unless exactly one is marked "only" (e.g. "Codex only … Claude may review").
  */
 export function builderChoiceFor(request: string): BuilderChoice {
-  const builderWords = request.replace(/\b(?:ChatGPT and Claude|Claude and ChatGPT) (?:buttons|tabs|links)\b/gi, "colleague controls");
+  // "the Claude button", "ChatGPT and the Claude tabs" name a thing on the screen, not the builder.
+  const builderWords = request
+    .replace(/\b(?:ChatGPT and (?:the )?Claude|Claude and (?:the )?ChatGPT)\b/gi, "colleague")
+    .replace(/\b(?:the |a |that |this )?claude (?:buttons?|tabs?|links?|access|cards?|reviews?|panels?|icons?|chat|connection)\b/gi, "colleague control");
   const claude = /\bclaude\b/i.test(builderWords);
   const codex = /\bcodex\b/i.test(request);
   if (claude && codex) {
@@ -39,7 +42,7 @@ const DISCUSSION = /\b(for example|e\.g\.|example|hypothetical(?:ly)?|what if|su
 // 21 Oct: spoken requests ("Claude has to fix …", "You need to pass the task …",
 // "I want you to add …", "Go ahead and fix …") count like the bare command.
 const COMMAND_PREFIX = String.raw`^(?:please\s+)?(?:(?:only\s+)?(?:claude|codex|elsie)(?:[ -]only)?[,:]?\s+)?(?:(?:can|could|would) you\s+)?(?:(?:you|we)\s+)?(?:(?:(?:need|needs|have|has|got) to|gotta|must)\s+)?(?:i (?:want|need|would like|['’]d like) (?:you|claude|codex|elsie) to\s+)?(?:go ahead and\s+|let['’]?s\s+)?(?:please\s+)?`;
-const CHANGE = String.raw`(?:prepare|draft|put together|work on|broaden|separate|space|build|implement|code|fix|repair|apply|create|write|add|remove|hide|change|move|rename|replace|resize|recolou?r|make|put|update|organi[sz]e|reorgani[sz]e|arrange|rearrange|redesign|restyle|tidy)`;
+const CHANGE = String.raw`(?:prepare|draft|put together|work on|broaden|${CHANGE_WORDS})`;
 const BUILD_INTENT = new RegExp(`${COMMAND_PREFIX}${CHANGE}\\b|^(?:please\\s+)?(?:have|ask) (?:claude|codex|elsie) (?:to )?${CHANGE}\\b`, "i");
 // Explicit builder dispatch wording: "Start a new Codex build to repair ...".
 const DIRECT_START = new RegExp(`${COMMAND_PREFIX}(?:start|launch|submit|run|kick off)\\s+(?:a |the )?(?:new |fresh )?(?:(?:codex|claude)\\s+)?build\\s+to\\s+(?:build|implement|fix|repair|change|update|add|remove)\\b`, 'i');
@@ -50,17 +53,26 @@ const TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:prepare|draft|put together|w
 // to invent its scope or start another attempt. The executor still reads its
 // status, existing receipt, owner, risk and protected scope before dispatch.
 const FOLLOWUP_TASK_INTENT = new RegExp(`${COMMAND_PREFIX}(?:(?:finish|complete|continue|resume)(?: working on| work on)?|carry on(?: with)?|keep (?:working|going)(?: on| with)?)\\s+(?:the |this |that |my |our )?(?:saved |existing |current |waiting |unfinished )?(?:task|job|assignment|fix|repair|loop(?: test)?)\\b|${COMMAND_PREFIX}get\\s+(?:the |this |that )?(?:task|job|fix|repair|loop test)\\s+(?:done|finished|completed)\\b`, 'i');
+// Spoken "do it" after a task was just saved: "Put that into work", "Go ahead", "Proceed with it".
+const FOLLOW_UP = new RegExp(String.raw`${COMMAND_PREFIX}(?:(?:do|start|finish|build|implement|fix) (?:it|that|this|them)(?: now)?|go ahead|proceed|carry on|get (?:it|that|this) done|get (?:on|started on|going on) (?:it|that|this)|make (?:it|that) happen|put (?:it|that|this|them) (?:into|in|to) (?:work|action|motion|the build(?:er)?)|send (?:it|that|this) (?:through|off|over|to (?:the )?build(?:er)?)|implement the change)\b`, "i");
+// "Proceed with moving the Claude tab", "go ahead with the fix".
+// Continuing a saved task/job ("carry on with that job") stays a task command, never a new build.
+const PROCEED_WITH = /^(?:please\s+)?(?:proceed|go ahead|get started)\s+(?:with|on)\s+(?:the |this |that )?(?:\w+ing|change)\b/i;
 
 // What John wants the screen to do, said as a wish: "I want the button to say …",
 // "It should only say Work with Claude". Wishes to know or see status are not changes.
-const DESIRE = new RegExp(String.raw`^(?:i (?:want|need|would like|['’]d like)|we need) (?:the|it|this|that|my|our|its|every|each|all|elsie['’]s)\b(?!.*\b(?:status|summary|report|news|overview|progress|update on)\b)|^(?:it|the [\w'’ -]{1,40}?) (?:should|needs to|has to|must) (?:only |just )?(?:say|read|show|open|look|match|display)\b`, "i");
+const DESIRE = new RegExp(String.raw`^(?:i (?:want|need|would like|['’]d like)|we need) (?:the|it|this|that|them|my|our|its|every|each|all|elsie['’]s)\b(?!.*\b(?:status|summary|report|news|overview|progress|update on)\b)|^(?:it|the [\w'’ -]{1,40}?) (?:should|needs to|has to|must) (?:only |just )?(?:say|read|show|open|look|match|display|sit|go|be)\b|^(?:they|it|these|those|both(?: of them)?|the [\w'’ -]{1,40}?) (?:need|needs|has|have) to be (?:\w+ed|\w+en|apart|separate|side by side|bigger|smaller|wider|narrower|higher|lower|shorter|taller|closer|further apart)\b|^(?:they|it|these|those|both(?: of them)?|the [\w'’ -]{1,40}?) (?:should|must) be (?:\w+ed|apart|separate|side by side|bigger|smaller|wider|narrower|higher|lower|closer|further apart)\b`, "i");
 // Spoken openers before the real instruction: "Okay,", "Yeah,", "No, it's not done."
 const OPENER = /^(?:(?:ok(?:ay)?|yeah|yes|yep|no|nope|so|alright|all right|right|well|um+|uh+|hey|and|but|now|then|also|just)\b[,.!]?\s+)+/i;
 const sentences = (text: string): string[] =>
   text.trim().split(/(?<=[.!?;])\s+/).map(part => part.replace(OPENER, "").trim()).filter(Boolean);
+// Spoken requests often put the order after a comma: "the buttons are overlapped, just separate them".
+const clauses = (text: string): string[] =>
+  sentences(text).flatMap(part => [part, ...part.split(/,\s+/).slice(1).map(c => c.replace(OPENER, "").trim())]).filter(Boolean);
 /** Any sentence of John's request is a direct change instruction or a clear wish for one. */
-const hasBuildIntent = (text: string): boolean => sentences(text).some(part => BUILD_INTENT.test(part) || DESIRE.test(part));
-const hasTaskIntent = (text: string): boolean => sentences(text).some(part => TASK_INTENT.test(part) || FOLLOWUP_TASK_INTENT.test(part));
+const hasBuildIntent = (text: string): boolean => clauses(text).some(part => BUILD_INTENT.test(part) || DESIRE.test(part) || PROCEED_WITH.test(part));
+/** Carrying out a saved task: a run/pass/resume command, a spoken "do it", or John saying the change itself again. */
+const hasTaskIntent = (text: string): boolean => hasBuildIntent(text) || clauses(text).some(part => TASK_INTENT.test(part) || FOLLOWUP_TASK_INTENT.test(part) || FOLLOW_UP.test(part));
 
 const EXPLICIT_HANDOFF = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:this |the |my )?(?:task|job|assignment|request)?\s*(?:to\s+(?:elsie|claude|codex)\b|for\s+(?:elsie|claude|codex)\b)/i;
 const HANDOFF_PREFIX = /^(?:please\s+)?(?:elsie[,:]?\s+)?(?:pass|send|hand off|hand over|assign|queue)\s+(?:it |this |the |my )?(?:task |job |assignment |request )?(?:to|for)\s+(?:the\s+)?(?:builder|elsie|claude|codex)(?:\s+(?:next|after (?:the|its) current (?:build|job|task)))?\s*[:,\-–—]\s*/i;
@@ -106,7 +118,7 @@ export function taskIntakeKind(request: string): "discussion" | "owner-decision"
 /** Current owner intent is checked on every build entry point, not model scope. */
 export function taskExecutionRefusal(request: string): string | null {
   if (requestIsDiscussionOnly(request)) return "That reads as discussion or a read-only request, so no task was executed.";
-  return (hasTaskIntent(request) || (EXPLICIT_HANDOFF.test(request.trim()) && /\b(?:task|job|assignment)\b|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i.test(request))) ? null : "No explicit request to execute a saved task was received; nothing was sent.";
+  return (hasTaskIntent(request) || (EXPLICIT_HANDOFF.test(request.trim()) && /\b(?:task|job|assignment)\b|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i.test(request))) ? null : "I didn't hear a change to make in that, so I didn't send anything to the builder. Tell me the change, like \"move the Claude button down a bit\", or say \"do it\" for the job I just saved.";
 }
 
 /**
@@ -124,7 +136,7 @@ export function directBuildRefusal(request: string, builder: OfficeBuilder): str
   if (requestIsDiscussionOnly(request)) return "That reads as discussion or an example, so no build was started.";
   if (taskIntakeKind(request) === "owner-decision") return "This request requires the existing owner decision check; no build was started.";
   if (taskIntakeKind(request) === "preparation") return "This is preparation for Elsie, not an Office code build; use the existing task intake.";
-  if (!hasBuildIntent(text) && !isDirectBuildCommand(text)) return "No explicit Office code change was requested, so no build was started.";
+  if (!hasBuildIntent(text) && !isDirectBuildCommand(text)) return "I couldn't tell what to change on the screen, so I didn't start a build. Tell me the change, like \"move the Claude button down a bit\".";
   if (classifyManagerRisk(`start_${builder}_build`, request) !== "green") return "This request is not green-light work, so no build was started.";
   const protectedCategory = officeBuildProtectedCategory(stripBuilderHandoffPrefix(request));
   if (protectedCategory) return `This request includes a protected action (${protectedCategory}), so no build was started.`;

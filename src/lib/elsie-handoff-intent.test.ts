@@ -75,3 +75,35 @@ describe("John's spoken requests reach the builder gate", () => {
     expect(taskExecutionRefusal("Just wondering what's still going on in the office.")).not.toBeNull();
   });
 });
+
+// 24 Oct 2026, John's own words from 21 Oct that Elsie refused ("No explicit request…").
+describe("John's 21 Oct button requests reach a builder", () => {
+  const said = [
+    "Okay, separate the ChatGPT and the Claude buttons by a quarter inch.",
+    "Yeah, just the ChatGPT and Claude buttons are overlapped, just separate them by a quarter inch.",
+    "You already told me that. No explicit. It was explicit. On the mobile app, Office view, the ChatGPT and the cloud buttons are overlapped. Separate them so they both have their own tab.",
+    "They need to be separated. They're overlapped. ChatGPT and Claude buttons are overlapped.",
+    "Proceed with moving the Claude access to the bottom tab as described, and implement the change now.",
+  ];
+  it("accepts each as a build and as carrying out the saved task", () => {
+    for (const request of said) {
+      expect(directBuildRefusal(request, "codex")).toBeNull();
+      expect(taskExecutionRefusal(request)).toBeNull();
+    }
+  });
+  it("hears a spoken 'do it' for the job just saved", () => {
+    for (const request of ["What do you mean no spread? I did say separate the tabs, ChatGPT and Claude. Put that into work.", "Go ahead.", "Okay, do it now.", "Get it done.", "Proceed with it."]) {
+      expect(taskExecutionRefusal(request)).toBeNull();
+    }
+  });
+  it("still refuses talk, stops and observations", () => {
+    expect(taskExecutionRefusal("They're overlapping right now.")).not.toBeNull();
+    expect(taskExecutionRefusal("Don't do it yet.")).not.toBeNull();
+    expect(taskExecutionRefusal("Explain to me like I'm 10, why do you keep saying no explicit?")).not.toBeNull();
+    expect(directBuildRefusal("I want the status of the Work Board", "codex")).not.toBeNull();
+  });
+  it("explains a refusal in plain words", () => {
+    expect(taskExecutionRefusal("They're overlapping right now.")).toMatch(/^I didn't hear a change to make/);
+    expect(taskExecutionRefusal("They're overlapping right now.")).not.toMatch(/explicit/i);
+  });
+});
