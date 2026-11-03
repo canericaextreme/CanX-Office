@@ -1,5 +1,5 @@
 // Merge robot gate tests (issue #142): green routine -> merge, failed check -> blocked,
-// risky -> John, no independent review -> wait. Run: node --test scripts/automerge/*.nodetest.mjs
+// risky -> John, missing optional review does not block a green low-risk change. Run: node --test scripts/automerge/*.nodetest.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, classifyFiles, builderVendor, reviewState, REVIEW_CONTEXT } from './policy.mjs';
@@ -16,7 +16,7 @@ const robot = { login: 'github-actions[bot]', type: 'Bot' };
 const approvedBy = (vendor, creator = robot) => [{ context: REVIEW_CONTEXT, state: 'success', description: `${vendor}:model approve - fine`, creator }];
 const facts = (over = {}) => ({ pr: pr(), files: [file('src/components/office/Desk.tsx')], checkRuns: green, statuses: approvedBy('openai'), reviews: [], ...over });
 
-test('green routine change reviewed by the other company merges', () => {
+test('green routine change merges with optional independent review', () => {
   assert.equal(decide(facts()).action, 'merge');
 });
 
@@ -76,13 +76,21 @@ test('an unknown builder goes to John', () => {
   assert.equal(decide(facts({ pr: pr({ head: { ref: 'feature/x', sha: 'a' } }) })).state, 'owner-review');
 });
 
-test('review must come from the other AI company and match this commit', () => {
-  assert.equal(decide(facts({ statuses: [] })).action, 'review');
-  assert.equal(decide(facts({ statuses: approvedBy('anthropic') })).state, 'waiting-review');
-  assert.equal(decide(facts({ statuses: [{ context: REVIEW_CONTEXT, state: 'success', description: 'looks fine', creator: robot }] })).state, 'waiting-review');
+test('independent AI review is optional for eligible routine changes; explicit requested changes still block', () => {
+  assert.equal(decide(facts({ statuses: [] })).action, 'merge');
+  assert.equal(decide(facts({ statuses: approvedBy('anthropic') })).action, 'merge');
+  assert.equal(decide(facts({ statuses: [{ context: REVIEW_CONTEXT, state: 'success', description: 'looks fine', creator: robot }] })).action, 'merge');
   assert.equal(decide(facts({ statuses: [{ context: REVIEW_CONTEXT, state: 'failure', description: 'openai:m changes - bug' }] })).state, 'blocked');
   const codex = facts({ pr: pr({ head: { ref: 'codex/office-12', sha: 'b' } }), statuses: approvedBy('anthropic') });
   assert.equal(decide(codex).action, 'merge');
+});
+
+test('skipped or neutral required CI cannot authorize merge', () => {
+  for (const conclusion of ['skipped', 'neutral']) {
+    const d = decide(facts({ checkRuns: [{ name: 'pr-checks', status: 'completed', conclusion }] }));
+    assert.equal(d.state, 'blocked', conclusion);
+    assert.notEqual(d.action, 'merge');
+  }
 });
 
 test('builder identity', () => {
