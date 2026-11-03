@@ -1,63 +1,63 @@
 {
   "version": 1,
   "title": "Connect the Office",
-  "reviewedAt": "2026-10-08T20:02:34.340720+00:00",
+  "reviewedAt": "2026-11-03T22:00:00+00:00",
   "source": "Versioned setup checklist; dated evidence, not a live health check",
-  "nextStep": "Publish and verify the full working connector, then approve ChatGPT and test a saved-record read, write and build status before repeating for Claude and Elsie.",
+  "nextStep": "Test renewal and revoked-access checks for each assistant, then confirm Elsie can read this checklist when John asks her.",
   "steps": [
     {
       "id": "installation",
       "label": "Custom connector installation option",
       "status": "verified",
-      "evidence": "Owner created the ChatGPT plugin and reached the Office approval screen."
+      "evidence": "Owner created the ChatGPT plugin and reached the Office approval screen (8 Oct 2026)."
     },
     {
       "id": "authorization",
       "label": "Renewable Office authorization",
-      "status": "pending",
-      "evidence": "OAuth is enabled. The browser consent screen has been reached in a real ChatGPT attempt. No approved external client has yet been saved."
+      "status": "verified",
+      "evidence": "Approved external clients are saved: ChatGPT and Claude both read and write Office records through their own working grants (ChatGPT 21 Oct 2026, Claude 3 Nov 2026)."
     },
     {
       "id": "chatgpt",
       "label": "Connect and test ChatGPT",
-      "status": "pending",
-      "evidence": "No authenticated saved-record read or renewal test has passed."
+      "status": "verified",
+      "evidence": "ChatGPT read and wrote saved records on 21 Oct 2026 and saved its own Brain handoff with readback on 31 Oct 2026."
     },
     {
       "id": "claude",
       "label": "Connect and test external Claude",
-      "status": "pending",
-      "evidence": "This client needs its own authorization and acceptance tests."
+      "status": "verified",
+      "evidence": "Claude read saved records, room information and room pictures on 3 Nov 2026, and saves Brain notes that it reads back."
     },
     {
       "id": "elsie",
       "label": "Elsie reads the shared checklist",
       "status": "pending",
-      "evidence": "The shared read-only checklist tool is installed in source. Signed-in use has not been verified."
+      "evidence": "Elsie reads Office records and room information in signed-in conversations. Reading this checklist on request has not been tested yet."
     },
     {
       "id": "brain",
       "label": "Shared Brain, files and skills for all three assistants",
-      "status": "pending",
-      "evidence": "Working tools for private owner records, Brain notes and memory, knowledge content, saved files, canonical skills and version-checked edits are implemented and pass isolated tests. Native acceptance is pending."
+      "status": "verified",
+      "evidence": "Claude and ChatGPT both save and read back Brain handoff notes (ChatGPT 31 Oct 2026, Claude 3 Nov 2026). Elsie reads the same notes and her own saved memory."
     },
     {
       "id": "building",
       "label": "Verify build permissions separately",
-      "status": "pending",
-      "evidence": "Working connector exposes the existing Office builders with current-request selection, configured spending controls and duplicate-request protection. Native build status and submission acceptance are pending."
+      "status": "verified",
+      "evidence": "Both Office builders ran with spending controls: Codex build 48 and Claude build 25 passed (checked 3 Nov 2026). A passing build is a draft until it is reviewed and merged."
     },
     {
       "id": "mailboxes",
       "label": "Verify mailbox permissions separately",
-      "status": "pending",
-      "evidence": "An Office connection does not establish mailbox authorization."
+      "status": "verified",
+      "evidence": "The daily email sweep read both mailboxes and filed sources on 3 Nov 2026."
     },
     {
       "id": "acceptance",
       "label": "Verify records, renewal and revocation",
       "status": "pending",
-      "evidence": "Each external client must pass saved-record, renewal, signed-out and revoked-access checks."
+      "evidence": "Saved-record reads pass for ChatGPT and Claude. Renewal, signed-out and revoked-access checks have not been run for either assistant."
     }
   ],
   "goal": "Persistent Office working access for ChatGPT and Claude: private owner records, shared Brain, files, skills, setup changes and app builds. Elsie coordinates the same records and handoffs. Do not reduce this to a status/checklist connection."

@@ -24,3 +24,16 @@ it("other rooms render the same list without Brain-only Delete", () => {
   expect(html).toContain("sample-site-plan.pdf");
   expect(html).not.toContain("Delete sample-site-plan.pdf");
 });
+it("a room with many saved links shows the newest few and folds the rest behind Show all", () => {
+  const many: OfficeFile[] = Array.from({ length: 32 }, (_, i) => ({ ...files[1]!, id: `l${i}`, filename: `Email link ${i}`, room: "work-board" }));
+  const html = renderToString(React.createElement(SavedFileList, { files: many, room: "work-board", sessionKey: "o:aal2:true", accessToken: "fixture-token", disabled: false, onOpen: () => {}, onDelete: () => {}, preview: 5 }));
+  expect(html).toContain("Email link 4");
+  expect(html).not.toContain("Email link 5<");
+  expect(html).toContain("Show all <!-- -->32<!-- --> saved files and links (<!-- -->27<!-- --> more)");
+});
+it("a short list shows every entry with no Show all button", () => {
+  const six: OfficeFile[] = Array.from({ length: 6 }, (_, i) => ({ ...files[1]!, id: `s${i}`, filename: `Short ${i}` }));
+  const html = renderToString(React.createElement(SavedFileList, { files: six, room: "finance", sessionKey: "o:aal2:true", accessToken: "fixture-token", disabled: false, onOpen: () => {}, onDelete: () => {}, preview: 5 }));
+  expect(html).toContain("Short 5");
+  expect(html).not.toContain("Show all");
+});

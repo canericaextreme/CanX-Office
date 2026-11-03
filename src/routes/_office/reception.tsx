@@ -75,7 +75,10 @@ function ReceptionRoom() {
         <section aria-label="Rooms">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {SHORTCUTS.map((room, i) => {
-              const purpose = room.to === "/" ? null : roomIdentityForRoute(room.to)?.purpose;
+              const purpose =
+                room.to === "/"
+                  ? "Every Office room on one map. Pick a room to open it."
+                  : roomIdentityForRoute(room.to)?.purpose;
               return (
                 <Link
                   key={room.to}
