@@ -446,6 +446,11 @@ export function WorkBoard() {
                     </span>
                   )}
                   <StatusBadge tone={status.tone} label={status.label} />
+                  {task.task_number && (
+                    <span className="rounded border border-border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                      {task.task_number}
+                    </span>
+                  )}
                   <span className="min-w-0 font-medium">{task.title}</span>
                   <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     {RISK_WORDS[task.risk]}

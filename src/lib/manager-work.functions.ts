@@ -31,6 +31,8 @@ export interface ManagerTask {
   updated_at: string;
   /** Optional; only present when the database has the additive project column. */
   project?: string;
+  /** Date-based number like WB-11-03-2026-1, given by the database when the task is created (3 Nov 2026). Older tasks have none. */
+  task_number?: string | null;
 }
 
 export interface ManagerAssignment {
