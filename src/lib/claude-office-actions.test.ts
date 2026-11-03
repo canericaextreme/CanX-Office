@@ -32,7 +32,7 @@ describe('Claude shares the trusted Office executor, not provider credentials',(
   const reply=await runManagerChatWith(h.deps,say('Read-only: show the office connection checklist'));
   expect(reply.ok).toBe(true);
   expect(reply.text).toContain('Persistent Office working access');
-  expect(reply.text).toContain('Native acceptance is pending');
+  expect(reply.text).toContain('Renewal, signed-out and revoked-access checks have not been run');
   expect(reply.actionResults).toEqual(expect.arrayContaining([expect.objectContaining({name:'get_office_connection_plan',status:'done'})]));
   expect(h.runBuild).not.toHaveBeenCalled();
  });

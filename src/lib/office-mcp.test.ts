@@ -78,6 +78,8 @@ describe("Office MCP access boundary", () => {
     const plan = readOfficeConnectionPlan();
     plan.steps.length = 0;
     expect(readOfficeConnectionPlan().steps.length).toBeGreaterThan(0);
-    for (const id of ["chatgpt", "claude", "elsie", "acceptance"]) expect(readOfficeConnectionPlan().steps.find(s => s.id === id)?.status).toBe("pending");
+    // A step is only marked verified by hand, with a dated piece of evidence; renewal/revocation stays open until tested.
+    for (const step of readOfficeConnectionPlan().steps.filter(s => s.status === "verified")) expect(step.evidence).toMatch(/\b\d{1,2} (Oct|Nov|Dec) 20\d\d\b/);
+    expect(readOfficeConnectionPlan().steps.find(s => s.id === "acceptance")?.status).toBe("pending");
   });
 });
