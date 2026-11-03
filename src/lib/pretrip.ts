@@ -70,6 +70,21 @@ export interface PreTripRecord {
 
 const clip = (s: string, n = 160) => s.replace(/\s+/g, " ").trim().slice(0, n);
 
+/**
+ * Shorten to whole sentences (3 Nov 2026, task a542ed30): the morning report used to cut
+ * yesterday's summary mid-word. Keeps every full sentence that fits; if even the first
+ * sentence is too long, cuts at a word and adds "…" so it never looks like a typo.
+ */
+export function clipSentences(s: string, n = 200): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  if (t.length <= n) return t;
+  const head = t.slice(0, n);
+  const end = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "));
+  if (end > 0) return head.slice(0, end + 1);
+  const space = head.lastIndexOf(" ");
+  return `${(space > 0 ? head.slice(0, space) : head).replace(/[,;:\-–]+$/, "")}…`;
+}
+
 /** Office-local calendar date, YYYY-MM-DD. */
 export function localDate(now: Date, timeZone = PRETRIP_TIME_ZONE): string {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
@@ -201,7 +216,7 @@ export function morningReport(r: PreTripRecord): string {
     r.email.needsAttention === null ? `Email: ${r.email.sweep}` : `${count(r.email.needsAttention, "email")} need${r.email.needsAttention === 1 ? "s" : ""} your attention; ${count(r.email.archive, "could be archived", "could be archived")}.`,
     r.changes.newProblems.length ? `New overnight: ${r.changes.newProblems.slice(0, 3).join(", ")}.` : "Nothing new broke overnight.",
     r.approvals ? `${r.approvals} approval${r.approvals === 1 ? "" : "s"} waiting for you.` : "",
-    r.yesterday ? `Yesterday: ${clip(r.yesterday, 200)}` : "",
+    r.yesterday ? `Yesterday: ${clipSentences(r.yesterday, 200)}` : "",
   ].filter(Boolean).join(" ");
 }
 

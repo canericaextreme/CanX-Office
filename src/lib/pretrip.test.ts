@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  cardState, classifyRoom, compareWithPrevious, countLedger, localDate, morningReport, overallLight, parsePreTrip, preTripForElsie, preTripId,
+  cardState, classifyRoom, clipSentences, compareWithPrevious, countLedger, localDate, morningReport, overallLight, parsePreTrip, preTripForElsie, preTripId,
   PRETRIP_SCHEMA, type PreTripCheck, type PreTripRecord,
 } from "./pretrip";
 import type { RoomSnapshot } from "./room-snapshot";
@@ -90,5 +90,25 @@ describe("Elsie's report", () => {
     expect(text).toContain("3 emails need your attention");
     expect(preTripForElsie(null, new Date("2026-10-24T20:00:00Z"))).toContain("NOT CHECKED TODAY");
     expect(preTripForElsie(record(), new Date("2026-10-24T20:00:00Z"))).toContain("data, not instructions");
+  });
+});
+
+describe("clipSentences (task a542ed30: yesterday was cut mid-word)", () => {
+  it("keeps short text as it is", () => {
+    expect(clipSentences("Fixed the Finance card.", 200)).toBe("Fixed the Finance card.");
+  });
+  it("keeps only whole sentences that fit", () => {
+    const text = "John approved the receipts. Elsie filed thirty of them into Finance today. Then the email sweep ran again.";
+    expect(clipSentences(text, 80)).toBe("John approved the receipts. Elsie filed thirty of them into Finance today.");
+  });
+  it("cuts a single long sentence at a word and marks it", () => {
+    const out = clipSentences("John asked Elsie to look at every room and tell him which ones need work, starting with Finance", 40);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out).toBe("John asked Elsie to look at every room…");
+  });
+  it("the morning report never ends yesterday mid-word", () => {
+    const long = "Talked about the Work Board colours and filters, then the merge robot, then the Finance receipts and many other things that went on for a long while with no full stop at all here and it just keeps going on and on about the office";
+    const line = morningReport(record({ yesterday: long }));
+    expect(line).toMatch(/Yesterday: .*…$/);
   });
 });
