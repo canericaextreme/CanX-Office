@@ -97,9 +97,20 @@ const LIVE_20261101 = [
   { version: "20261023190635", name: "increase_office_view_hourly_capacity" },
 ];
 
-test("against the 1 Nov live history, only the Finance append-only save is applied, once", () => {
+const NEW_20261103 = [
+  "20261103030000_room_reports_visible_to_viewers.sql",
+  "20261103031000_work_board_task_numbers.sql",
+];
+
+test("against the 1 Nov live history, the Finance append-only save and the 3 Nov files are applied, once", () => {
   const p = plan(currentRepo, LIVE_20261101);
-  assert.deepEqual(p.apply.map((f) => f.file), ["20261101031000_finance_receipts_append_only.sql"]);
+  assert.deepEqual(p.apply.map((f) => f.file), ["20261101031000_finance_receipts_append_only.sql", ...NEW_20261103]);
   const after = [...LIVE_20261101, { version: "20261101031000", name: "finance_receipts_append_only" }];
-  assert.equal(plan(currentRepo, after).apply.length, 0);
+  assert.deepEqual(plan(currentRepo, after).apply.map((f) => f.file), NEW_20261103);
+  const after3 = [
+    ...after,
+    { version: "20261103030000", name: "room_reports_visible_to_viewers" },
+    { version: "20261103031000", name: "work_board_task_numbers" },
+  ];
+  assert.equal(plan(currentRepo, after3).apply.length, 0);
 });

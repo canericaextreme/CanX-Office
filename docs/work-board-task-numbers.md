@@ -1,4 +1,13 @@
-# Work Board date numbers — blocked database work
+# Work Board date numbers
+
+**Update 3 Nov 2026 (John approved):** built in migration
+`supabase/migrations/20261103031000_work_board_task_numbers.sql`. The database gives every NEW task
+`WB-MM-DD-YYYY-N` at insert time (John's local day, America/Whitehorse; N counts all tasks created
+that day). A locked per-day counter in `canx_private` prevents duplicates, the number can never be
+changed afterwards, and tasks created before 3 Nov keep no number. The Work Board shows the number
+before the title when there is one. History below is kept.
+
+## History: why it was blocked at first
 
 The local 22 October 2026 change implements task status colours and wrapping on
 Work Board cards. It does **not** implement `WB-MM-DD-YYYY-N` allocation.

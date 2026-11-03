@@ -95,7 +95,7 @@ beforeEach(() => {
         result: "Build passed.",
       }),
       task({ id: "yellow", title: "Legal deadlines", risk: "yellow" }),
-      task({ id: "plain", title: "Ordinary job" }),
+      task({ id: "plain", title: "Ordinary job", task_number: "WB-11-03-2026-1" }),
     ],
     assignments: [],
     approvals: [pending],
@@ -119,6 +119,12 @@ describe("Work Board decisions waiting on John", () => {
     expect(
       screen.getByRole("link", { name: "Open details: Finance headings" }).getAttribute("href"),
     ).toBe("#task-hold");
+  });
+
+  it("shows the saved date number on new tasks and nothing on older ones", () => {
+    render(<WorkBoard />);
+    expect(within(card("plain")).getByText("WB-11-03-2026-1")).toBeTruthy();
+    expect(within(card("hold")).queryByText(/^WB-/)).toBeNull();
   });
 
   it("the filter shows only what needs John, and back", () => {
