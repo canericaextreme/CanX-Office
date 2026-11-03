@@ -4,8 +4,8 @@
 //   2. Every changed file is routine (see classifyFiles); anything sensitive, large or unknown goes to John.
 //   3. Every check on the latest commit finished green, including the general "CanX PR checks" build.
 //   4. GitHub says it merges cleanly and nobody asked for changes.
-//   5. An independent reviewer from the OTHER AI company approved this exact commit
-//      (Claude-built work is reviewed by OpenAI, ChatGPT/Codex-built work by Anthropic).
+//   5. Independent AI review is optional, not a routine merge prerequisite (John, 28 Oct 2026).
+//      Existing explicit change requests and untrusted claimed approvals remain safety holds.
 
 export const OPT_IN_LABEL = 'canx:auto-merge';
 export const REVIEW_CONTEXT = 'canx/independent-review';
@@ -106,8 +106,11 @@ export function decide({ pr, files, checkRuns, statuses, reviews }) {
   const failed = runs.filter(c => c.status === 'completed' && !ok(c));
   if (failed.length) return out('blocked', failed.map(c => `check "${c.name}" ${c.conclusion}`));
   const pending = runs.filter(c => c.status !== 'completed');
-  if (!runs.some(c => c.name === REQUIRED_CHECK)) return out('waiting-checks', [`the "${REQUIRED_CHECK}" build has not reported yet`]);
+  const required = runs.find(c => c.name === REQUIRED_CHECK);
+  if (!required) return out('waiting-checks', [`the "${REQUIRED_CHECK}" build has not reported yet`]);
   if (pending.length) return out('waiting-checks', pending.map(c => `check "${c.name}" still running`));
+  // Skipped/neutral required tests do not establish validated code.
+  if (required.conclusion !== 'success') return out('blocked', [`required "${REQUIRED_CHECK}" build is ${required.conclusion ?? 'unverified'}, not successful`]);
   const other = (statuses ?? []).filter(s => s.context !== REVIEW_CONTEXT);
   if (other.some(s => s.state === 'failure' || s.state === 'error')) return out('blocked', ['a commit status failed']);
   if (other.some(s => s.state === 'pending')) return out('waiting-checks', ['a commit status is still pending']);
@@ -118,7 +121,7 @@ export function decide({ pr, files, checkRuns, statuses, reviews }) {
   const review = reviewState(statuses ?? [], builder);
   if (review.state === 'changes') return out('blocked', [`independent review asked for changes: ${review.detail}`]);
   if (review.state === 'untrusted') return out('owner-review', [review.detail]);
-  if (review.state === 'not-independent') return out('waiting-review', [review.detail], 'review');
-  if (review.state === 'missing') return out('waiting-review', [`needs an independent ${reviewerFor(builder)} review of this exact commit`], 'review');
-  return out('ready', [`all gates passed; ${review.detail}`], 'merge');
+  // Neither missing nor same-vendor optional reviews block a routine, CI-validated change.
+  // Do not invoke a paid reviewer or manufacture an approval to satisfy an obsolete gate.
+  return out('ready', ['required CI, changed-file limits and protection gates passed; independent AI review optional'], 'merge');
 }
