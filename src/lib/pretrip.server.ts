@@ -1,7 +1,8 @@
 /**
  * Elsie's daily pre-trip runner — SERVER ONLY. Reads run as John's own session
  * (RLS applies). The only writes are one new pre-trip record in office_notes.
- * The only paid calls are the two approved colleague message tests.
+ * The only paid calls are the two approved colleague message tests. The Claude
+ * key checks are free (they only list models; no AI tokens).
  * Every check has its own time limit; a slow check becomes "unverified" and
  * the inspection still finishes, so it can never trap Elsie.
  */
@@ -12,6 +13,7 @@ import {
   type ColleagueTest, type PreTripCheck, type PreTripRecord, type PreTripTrigger,
 } from "./pretrip";
 import type { Colleague } from "./pretrip-colleague";
+import { KEY_LABELS, keyCheckRow, type KeyCheck } from "./ai-key-check";
 
 export type PreTripRest = (path: string, init?: RequestInit) => Promise<{ ok: boolean; status: number; body: unknown }>;
 
@@ -20,6 +22,8 @@ export interface PreTripDeps {
   readRoom: (target: RoomTarget) => Promise<RoomSnapshot>;
   /** Approved paid message test; absent means the test is not wired and the rows stay unverified. */
   ping?: ((c: Colleague, code: string, sharedTitle: string) => Promise<ColleagueTest>) | undefined;
+  /** Free "is the Claude key accepted?" checks (no AI tokens). Absent means not wired; rows stay unverified. */
+  keyChecks?: (() => Promise<KeyCheck[]>) | undefined;
   ownerId: string;
   aal: string;
   now?: () => Date;
@@ -126,8 +130,14 @@ export async function runPreTripWith(deps: PreTripDeps, trigger: PreTripTrigger)
     });
   });
 
+  const keyRows = guard(left(), { id: "key:claude-office", area: "AI team", label: KEY_LABELS.office }, async () => {
+    if (!deps.keyChecks) return (["office", "vault"] as const).map((c) => ({ id: `key:claude-${c}`, area: "AI team", label: KEY_LABELS[c], status: "unverified" as const, detail: "Free key check is not wired on this server." }));
+    return (await deps.keyChecks()).map(keyCheckRow);
+  });
+
   const checks = await Promise.all([
     ...colleagues,
+    keyRows,
     guard(left(), { id: "native", area: "AI team", label: "John's own ChatGPT and Claude apps" }, async () => {
       const notes = await get(`office_notes?select=id,updated_at&${owner(deps.ownerId)}&id=in.(handoff-latest-claude,handoff-latest-chatgpt)`);
       const at = (n: string) => notes.find((x) => x["id"] === n)?.["updated_at"];
