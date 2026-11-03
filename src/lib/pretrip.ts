@@ -179,6 +179,14 @@ export function parsePreTrip(detail: unknown): PreTripRecord | null {
 
 const count = (n: number | null, one: string, many = `${one}s`) => n === null ? `unknown ${many}` : `${n} ${n === 1 ? one : many}`;
 
+/** Free Claude key check line; empty when the record predates the check (3 Nov 2026). */
+function keyLine(r: PreTripRecord): string {
+  const rows = r.checks.filter((c) => c.id.startsWith("key:claude-"));
+  if (!rows.length) return "";
+  if (rows.some((c) => c.status === "red")) return "Claude key: REFUSED by Anthropic. It needs replacing.";
+  return rows.every((c) => c.status === "green") ? "Claude key: accepted today." : "Claude key: not fully checked.";
+}
+
 /** The short spoken/plain morning report. Only reports what the record holds. */
 export function morningReport(r: PreTripRecord): string {
   const bad = r.checks.filter((c) => c.status === "red" || c.status === "yellow").length;
@@ -188,6 +196,7 @@ export function morningReport(r: PreTripRecord): string {
   return [
     `Pre-trip ${r.inspection === "complete" ? "complete" : "partly done"}. Overall ${r.overall}${bad ? `, ${bad} problem${bad === 1 ? "" : "s"}` : ""}${unk ? `, ${unk} not verified` : ""}.`,
     `Office helpers message test: ${ai}.`,
+    keyLine(r),
     `${r.rooms.verified} of ${r.rooms.total} rooms checked green.`,
     r.email.needsAttention === null ? `Email: ${r.email.sweep}` : `${count(r.email.needsAttention, "email")} need${r.email.needsAttention === 1 ? "s" : ""} your attention; ${count(r.email.archive, "could be archived", "could be archived")}.`,
     r.changes.newProblems.length ? `New overnight: ${r.changes.newProblems.slice(0, 3).join(", ")}.` : "Nothing new broke overnight.",

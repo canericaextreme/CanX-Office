@@ -63,6 +63,7 @@ describe("runPreTripWith", () => {
     expect(r.record.rooms).toEqual({ total: 24, verified: 24 });
     expect(r.record.checks.find((c) => c.id === "colleague:chatgpt")?.status).toBe("green");
     expect(r.record.checks.find((c) => c.id === "native:claude")?.status).toBe("unverified");
+    expect(r.record.checks.find((c) => c.id === "key:claude-office")?.status).toBe("unverified"); // key check not wired in this fake
     expect(r.record.checks.find((c) => c.id === "work-board")?.status).toBe("yellow"); // t1 stalled 4+ days
     expect(r.record.email).toMatchObject({ needsAttention: 1, archive: 1 });
     expect(r.record.approvals).toBe(1);
@@ -137,5 +138,17 @@ describe("readPreTripForElsie", () => {
   it("never guesses when the read fails", async () => {
     const text = await readPreTripForElsie(async () => ({ ok: false, status: 500, body: null }), OWNER, new Date());
     expect(text).toContain("Do not guess");
+  });
+
+  it("adds the free Claude key rows: accepted is green, refused is red", async () => {
+    const r = await runPreTripWith(deps(fakeOffice(), { keyChecks: async () => [
+      { copy: "office", result: "accepted", httpStatus: 200, note: "Anthropic accepted the key." },
+      { copy: "vault", result: "refused", httpStatus: 502, note: "Anthropic refused the Vault key." },
+    ] }), "daily");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.record.checks.find((c) => c.id === "key:claude-office")?.status).toBe("green");
+    expect(r.record.checks.find((c) => c.id === "key:claude-vault")?.status).toBe("red");
+    expect(r.record.overall).toBe("red");
   });
 });

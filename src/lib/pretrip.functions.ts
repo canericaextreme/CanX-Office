@@ -15,6 +15,7 @@ export async function preTripServerDeps(token: string, ownerId: string, aal: str
   if (!config) return null;
   const { readRoomSnapshotWith } = await import("./room-snapshot.server");
   const { pingColleague } = await import("./pretrip-colleague");
+  const { checkOfficeAnthropicKey, checkVaultAnthropicKey } = await import("./ai-key-check");
   const pingDeps = {
     fetchImpl: ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)) as typeof fetch,
     openaiKey: env("OPENAI_API_KEY"), openaiModel: env("OPENAI_TEXT_MODEL") ?? env("OPENAI_MODEL"),
@@ -29,6 +30,10 @@ export async function preTripServerDeps(token: string, ownerId: string, aal: str
     rest: (path, init) => backend.restRequest(config, token, path, init),
     readRoom: (target) => readRoomSnapshotWith({ config, token, aal, target, buildId, device: null, rest: backend.restRequest }),
     ping: (c, code, title) => pingColleague(pingDeps, c, code, title),
+    keyChecks: () => Promise.all([
+      checkOfficeAnthropicKey(pingDeps.fetchImpl, env("ANTHROPIC_API_KEY")),
+      checkVaultAnthropicKey(pingDeps.fetchImpl, config.url, config.publishableKey, token),
+    ]),
     ownerId, aal,
   };
 }

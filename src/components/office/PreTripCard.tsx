@@ -105,6 +105,7 @@ export function PreTripCardView({ record, now, running, message, onRun, canRun }
               <Row k="Inspection" v={view.record.inspection === "complete" ? "Complete" : "Partial"} />
               <Row k="ChatGPT (Office helper)" v={light("colleague:chatgpt")} />
               <Row k="Claude (Office helper)" v={light("colleague:claude")} />
+              <Row k="Claude key (free check)" v={light("key:claude-office")} />
               <Row k="Elsie's memory" v={light("continuity")} />
               <Row k="Office rooms" v={`${view.record.rooms.verified} of ${view.record.rooms.total} green`} />
               <Row k="Fresh emails needing you" v={view.record.email.needsAttention === null ? "Unknown" : String(view.record.email.needsAttention)} />
