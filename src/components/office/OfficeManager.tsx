@@ -454,7 +454,9 @@ export function OfficeManager() {
   // Every change to the visible conversation or draft is written promptly.
   useEffect(() => {
     const snap = snapshotRef.current;
-    if (!historyReady || !ownerId || !snap || snap.ownerId !== ownerId) return;
+    // Owner restoration and turn completion update the ref before React commits
+    // their messages. An effect from the older render must not erase that copy.
+    if (!historyReady || !ownerId || !snap || snap.ownerId !== ownerId || messages !== messagesRef.current) return;
     const cached: CachedMessage[] = messages
       .filter(m => m.role !== "office")
       .map(m => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content, at: m.at ?? new Date().toISOString(), mode: m.mode ?? "text" }));
