@@ -170,11 +170,12 @@ export function withMessages(snapshot: DeviceSnapshot, messages: CachedMessage[]
   };
 }
 
-/** Queue one completed turn. The same turn id is never queued twice. */
+/** Save the completed pair and its outbox entry together, before a reload can occur. */
 export function enqueueTurn(snapshot: DeviceSnapshot, turn: Omit<PendingTurn, "seq">): DeviceSnapshot {
   const clean = cleanTurn({ ...turn, seq: snapshot.nextSeq });
   if (!clean || snapshot.pending.some((t) => t.turnId === clean.turnId)) return snapshot;
-  return { ...snapshot, pending: [...snapshot.pending, clean].slice(-MAX_PENDING), nextSeq: snapshot.nextSeq + 1 };
+  const messages = mergeMessages(snapshot.messages, turnMessages(clean));
+  return { ...withMessages(snapshot, messages, snapshot.draft), pending: [...snapshot.pending, clean].slice(-MAX_PENDING), nextSeq: snapshot.nextSeq + 1 };
 }
 
 export function markSynced(snapshot: DeviceSnapshot, turnIds: Iterable<string>): DeviceSnapshot {
