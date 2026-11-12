@@ -20,6 +20,7 @@
 import { roomBrief } from "./room-brief";
 import { ROOM_SYNOPSES } from "./room-synopses";
 import { roomIdentityForRoute } from "./office-room-identity";
+import { boxDescriptionLine } from "./box-descriptions";
 import type { LabelPositions } from "./office-map";
 
 export const SCREEN_MAX_AGE_MS = 5 * 60 * 1000;
@@ -139,8 +140,12 @@ export function screenForModel(
       ? `${JSON.stringify(b.renamed)} (John's name; built as ${JSON.stringify(b.name)})`
       : JSON.stringify(b.name);
     const moved = b.movedFrom ? ` — moved here by John from ${roomName(b.movedFrom)}` : "";
+    // Same words as the label John sees when he hovers over the box (box-descriptions.ts).
+    const about = detailed
+      ? `\n   about (box label John sees on hover): ${boxDescriptionLine(b.id, b.name)}`
+      : "";
     const words = detailed && b.excerpt ? `\n   shows: ${JSON.stringify(b.excerpt)}` : "";
-    return `${i + 1}. ${title}${moved}${words}`;
+    return `${i + 1}. ${title}${moved}${about}${words}`;
   });
   return [head, ...lines].join("\n");
 }
@@ -199,7 +204,7 @@ export function roomGuideForModel(input: {
   if (!input.currentRoute) return "";
   const detailed = EXPLAIN_REQUEST.test(input.latestUser);
   const parts = [
-    "Room guide — Elsie looks over John's shoulder. Use it to explain what he is looking at: name the boxes as his screen shows them (his own names first), say what each is for and how the room connects to the rest of the Office. Keep 'documented' and 'verified' apart, and say plainly what you could not see.",
+    "Room guide — Elsie looks over John's shoulder. Use it to explain what he is looking at: name the boxes as his screen shows them (his own names first), say what each is for using its box label (the same words John sees when he hovers over it) and how the room connects to the rest of the Office. Keep 'documented' and 'verified' apart, and say plainly what you could not see.",
     briefForModel(input.currentRoute, input.positions, detailed),
     screenForModel(input.screen, input.currentRoute, detailed),
   ];

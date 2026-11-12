@@ -48,6 +48,7 @@ import {
   cleanRoute,
   roomIdentityForRoute,
 } from "@/lib/office-room-identity";
+import { boxDescriptionLine } from "@/lib/box-descriptions";
 
 export type EditMode = "locked" | "unlocked";
 
@@ -439,7 +440,12 @@ function BoxBar({
           </button>
         </form>
       ) : (
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
+        <span
+          className="min-w-0 flex-1 truncate text-sm font-medium"
+          title={boxDescriptionLine(id, name)}
+        >
+          {name}
+        </span>
       )}
       {!naming && (
         <>
@@ -670,6 +676,7 @@ export function RoomEditTab() {
         <button
           type="button"
           className={`canx-edit-tab${unlocked ? " canx-edit-tab-on" : ""}`}
+          aria-label={`Edit tab, ${unlocked ? "unlocked" : "locked"}`}
           aria-expanded={menu}
           aria-haspopup="menu"
           onClick={() => setMenu((m) => !m)}
@@ -754,7 +761,7 @@ function PanelRow({ box, route }: { box: BoxInfo; route: string }) {
   const disabled = ctx.busy || !ctx.canEdit;
   const el = () => document.querySelector<HTMLElement>(`[data-room-box="${CSS.escape(box.id)}"]`);
   return (
-    <li className="canx-panel-row">
+    <li className="canx-panel-row" title={boxDescriptionLine(box.id, box.name)}>
       <form
         className="flex w-full min-w-0 items-center gap-1"
         onSubmit={(e) => {

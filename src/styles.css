@@ -580,6 +580,20 @@
 [data-canx-renamed] { font-size: 0 !important; }
 [data-canx-renamed] > * { display: none !important; }
 [data-canx-renamed]::before { content: attr(data-canx-renamed); font-size: var(--canx-renamed-size, 1rem); }
+.canx-box-label {
+  position: fixed; z-index: 70; width: max-content; max-width: min(20rem, calc(100vw - 1rem));
+  padding: 0.55rem 0.7rem; border-radius: 0.6rem; pointer-events: none;
+  border: 1px solid color-mix(in oklab, var(--primary) 55%, var(--border));
+  background: var(--popover, var(--card)); color: var(--popover-foreground, var(--foreground));
+  box-shadow: 0 10px 28px -12px rgba(0,0,0,0.6); font-size: 0.8rem; line-height: 1.35;
+  animation: canx-box-label-in 120ms ease-out;
+}
+.canx-box-label p + p { margin-top: 0.3rem; }
+.canx-box-label-title { font-weight: 600; font-size: 0.85rem; }
+.canx-box-label-note { font-size: 0.72rem; color: var(--muted-foreground); }
+.canx-box-label-key { font-weight: 600; }
+@keyframes canx-box-label-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .canx-box-label { animation: none; } }
 .canx-box-bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem;
   margin-bottom: 0.4rem; padding: 0.3rem 0.4rem; border-radius: 0.5rem;

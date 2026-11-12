@@ -12,6 +12,7 @@ import { canBrowseOfficeWithoutSignIn } from "@/lib/office-development-access";
 import { OfficeGate } from "@/components/office/OfficeGate";
 import { MovedInBoxes, RoomEditTab } from "@/components/office/RoomLayout";
 import { RoomLayoutProvider } from "@/components/office/RoomLayoutProvider";
+import { HoverGuide } from "@/components/office/HoverGuide";
 import { OfficeThemeProvider } from "@/lib/office-theme";
 import { OwnerSessionProvider } from "@/lib/owner-session";
 import { useOwnerSession } from "@/lib/owner-session";
@@ -26,7 +27,7 @@ function OfficeInterior() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <div className="flex min-h-screen flex-1 flex-col" data-canx-office-backdrop="true">
+      <div className="flex min-h-screen flex-1 flex-col" data-canx-office-backdrop="true" data-canx-hover-root="true">
         <OfficeNav />
         {!readOnlyViewer && <p className="canx-mobile-orientation-hint" data-canx-no-capture="true">
           For a wider Office, turn your phone sideways. Enable Auto rotate if it stays upright.
@@ -41,6 +42,8 @@ function OfficeInterior() {
           <RoomReports />
         </div>
       </div>
+      {/* Point at anything in the Office to see what it is and what it's for (John, 12 Nov 2026). */}
+      <HoverGuide />
       {/* Overlays are excluded from every observation. */}
       {readOnlyViewer ? (
         <p data-canx-no-capture="true" data-canx-viewer-badge="true" className="pointer-events-none fixed bottom-2 left-2 z-50 rounded bg-black/70 px-2 py-1 text-xs text-white">
