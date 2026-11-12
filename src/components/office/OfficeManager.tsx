@@ -43,6 +43,7 @@ import { isOfficeRoomRoute, roomNavigationRefusal, roomNavigationResult } from "
 import { collectDeviceSnapshot } from "@/lib/room-device-snapshot";
 import { readOfficeLabelPositions } from "@/lib/office-map";
 import { isSynopsisListRequest, synopsisListAnswer } from "@/lib/synopsis-context";
+import { collectScreenSnapshot } from "@/lib/room-screen";
 import { isRecallRequest, recapFromMessages } from "@/lib/conversation-recap";
 import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -649,6 +650,8 @@ export function OfficeManager() {
         await router.navigate({ to: command.room.route });
         if (router.state.location.pathname !== command.room.route)
           return out("read_failed", "The requested room did not open. No record was read; do not treat navigation as complete.");
+        // Let the new room draw, so Elsie's room guide reads its boxes, not the last room's.
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         // Continue the original question through the shared manager path,
         // with the newly opened room. A screenshot is not a Brain retrieval.
         roomOutcomeRef.current = "read";
@@ -735,7 +738,7 @@ export function OfficeManager() {
       thread.push({ role: "user", content: request });
       // Voice uses the same per-request room read: the route open NOW, not at call start.
       const sentRoute = router.state.location.pathname;
-      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion(), device: collectDeviceSnapshot(sentRoute), labelPositions: readOfficeLabelPositions(), voice: true } });
+      const reply = await sendChat({ data: { accessToken: token, team: managerTeam, messages: thread, currentRoute: sentRoute, buildId: currentBuildVersion(), device: collectDeviceSnapshot(sentRoute), screen: collectScreenSnapshot(sentRoute), labelPositions: readOfficeLabelPositions(), voice: true } });
       if (reply.ok && (reply.roomSnapshots?.length || reply.roomReadback?.length)) requestRoomRefresh("elsie-voice-reply");
       const voiceRoomNote = reply.ok ? roomReplyNote(sentRoute, router.state.location.pathname, reply.roomSnapshots, viewedSnapshot(sentRoute)) : "";
       // Skip the separate voice save only when the server confirmed its own save.
@@ -1014,7 +1017,7 @@ export function OfficeManager() {
           messages: modelHistory.slice(-20),
           currentRoute: sentRoute,
           buildId: currentBuildVersion(),
-          device: collectDeviceSnapshot(sentRoute),
+          device: collectDeviceSnapshot(sentRoute), screen: collectScreenSnapshot(sentRoute),
           labelPositions: readOfficeLabelPositions(),
         },
       });

@@ -75,6 +75,7 @@ import { registerForModel } from "./project-register";
 import { locatorsForModel } from "./project-locator";
 import { sanitizeDeviceSnapshot } from "./room-device-snapshot";
 import { SYNOPSIS_REQUEST, sanitizeLabelPositions, synopsisForModel } from "./synopsis-context";
+import { roomGuideForModel, sanitizeScreen, type ScreenSnapshot } from "./room-guide";
 import { routeSkillsForRoom } from "./office-skills";
 import { handoffTextWith } from "./text-colleague-handoff";
 import { saveManagerBrainWith } from "./manager-brain-save";
@@ -1005,6 +1006,8 @@ export interface ChatInput {
   device?: import("./room-device-snapshot").DeviceSnapshot | null;
   /** Room-label positions saved on John's device; they set the Synopsis numbering. */
   labelPositions?: import("./office-map").LabelPositions;
+  /** Boxes John's open room page shows (room guide). Untrusted; kept only fresh and for the open room. */
+  screen?: ScreenSnapshot;
   /** Set by Standard voice: John is listening, so the answer must be short. */
   voice?: boolean;
 }
@@ -1106,6 +1109,11 @@ export function validate(input: unknown): ChatInput {
     ...(typeof buildId === "string" ? { buildId: buildId.slice(0, 80) } : {}),
     ...(() => { const d = sanitizeDeviceSnapshot((raw as { device?: unknown } | undefined)?.device); return d ? { device: d } : {}; })(),
     ...(() => { const p = sanitizeLabelPositions((raw as { labelPositions?: unknown } | undefined)?.labelPositions); return p ? { labelPositions: p } : {}; })(),
+    ...(() => {
+      const open = typeof route === "string" ? roomTargetForRoute(route)?.route : undefined;
+      const sc = sanitizeScreen((raw as { screen?: unknown } | undefined)?.screen, open);
+      return sc ? { screen: sc } : {};
+    })(),
     ...((raw as { voice?: unknown } | undefined)?.voice === true ? { voice: true } : {}),
   };
 }
@@ -2213,7 +2221,10 @@ export async function runManagerChatWith(
       }
     }
     const synopsisContext = synopsisForModel(data.labelPositions ?? null, SYNOPSIS_REQUEST.test(latestUser));
-    const contextWithTeam = [queueContext, "", documents.text, "", roomContext, "", brainContext, "", projectContext, "", synopsisContext, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
+    // Elsie looks over John's shoulder: the open room's documented brief and the boxes his
+    // screen shows. Text only; no picture and no extra paid call.
+    const guideContext = roomGuideForModel({ latestUser, currentRoute: data.currentRoute, screen: data.screen ?? null, positions: data.labelPositions ?? null });
+    const contextWithTeam = [queueContext, "", documents.text, "", roomContext, "", guideContext, "", brainContext, "", projectContext, "", synopsisContext, "", context.text, "", continuity.text, "", ...teamContextLines(sanitizeTeam(data.team))].join(
       "\n",
     );
     // The receipt describes the exact context this answer was built from, so

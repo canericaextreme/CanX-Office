@@ -324,6 +324,9 @@ function BoxFrame({
     <div
       ref={wrapperRef}
       data-room-box={id}
+      data-room-box-name={name}
+      data-room-box-home={home}
+      data-room-box-renamed={renamedName || undefined}
       className={`canx-room-box${editing ? " canx-room-box-editing" : ""}${over ? " canx-room-box-over" : ""}${className ? ` ${className}` : ""}`}
       style={order !== undefined && !moved ? { order } : undefined}
       onDragOver={

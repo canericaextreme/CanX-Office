@@ -31,6 +31,9 @@ function withoutLeadIn(request: string): string {
   return text;
 }
 
+/** Explain-the-room questions: answered from the room guide, never by the paid picture review. */
+const ROOM_GUIDE_QUESTION = /^(?:(?:can|could|will) you )?(?:walk me through|explain|give me a tour of|tell me about|tell me what(?: is|s|’s|'s) in|what(?: is|s|’s|'s) in)\b/i;
+
 export function parseRoomCommand(request: string, currentPath: string): RoomCommand | null {
   // "If" only makes the command hypothetical in its own sentence: on 28 Oct
   // "open the CanX Brain and read one item. If none is available, say so."
@@ -47,6 +50,16 @@ export function parseRoomCommand(request: string, currentPath: string): RoomComm
   }
   const navigation = parseRoomNavigation(text);
   if (navigation) return navigation;
+  // 12 Nov: "walk me through", "explain" and "what's in" questions are answered from Elsie's room
+  // guide (the boxes on John's screen + how the room works), with no paid picture. A named
+  // other room is opened first, then the same question goes to Elsie for that room.
+  // Asking her to find or fix visible problems still uses the picture review below.
+  if (ROOM_GUIDE_QUESTION.test(text) && !/\b(?:problems?|fix|broken|wrong|faults?|visibl[ey]|colou?rs?)\b/i.test(text)) {
+    const named = namedOfficeRoom(text);
+    const here = roomIdentityForRoute(currentPath);
+    const opens = !/^(?:(?:can|could|will) you )?(?:explain|tell me about)\b/i.test(text);
+    return opens && named && named.route !== here?.route ? { kind: "open-read", room: named } : null;
+  }
   // Visual follow-ups inspect the room open NOW, rather than answering from
   // an older screenshot or the general room description. They never write.
   const visualQuestion = (/^(?:how many|count)\b/i.test(text) && /\b(?:cards?|folders?|papers?|shelves|items?|blue|red|yellow|gold|white|gr[ae]y|green|black|visible)\b/i.test(text))
