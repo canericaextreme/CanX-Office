@@ -3,7 +3,7 @@ export function requestsConversationSave(text: string): boolean {
   return /^(?:(?:elsie|astra|data|please)[,\s]+)*(?:save (?:this|the) conversation)(?:\s+please)?[.!?]*$/i.test(text.trim());
 }
 export interface ConversationTurn { role: "user" | "assistant"; content: string }
-export const MEMORY_NOTICE = 'Continuity rule: useful office, build and idea discussion is summarized after a pause while this window stays open. Chatter is excluded. Only a verified Brain save survives closing. Say “Save this conversation” to save now.';
+export const MEMORY_NOTICE = 'Completed conversations are kept on this device when storage is available, so you can close Elsie or refresh and return to them. Useful office, build and idea discussion is also summarized after a pause while this window stays open; chatter is excluded. Say “Save this conversation” to save a Brain summary now.';
 export function conversationForSummary(raw: unknown): ConversationTurn[] {
   if (!Array.isArray(raw)) return [];
   let remaining = 24000;

@@ -7,6 +7,7 @@ import {
 } from "./astra-device-continuity";
 import { appendCheckpointWith, loadCheckpointWith, type CheckpointDeps } from "./astra-checkpoint.functions";
 import type { Rest } from "./astra-continuity";
+import { recapFromMessages } from "./conversation-recap";
 
 const A = "11111111-2222-3333-4444-555555555555";
 const B = "99999999-2222-3333-4444-555555555555";
@@ -27,6 +28,37 @@ function memStore(): KeyStore & { data: Map<string, string> } {
 const msg = (id: string, role: "user" | "assistant", content: string, at = "2026-09-25T00:00:00.000Z") => ({ id, role, content, at, mode: "text" as const });
 
 describe("device buffer: reload restores text, voice and the unsent draft", () => {
+  it.each(["text", "voice"] as const)("recalls the last completed %s conversation after close/reopen and a refresh, without waiting for account sync", async (mode) => {
+    const store = memStore();
+    const question = "Plan the Monday workshop";
+    const answer = "We agreed to review the tool inventory first.";
+    // Completion must persist the transcript in the same write as the outbox,
+    // even when closing happens before the visible-message effect runs.
+    const completed = enqueueTurn(emptySnapshot(A), {
+      turnId: T1, user: question, answer, mode, at: new Date().toISOString(),
+    });
+    saveSnapshot(store, completed);
+
+    const reopened = loadSnapshot(store, A).snapshot!;
+    const request = "What was our last conversation?";
+    expect(recapFromMessages(reopened.messages, request)).toContain(question);
+    expect(recapFromMessages(reopened.messages, request)).toContain(answer);
+    expect(modelThread(reopened.messages)).toEqual([
+      { role: "user", content: question }, { role: "assistant", content: answer },
+    ]);
+
+    // Sync removes only the outbox entry. A later page refresh must still
+    // restore the transcript without needing the account checkpoint reader.
+    const append = vi.fn(async () => ({ ok: true, state: "saved" as const, message: "" }));
+    const result = await flushPending(reopened.pending, append);
+    saveSnapshot(store, markSynced(reopened, result.synced));
+    const refreshed = loadSnapshot(store, A).snapshot!;
+    expect(refreshed.pending).toEqual([]);
+    expect(refreshed.messages).toEqual(reopened.messages);
+    expect(recapFromMessages(refreshed.messages, request)).toContain(answer);
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
   it("restores visible turns and the draft after a reload for the same owner", () => {
     const store = memStore();
     const snap = withMessages(emptySnapshot(A), [msg("x-u", "user", "Plan Monday"), msg("x-a", "assistant", "Agenda drafted")], "half-typed prompt");
