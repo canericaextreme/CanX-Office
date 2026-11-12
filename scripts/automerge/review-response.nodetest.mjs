@@ -80,10 +80,10 @@ test('retry eligibility alone cannot admit a protected file, failed check, stale
   const facts = { pr: { number: 190, state: 'open', draft: false, mergeable: true, base: { ref: 'main' }, head: { ref: 'chatgpt/fix', sha }, labels: [{ name: 'canx:auto-merge' }] },
     files: [{ filename: 'src/components/office/Desk.tsx', additions: 1, deletions: 0 }],
     checkRuns: [{ name: 'pr-checks', status: 'completed', conclusion: 'success' }], statuses: [], reviews: [] };
-  assert.equal(decide(facts).action, 'review');
-  assert.notEqual(decide({ ...facts, files: [{ filename: '.github/workflows/canx-merge-robot.yml' }] }).action, 'review');
-  assert.notEqual(decide({ ...facts, checkRuns: [{ name: 'pr-checks', status: 'completed', conclusion: 'failure' }] }).action, 'review');
-  assert.notEqual(decide({ ...facts, reviews: [{ user: { login: 'reviewer' }, state: 'CHANGES_REQUESTED' }] }).action, 'review');
+  assert.equal(decide(facts).action, 'merge'); // optional review is no longer a prerequisite
+  assert.notEqual(decide({ ...facts, files: [{ filename: '.github/workflows/canx-merge-robot.yml' }] }).action, 'merge');
+  assert.notEqual(decide({ ...facts, checkRuns: [{ name: 'pr-checks', status: 'completed', conclusion: 'failure' }] }).action, 'merge');
+  assert.notEqual(decide({ ...facts, reviews: [{ user: { login: 'reviewer' }, state: 'CHANGES_REQUESTED' }] }).action, 'merge');
   assert.notEqual(decide({ ...facts, statuses: [{ context: REVIEW_CONTEXT, state: 'failure', description: 'anthropic:model changes - Bug found' }] }).action, 'merge');
 });
 
