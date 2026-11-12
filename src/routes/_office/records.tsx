@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
 import { OFFICE_KNOWLEDGE } from "@/lib/office-knowledge";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/records")({
   head: () => ({
@@ -24,9 +25,11 @@ function Records() {
     <RoomShell>
       <div className="space-y-6">
         {OFFICE_KNOWLEDGE.map((record) => (
-          <KnowledgeRecordPanel key={record.id} record={record} defaultOpen />
+          <RoomBox key={record.id} id={`records.knowledge-${record.id.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} name={record.title}>
+            <KnowledgeRecordPanel record={record} defaultOpen />
+          </RoomBox>
         ))}
-        <Card className="border-border bg-card">
+        <RoomBox id="records.classes" name="Record classes"><Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Record classes</CardTitle>
           </CardHeader>
@@ -39,11 +42,11 @@ function Records() {
               <li>Audit exports — portable formats</li>
             </ul>
           </CardContent>
-        </Card>
-        <Button disabled>Export sample record pack</Button>
+        </Card></RoomBox>
+        <RoomBox id="records.export" name="Export sample record pack"><Button disabled>Export sample record pack</Button>
         <p className="text-xs text-muted-foreground">
           Exports require a backend to be selected and configured.
-        </p>
+        </p></RoomBox>
       </div>
     </RoomShell>
   );

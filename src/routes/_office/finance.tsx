@@ -29,6 +29,7 @@ import {
   type PaymentStatus,
   type ReviewStatus,
 } from "@/lib/finance-receipts";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/finance")({
   head: () => ({
@@ -222,7 +223,7 @@ export function Finance() {
           <>
             <h2 className="text-xl font-semibold">Finance overview</h2>
             {privateLoad === "failed" && notice && <p role="alert" className="text-sm text-foreground">{notice}</p>}
-            <nav aria-label="Finance categories" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <RoomBox id="finance.categories" name="Finance categories"><nav aria-label="Finance categories" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {([
                 { id: "income", label: "Income", value: "Unknown", note: "No reconciled income source", icon: BadgeDollarSign, border: "border-t-canx-green", iconTone: "bg-canx-green/10 text-canx-green" },
                 { id: "expenses", label: "Expenses", value: "Unknown", note: "No reconciled payment source", icon: Landmark, border: "border-t-finance-teal", iconTone: "bg-finance-teal/10 text-finance-teal" },
@@ -246,8 +247,8 @@ export function Finance() {
                   </Button>
                 );
               })}
-            </nav>
-            <BudgetPanel />
+            </nav></RoomBox>
+            <RoomBox id="finance.budget" name="AI budget"><BudgetPanel /></RoomBox>
           </>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
@@ -257,30 +258,30 @@ export function Finance() {
         )}
 
         {section === "income" && (
-          <Card className="border-t-4 border-t-canx-green bg-card">
+          <RoomBox id="finance.income" name="Income records"><Card className="border-t-4 border-t-canx-green bg-card">
             <CardHeader><SectionTitle>Income records</SectionTitle></CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>No reconciled income records or connected income source are available in Finance.</p>
               <p>Income remains Unknown. Nothing is estimated from receipts or subscription records.</p>
             </CardContent>
-          </Card>
+          </Card></RoomBox>
         )}
 
         {section === "expenses" && (
           <>
-            <Card className="border-t-4 border-t-finance-teal bg-card">
+            <RoomBox id="finance.expenses" name="Expense records"><Card className="border-t-4 border-t-finance-teal bg-card">
               <CardHeader><SectionTitle>Expense records</SectionTitle></CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
                 <p>No connected payment source or reconciled expense total is available in Finance.</p>
                 <p>{summary.receipts} receipt{summary.receipts === 1 ? " is" : "s are"} available for review, but receipts are not treated as confirmed expenses.</p>
               </CardContent>
-            </Card>
-            <BudgetPanel />
+            </Card></RoomBox>
+            <RoomBox id="finance.expenses-budget" name="AI budget (expenses)"><BudgetPanel /></RoomBox>
           </>
         )}
 
         {section === "tax" && (
-          <Card className="border-t-4 border-t-finance-navy bg-card">
+          <RoomBox id="finance.tax" name="Tax preparation records"><Card className="border-t-4 border-t-finance-navy bg-card">
             <CardHeader><SectionTitle>Tax preparation records</SectionTitle></CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <p>Tax preparation has not started. This Office does not provide tax advice or determine tax treatment.</p>
@@ -297,11 +298,11 @@ export function Finance() {
               )}
               <p className="text-xs">A qualified professional must review the source records and decide their tax treatment.</p>
             </CardContent>
-          </Card>
+          </Card></RoomBox>
         )}
 
         {section === "receipts" && <>
-        <Card className="border-t-4 border-t-canx-green bg-card">
+        <RoomBox id="finance.receipt-inbox" name="Receipt inbox: import and export"><Card className="border-t-4 border-t-canx-green bg-card">
           <CardHeader>
             <SectionTitle>Receipt inbox: import and export</SectionTitle>
           </CardHeader>
@@ -326,7 +327,7 @@ export function Finance() {
             </div>
             {notice && <p className="text-sm text-foreground">{notice}</p>}
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
         {preview && (
           <Card className="border-primary bg-card">
@@ -368,7 +369,7 @@ export function Finance() {
           </Card>
         )}
 
-        <Card className="border-border bg-card">
+        <RoomBox id="finance.totals" name="Totals by currency"><Card className="border-border bg-card">
           <CardHeader>
             <SectionTitle>Totals by currency</SectionTitle>
           </CardHeader>
@@ -390,9 +391,9 @@ export function Finance() {
               Currencies are never added together, and receipts with no stated currency are kept separate.
             </p>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="border-border bg-card">
+        <RoomBox id="finance.receipts" name="Receipt records"><Card className="border-border bg-card">
           <CardHeader>
             <SectionTitle>Receipt records ({receipts.length})</SectionTitle>
           </CardHeader>
@@ -502,9 +503,9 @@ export function Finance() {
               ))
             )}
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="border-border bg-card">
+        <RoomBox id="finance.reconciliation" name="Reconciliation"><Card className="border-border bg-card">
           <CardHeader>
             <SectionTitle>Reconciliation</SectionTitle>
           </CardHeader>
@@ -518,7 +519,7 @@ export function Finance() {
               No mail is sent or deleted, and no mailbox is changed by this room.
             </p>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
         </>}
       </div>
     </RoomShell>

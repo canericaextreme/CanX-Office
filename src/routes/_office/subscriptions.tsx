@@ -3,6 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { SubscriptionManager } from "@/components/office/SubscriptionManager";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/subscriptions")({
   head: () => ({
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_office/subscriptions")({
 export function Subscriptions() {
   return (
     <RoomShell>
-      <SubscriptionManager />
+      <RoomBox id="subscriptions.manager" name="Subscriptions"><SubscriptionManager /></RoomBox>
     </RoomShell>
   );
 }

@@ -19,6 +19,7 @@ import {
   OFFICE_CONNECTIONS,
   SUPABASE_SETUP_URL,
 } from "@/lib/connections-inventory";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 
 // Electric violet visual theme. Keep operational connection status colours unchanged.
@@ -75,7 +76,7 @@ function Systems() {
   return (
     <RoomShell showSample={false}>
       <div className="space-y-7">
-        <header
+        <RoomBox id="systems.banner" name="Systems & connections"><header
           className="rounded-xl border p-6 sm:p-8"
           style={{
             borderColor: SYSTEMS_VIOLET.bright,
@@ -88,8 +89,8 @@ function Systems() {
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/90">
             Connection evidence, account ownership, security and service health — shown as verified only when checked.
           </p>
-        </header>
-        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
+        </header></RoomBox>
+        <RoomBox id="systems.connected" name="What this office is connected to"><Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader>
             <CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>What this office is connected to</CardTitle>
           </CardHeader>
@@ -135,9 +136,9 @@ function Systems() {
             <Row name="Backups and restore" note={backupsRow.note} tone={backupsRow.tone} />
             <Row name="Published site" note="Not checked here. This room does not verify publication; check the Lovable project for the current published version." tone="grey" />
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
+        <RoomBox id="systems.group-a" name="Group A — accounts verified in ChatGPT"><Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader>
             <CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>Group A — accounts verified in ChatGPT</CardTitle>
           </CardHeader>
@@ -155,9 +156,9 @@ function Systems() {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
+        <RoomBox id="systems.group-b" name="Group B — connections this office needs"><Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader>
             <CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>Group B — connections this office needs</CardTitle>
           </CardHeader>
@@ -202,16 +203,16 @@ function Systems() {
               );
             })}
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <RoomReports securityOnly />
+        <RoomBox id="systems.security" name="Security checklist"><RoomReports securityOnly /></RoomBox>
 
-        <ClaudeReviewPanel />
+        <RoomBox id="systems.claude-review" name="Claude review"><ClaudeReviewPanel /></RoomBox>
 
-        <BudgetPanel />
+        <RoomBox id="systems.budget" name="AI budget"><BudgetPanel /></RoomBox>
 
 
-        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
+        <RoomBox id="systems.chatgpt" name="ChatGPT / Elsie connection"><Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader><CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>ChatGPT / Elsie connection</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>Elsie is the Office Manager identity. The Office Manager and companion use separate AI sessions;
@@ -219,8 +220,8 @@ function Systems() {
             <p>Existing Office records and permissions are retained. Saved Brain memory is read on every request.
               Live voice and actions still require verified owner access; no automatic ChatGPT history bridge is connected.</p>
           </CardContent>
-        </Card>
-        <Card className="overflow-hidden bg-card" style={systemsCardStyle}>
+        </Card></RoomBox>
+        <RoomBox id="systems.next-check" name="Next connection check"><Card className="overflow-hidden bg-card" style={systemsCardStyle}>
           <CardHeader><CardTitle className="text-lg font-semibold" style={{ color: SYSTEMS_VIOLET.bright }}>Next connection check</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             {signedIn ? (
@@ -231,8 +232,8 @@ function Systems() {
                 <a href={SUPABASE_SETUP_URL} target="_blank" rel="noreferrer" className="text-primary underline">Database setup</a></>
             )}
           </CardContent>
-        </Card>
-        <ConnectionDiagnosisPanel />
+        </Card></RoomBox>
+        <RoomBox id="systems.diagnosis" name="Connection diagnosis"><ConnectionDiagnosisPanel /></RoomBox>
       </div>
     </RoomShell>
   );

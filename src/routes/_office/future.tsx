@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/future")({
   head: () => ({
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/_office/future")({
 function Future() {
   return (
     <RoomShell>
-      <Card className="border-dashed border-border bg-card/50">
+      <RoomBox id="future.reserved" name="Reserved expansion"><Card className="border-dashed border-border bg-card/50">
         <CardHeader>
           <CardTitle className="text-base">Reserved expansion</CardTitle>
         </CardHeader>
@@ -29,7 +30,7 @@ function Future() {
             unapproved capabilities. New departments are added only after explicit Phase 4+ planning.
           </p>
         </CardContent>
-      </Card>
+      </Card></RoomBox>
     </RoomShell>
   );
 }

@@ -9,6 +9,7 @@ import { useOwnerSession } from "@/lib/owner-session";
 import { loadViewerDeskMemory, type ViewerDeskMemory } from "@/lib/owner-desk-viewer.functions";
 import { PreTripCard } from "@/components/office/PreTripCard";
 import { EmailsCard } from "@/components/office/EmailsCard";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/owner-desk")({
   head: () => ({
@@ -80,9 +81,9 @@ function OwnersDesk() {
     <RoomShell showSample={false}>
       <p className="mb-4 text-xs text-muted-foreground">{statusLine}</p>
       <div className="grid gap-6 lg:grid-cols-2">
-        {!viewer && <PreTripCard />}
-        {!viewer && <EmailsCard />}
-        <Card className="border-border bg-card">
+        {!viewer && <RoomBox id="owner-desk.pretrip" name="Daily pre-trip"><PreTripCard /></RoomBox>}
+        {!viewer && <RoomBox id="owner-desk.emails" name="Emails"><EmailsCard /></RoomBox>}
+        <RoomBox id="owner-desk.priorities" name="Today's priorities"><Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Today's priorities</CardTitle>
           </CardHeader>
@@ -114,9 +115,9 @@ function OwnersDesk() {
                   ))
               : <p className="text-sm text-muted-foreground">Live priorities are unavailable. Open the account menu to check owner verification, then refresh the Work Board.</p>}
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="border-border bg-card">
+        <RoomBox id="owner-desk.approvals" name="Pending approvals"><Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Pending approvals</CardTitle>
           </CardHeader>
@@ -143,10 +144,10 @@ function OwnersDesk() {
                     ))
               : <p className="text-sm text-muted-foreground">Live approvals are unavailable. This does not mean the approval box is empty.</p>}
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
         {budget && (
-          <Card className="border-border bg-card">
+          <RoomBox id="owner-desk.budget" name="AI operating budget this month"><Card className="border-border bg-card">
             <CardHeader>
               <CardTitle className="text-base">AI operating budget this month</CardTitle>
             </CardHeader>
@@ -163,11 +164,11 @@ function OwnersDesk() {
                     : "Within budget."}
               </p>
             </CardContent>
-          </Card>
+          </Card></RoomBox>
         )}
 
         {changes && (
-          <Card className="border-border bg-card">
+          <RoomBox id="owner-desk.changes" name="Recent change log"><Card className="border-border bg-card">
             <CardHeader>
               <CardTitle className="text-base">Recent change log</CardTitle>
             </CardHeader>
@@ -182,16 +183,16 @@ function OwnersDesk() {
                 ))
               )}
             </CardContent>
-          </Card>
+          </Card></RoomBox>
         )}
 
-        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-4">
+        <RoomBox id="owner-desk.connection" name="Office connection status" className="lg:col-span-2"><div className="lg:col-span-2 rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Office connection status</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Open Systems &amp; Connections for the current session checks. A saved task or a working page does not
             prove an AI worker is running. Background maintenance and restore tests have not been verified here.
           </p>
-        </div>
+        </div></RoomBox>
       </div>
     </RoomShell>
   );

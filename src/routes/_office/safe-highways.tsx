@@ -2,6 +2,7 @@ import { SafeHighwaysProgress } from "@/components/office/SafeHighwaysProgress";
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Button } from "@/components/ui/button";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/safe-highways")({
   head: () => ({
@@ -58,7 +59,7 @@ function SafeHighways() {
   return (
     <RoomShell>
       <div className="space-y-8">
-        <header
+        <RoomBox id="safe-highways.banner" name="Programme and routing oversight"><header
           className="rounded-xl border p-6 sm:p-8"
           style={{
             borderColor: C.azure,
@@ -76,11 +77,11 @@ function SafeHighways() {
             CanX Office oversees Safe Highways; it does not replace its reporting app or rewrite its
             architecture. This room is read-only and disconnected in Phase 1.
           </p>
-        </header>
+        </header></RoomBox>
 
-        <SafeHighwaysProgress />
+        <RoomBox id="safe-highways.progress" name="Safe Highways progress"><SafeHighwaysProgress /></RoomBox>
 
-        <section aria-label="Safe Highways components">
+        <RoomBox id="safe-highways.components" name="Safe Highways components"><section aria-label="Safe Highways components">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {COMPONENTS.map((c, i) => {
               const look = STATUS_LOOK[c.status];
@@ -112,9 +113,9 @@ function SafeHighways() {
               );
             })}
           </div>
-        </section>
+        </section></RoomBox>
 
-        <section aria-label="Routing evidence">
+        <RoomBox id="safe-highways.routing" name="Routing evidence"><section aria-label="Routing evidence">
           <h2 className="font-serif text-2xl">Routing evidence</h2>
           <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {ROUTING_STEPS.map((step, i) => (
@@ -144,7 +145,7 @@ function SafeHighways() {
               Request read-only inventory connection
             </Button>
           </div>
-        </section>
+        </section></RoomBox>
       </div>
     </RoomShell>
   );

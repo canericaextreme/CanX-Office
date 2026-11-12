@@ -89,7 +89,7 @@ afterEach(cleanup);
 describe("Live Brain view", () => {
   it("sits in the Brain room right after the Brain cards", () => {
     const page = readFileSync("src/routes/_office/brain.tsx", "utf8");
-    expect(page).toMatch(/<BrainHub \/>\s*<BrainLiveView \/>/);
+    expect(page).toMatch(/<BrainHub \/>(<\/RoomBox>)?\s*(<RoomBox[^>]*>)?<BrainLiveView \/>/);
   });
 
   it("shows the stage legend with names, not colour alone", () => {

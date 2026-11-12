@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { BlueprintRoom } from "@/components/office/BlueprintRoom";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/blueprint")({
   head: () => ({
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/_office/blueprint")({
 function Blueprint() {
   return (
     <RoomShell showFiles={false}>
-      <BlueprintRoom />
+      <RoomBox id="blueprint.main" name="Blueprint"><BlueprintRoom /></RoomBox>
     </RoomShell>
   );
 }

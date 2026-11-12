@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useOwnerSession } from "@/lib/owner-session";
 import { checkMailboxAccess, type MailboxAccessResult } from "@/lib/mailbox-access.functions";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/communications")({
   head: () => ({
@@ -24,7 +25,7 @@ function Communications() {
   return (
     <RoomShell>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border bg-card">
+        <RoomBox id="communications.mailbox" name="Mailbox access"><Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Mailbox access</CardTitle>
           </CardHeader>
@@ -45,8 +46,8 @@ function Communications() {
               Receipt retrieval currently supports Gmail.
             </p>
           </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
+        </Card></RoomBox>
+        <RoomBox id="communications.scheduled" name="Scheduled messages"><Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Scheduled messages</CardTitle>
           </CardHeader>
@@ -56,7 +57,7 @@ function Communications() {
               is connected and verified.
             </p>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
       </div>
     </RoomShell>
   );

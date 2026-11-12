@@ -10,6 +10,8 @@ import { SecondEyesPanel } from "@/components/office/SecondEyesPanel";
 import { DailyPreTripStarter } from "@/components/office/PreTripCard";
 import { canBrowseOfficeWithoutSignIn } from "@/lib/office-development-access";
 import { OfficeGate } from "@/components/office/OfficeGate";
+import { MovedInBoxes, RoomEditTab } from "@/components/office/RoomLayout";
+import { RoomLayoutProvider } from "@/components/office/RoomLayoutProvider";
 import { OfficeThemeProvider } from "@/lib/office-theme";
 import { OwnerSessionProvider } from "@/lib/owner-session";
 import { useOwnerSession } from "@/lib/owner-session";
@@ -30,9 +32,12 @@ function OfficeInterior() {
           For a wider Office, turn your phone sideways. Enable Auto rotate if it stays upright.
         </p>}
         {/* The only element an office observation may look at. */}
-        <div className="flex-1 pb-20" data-canx-office-view="true">
+        <div className="relative flex-1 pb-20" data-canx-office-view="true">
+          {/* Edit tab, top left of every room: Unlock, Edit, Lock (John, 12 Nov 2026). */}
+          <RoomEditTab />
           <RoomAccessBar />
           <Outlet />
+          <MovedInBoxes />
           <RoomReports />
         </div>
       </div>
@@ -65,9 +70,11 @@ function OfficeLayout() {
     <OfficeThemeProvider>
       <OwnerSessionProvider>
         <OfficeHoursProvider>
-          {canBrowseOfficeWithoutSignIn(import.meta.env.DEV)
-            ? <OfficeInterior />
-            : <OfficeGate><OfficeInterior /></OfficeGate>}
+          <RoomLayoutProvider>
+            {canBrowseOfficeWithoutSignIn(import.meta.env.DEV)
+              ? <OfficeInterior />
+              : <OfficeGate><OfficeInterior /></OfficeGate>}
+          </RoomLayoutProvider>
         </OfficeHoursProvider>
       </OwnerSessionProvider>
     </OfficeThemeProvider>

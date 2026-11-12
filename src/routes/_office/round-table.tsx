@@ -39,6 +39,8 @@ import {
   type RehearsalResult,
   type RoleBrief,
 } from "@/lib/round-table-rehearsal";
+import { RoomBox } from "@/components/office/RoomLayout";
+import { boxSlug } from "@/lib/room-layout";
 
 
 const COLOUR = ROOM_COLOURS["/round-table"]!;
@@ -219,7 +221,7 @@ function RoundTablePage() {
       <div className="mx-auto max-w-5xl px-4 py-6">
         <RoomColourBanner colour={COLOUR} number={null} title="Round Table" purpose="Meeting agenda, notes, decisions, owners and due dates." icon={MessagesSquare} headingLevel="h2" />
         <RoomColourScope colour={COLOUR}>
-        <header className="mb-6 border-b border-border pb-5">
+        <RoomBox id="round-table.header" name="Round Table"><header className="mb-6 border-b border-border pb-5">
           <div className="flex flex-wrap items-center gap-2">
             <OfficeFiles room="round-table" /><h1 className="text-2xl font-semibold text-foreground">Monday round table — draft</h1>
             <span className="rounded-full border border-canx-yellow/60 bg-canx-yellow/15 px-2 py-0.5 text-xs font-semibold text-canx-yellow">
@@ -235,9 +237,9 @@ function RoundTablePage() {
             time from <Link to="/owner-desk" className="text-primary underline">Owner's Desk</Link> or{" "}
             <Link to="/office-team" className="text-primary underline">Office Team</Link>.
           </p>
-        </header>
+        </header></RoomBox>
 
-        <div className="mb-5 flex flex-wrap gap-2">
+        <RoomBox id="round-table.toolbar" name="Save, reload, export and import"><div className="mb-5 flex flex-wrap gap-2">
           <Button onClick={save}><Save className="mr-1.5 h-4 w-4" /> Save</Button>
           <Button variant="outline" onClick={reload}><RotateCcw className="mr-1.5 h-4 w-4" /> Reload saved</Button>
           <Button variant="outline" onClick={exportFile}><Download className="mr-1.5 h-4 w-4" /> Export</Button>
@@ -254,7 +256,7 @@ function RoundTablePage() {
               event.target.value = "";
             }}
           />
-        </div>
+        </div></RoomBox>
 
         {message && (
           <p role="status" className="mb-5 rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground">
@@ -265,7 +267,7 @@ function RoundTablePage() {
           <p className="mb-5 text-xs text-muted-foreground">Last saved: {new Date(doc.updatedAt).toLocaleString()}</p>
         )}
 
-        <Card className="mb-5">
+        <RoomBox id="round-table.readiness" name="Before Monday — readiness"><Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Before Monday — readiness</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             <p className="text-sm text-muted-foreground">
@@ -293,12 +295,12 @@ function RoundTablePage() {
               note="Editable below, with export and import as a backup."
             />
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
         {FEASIBILITY_ITEMS.map((item) => {
           const alreadyOnAgenda = doc.agenda.some((row) => row.title === item.agendaTitle);
           return (
-            <Card key={item.id} className="mb-5">
+            <RoomBox key={item.id} id={`round-table.queued-${boxSlug(item.id)}`} name={`Queued for this round table — ${item.title}`}><Card className="mb-5">
                             <KnowledgeRecordPanel
   record={IDEA_LAB_KNOWLEDGE}
   title="Recorded governance for this round table"
@@ -363,12 +365,12 @@ function RoundTablePage() {
                   </span>
                 </div>
               </CardContent>
-            </Card>
+            </Card></RoomBox>
           );
         })}
 
         {CLAUDE_ASSIGNMENTS.map((assignment) => (
-          <Card key={assignment.id} className="mb-5">
+          <RoomBox key={assignment.id} id={`round-table.review-${boxSlug(assignment.id)}`} name={`Second-eyes review prepared — ${assignment.subject}`}><Card className="mb-5">
             <CardHeader>
               <CardTitle className="text-base">Second-eyes review prepared — {assignment.subject}</CardTitle>
             </CardHeader>
@@ -404,10 +406,10 @@ function RoundTablePage() {
                 Open Systems to send this review
               </Link>
             </CardContent>
-          </Card>
+          </Card></RoomBox>
         ))}
 
-        <Card className="mb-5">
+        <RoomBox id="round-table.meeting" name="Meeting"><Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Meeting</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Date">
@@ -432,9 +434,9 @@ function RoundTablePage() {
               <Input value={doc.coordinator} onChange={(e) => update({ coordinator: e.target.value })} />
             </Field>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="mb-5">
+        <RoomBox id="round-table.agenda" name="Agenda"><Card className="mb-5">
           <CardHeader>
             <CardTitle className="text-base">Agenda — {totalMinutes} minutes</CardTitle>
           </CardHeader>
@@ -493,9 +495,9 @@ function RoundTablePage() {
               <Plus className="mr-1.5 h-4 w-4" /> Add agenda item
             </Button>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="mb-5">
+        <RoomBox id="round-table.seats" name="Seats at the table"><Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Seats at the table</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             <p className="text-xs text-muted-foreground">
@@ -520,16 +522,16 @@ function RoundTablePage() {
               </div>
             ))}
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="mb-5">
+        <RoomBox id="round-table.notes" name="Meeting notes"><Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Meeting notes</CardTitle></CardHeader>
           <CardContent>
             <Textarea rows={7} value={doc.notes} aria-label="Meeting notes" onChange={(e) => update({ notes: e.target.value })} />
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="mb-5">
+        <RoomBox id="round-table.decisions" name="Decision log"><Card className="mb-5">
           <CardHeader><CardTitle className="text-base">Decision log</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {doc.decisions.map((row, index) => (
@@ -578,9 +580,9 @@ function RoundTablePage() {
               <Plus className="mr-1.5 h-4 w-4" /> Add decision
             </Button>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
 
-        <Card className="mb-10">
+        <RoomBox id="round-table.actions" name="Actions — owner and due date"><Card className="mb-10">
           <CardHeader><CardTitle className="text-base">Actions — owner and due date</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {doc.actions.map((row, index) => (
@@ -640,7 +642,7 @@ function RoundTablePage() {
               <Plus className="mr-1.5 h-4 w-4" /> Add action
             </Button>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
         </RoomColourScope>
       </div>
     </main>
