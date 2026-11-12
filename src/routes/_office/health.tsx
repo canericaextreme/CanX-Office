@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/health")({
   head: () => ({
@@ -20,7 +21,7 @@ function Health() {
   return (
     <RoomShell>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border bg-card">
+        <RoomBox id="health.energy" name="Energy check"><Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Energy check</CardTitle>
           </CardHeader>
@@ -30,8 +31,8 @@ function Health() {
               stored in Phase 1.
             </p>
           </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
+        </Card></RoomBox>
+        <RoomBox id="health.capacity" name="Capacity signal"><Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Capacity signal</CardTitle>
           </CardHeader>
@@ -40,7 +41,7 @@ function Health() {
               Future feature: surface capacity signals before scheduling high-stakes decisions.
             </p>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
       </div>
     </RoomShell>
   );

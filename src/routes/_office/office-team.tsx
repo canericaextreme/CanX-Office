@@ -16,6 +16,7 @@ import {
   saveTeam,
   type TeamMember,
 } from "@/lib/office-team";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/office-team")({
   head: () => ({
@@ -142,7 +143,7 @@ function OfficeTeam() {
 
   return (
     <RoomShell>
-      <Card className="border-border bg-card">
+      <RoomBox id="office-team.members" name="Team members"><Card className="border-border bg-card">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base">Team members</CardTitle>
           <div className="flex items-center gap-2">
@@ -202,9 +203,9 @@ function OfficeTeam() {
 
           {team.length === 0 && <p className="text-muted-foreground">No team members recorded on this device.</p>}
         </CardContent>
-      </Card>
+      </Card></RoomBox>
 
-      <Card className="mt-4 border-border bg-card">
+      <RoomBox id="office-team.helpers" name="Planned AI helpers"><Card className="mt-4 border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-base">Planned AI helpers</CardTitle>
           <StatusBadge tone="grey" label="Grey — planned" />
@@ -241,7 +242,7 @@ function OfficeTeam() {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card></RoomBox>
     </RoomShell>
   );
 }

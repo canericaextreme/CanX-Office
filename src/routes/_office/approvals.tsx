@@ -15,6 +15,7 @@ import {
 } from "@/lib/manager-work.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 // Acid Green room palette (15 Oct 2026). Text on the bright greens is always dark ink,
 // because white text on acid green is hard to read.
@@ -132,7 +133,7 @@ function Approvals() {
   return (
     <RoomShell showFiles={false}>
       <div className="space-y-8">
-        <header
+        <RoomBox id="approvals.banner" name="One decision inbox"><header
           className="rounded-xl border p-6 sm:p-8"
           style={{
             borderColor: C.leaf,
@@ -171,7 +172,7 @@ function Approvals() {
               </Button>
             )}
           </div>
-        </header>
+        </header></RoomBox>
 
         {notice && (
           <p role="status" aria-live="polite" className="text-sm text-canx-yellow">
@@ -180,7 +181,7 @@ function Approvals() {
         )}
         {problem && <p className="text-xs text-canx-red">{problem}</p>}
 
-        <section aria-label="Approval requests">
+        <RoomBox id="approvals.requests" name="Approval requests"><section aria-label="Approval requests">
           <h2 className="font-serif text-2xl">Approval requests</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Each request shows what it is, what it costs, how risky it is and where it stands.
@@ -200,10 +201,10 @@ function Approvals() {
               {loading ? "Loading your approval requests…" : error || sessionMessage}
             </p>
           )}
-        </section>
+        </section></RoomBox>
 
         {durable && (
-          <section aria-label="Send something for approval">
+          <RoomBox id="approvals.send" name="Send something for approval"><section aria-label="Send something for approval">
             <article
               className="rounded-lg border bg-card p-4 sm:p-6"
               style={{ borderTop: `4px solid ${C.acid}` }}
@@ -282,22 +283,22 @@ function Approvals() {
                 </div>
               </div>
             </article>
-          </section>
+          </section></RoomBox>
         )}
 
-        <section aria-label="Claude Second Eyes">
+        <RoomBox id="approvals.second-eyes" name="Claude Second Eyes"><section aria-label="Claude Second Eyes">
           <ClaudeSpendApproval />
-        </section>
+        </section></RoomBox>
 
-        <section aria-label="Approval files">
+        <RoomBox id="approvals.files" name="Supporting files"><section aria-label="Approval files">
           <h2 className="font-serif text-2xl">Supporting files</h2>
           <p className="mt-2 mb-4 text-sm text-muted-foreground">
             Papers and photos that back up a decision.
           </p>
           <OfficeFiles room="approvals" />
-        </section>
+        </section></RoomBox>
 
-        <section>
+        <RoomBox id="approvals.how" name="How an approval moves"><section>
           <h2 className="font-serif text-2xl">How an approval moves</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {STEPS.map(([stepTitle, stepDetail], i) => (
@@ -312,7 +313,7 @@ function Approvals() {
               </article>
             ))}
           </div>
-        </section>
+        </section></RoomBox>
       </div>
     </RoomShell>
   );

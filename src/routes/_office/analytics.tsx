@@ -12,6 +12,7 @@ import { getRoomSnapshot } from "@/lib/room-snapshot.functions";
 import { currentBuildVersion, evaluateReleaseGate, loadResults } from "@/lib/office-health";
 import { sendManagerHandoff } from "@/lib/companion-bridge";
 import { CARD_GUIDE, MEASURED_STATES, STATE_LABEL, type Accent, type AnalyticsCard, type AnalyticsOverview, type CardId, type Metric, type MetricState, type Series, type Tone } from "@/lib/analytics-overview";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/analytics")({ component: AnalyticsRoom });
 
@@ -293,11 +294,11 @@ function AnalyticsRoom() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] px-4 py-4 text-white md:px-6">
       <Backdrop />
-      <AnalyticsBoard load={load} onRefresh={() => void refresh()} busy={busy} canAsk={!session.viewer} deviceCheck={deviceCheck} />
-      <OfficeHoursPanel />
-      <SafeHighwaysProgress variant="analytics" />
-      <BrainActivityCharts viewer={!!session.viewer} />
-      <div className="relative mx-auto mt-4 max-w-[1500px] space-y-3"><RoomSkillsLink route="/analytics" /><OfficeFiles room="analytics" /></div>
+      <RoomBox id="analytics.board" name="Analytics board"><AnalyticsBoard load={load} onRefresh={() => void refresh()} busy={busy} canAsk={!session.viewer} deviceCheck={deviceCheck} /></RoomBox>
+      <RoomBox id="analytics.office-hours" name="Office hours"><OfficeHoursPanel /></RoomBox>
+      <RoomBox id="analytics.safe-highways" name="Safe Highways progress"><SafeHighwaysProgress variant="analytics" /></RoomBox>
+      <RoomBox id="analytics.brain-activity" name="Brain activity"><BrainActivityCharts viewer={!!session.viewer} /></RoomBox>
+      <div className="relative mx-auto mt-4 max-w-[1500px] space-y-3"><RoomBox id="analytics.skills" name="Room skills"><RoomSkillsLink route="/analytics" /></RoomBox><RoomBox id="analytics.files" name="Saved files and links"><OfficeFiles room="analytics" /></RoomBox></div>
     </main>
   );
 }

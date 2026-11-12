@@ -4,7 +4,7 @@ import { SampleBadge } from "./SampleBadge";
 import { roomIdentityForRoute } from "@/lib/office-room-identity";
 import { roomColourForRoute } from "@/lib/office-room-colours";
 import { RoomColourBanner, RoomColourScope } from "./RoomColour";
-import { useRouterState } from "@tanstack/react-router";
+import { RoomBox, useRoomPath } from "./RoomLayout";
 
 interface RoomShellProps {
   children: React.ReactNode;
@@ -21,7 +21,7 @@ export function RoomShell({
   showSample = true,
   showFiles = true,
 }: RoomShellProps) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pathname = useRoomPath();
   // Exact identity only: an unknown page never borrows Reception's label or files.
   const room = roomIdentityForRoute(pathname);
 
@@ -30,8 +30,17 @@ export function RoomShell({
   const heading = title ?? room?.label ?? "Office page";
   const body = (
     <>
-      {room && showFiles && <OfficeFiles room={room.id} collapseList={room.id === "brain"} />}
-      {pathname !== "/skills" && <RoomSkillsLink route={pathname} />}
+      {room && showFiles && (
+        <RoomBox id={`${room.id}.files`} name="Saved files and links">
+          <OfficeFiles room={room.id} collapseList={room.id === "brain"} />
+        </RoomBox>
+      )}
+      {room && pathname !== "/skills" && (
+        <RoomBox id={`${room.id}.skills`} name="Room skills">
+          <RoomSkillsLink route={pathname} />
+        </RoomBox>
+      )}
+      {!room && pathname !== "/skills" && <RoomSkillsLink route={pathname} />}
       {children}
     </>
   );

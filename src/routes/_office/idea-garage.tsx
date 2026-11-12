@@ -7,6 +7,8 @@ import { IDEA_PROVENANCE_LABELS, ideasForStage, type IdeaCard } from "@/lib/idea
 import { IdeaLab } from "@/components/office/IdeaLab";
 import { KnowledgeRecordPanel } from "@/components/office/KnowledgeRecordPanel";
 import { IDEA_LAB_KNOWLEDGE, IDEA_CATEGORIES } from "@/lib/office-knowledge";
+import { RoomBox } from "@/components/office/RoomLayout";
+import { boxSlug } from "@/lib/room-layout";
 
 function IdeaCardView({ idea }: { idea: IdeaCard }) {
   return (
@@ -71,12 +73,12 @@ function IdeaGarage() {
   return (
     <RoomShell>
       <div className="mb-8">
-        <KnowledgeRecordPanel
+        <RoomBox id="idea-garage.rules" name="How this room works — recorded rules"><KnowledgeRecordPanel
           record={IDEA_LAB_KNOWLEDGE}
           title="How this room works — recorded rules"
           onlySections={["idea-lab-purpose", "three-tracks", "scoring", "continuous-research", "hygiene", "cost-control"]}
-        />
-        <Card className="border-border bg-card">
+        /></RoomBox>
+        <RoomBox id="idea-garage.avenues" name="Revenue avenues open to brainstorming"><Card className="border-border bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Revenue avenues open to brainstorming</CardTitle>
           </CardHeader>
@@ -87,15 +89,15 @@ function IdeaGarage() {
               </Badge>
             ))}
           </CardContent>
-        </Card>
-        <IdeaLab />
+        </Card></RoomBox>
+        <RoomBox id="idea-garage.lab" name="Idea Lab"><IdeaLab /></RoomBox>
       </div>
       <h2 className="mb-3 text-lg font-semibold text-foreground">Decision stages</h2>
       <div className="grid gap-6 lg:grid-cols-3">
         {STAGES.map((stage) => {
           const ideas = ideasForStage(stage.name);
           return (
-            <Card key={stage.name} className="border-border bg-card">
+            <RoomBox key={stage.name} id={`idea-garage.stage-${boxSlug(stage.name)}`} name={stage.name}><Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-base">{stage.name}</CardTitle>
               </CardHeader>
@@ -110,10 +112,10 @@ function IdeaGarage() {
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </Card></RoomBox>
           );
         })}
-        <Card className="border-border bg-card lg:col-span-3">
+        <RoomBox id="idea-garage.income" name="Income goal context" className="lg:col-span-3"><Card className="border-border bg-card lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-base">Income goal context</CardTitle>
           </CardHeader>
@@ -127,7 +129,7 @@ function IdeaGarage() {
               Confirm baseline
             </Button>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
       </div>
     </RoomShell>
   );

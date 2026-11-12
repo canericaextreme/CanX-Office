@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { readOfficeConnectionPlan } from "@/lib/office-connection-plan";
 import { roomIdentityForRoute } from "@/lib/office-room-identity";
 import { PreTripBadge } from "@/components/office/PreTripCard";
+import { RoomBox } from "@/components/office/RoomLayout";
+import { boxSlug } from "@/lib/room-layout";
 
 // Solar Flare room palette (16 Oct 2026). Text on the orange-gold is always dark ink,
 // because white text on Solar Flare is hard to read.
@@ -42,7 +44,7 @@ function ReceptionRoom() {
   return (
     <RoomShell title="Reception" showSample={false}>
       <div className="space-y-8">
-        <header
+        <RoomBox id="reception.welcome" name="Welcome to CanX Office"><header
           className="rounded-xl border p-6 sm:p-8"
           style={{
             borderColor: C.ember,
@@ -70,7 +72,7 @@ function ReceptionRoom() {
           </div>
           {/* The badge draws its own pale box, so viewers (who get no badge) see no empty box. */}
           <PreTripBadge className="mt-4 rounded-md px-3 py-2" style={{ backgroundColor: C.pale, color: C.ink }} />
-        </header>
+        </header></RoomBox>
 
         <section aria-label="Rooms">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -80,8 +82,7 @@ function ReceptionRoom() {
                   ? "Every Office room on one map. Pick a room to open it."
                   : roomIdentityForRoute(room.to)?.purpose;
               return (
-                <Link
-                  key={room.to}
+                <RoomBox key={room.to} id={`reception.shortcut-${boxSlug(room.label)}`} name={room.label}><Link
                   to={room.to}
                   className="flex flex-col overflow-hidden rounded-lg shadow-sm transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2"
                   style={{ backgroundColor: C.pale, color: C.ink, outlineColor: C.ember }}
@@ -100,13 +101,13 @@ function ReceptionRoom() {
                       </p>
                     )}
                   </div>
-                </Link>
+                </Link></RoomBox>
               );
             })}
           </div>
         </section>
 
-        <section aria-label={plan.title}>
+        <RoomBox id="reception.connect" name={plan.title}><section aria-label={plan.title}>
           <h2 className="font-serif text-2xl">{plan.title}</h2>
           <div
             className="mt-4 rounded-lg px-4 py-3 text-sm"
@@ -146,7 +147,7 @@ function ReceptionRoom() {
               );
             })}
           </ol>
-        </section>
+        </section></RoomBox>
       </div>
     </RoomShell>
   );

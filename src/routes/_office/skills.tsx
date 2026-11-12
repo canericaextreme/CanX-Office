@@ -8,6 +8,8 @@ import {
   type OfficeSkill, type SkillKind,
 } from "@/lib/office-skills";
 import { OFFICE_MAP_ROOMS } from "@/lib/office-map";
+import { RoomBox } from "@/components/office/RoomLayout";
+import { boxSlug } from "@/lib/room-layout";
 
 export const Route = createFileRoute("/_office/skills")({
   head: () => ({
@@ -67,23 +69,23 @@ function Skills() {
   }, [q]);
   return (
     <RoomShell title="Office Skills" purpose="The CanX-owned master copy of every office skill: instructions, status rules, approvals and sources." showSample={false}>
-      <section className="mb-4 space-y-1 rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
+      <RoomBox id="skills.registry" name="Registry version"><section className="mb-4 space-y-1 rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
         <p><b className="text-foreground">Registry version:</b> {SKILLS_REGISTRY_VERSION} · <b className="text-foreground">Source:</b> {MASTER_SOURCE}</p>
         <p><b className="text-foreground">Storage:</b> {STORAGE_DECISION}</p>
         <p>Part of <Link to="/family-continuity" className="text-primary hover:underline">Family Continuity, Skills &amp; Training</Link>. This phase installs Subscriptions and its linked Finance procedures only; every other room remains parked. Elsie selects up to three matching task instructions per typed or spoken request; core safety instructions always apply. Installed instructions do not create connectors or live-test evidence. No skill runs on a schedule.</p>
-      </section>
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search skills" aria-label="Search skills" className="mb-4 max-w-sm" />
+      </section></RoomBox>
+      <RoomBox id="skills.search" name="Search skills"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search skills" aria-label="Search skills" className="mb-4 max-w-sm" /></RoomBox>
       {GROUPS.map(([kind, title]) => {
         const items = list.filter((s) => s.kind === kind);
         if (!items.length) return null;
         return (
-          <section key={kind} className="mb-6">
+          <RoomBox key={kind} id={`skills.group-${boxSlug(kind)}`} name={`${title} (${items.length})`}><section className="mb-6">
             <h2 className="mb-2 text-sm font-semibold text-foreground">{title} ({items.length})</h2>
             <div className="space-y-2">{items.map((s) => <SkillDetail key={s.id} s={s} />)}</div>
-          </section>
+          </section></RoomBox>
         );
       })}
-      <section aria-labelledby="loop-h" className="mb-6 rounded-lg border border-border bg-background/40 p-3">
+      <RoomBox id="skills.loop" name="Elsie's review loop (in order)"><section aria-labelledby="loop-h" className="mb-6 rounded-lg border border-border bg-background/40 p-3">
         <h2 id="loop-h" className="mb-2 text-sm font-semibold text-foreground">Elsie's review loop (in order)</h2>
         <ol className="space-y-1 text-xs">
           {dailyLoop().map(({ skill, readiness, how }, i) => (
@@ -93,12 +95,12 @@ function Skills() {
         <p className="mt-2 text-xs text-muted-foreground">
           Totals: {(["executable", "connected", "blocked", "parked"] as const).map((k) => `${OFFICE_SKILLS.filter((s) => skillReadiness(s) === k).length} ${k}`).join(" · ")}. None is owner live-tested yet; the loop runs only when John asks.
         </p>
-      </section>
-      <section aria-labelledby="gaps-h" className="mb-6">
+      </section></RoomBox>
+      <RoomBox id="skills.gaps" name="Instruction gaps (no approved definition)"><section aria-labelledby="gaps-h" className="mb-6">
         <h2 id="gaps-h" className="mb-2 text-sm font-semibold text-foreground">Instruction gaps (no approved definition)</h2>
         <ul className="space-y-1 text-xs text-muted-foreground">{INSTRUCTION_GAPS.map((g) => <li key={g.route}><span className="font-medium text-foreground">{g.room}</span> — {g.gap}</li>)}</ul>
-      </section>
-      <section className="mb-6">
+      </section></RoomBox>
+      <RoomBox id="skills.coverage" name="Room coverage (19 numbered rooms)"><section className="mb-6">
         <h2 className="mb-2 text-sm font-semibold text-foreground">Room coverage (19 numbered rooms)</h2>
         <ul className="grid gap-1 text-xs sm:grid-cols-2">
           {[...OFFICE_MAP_ROOMS].sort((a, b) => a.number.localeCompare(b.number)).map((r) => {
@@ -111,7 +113,7 @@ function Skills() {
           })}
         </ul>
         <p className="mt-2 text-xs text-muted-foreground">Master entries without a numbered room: {UNMATCHED_MASTER_ENTRIES.map((u) => `${u.masterRoom} (${u.note})`).join("; ")}</p>
-      </section>
+      </section></RoomBox>
     </RoomShell>
   );
 }

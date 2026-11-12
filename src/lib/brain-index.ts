@@ -170,6 +170,7 @@ export function noteDefaultCategory(
     source === "Office Hours: v1" ||
     source === "Legal room: document filing" ||
     source === "Brain shelf: filing" ||
+    source === "Office room layout" ||
     source === CATEGORY_NOTE_SOURCE ||
     source.startsWith("Data room report:") ||
     source === "Lovable project import" ||

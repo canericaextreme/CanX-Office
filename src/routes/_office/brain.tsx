@@ -6,6 +6,7 @@ import { BrainConnectionsList } from "@/components/office/BrainConnectionsList";
 import { BrainLiveView } from "@/components/office/BrainLiveView";
 import { BrainSection } from "@/components/office/BrainSection";
 import { BrainMemory } from "@/components/office/BrainMemory";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/brain")({
   head: () => ({
@@ -25,31 +26,31 @@ function Brain() {
   return (
     <RoomShell showFiles={false} showSample={false}>
       <div className="space-y-6">
-        <BrainHub />
-        <BrainLiveView />
+        <RoomBox id="brain.hub" name="Brain shelves"><BrainHub /></RoomBox>
+        <RoomBox id="brain.live" name="Live Brain view"><BrainLiveView /></RoomBox>
         <div className="space-y-3">
-          <BrainSection
+          <RoomBox id="brain.documents" name="Project documents"><BrainSection
             id="brain-documents"
             label="Project documents"
             hint="Long documents saved for Elsie and the builders to read in full."
           >
             <BrainDocuments />
-          </BrainSection>
-          <BrainSection
+          </BrainSection></RoomBox>
+          <RoomBox id="brain.memory" name="Saved conversation memory"><BrainSection
             id="brain-memory"
             label="Saved conversation memory"
             hint="Summaries of past conversations that Elsie reads when answering."
           >
             <BrainMemory />
-          </BrainSection>
-          <BrainSection
+          </BrainSection></RoomBox>
+          <RoomBox id="brain.map" name="Connections list"><BrainSection
             id="brain-map"
             label="Connections list"
             hint="How the Office's parts connect, as a plain list. The live Brain view above is the map."
           >
             <BrainConnectionsList />
-          </BrainSection>
-          <BrainSection
+          </BrainSection></RoomBox>
+          <RoomBox id="brain.growth" name="Growth history"><BrainSection
             id="brain-growth"
             label="Growth history"
             hint="Approved skills, new projects, verified sources and finished work, once recorded."
@@ -58,7 +59,7 @@ function Brain() {
               No recorded changes yet. Growth will appear here after approved skills, added
               projects, verified sources, or completed work items are recorded.
             </p>
-          </BrainSection>
+          </BrainSection></RoomBox>
         </div>
       </div>
     </RoomShell>

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { LegalRoom } from "@/components/office/LegalRoom";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/legal")({
   head: () => ({
@@ -24,7 +25,7 @@ function Legal() {
       showSample={false}
       showFiles={false}
     >
-      <LegalRoom />
+      <RoomBox id="legal.main" name="Legal"><LegalRoom /></RoomBox>
     </RoomShell>
   );
 }

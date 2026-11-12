@@ -22,6 +22,7 @@ import { DEFAULT_TEAM, loadTeam, type TeamMember } from "@/lib/office-team";
 import { taskExecutionEvidence } from "@/lib/task-execution-evidence";
 import { WorkBoardDecision } from "@/components/office/WorkBoardDecision";
 import { decisionsForJohn, type DecisionItem } from "@/lib/work-board-decisions";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/work-board")({
   head: () => ({
@@ -243,7 +244,7 @@ export function WorkBoard() {
           <option key={member.id} value={member.name} />
         ))}
       </datalist>
-      <Card className="border-border bg-card">
+      <RoomBox id="work-board.tasks" name="Master task list"><Card className="border-border bg-card">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Master task list</CardTitle>
@@ -854,10 +855,10 @@ export function WorkBoard() {
             );
           })}
         </CardContent>
-      </Card>
+      </Card></RoomBox>
 
       {isOwner && (
-        <Card className="mt-6 border-border bg-card">
+        <RoomBox id="work-board.add" name="Add a task"><Card className="mt-6 border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base">Add a task</CardTitle>
           </CardHeader>
@@ -935,7 +936,7 @@ export function WorkBoard() {
               {busy === "new" ? "Saving…" : "Add task"}
             </Button>
           </CardContent>
-        </Card>
+        </Card></RoomBox>
       )}
     </RoomShell>
   );

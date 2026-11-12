@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RoomShell } from "@/components/office/RoomShell";
 import { ProjectRegister } from "@/components/office/ProjectRegister";
+import { RoomBox } from "@/components/office/RoomLayout";
 
 export const Route = createFileRoute("/_office/projects")({
   head: () => ({
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/_office/projects")({
 function Projects() {
   return (
     <RoomShell showSample={false}>
-      <ProjectRegister />
+      <RoomBox id="project-rooms.register" name="Project register"><ProjectRegister /></RoomBox>
     </RoomShell>
   );
 }
